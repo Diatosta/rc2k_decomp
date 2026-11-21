@@ -54,7 +54,7 @@ pub fn light_word(
 }
 
 /// The light word's bit for lights on (set in every drawn car's).
-pub const LIGHTS_ON: u32 = 0x20;
+pub(crate) const LIGHTS_ON: u32 = 0x20;
 
 /// Whether a car's lights are drawn, from its light word.
 pub fn lights_on(word: u32) -> bool {
@@ -62,7 +62,7 @@ pub fn lights_on(word: u32) -> bool {
 }
 
 /// The depth entries one car's lights may add (its own and its flares).
-pub const ENTRIES_A_CAR: u32 = 25;
+pub(crate) const ENTRIES_A_CAR: u32 = 25;
 
 /// What the car lights refuse: no race cars or more than eight, and a depth list without room
 /// for every car's entries.
@@ -77,7 +77,7 @@ pub fn check_car_lights(cars: u32, count: u32, room: u32) -> Result<(), Invalid>
 }
 
 /// The count from which a car part's sound wakes.
-pub const WAKE_COUNT: u32 = 10;
+pub(crate) const WAKE_COUNT: u32 = 10;
 
 /// What happens to one part slot's sound.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -101,11 +101,10 @@ pub fn part_wake(flag: u32, count: u32) -> PartWake {
     }
 }
 
-/// Two colours added byte by byte, each held to 0xFF: four bytes with MMX, else the low three.
-pub fn add_colours(a: u32, b: u32, mmx: bool) -> u32 {
-    let bytes = if mmx { 4 } else { 3 };
+/// Two colours added byte by byte, each held to 0xFF.
+pub fn add_colours(a: u32, b: u32) -> u32 {
     let mut out = a;
-    for k in 0..bytes {
+    for k in 0..4 {
         let s = ((a >> (8 * k)) & 0xFF) + ((b >> (8 * k)) & 0xFF);
         out = (out & !(0xFF << (8 * k))) | (s.min(0xFF) << (8 * k));
     }
@@ -123,7 +122,7 @@ pub fn multiply_colours(a: u32, b: u32) -> u32 {
 }
 
 /// A whole number held to 0 ..= 0xFF (signed).
-pub fn clamp_byte(v: u32) -> u32 {
+pub(crate) fn clamp_byte(v: u32) -> u32 {
     (v as i32).clamp(0, 0xFF) as u32
 }
 
@@ -174,7 +173,7 @@ pub fn lamp_grey(distance: u32, strength: u32) -> (u32, u32) {
 }
 
 /// The lamps there are at most (the light colour refuses past them).
-pub const MOST_LIGHT_LAMPS: u32 = 16;
+pub(crate) const MOST_LIGHT_LAMPS: u32 = 16;
 
 /// The light colour's refusals: no cars, more than eight, a null block, more than 16 lamps.
 pub fn check_light_colour(
@@ -195,12 +194,12 @@ pub fn check_light_colour(
 }
 
 /// A corner's colour, its light and with the face's flag 4 the two extra lights.
-pub fn corner_colour(light: u32, lit: bool, extra: impl FnOnce() -> (u32, u32), mmx: bool) -> u32 {
+pub fn corner_colour(light: u32, lit: bool, extra: impl FnOnce() -> (u32, u32)) -> u32 {
     if !lit {
         return light;
     }
     let (a, b) = extra();
-    add_colours(add_colours(light, a, mmx), b, mmx)
+    add_colours(add_colours(light, a), b)
 }
 
 /// The face's switches flag (+2) for the extra lights.
@@ -212,14 +211,7 @@ mod tests {
 
     #[test]
     fn colours() {
-        assert_eq!(
-            add_colours(0x80_F0_10_20, 0x90_20_F0_01, true),
-            0xFF_FF_FF_21
-        );
-        assert_eq!(
-            add_colours(0x80_F0_10_20, 0x90_20_F0_01, false),
-            0x80_FF_FF_21
-        );
+        assert_eq!(add_colours(0x80_F0_10_20, 0x90_20_F0_01), 0xFF_FF_FF_21);
         assert_eq!(
             multiply_colours(0xFF_80_40_FF, 0x80_80_FF_02),
             0x7F_40_3F_01
@@ -271,8 +263,8 @@ mod tests {
         assert!(check_light_colour(1, |_| 0, || 0).is_err());
         assert!(check_light_colour(1, |_| 1, || 17).is_err());
         assert!(check_light_colour(1, |_| 1, || 16).is_ok());
-        assert_eq!(corner_colour(5, false, || unreachable!(), true), 5);
-        assert_eq!(corner_colour(5, true, || (1, 2), true), 8);
+        assert_eq!(corner_colour(5, false, || unreachable!()), 5);
+        assert_eq!(corner_colour(5, true, || (1, 2)), 8);
     }
 
     #[test]

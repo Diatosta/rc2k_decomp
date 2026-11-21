@@ -1,9 +1,7 @@
 //! `menu::list_take_key`: a list menu's key: the pending key taken (`input::take_key`); none: a
-//! millisecond's sleep (`system::sleep`). A key: the key repeat count is reset unless it is the
+//! millisecond's sleep (`clock::sleep`). A key: the key repeat count is reset unless it is the
 //! last key again and the time since the last key (less 6) is negative, then one more; the key
 //! is kept as the last key.
-//!
-//! Callers: `race::replay_viewer`.
 
 /// The key, 0 for none.
 pub fn list_take_key(
@@ -12,20 +10,16 @@ pub fn list_take_key(
 ) -> u8 {
     let key = crate::input::take_key::take_key(input);
     if key == 0 {
-        crate::system::sleep::sleep(1);
+        crate::clock::sleep::sleep(1);
     } else {
-        let repeated = key == list_state.last_key.get();
+        let repeated = key == list_state.read().last_key;
         let (mut frame, mut moved) = (0, 0);
         if repeated {
-            (frame, moved) = (list_state.frame_clock.get(), list_state.move_clock.get());
+            (frame, moved) = (list_state.read().frame_clock, list_state.read().move_clock);
         }
-        list_state.repeats.set(rc2k_core::menu::list_menu::repeats(
-            list_state.repeats.get(),
-            repeated,
-            frame,
-            moved,
-        ));
-        list_state.last_key.set(key);
+        list_state.write().repeats =
+            rc2k_core::menu::list_menu::repeats(list_state.read().repeats, repeated, frame, moved);
+        list_state.write().last_key = key;
     }
     key
 }

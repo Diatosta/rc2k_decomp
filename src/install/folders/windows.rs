@@ -13,11 +13,7 @@ impl Folders for Windows {
     }
 
     fn normalised(path: &[u8], current: Current) -> Result<Option<Vec<u8>>, BadInput> {
-        rc2k_core::install::paths::normalise(
-            path,
-            &crate::strings::same_text::case_table(),
-            current,
-        )
+        rc2k_core::install::paths::normalise(path, current)
     }
 
     fn bad_name(folder: &[u8]) -> Result<bool, BadInput> {
@@ -31,7 +27,7 @@ impl Folders for Windows {
         Ok(rc2k_core::install::paths::bad_folder_name(text.as_slice())?)
     }
 
-    fn make(at: crate::memory::place::BytePlace) -> Result<bool, Refused> {
+    fn make(at: &[u8]) -> Result<bool, Refused> {
         crate::install::make_folders::walk(at)
     }
 
@@ -40,7 +36,7 @@ impl Folders for Windows {
             return Room::Unmeasured;
         }
         let letter = folder.first().copied().unwrap_or(0) as u32;
-        match crate::files::drive_free_space_kb::drive_free_space_kb(system, letter) {
+        match crate::files::drive_free_space_kb::drive_free_space_kb(&system.work().files, letter) {
             Some(kb) => Room::Kb(kb),
             None => Room::Unreadable,
         }

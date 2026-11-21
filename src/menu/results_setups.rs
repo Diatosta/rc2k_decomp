@@ -11,10 +11,9 @@
 //! 16, an offset past the four.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::captions_store::CaptionTables;
+use crate::menu::captions_store;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
-use crate::menu::results_store::PlayerFigures;
 use crate::system::owner::System;
 
 const POSITION_LIMIT: u32 = 16;
@@ -28,12 +27,12 @@ fn players(menus: &Menus, n: u32) -> Result<Vec<crate::menu::standings::PlayerCe
         .collect()
 }
 
-/// The figures of the player whose record is at byte `offset` of the player table.
-fn figures_at(menus: &Menus, offset: u32) -> Result<&PlayerFigures, Refused> {
+/// The index of the player whose record is at byte `offset` of the player table.
+fn player_at(offset: u32) -> Result<usize, Refused> {
     if offset > 12 || !offset.is_multiple_of(4) {
         return Err(BadInput("an offset past the four players").into());
     }
-    Ok(menus.play.results.player(offset as usize / 4)?)
+    Ok(offset as usize / 4)
 }
 
 /// The ranking of `rank_stage_times` (`by_totals` false) or `rank_totals`.
@@ -42,49 +41,56 @@ pub fn rank(menus: &Menus, by_totals: bool) -> Result<(), Refused> {
         menus
             .play
             .results
+            .read()
             .players
             .iter()
-            .map(|p| p.total.get())
+            .map(|p| p.total)
             .collect()
     } else {
         players(menus, 4)?.iter().map(|&r| r.get().time).collect()
     };
     let pairs =
         rc2k_core::menu::results::rank([values[0], values[1], values[2], values[3]], by_totals);
-    let targets: Vec<_> = pairs
+    let targets: Vec<usize> = pairs
         .iter()
-        .map(|&(o, _)| figures_at(menus, o))
+        .map(|&(o, _)| player_at(o))
         .collect::<Result<_, _>>()?;
-    for (k, &(o, _)) in pairs.iter().enumerate() {
-        menus.play.results.order[k].set(o);
+    {
+        let mut results = menus.play.results.write();
+        for (k, &(o, _)) in pairs.iter().enumerate() {
+            results.order[k] = o;
+        }
     }
-    menus.screens.draw_work.button_y.set(3);
-    for (k, to) in targets.iter().enumerate() {
-        to.position.set(k as u32 + 1);
+    menus.screens.draw_work.write().button_y = 3;
+    {
+        let mut results = menus.play.results.write();
+        for (k, &to) in targets.iter().enumerate() {
+            results.players[to].position = k as u32 + 1;
+        }
     }
     Ok(())
 }
 
-/// The stage record's +0x34, the time the bonus is counted from.
+/// The stage record's `race_stage`, the time the bonus is counted from.
 fn stage_time(screens: &Screens, system: &System) -> Result<u32, Refused> {
     let records = system.records().stage_tables.group_event_table(
-        screens.event.stage.group.get(),
-        screens.event.stage.sub.get(),
+        screens.event.read().stage.group,
+        screens.event.read().stage.sub,
     )?;
     Ok(crate::records::stages_store::row(
         &system.records().stage_tables,
         records,
-        screens.event.stage.number.get(),
+        screens.event.read().stage.number,
     )?
     .record(&system.records().stage_tables)?
     .race_stage())
 }
 
-fn points(captions: &CaptionTables, position: u32) -> Result<u32, Refused> {
+fn points(position: u32) -> Result<u32, Refused> {
     if position >= POSITION_LIMIT {
         return Err(BadInput("a position past the points table").into());
     }
-    Ok(captions.place_points[position as usize].get())
+    Ok(captions_store::PLACE_POINTS[position as usize])
 }
 
 /// `menu::score_four_players` (`n` 4) or `score_two_players` (`n` 2).
@@ -96,50 +102,50 @@ pub fn score(menus: &Menus, system: &System, n: usize) -> Result<(), Refused> {
         rc2k_core::menu::results::two_places([times[0], times[1]]).to_vec()
     } else {
         (0..n)
-            .map(|k| menus.play.results.players[k].position.get())
+            .map(|k| menus.play.results.read().players[k].position)
             .collect()
     };
     let earned: Vec<u32> = positions
         .iter()
-        .map(|&q| points(&menus.tables.captions, q))
+        .map(|&q| points(q))
         .collect::<Result<_, _>>()?;
-    let results = &menus.play.results;
-    for player in &results.players[..n] {
-        player.before.set(player.total.get());
+    let mut results = menus.play.results.write();
+    for player in &mut results.players[..n] {
+        player.before = player.total;
     }
     if n == 2 {
-        results.players[0].position.set(positions[0]);
-        results.players[1].position.set(positions[1]);
+        results.players[0].position = positions[0];
+        results.players[1].position = positions[1];
     }
-    for (k, player) in results.players[..n].iter().enumerate() {
+    for (k, player) in results.players[..n].iter_mut().enumerate() {
         let sc = rc2k_core::menu::results::score(
-            player.before.get(),
+            player.before,
             earned[k],
             times[k],
             target,
             records[k].get().figure,
         );
-        player.points.set(sc.points);
-        player.time_bonus.set(sc.bonus);
-        player.extra.set(sc.extra);
-        player.sum.set(sc.sum);
-        player.total.set(sc.total);
+        player.points = sc.points;
+        player.time_bonus = sc.bonus;
+        player.extra = sc.extra;
+        player.sum = sc.sum;
+        player.total = sc.total;
     }
     Ok(())
 }
 
-pub fn rank_stage_times(menus: &Menus) -> Result<(), Refused> {
+pub(super) fn rank_stage_times(menus: &Menus) -> Result<(), Refused> {
     rank(menus, false)
 }
 
-pub fn rank_totals(menus: &Menus) -> Result<(), Refused> {
+pub(super) fn rank_totals(menus: &Menus) -> Result<(), Refused> {
     rank(menus, true)
 }
 
-pub fn score_four_players(menus: &Menus, system: &System) -> Result<(), Refused> {
+pub(super) fn score_four_players(menus: &Menus, system: &System) -> Result<(), Refused> {
     score(menus, system, 4)
 }
 
-pub fn score_two_players(menus: &Menus, system: &System) -> Result<(), Refused> {
+pub(super) fn score_two_players(menus: &Menus, system: &System) -> Result<(), Refused> {
     score(menus, system, 2)
 }

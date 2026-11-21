@@ -2,8 +2,8 @@
 //! (`race::set_course_number`, `race::set_cdat_number` with 0), its flag (`course_present[n]`) to
 //! 0, and reads 4 bytes of `srclvls\levelNN\cdat00c` into `work_dword` (`files::read_whole_file`);
 //! if four are read (`read_bytes`) the flag is 1; else it tries the same with
-//! `files\levels\levelNN\cdat00c.sq`. Called by `scene::set_up_lit_engine`. Refused: what
-//! `files::read_whole_file` refuses (nothing written then).
+//! `files\levels\levelNN\cdat00c.sq`. Refused: what `files::read_whole_file` refuses (nothing
+//! written then).
 
 use crate::errors::Refused;
 use crate::files::read_whole_file::read_whole_file_cells;
@@ -13,9 +13,12 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
-fn paths(course: &Course) -> [&dyn crate::memory::cells::Store; 2] {
+fn paths(course: &Course) -> Result<[Vec<u8>; 2], crate::errors::BadInput> {
     let p = course.level_paths();
-    [&p.cdat_src, &p.cdat_files]
+    Ok([
+        crate::files::cstring_in(&p.cdat_src)?,
+        crate::files::cstring_in(&p.cdat_files)?,
+    ])
 }
 use rc2k_core::race::stage_objects::COURSES;
 
@@ -30,18 +33,22 @@ pub fn find_present_courses(
     for n in 0..COURSES {
         set_course_number(n, race, scene)?;
         set_cdat_number(course, 0);
-        shared.switches.get().course_present[n as usize].set(0);
-        let present = course_present(paths(course).len() as u32, |file| {
-            let path = paths(course)[file as usize];
+        shared.switches.borrow_mut().course_present[n as usize] = 0;
+        let present = course_present(2, |file| {
+            let path = paths(course)?
+                .into_iter()
+                .nth(file as usize)
+                .unwrap_or_default();
             debug_assert_eq!(PROBE_BYTES, 4);
-            let bytes_read = read_whole_file_cells(
-                &crate::files::cstring(path, "a course file's path")?,
-                std::slice::from_ref(&scene.drawing.scene.get().work_dword),
-            )?;
-            Ok::<u32, Refused>(bytes_read)
+            let probe = [crate::memory::session::PlainDword::new(
+                scene.draw_work().work_dword,
+            )];
+            let read = read_whole_file_cells(&path, &probe);
+            scene.draw_work_mut().work_dword = probe[0].get();
+            Ok::<u32, Refused>(read?)
         })?;
         if present {
-            shared.switches.get().course_present[n as usize].set(1);
+            shared.switches.borrow_mut().course_present[n as usize] = 1;
         }
     }
     Ok(())

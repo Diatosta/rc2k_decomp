@@ -2,11 +2,13 @@
 //! network and the audio side read too.
 
 use crate::errors::BadInput;
-use crate::memory::session::{DrawShared, GameThread};
+use crate::memory::session::{DrawArc, DrawPlain, DrawShared, GameThread};
 use crate::physics::car_store::Car;
+use crate::physics::run_store::PhysicsRun;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::blocks_store::CarBlocks;
 use crate::race::buffers_store::Buffers;
+use crate::race::checkpoints_store::{Checkpoints, CheckpointsRef};
 use crate::race::replay::Replays;
 use crate::race::replay_file_store::ReplayFileBlock;
 use crate::race::replay_path::Templates;
@@ -19,6 +21,7 @@ use crate::race::view_store::RaceView;
 use crate::race::viewer_buffers_store::ViewerBuffers;
 use crate::race::work_store::RaceWork;
 use rc2k_core::net::net_race::NetRace;
+use std::cell::{Ref, RefCell, RefMut};
 
 /// The race's stores the menus, the network and the audio side read too.
 pub struct RaceShared {
@@ -26,12 +29,14 @@ pub struct RaceShared {
     pub work: DrawShared<RaceWork>,
     pub state: RaceState,
     pub buffers: Buffers,
+    /// The checkpoint tables: shared with the drawing parts copy-on-write.
+    pub checkpoints: DrawArc<Checkpoints>,
     /// One copy: no drawing part writes it.
-    pub vars: DrawShared<RaceVars>,
+    pub vars: crate::memory::session::GameThread<RaceVars>,
     /// One copy: no drawing part writes it.
-    pub view: DrawShared<RaceView>,
+    pub view: GameThread<RaceView>,
     /// One copy: no drawing part writes it.
-    pub switches: DrawShared<FrameSwitches>,
+    pub switches: DrawPlain<FrameSwitches>,
     /// One copy: the drawing only reads it.
     pub physics_tables: DrawShared<PhysicsTables>,
     /// The work car. One copy: the drawing does not read it, so the drawing threads need none of
@@ -40,10 +45,15 @@ pub struct RaceShared {
     /// The cars' blocks. One copy: no drawing part writes them (each view draws its own copy of
     /// its car, `ViewScratch::car`).
     pub car_blocks: DrawShared<CarBlocks>,
+    /// What the drawing keeps of each car (`race::car_parts_store`), written by the game's thread
+    /// before a frame's views are drawn and only read by the drawing parts.
+    pub car_parts: DrawShared<crate::race::car_parts_store::CarParts>,
     /// The replay files' names.
     pub replay_templates: Templates,
     /// The turn the race's sounds are placed by.
     pub heard_turn: GameThread<crate::race::heard_turn::HeardTurn>,
+    /// Whether the cars of the replay now viewed are all heard (`race::heard_cars`).
+    pub every_car_heard: std::sync::atomic::AtomicBool,
     main: GameThread<SharedMain>,
     /// The random numbers: the main generator and the sounds' and drawing's own streams. Drawing
     /// threads draw from it in the list's order (`Randoms::next_drawing`).
@@ -54,11 +64,14 @@ pub struct RaceShared {
 /// thread touches them).
 struct SharedMain {
     tables: RaceTables,
-    tyre_change: TyreChange,
+    tyre_change: RefCell<TyreChange>,
     replay_file: ReplayFileBlock,
     replays: Replays,
     /// `race::viewer_buffers_store`: the replay viewer's buffers.
     viewer: ViewerBuffers,
+    /// The race's clocks and input words. Borrowed for one statement at a time; the drawing
+    /// parts read the scene clock from the copy their scope was opened with.
+    run: RefCell<PhysicsRun>,
 }
 
 impl RaceShared {
@@ -67,23 +80,32 @@ impl RaceShared {
             work: DrawShared::new(RaceWork::new()),
             state: RaceState::new(),
             buffers: Buffers::new(),
-            vars: DrawShared::new(RaceVars::new()),
-            view: DrawShared::new(RaceView::new()),
-            switches: DrawShared::new(FrameSwitches::new()),
+            checkpoints: DrawArc::new(Checkpoints::new),
+            vars: crate::memory::session::GameThread::new(RaceVars::new()),
+            view: GameThread::new(RaceView::new()),
+            switches: DrawPlain::new(FrameSwitches::new()),
             physics_tables: DrawShared::new(PhysicsTables::new()),
             car: GameThread::new(Car::new()),
             car_blocks: DrawShared::new(CarBlocks::new()),
+            car_parts: DrawShared::new(crate::race::car_parts_store::CarParts::new()),
             replay_templates: Templates::new(),
             heard_turn: GameThread::new(crate::race::heard_turn::HeardTurn::new()),
+            every_car_heard: std::sync::atomic::AtomicBool::new(false),
             random: crate::math::next_random::Randoms::new(),
             main: GameThread::new(SharedMain {
                 tables: RaceTables::new(),
-                tyre_change: TyreChange::new(),
+                tyre_change: RefCell::new(TyreChange::new()),
                 replay_file: ReplayFileBlock::new(),
                 replays: Replays::new(),
                 viewer: ViewerBuffers::new(),
+                run: RefCell::new(PhysicsRun::new()),
             }),
         }
+    }
+
+    /// The checkpoint tables, on the game's thread.
+    pub fn checkpoints(&self) -> CheckpointsRef<'_> {
+        CheckpointsRef::Store(&self.checkpoints)
     }
 
     /// The work car (`CAR`): the game thread's.
@@ -97,12 +119,34 @@ impl RaceShared {
         self.car_blocks.get()
     }
 
+    /// The cars' drawing state, on the game's thread outside a drawing scope (a drawing part reads
+    /// it through its `scene::workers::DrawReads`).
+    pub fn car_parts(&self) -> &crate::race::car_parts_store::CarParts {
+        self.car_parts.get()
+    }
+
+    /// The race's clocks and input words, read: no write borrow may be held.
+    pub fn run(&self) -> Ref<'_, PhysicsRun> {
+        self.main.get().run.borrow()
+    }
+
+    /// The race's clocks and input words, to write: no other borrow may be held.
+    pub fn run_mut(&self) -> RefMut<'_, PhysicsRun> {
+        self.main.get().run.borrow_mut()
+    }
+
     pub fn tables(&self) -> &RaceTables {
         &self.main.get().tables
     }
 
-    pub fn tyre_change(&self) -> &TyreChange {
-        &self.main.get().tyre_change
+    /// The tyre change's variables, read: no write borrow may be held.
+    pub fn tyre_change(&self) -> Ref<'_, TyreChange> {
+        self.main.get().tyre_change.borrow()
+    }
+
+    /// The tyre change's variables, to write: no other borrow may be held.
+    pub fn tyre_change_mut(&self) -> RefMut<'_, TyreChange> {
+        self.main.get().tyre_change.borrow_mut()
     }
 
     pub fn replay_file(&self) -> &ReplayFileBlock {
@@ -124,7 +168,7 @@ impl RaceShared {
     }
 
     /// `race_car` in the blocks `blocks` (a drawing part's, `scene::workers::DrawReads`).
-    pub fn race_car_in<'b>(
+    pub(super) fn race_car_in<'b>(
         work: &RaceWork,
         blocks: &'b CarBlocks,
         n: usize,
@@ -176,11 +220,18 @@ impl RaceShared {
 
     /// View `n`'s car block (None for none).
     pub fn view_car(&self, n: usize) -> Option<&Car> {
-        self.car_blocks().of(self.view.get().view_blocks[n].get())
+        match self.view.get().view_blocks.get(n) {
+            Some(block) => self.car_blocks().of(block.get()),
+            // The further views of a split screen show their own player's car.
+            None if n < 4 => self
+                .car_blocks()
+                .of(crate::race::blocks_store::block_handle(n)),
+            None => None,
+        }
     }
 
     /// View `n`'s car block, or the end of the program for none (as `Car::at` on its address).
-    pub fn view_car_or_end(&self, n: usize) -> &Car {
+    pub(super) fn view_car_or_end(&self, n: usize) -> &Car {
         self.view_car(n).unwrap_or_else(|| {
             crate::fatal::raise::end(
                 "physics::Car::at",

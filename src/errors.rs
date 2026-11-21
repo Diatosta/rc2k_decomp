@@ -16,11 +16,24 @@ pub struct FatalError {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BadInput(pub &'static str);
 
-/// Either reason, for functions that can meet both.
+/// A trouble the game can go back from: a file of the player's or a stage's data that cannot
+/// be used. The reason is a short text for the player. Where a menu or a race is running it
+/// ends in the main menu (`error_dialog::recover`), after the player has been told.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Recover(pub &'static str);
+
+/// Either reason, for functions that can meet them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Refused {
     Fatal(FatalError),
     BadInput(BadInput),
+    Recoverable(Recover),
+}
+
+impl From<Recover> for Refused {
+    fn from(e: Recover) -> Self {
+        Refused::Recoverable(e)
+    }
 }
 
 impl From<FatalError> for Refused {
@@ -47,9 +60,24 @@ impl From<rc2k_core::Invalid> for Refused {
     }
 }
 
-/// The carry and zero results a function returns for callers that test them.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct CarryZeroFlags {
-    pub carry: bool,
-    pub zero: bool,
+/// Reads for closures that a core function calls (they cannot return an error): the first
+/// refusal is kept and the reads after it answer 0; the caller runs `check` right after the
+/// core call, before it uses anything the core made.
+#[derive(Default)]
+pub(super) struct Fault(std::cell::Cell<Option<BadInput>>);
+
+impl Fault {
+    /// The value, or the type's default after keeping the refusal.
+    pub fn ok<T: Default>(&self, r: Result<T, BadInput>) -> T {
+        r.unwrap_or_else(|e| {
+            if self.0.get().is_none() {
+                self.0.set(Some(e));
+            }
+            T::default()
+        })
+    }
+
+    pub fn check(&self) -> Result<(), BadInput> {
+        self.0.take().map_or(Ok(()), Err)
+    }
 }

@@ -5,7 +5,7 @@ use crate::audio::own::AudioOwn;
 use crate::errors::Refused;
 
 /// The setting's KB (0: one) taken on its list.
-pub fn take_sample_buffer(state: &AudioOwn) {
+pub(super) fn take_sample_buffer(state: &AudioOwn) {
     let size = rc2k_core::audio::levels::sample_buffer_size(state.sample_buffer_kb.get());
     state.sample_buffer_size.set(size);
     // Rust's memory (`audio::sample_data`), counted as the game's block was.
@@ -16,7 +16,7 @@ pub fn take_sample_buffer(state: &AudioOwn) {
 }
 
 /// Its list freed, size and buffer 0.
-pub fn free_sample_buffer(state: &AudioOwn) -> Result<(), Refused> {
+pub(super) fn free_sample_buffer(state: &AudioOwn) -> Result<(), Refused> {
     crate::memory::free_list::free_list(&state.sample_buffer_memory)?;
     state
         .sample_data
@@ -26,27 +26,28 @@ pub fn free_sample_buffer(state: &AudioOwn) -> Result<(), Refused> {
     Ok(())
 }
 
-/// Unless A3D, the primary buffer played looping; a failure sets the lost flag.
-pub fn play_primary(state: &AudioOwn) {
+/// The primary buffer played looping; a failure is logged.
+pub(super) fn play_primary(state: &AudioOwn) {
     let p = state.primary_buffer.get();
-    if crate::audio::buffer_settings::a3d(state) || p == 0 {
+    if p == 0 {
         return;
     }
-    if crate::platform::sound::play(p, 1) != 0 {
-        state.sound_buffer_lost.set(1);
+    let r = crate::platform::sound::play(p, 1);
+    if r != 0 {
+        crate::audio::buffer_play::log_failed_play("the primary buffer", r);
     }
 }
 
-/// Unless A3D, the primary buffer stopped.
-pub fn stop_primary(state: &AudioOwn) {
+/// The primary buffer stopped.
+pub(super) fn stop_primary(state: &AudioOwn) {
     let p = state.primary_buffer.get();
-    if !crate::audio::buffer_settings::a3d(state) && p != 0 {
+    if p != 0 {
         crate::platform::sound::stop(p);
     }
 }
 
 /// The listener released and forgotten.
-pub fn release_sound_listener(state: &AudioOwn) {
+pub(super) fn release_sound_listener(state: &AudioOwn) {
     let l = state.sound_listener.get();
     if l != 0 {
         crate::platform::sound::release(l);

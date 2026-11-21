@@ -2,7 +2,7 @@
 //! fails, `Acquire` and the record's first 0x50 bytes are copied over the state, and the rest then
 //! works on the record 0x50 bytes further on (a slip kept as is: zeros were meant). Then the three
 //! axes by the record's kind (x, y, and a third from a negative y or the state's other dwords, made
-//! positive) go into +0x2C, +0x30, +0x34 and the 32 buttons (state +0x30 .., bit 7) into +0x38 as
+//! positive) go into `axes` and the 32 buttons (the state's `buttons`, bit 7) into `buttons` as
 //! bits. Record layout: `input/devices.rs`.
 
 use crate::errors::Refused;
@@ -15,7 +15,7 @@ fn state(devices: &Devices, n: u32) -> u32 {
     devices.device_state[n as usize].get()
 }
 
-/// The record's byte at one of the four places of the axis codes (+0x1A .. +0x1D).
+/// The record's byte at one of the four places of the axis codes (`axis_code` and `axis_pick`).
 fn selector(record: &InputDevice, place: u32) -> u8 {
     match place {
         SELECT_SECOND => record.axis_code_byte(2),
@@ -27,7 +27,7 @@ fn selector(record: &InputDevice, place: u32) -> u8 {
 }
 
 /// The device `record` polled (see the header).
-pub fn poll_device(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
+pub(super) fn poll_device(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
     let device = record.device.get();
     if record.acquired.get() != 1 || device == 0 {
         return Ok(());
@@ -71,9 +71,9 @@ pub fn poll_device(devices: &Devices, record: &InputDevice) -> Result<(), Refuse
 }
 
 /// The rest of the poll after a failed read, on the record 0x50 bytes on (sic: the first
-/// effect's fields stand where the axes were meant): the kind is the dword at +0x58, the
-/// third and fourth bytes of the effect's `pending` and the first two of its `object` are the
-/// four axis selectors (+0x6A .. +0x6D), and the axes and buttons go to +0x7C .. +0x88, the
+/// effect's fields stand where the axes were meant): the kind is the last dword of the
+/// effect's `guid`, the third and fourth bytes of its `pending` and the first two of its
+/// `object` are the four axis selectors, and the axes and buttons go to the
 /// effect's `sample_period`, `gain`, `trigger_button` and `trigger_repeat_interval`.
 fn poll_shifted(devices: &Devices, record: &InputDevice) {
     use rc2k_core::input::joystick::{poll_axes, poll_buttons};

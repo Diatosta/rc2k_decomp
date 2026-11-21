@@ -1,5 +1,5 @@
 //! The game's own software mixer: the playing channels mixed into a work buffer of left and right
-//! `i32`s, then clipped into the sound buffer's format. The standalone mixes this way.
+//! `i32`s, then clipped into the sound buffer's format.
 //!
 //! A channel's frame is blended with the next by the position's fraction, as DirectSound
 //! resamples (fixed: the game took the frame the position is in, whose steps gave the Dolby
@@ -8,9 +8,9 @@
 use crate::Invalid;
 
 /// A sample format bit: eight bits a value (unsigned, 0x80 the middle), else sixteen.
-pub const EIGHT_BITS: u32 = 0x10;
+pub(crate) const EIGHT_BITS: u32 = 0x10;
 /// A sample format bit: one value a frame, else left and right.
-pub const MONO: u32 = 0x100;
+pub(crate) const MONO: u32 = 0x100;
 /// A channel's kind that goes back to its start at its end.
 pub const LOOPING: u32 = 1;
 
@@ -36,7 +36,7 @@ pub struct Channel {
 
 /// The frame at `position` of a channel's data, (left, right) before the volumes (a mono sample is
 /// both); `byte` reads the data at an offset (offsets wrap).
-fn sample(format: u32, position: u32, byte: &dyn Fn(u32) -> u8) -> (i32, i32) {
+fn sample(format: u32, position: u32, byte: &impl Fn(u32) -> u8) -> (i32, i32) {
     let b = |at: u32| byte(at) as i32 - 0x80;
     let w = |at: u32| i16::from_le_bytes([byte(at), byte(at.wrapping_add(1))]) as i32;
     match (format & EIGHT_BITS != 0, format & MONO != 0) {
@@ -61,7 +61,7 @@ fn sample(format: u32, position: u32, byte: &dyn Fn(u32) -> u8) -> (i32, i32) {
 
 /// The channel's frame blended with the next by its position's fraction (`a + (b - a) *
 /// fraction / 2^32`, which stays between the two).
-fn blended(c: &Channel, byte: &dyn Fn(u32) -> u8) -> (i32, i32) {
+fn blended(c: &Channel, byte: &impl Fn(u32) -> u8) -> (i32, i32) {
     let (l0, r0) = sample(c.format, c.position, byte);
     if c.fraction == 0 {
         return (l0, r0);
@@ -85,7 +85,7 @@ fn blended(c: &Channel, byte: &dyn Fn(u32) -> u8) -> (i32, i32) {
 pub fn mix_channels(
     frames: u32,
     channels: &mut [Channel],
-    data: &dyn Fn(usize, u32) -> u8,
+    data: &impl Fn(usize, u32) -> u8,
     mix: &mut [i32],
 ) -> Result<(), Invalid> {
     if channels.is_empty() {

@@ -2,14 +2,12 @@
 //! `torque_share_b` (32); s = |car speed| / `torque_share_c` held to at most 1.0 (a lower or
 //! unordered value is left); d = (n - the car's `gear_ratio_setting`) / n; `torque_share` = d +
 //! (1 - d) s, and `drive_torque` is multiplied by it.
-//!
-//! Callers: `physics::test_drive_run`, `physics::drive_force`.
 
-use crate::effects::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::toward_one;
 use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
+use crate::physics::figures::{TORQUE_SHARE_A, TORQUE_SHARE_B, TORQUE_SHARE_C};
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use std::cmp::Ordering;
@@ -23,20 +21,20 @@ pub fn drive_torque_share(
     numbers: &Numbers,
     scene: &crate::scene::owner::Scene,
 ) -> u32 {
-    let drawing = scene.drawing.scene.get();
-    let (count, speed_share, gears_share) = (
-        &drawing.scratch,
-        &drawing.work_float_a,
-        &drawing.work_float_b,
+    let (speed_share, gears_share) = (
+        crate::memory::session::PlainFloat::new(scene.draw_work().work_float_a),
+        crate::memory::session::PlainFloat::new(scene.draw_work().work_float_b),
     );
+    // The step's count: stored before it is read, as a whole number.
+    let count = crate::memory::session::PlainDword::new(0);
     let n = if car.drive_kind.get() == 1 {
-        tables.torque_share_a.get()
+        TORQUE_SHARE_A
     } else {
-        tables.torque_share_b.get()
+        TORQUE_SHARE_B
     };
     count.set(n);
     speed_share.set(bh::stf(
-        car.local_velocity[2].ld().abs() / bh::int(tables.torque_share_c.get()),
+        car.local_velocity.ld(2).abs() / bh::int(TORQUE_SHARE_C),
     ));
     let one = numbers.one.get();
     let below = !matches!(
@@ -48,8 +46,8 @@ pub fn drive_torque_share(
     }
     // The gears left go through the cell as a whole number, then their share of the count
     // replaces it.
-    let eax = count.get().wrapping_sub(car.gear_ratio_setting.get());
-    gears_share.set(x87::int_ratio(eax as i32, count.get() as i32));
+    let gears_left = count.get().wrapping_sub(car.gear_ratio_setting.get());
+    gears_share.set(x87::int_ratio(gears_left as i32, count.get() as i32));
     tables
         .torque_share
         .set(toward_one(gears_share.get(), speed_share.get()));
@@ -57,5 +55,10 @@ pub fn drive_torque_share(
         tables.drive_torque.get(),
         tables.torque_share.get(),
     ));
-    eax
+    {
+        let mut work = scene.draw_work_mut();
+        work.work_float_a = speed_share.get();
+        work.work_float_b = gears_share.get();
+    }
+    gears_left
 }

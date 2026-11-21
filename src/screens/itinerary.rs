@@ -32,10 +32,10 @@ pub fn draw_itinerary(
         }
         let stages = &system.records().stage_tables;
         let first = record_at(menus, system, 0)?;
-        let heading = if menus.play.champ_view.event_mode.get() == 0x13 {
+        let heading = if menus.play.champ_view.read().event_mode == 0x13 {
             crate::screens::stage_panel::section_title(
                 &menus.lists,
-                menus.screens.event.section.get(),
+                menus.screens.event.read().section,
             )?
         } else {
             first.record(stages)?.name()
@@ -60,7 +60,7 @@ pub fn draw_itinerary(
                 _ => Err(INVALID_STAGE.into()),
             }
         };
-        let fault = crate::menu::event_flow::Fault::default();
+        let fault = crate::errors::Fault::default();
         let ends_at = |n: u32| fault.ok(record(n).map(|r| r.tag(stages))) == u32::MAX;
         let drawn = rc2k_core::screens::itinerary::itinerary(
             &mut GameScreen::<
@@ -70,7 +70,7 @@ pub fn draw_itinerary(
             heading,
             &row,
             &ends_at,
-            menus.screens.event.stage_in_section.get(),
+            menus.screens.event.read().stage_in_section,
             crate::strings::units::units(o.strings),
         );
         fault.check()?;

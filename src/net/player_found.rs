@@ -18,7 +18,5 @@ pub fn player_found(net: &Net, id: u32, short: &[u8]) -> Result<u32, Refused> {
 }
 
 pub fn callback(net: &Net, id: u32, short: &[u8]) -> u32 {
-    crate::net::lobby::callback_entry("net::player_found", 0x41929E, || {
-        player_found(net, id, short)
-    })
+    crate::net::lobby::callback_entry("net::player_found", || player_found(net, id, short))
 }

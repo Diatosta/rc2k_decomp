@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- The macOS bundle's property list (`deploy_standalone.sh mac`): `Rally Championship.app`,
+<!-- The macOS bundle's property list (`build.sh mac`): `Rally Championship.app`,
      its program `Contents/MacOS/rc2k`, which runs in the folder that holds the bundle (the
-     game's folder: `os::enter_bundle_folder`). -->
+     game's folder: `os::enter_bundle_folder`), and its icon `Contents/Resources/icon.icns`
+     (`assets/icon.icns`). -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -9,6 +10,8 @@
     <string>Rally Championship</string>
     <key>CFBundleDisplayName</key>
     <string>Rally Championship</string>
+    <key>CFBundleIconFile</key>
+    <string>icon</string>
     <key>CFBundleExecutable</key>
     <string>rc2k</string>
     <key>CFBundleIdentifier</key>

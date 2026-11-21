@@ -3,9 +3,9 @@
 //! the ground.
 
 /// Below this height (signed) the camera is low.
-pub const LOW: u32 = 0x800;
+pub(crate) const LOW: u32 = 0x800;
 /// At this height (signed) or more the camera is clear.
-pub const CLEAR: u32 = 0x10000;
+pub(crate) const CLEAR: u32 = 0x10000;
 /// The x offsets across the heading (half a unit either way) that must have ground.
 pub const SIDES: [u32; 2] = [0xFFFF_8000, 0x8000];
 
@@ -28,14 +28,16 @@ pub fn low_switch_looks(below_zero: bool, switching: u32, mode: u32) -> bool {
 }
 
 /// The state a low-camera switch sets: `before` the mode to return to, mode 4, under way,
-/// `w674` the share 0, `w670` the length 10, and the clock at its start.
+/// `switch_share` the share 0, `switch_length` the length 10, and the clock at its start.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LowSwitch {
     pub before: u32,
     pub mode: u32,
     pub switching: u32,
-    pub w674: u32,
-    pub w670: u32,
+    /// The switch's share (0).
+    pub switch_share: u32,
+    /// The switch's length in steps (10).
+    pub switch_length: u32,
     pub clock: u32,
 }
 
@@ -45,8 +47,8 @@ pub fn low_switch(mode: u32, clock: u32) -> LowSwitch {
         before: mode.wrapping_add(1),
         mode: 4,
         switching: 1,
-        w674: 0,
-        w670: 10,
+        switch_share: 0,
+        switch_length: 10,
         clock,
     }
 }
@@ -59,10 +61,10 @@ pub fn back_checkpoint(checkpoint: u32, back: u32) -> Option<u32> {
 
 /// The turn back's first step, and the step at or below which it ends.
 pub const FIRST_TURN_STEP: u32 = 0x400_0000;
-pub const LAST_TURN_STEP: u32 = 0x1000;
+pub(crate) const LAST_TURN_STEP: u32 = 0x1000;
 
 /// The gap from the heading to the kept one, made positive (signed).
-pub fn turn_gap(kept: u32, heading: u32) -> u32 {
+pub(crate) fn turn_gap(kept: u32, heading: u32) -> u32 {
     let d = kept.wrapping_sub(heading);
     if (d as i32) < 0 { d.wrapping_neg() } else { d }
 }

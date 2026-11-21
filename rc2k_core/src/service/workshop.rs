@@ -8,15 +8,15 @@ use crate::menu::player::Player;
 use crate::service::car::Part;
 
 pub const BODY: u32 = 3;
-pub const GEARBOX: u32 = 0xE;
-pub const TYRES: u32 = 0xF;
+pub(crate) const GEARBOX: u32 = 0xE;
+pub(crate) const TYRES: u32 = 0xF;
 /// The state bits a repaired part sets in `state_flags`: the tyres', the body's (all the
 /// others).
-pub const TYRE_BITS: u32 = 0x1E;
-pub const BODY_BITS: u32 = 0xFFFF_FFE1;
+pub(crate) const TYRE_BITS: u32 = 0x1E;
+pub(crate) const BODY_BITS: u32 = 0xFFFF_FFE1;
 
 /// The parts whose wear is zeroed before the repairs are shown, by item.
-pub const RESET_RUNS: [(u32, Part); 5] = [
+pub(crate) const RESET_RUNS: [(u32, Part); 5] = [
     (GEARBOX, Part::Gearbox),
     (BODY, Part::Body),
     (7, Part::Lights),
@@ -29,15 +29,16 @@ fn damage(car: &mut Player, item: u32) -> &mut u32 {
 }
 
 /// The order the repairs are shown in.
-pub const REPAIR_ORDER: [u32; 14] = [2, 4, 6, 8, 0xA, 0xC, GEARBOX, 3, 5, 7, 9, 0xB, 0xD, TYRES];
+pub(crate) const REPAIR_ORDER: [u32; 14] =
+    [2, 4, 6, 8, 0xA, 0xC, GEARBOX, 3, 5, 7, 9, 0xB, 0xD, TYRES];
 
 /// Each step of the shown repair: this many milliseconds, 2 off the damage.
-pub const STEP_MS: i32 = 5;
+pub(crate) const STEP_MS: i32 = 5;
 pub const STEP: i32 = 2;
 /// The frames after each piece of work, in milliseconds.
-pub const PAUSE_MS: i32 = 500;
+pub(crate) const PAUSE_MS: i32 = 500;
 /// The wait at the end, in milliseconds.
-pub const END_SLEEP_MS: u32 = 1000;
+pub(crate) const END_SLEEP_MS: u32 = 1000;
 
 /// The setup values the work installs (the chosen one made the installed one and the
 /// car's), with their items.
@@ -62,7 +63,8 @@ impl Setting {
 }
 
 /// The setup items installed after the repairs: (item, setting).
-pub const SETUPS: [(u32, Setting); 2] = [(0x12, Setting::RideHeight), (0x13, Setting::Stiffness)];
+pub(crate) const SETUPS: [(u32, Setting); 2] =
+    [(0x12, Setting::RideHeight), (0x13, Setting::Stiffness)];
 
 /// The time-keeping variables.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -92,17 +94,23 @@ pub trait Workshop {
     fn clock(&mut self) -> u32;
     /// A frame of the service area.
     fn frame(&mut self);
+    /// The wait at the end.
     fn sleep(&mut self, milliseconds: u32);
+    /// Whether a key was pressed since the last asking (it is taken): the frames shown
+    /// after a piece of work end early then.
+    fn key_pressed(&mut self) -> bool {
+        false
+    }
 }
 
-/// Waits frames for `PAUSE_MS`.
+/// Waits frames for `PAUSE_MS`, or until a key.
 fn pause<W: Workshop>(w: &mut W) {
     let now = w.clock();
     w.set_timer(Timer::Start, now);
     loop {
         w.frame();
         let elapsed = w.clock().wrapping_sub(w.timer(Timer::Start));
-        if elapsed as i32 >= PAUSE_MS {
+        if elapsed as i32 >= PAUSE_MS || w.key_pressed() {
             return;
         }
     }

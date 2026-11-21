@@ -1,5 +1,5 @@
 //! `scene::rotate_point`: the point (three 80-bit values) turned and placed by the matrix (rows
-//! 0x10 bytes apart, the place at +0x30), left there unrounded.
+//! 0x10 bytes apart, the place in the fourth row), left there unrounded.
 //!
 //! Plain Rust: the x87's arithmetic in `X` (`math/x87_float.rs`), the point and the result as
 //! 80-bit values (exact for what `X` holds). The tests compare against recorded vectors
@@ -7,12 +7,24 @@
 
 use crate::math::cells::{Cells, load};
 use crate::math::x87_float::{Rounds, at_rounding};
-use crate::scene::x87_mem::{Base, fld_with, fld80_with, fstp80_with};
+use crate::math::x87_mem::{Base, fld_with, fld80_with, fstp80_with};
 
 /// `p` the point's three 80-bit values, the result the same way.
 pub fn rotate_point(m: &(impl Cells + ?Sized), p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
     let mut out = [[0u8; 10]; 3];
     let m: [u32; 15] = load(m);
+    rotate(
+        &p[..],
+        &m[..],
+        std::cell::Cell::from_mut(&mut out[..]).as_slice_of_cells(),
+    );
+    out
+}
+
+/// `rotate_point` by a matrix held as values (its first fifteen floats, as their bits).
+pub fn rotate_point_by(m: &crate::scene::matrix::Matrix, p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
+    let mut out = [[0u8; 10]; 3];
+    let m: [u32; 15] = std::array::from_fn(|n| m[n].to_bits());
     rotate(
         &p[..],
         &m[..],

@@ -1,14 +1,15 @@
 //! `effects::move_pong_bat`: the pong bat's place kept (`PongState.saved_bat[0]`,
-//! `PongState.saved_bat[1]`), then `effects::pong_bat_back`. The keys' moves between (up
-//! and down by `Devices.keys_now`, held to a limit) are jumped over: the bat never moves
-//! (a slip kept as is).
+//! `PongState.saved_bat[1]`), moved up or down a step by player 1's steering (left up, right
+//! down) and held between the walls, then it is put back where it was if it
+//! now overlaps the ball. (The original jumps over the moves, so its bat never moves.)
 
-use crate::effects::pong::Pong;
-use crate::effects::pong_bat_back::pong_bat_back;
+use crate::effects::pong::{self};
+use crate::effects::pong_store::Pong;
 
-pub fn move_pong_bat(pong: &Pong) {
-    let p = &pong.state;
-    p.saved_bat[0].set(p.bat[0].get());
-    p.saved_bat[1].set(p.bat[1].get());
-    pong_bat_back(pong);
+/// `steer`: negative for left, positive for right, 0 for none.
+pub fn move_pong_bat(pong: &Pong, effects: &crate::effects::owner::Effects, steer: i32) {
+    let rules = pong::rules(pong, effects);
+    pong::with_court(pong, |court| {
+        court.move_bat(&rules, steer);
+    });
 }

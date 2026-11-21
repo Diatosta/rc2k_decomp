@@ -14,7 +14,7 @@
 //!
 //! Nothing here knows the game: it is tested on its own over loopback.
 
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs, UdpSocket};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
@@ -22,77 +22,57 @@ use std::time::{Duration, Instant};
 
 mod discovery;
 mod host;
+mod link;
 mod peer;
-mod protocol;
 #[cfg(test)]
 mod tests;
+pub(crate) mod wire;
 
 pub use discovery::{find_sessions, session_address};
-pub use protocol::MESSAGE_MOST;
-use protocol::*;
+use link::Link;
+use rc2k_core::net::protocol::*;
+pub use rc2k_core::net::protocol::{Desc, Group, Id, MESSAGE_MOST, Player, World};
 
-pub type Id = u32;
+/// A machine that takes no more for this long has its connection ended (each has a thread
+/// that reads whatever comes, so a machine busy loading does not stop reading).
+const WRITE_WAIT: Duration = Duration::from_secs(5);
+/// A joined machine hears from the host at least once a second (its pings); one that has heard
+/// nothing for this long has lost the host, as when the connection ends.
+const HOST_SILENCE: Duration = Duration::from_secs(30);
+#[cfg(test)]
+pub use wire::Pipe;
+pub use wire::Wire;
+
+#[cfg(steam_support)]
+/// The protocol's version as text (Steam lobbies carry it, so that only machines of the same
+/// version are listed).
+pub fn protocol_tag() -> &'static str {
+    std::str::from_utf8(MAGIC).unwrap_or("")
+}
 
 /// DirectPlay's TCP/IP port, when the game gives none.
 pub const DEFAULT_PORT: u16 = 47624;
 
 // DirectPlay's results (MAKE_DPHRESULT: 0x88770000 + the number).
 pub const DP_OK: u32 = 0;
-pub const DPERR_ACCESSDENIED: u32 = 0x8877_000A;
-pub const DPERR_CANTADDPLAYER: u32 = 0x8877_0028;
+const DPERR_ACCESSDENIED: u32 = 0x8877_000A;
+const DPERR_CANTADDPLAYER: u32 = 0x8877_0028;
 pub const DPERR_INVALIDPLAYER: u32 = 0x8877_0096;
-pub const DPERR_INVALIDGROUP: u32 = 0x8877_009B;
+const DPERR_INVALIDGROUP: u32 = 0x8877_009B;
 pub const DPERR_NOCONNECTION: u32 = 0x8877_00AA;
+/// The other machine runs another version of the protocol (not a DirectPlay number).
+const DPERR_VERSION: u32 = 0x8877_00E0;
 pub const DPERR_TIMEOUT: u32 = 0x8877_00F0;
-pub const DPERR_SESSIONLOST: u32 = 0x8877_0136;
-pub const DPERR_NONEWPLAYERS: u32 = 0x8877_014A;
+const DPERR_SESSIONLOST: u32 = 0x8877_0136;
+const DPERR_NONEWPLAYERS: u32 = 0x8877_014A;
+/// The host wants a password and the proof of it was wrong or missing (not a DirectPlay number).
+pub const DPERR_INVALIDPASSWORD: u32 = 0x8877_00E1;
 
 // The session's flags the host looks at.
 pub const DPSESSION_NEWPLAYERSDISABLED: u32 = 0x1;
 pub const DPSESSION_JOINDISABLED: u32 = 0x20;
-
-// DirectPlay's system messages (their first dword).
-pub const DPSYS_CREATEPLAYERORGROUP: u32 = 0x3;
-pub const DPSYS_DESTROYPLAYERORGROUP: u32 = 0x5;
-pub const DPSYS_ADDPLAYERTOGROUP: u32 = 0x7;
-pub const DPSYS_DELETEPLAYERFROMGROUP: u32 = 0x21;
-pub const DPSYS_SESSIONLOST: u32 = 0x31;
-pub const DPSYS_SETPLAYERORGROUPDATA: u32 = 0x102;
-
-/// A session's description (DirectPlay's `DPSESSIONDESC2` but the password).
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Desc {
-    pub flags: u32,
-    pub instance: [u8; 16],
-    pub application: [u8; 16],
-    pub max_players: u32,
-    pub current_players: u32,
-    pub name: String,
-    pub user: [u32; 4],
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Player {
-    pub name: String,
-    pub data: Vec<u8>,
-    pub machine: u32,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Group {
-    pub name: String,
-    pub data: Vec<u8>,
-    pub machine: u32,
-    pub members: Vec<Id>,
-}
-
-/// What every machine holds of the session.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct World {
-    pub desc: Desc,
-    pub players: BTreeMap<Id, Player>,
-    pub groups: BTreeMap<Id, Group>,
-}
+/// The session is locked by a password (DirectPlay's own flag), shown in the session list.
+pub const DPSESSION_PASSWORDREQUIRED: u32 = 0x400;
 
 /// A message for this machine's players: from a player or 0 (a system message), to the
 /// player it is for.
@@ -103,7 +83,7 @@ pub struct Incoming {
     pub data: Vec<u8>,
 }
 
-/// Signals a player's event (a Windows event's handle, in the standalone program).
+/// Signals a player's event (a `platform::sync` event's handle).
 pub type Signal = Arc<dyn Fn(u32) + Send + Sync>;
 
 // ---- a session ----
@@ -120,6 +100,12 @@ struct Shared {
     lost: bool,
     /// A message has been dropped (told once in the log).
     dropped: bool,
+    /// Each machine's round trip to the host in ms, a moving average: measured by the host,
+    /// told by it to every machine.
+    pings: HashMap<u32, u32>,
+    /// The host's pings each machine has not answered yet (their stamps, oldest first, at most
+    /// `PINGS_OUTSTANDING_MOST`): a `PONG` counts only for one of these.
+    pings_outstanding: HashMap<u32, Vec<u32>>,
 }
 
 impl Shared {
@@ -129,7 +115,7 @@ impl Shared {
             self.queue.push_back(m);
         } else if !self.dropped {
             self.dropped = true;
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "net: dropping messages from another machine ({} bytes, {} waiting)",
                 m.data.len(),
                 self.queue.len()
@@ -140,20 +126,117 @@ impl Shared {
 
 pub struct Session {
     me: u32,
+    /// The host's waits (pings, a wrong password's answer).
+    pace: Pace,
     shared: Mutex<Shared>,
     answered: Condvar,
     signal: Signal,
-    stop: AtomicBool,
+    /// Set when the session closes; the host's ping thread waits on it.
+    stop: Arc<Closing>,
+    /// The host's listening socket, as a connection from here reaches it: `close` connects to
+    /// wake the thread blocked accepting.
+    listener_at: Mutex<Option<std::net::SocketAddr>>,
     /// The host: each joined machine's connection. A joined machine: the host's (as 1).
-    links: Mutex<HashMap<u32, TcpStream>>,
+    links: Mutex<HashMap<u32, Link>>,
     port: u16,
+    /// When the session began: the clock the host's pings are stamped with.
+    started: Instant,
     /// The host's connections open.
     connections: AtomicUsize,
+    /// The host's password, as its salt and the key made from it (never the password).
+    lock: Option<Lock>,
+    /// What the connection's kind keeps while the session is open (the Steam lobby and its
+    /// listening socket); dropped when the session closes.
+    held: Mutex<Option<Box<dyn std::any::Any + Send>>>,
+}
+
+/// The host's own waits, which the tests shorten.
+#[derive(Clone, Copy)]
+struct Pace {
+    /// How often the host measures the round trip to each machine.
+    ping_every: Duration,
+    /// How long a wrong password waits before it is answered: guesses cost this each.
+    wrong_guess: Duration,
+}
+
+impl Default for Pace {
+    fn default() -> Self {
+        Pace {
+            ping_every: Duration::from_secs(1),
+            wrong_guess: Duration::from_secs(1),
+        }
+    }
+}
+
+#[cfg(test)]
+impl Pace {
+    /// Waits of a few milliseconds.
+    fn quick() -> Self {
+        Pace {
+            ping_every: Duration::from_millis(20),
+            wrong_guess: Duration::from_millis(5),
+        }
+    }
+}
+
+/// Whether a session has closed, and a wait that a closing cuts short.
+#[derive(Default)]
+struct Closing {
+    closed: Mutex<bool>,
+    changed: Condvar,
+}
+
+impl Closing {
+    fn is_set(&self) -> bool {
+        *self
+            .closed
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn set(&self) {
+        *self
+            .closed
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = true;
+        self.changed.notify_all();
+    }
+
+    /// Waits up to `time` for the closing; whether it has happened.
+    fn wait(&self, time: Duration) -> bool {
+        let closed = self
+            .closed
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *self
+            .changed
+            .wait_timeout_while(closed, time, |closed| !*closed)
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .0
+    }
+}
+
+/// What a locked session's host keeps of its password.
+struct Lock {
+    salt: [u8; rc2k_core::net::password::SALT_LEN],
+    key: [u8; rc2k_core::net::password::KEY_LEN],
 }
 
 impl Session {
-    fn new(me: u32, world: World, signal: Signal, port: u16) -> Arc<Session> {
+    fn new(me: u32, world: World, signal: Signal, port: u16, lock: Option<Lock>) -> Arc<Session> {
+        Session::new_paced(me, world, signal, port, lock, Pace::default())
+    }
+
+    fn new_paced(
+        me: u32,
+        world: World,
+        signal: Signal,
+        port: u16,
+        lock: Option<Lock>,
+        pace: Pace,
+    ) -> Arc<Session> {
         Arc::new(Session {
+            pace,
             me,
             shared: Mutex::new(Shared {
                 world,
@@ -165,12 +248,18 @@ impl Session {
                 next_machine: 2,
                 lost: false,
                 dropped: false,
+                pings: HashMap::new(),
+                pings_outstanding: HashMap::new(),
             }),
             answered: Condvar::new(),
             signal,
-            stop: AtomicBool::new(false),
+            stop: Arc::new(Closing::default()),
+            listener_at: Mutex::new(None),
             links: Mutex::new(HashMap::new()),
             connections: AtomicUsize::new(0),
+            lock,
+            held: Mutex::new(None),
+            started: Instant::now(),
             port,
         })
     }
@@ -223,6 +312,28 @@ impl Session {
         self.ask(Op::SetDesc(desc)).0
     }
 
+    /// The host's player (the first player the host made), when the session has one.
+    pub fn host_player(&self) -> Option<Id> {
+        self.lock()
+            .world
+            .players
+            .iter()
+            .find(|(_, p)| p.machine == 1)
+            .map(|(&id, _)| id)
+    }
+
+    /// The round trip to the host in ms (a moving average) of the machine that `player` is on, as
+    /// the host has measured it: none for the host's own players, and while none has been
+    /// measured yet.
+    pub fn ping_of(&self, player: Id) -> Option<u32> {
+        let s = self.lock();
+        let machine = s.world.players.get(&player)?.machine;
+        if machine == 1 {
+            return None;
+        }
+        s.pings.get(&machine).copied()
+    }
+
     pub fn world(&self) -> World {
         self.lock().world.clone()
     }
@@ -242,8 +353,7 @@ impl Session {
                 return DPERR_INVALIDPLAYER;
             }
         }
-        #[cfg(feature = "remote")]
-        let data = &crate::remote::mangled(data);
+        let data = &*crate::remote::mangled(data);
         if self.is_host() {
             self.route(from, to, data.to_vec());
         } else {
@@ -264,16 +374,66 @@ impl Session {
     }
 
     /// Leaves the session (the host: ends it for all).
-    pub fn close(&self) {
-        self.stop.store(true, Ordering::SeqCst);
-        let mut links = self
+    /// The host puts the machine of `player` out of the session: it is told, its connection ends
+    /// and its players go with it as when it leaves. `DPERR_ACCESSDENIED` on a machine that is
+    /// not the host, `DPERR_INVALIDPLAYER` for a player that is none, or this machine's own.
+    pub fn kick(&self, player: Id) -> u32 {
+        if !self.is_host() {
+            return DPERR_ACCESSDENIED;
+        }
+        let machine = self.lock().world.players.get(&player).map(|p| p.machine);
+        let Some(machine) = machine.filter(|&m| m != self.me) else {
+            return DPERR_INVALIDPLAYER;
+        };
+        let links = self
             .links
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        for link in links.values_mut() {
-            let _ = write_frame(link, &[BYE]);
-            let _ = link.shutdown(std::net::Shutdown::Both);
+        if let Some(link) = links.get(&machine) {
+            // Ends the machine's reader, which removes its players.
+            link.send_last(&[KICKED]);
         }
-        links.clear();
+        DP_OK
+    }
+
+    #[cfg(steam_support)]
+    /// Keeps `what` until the session closes.
+    pub fn hold(&self, what: Box<dyn std::any::Any + Send>) {
+        *self
+            .held
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(what);
+    }
+
+    pub fn close(&self) {
+        self.stop.set();
+        let listener_at = self
+            .listener_at
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        if let Some(at) = listener_at {
+            // The accepting thread sees the session closed and ends.
+            let _ = std::net::TcpStream::connect_timeout(&at, Duration::from_millis(200));
+        }
+        let links = std::mem::take(
+            &mut *self
+                .links
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        // Each machine is told the session is over and cut after it, a stalled one given what is
+        // left of one second in all.
+        let until = Instant::now() + Duration::from_secs(1);
+        for link in links.values() {
+            link.send_last(&[BYE]);
+        }
+        for link in links.values() {
+            link.wait_sent(until.saturating_duration_since(Instant::now()));
+        }
+        self.held
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
     }
 }

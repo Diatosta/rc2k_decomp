@@ -12,7 +12,7 @@
 //! The canvas path stays whole beside it. Drawing that cannot be a quad (a glyph the atlas does
 //! not hold, a full atlas, a rectangle, a picture) goes to the canvas, which the GPU puts under
 //! the quads; so that order stays exact, a canvas write first draws the quads noted so far onto
-//! the canvas (`before_canvas_write`, hooked into the screen's pixels' writes): the canvas then
+//! the canvas (`before_canvas_write`, called by the screen's pixels' write hook): the canvas then
 //! holds everything drawn up to that write, in order, and the quads everything after it.
 
 use crate::gfx::blit_glyph::Scratch;
@@ -39,13 +39,6 @@ struct Config {
     /// Quads are drawn (not with `RC2K_2D_QUADS=0`, nor while `RC2K_2D_CHECK` compares the
     /// canvas with a replay of the commands).
     quads: bool,
-    /// `RC2K_QUAD_CHECK`: each frame is also drawn the canvas way and the pictures compared.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-    check: bool,
-    /// `RC2K_QUAD_CHECK=2d`: both drawings leave out the 3D, so that only the 2D is compared
-    /// (the GPU's drawing of the 3D differs from itself by a few pixels a frame).
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-    check_2d_only: bool,
 }
 
 fn config() -> &'static Config {
@@ -55,25 +48,14 @@ fn config() -> &'static Config {
         let asked = std::env::var("RC2K_2D_QUADS").map_or(true, |v| v != "0");
         Config {
             // macOS's Metal draws the canvas way until its backend draws quads.
-            quads: cfg!(not(target_os = "macos")) && asked && !set("RC2K_2D_CHECK"),
-            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-            check: set("RC2K_QUAD_CHECK"),
-            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-            check_2d_only: std::env::var("RC2K_QUAD_CHECK").is_ok_and(|v| v == "2d"),
+            quads: cfg!(not(apple)) && asked && !set("RC2K_2D_CHECK"),
         }
     })
 }
 
-/// Whether `RC2K_QUAD_CHECK` is set: the GPU backend draws each frame twice and compares.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-pub fn check_wanted() -> bool {
-    config().quads && config().check
-}
-
-/// Whether the check leaves the 3D out of both drawings (`RC2K_QUAD_CHECK=2d`).
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-pub fn check_2d_only() -> bool {
-    check_wanted() && config().check_2d_only
+/// Whether quads are drawn at all (`RC2K_2D_QUADS`, `RC2K_2D_CHECK`).
+pub(super) fn drawn() -> bool {
+    config().quads
 }
 
 /// Which texels of the glyph table's glyph the atlas holds.
@@ -405,10 +387,10 @@ pub static SOLIDS: AtomicU64 = AtomicU64::new(0);
 /// Whether a glyph drawn now on the screen may be noted as a quad: they are on, a GPU backend
 /// that draws them holds the frame, and it is not a race's frame.
 pub fn wanted() -> bool {
-    config().quads
+    drawn()
         && crate::render::gpu_running()
         && crate::render::frame_on_gpu()
-        && !crate::platform::direct3d::game_scratch()
+        && !crate::d3d::device::game_scratch()
             .is_some_and(|scratch| crate::scene::workers::in_race(scratch.game_scratch()))
 }
 
@@ -773,7 +755,7 @@ impl Taken {
     /// they were noted for another size (the texels for the atlas stay).
     pub fn fitted_to(mut self, screen: (u32, u32)) -> Taken {
         if self.size != screen && !self.rects.is_empty() {
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "render: {} quads noted for a screen of {} x {}, drawn on one of {} x {}: dropped",
                 self.rects.len(),
                 self.size.0,
@@ -858,7 +840,7 @@ pub fn take() -> Taken {
 pub fn check_scratch(quad: Scratch, blit: Scratch, call: Call) {
     static LOGGED: AtomicU64 = AtomicU64::new(0);
     if quad != blit && LOGGED.fetch_add(1, Relaxed) < 50 {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "2d quads: MISMATCH: the work variables differ: quad {quad:?}, blit {blit:?}, glyph {} of table {:#x} at {},{}",
             call.glyph, call.table, call.x, call.y
         ));
@@ -1000,7 +982,7 @@ mod tests {
     fn a_glyph_table_rebuilt_is_decoded_again() {
         let fonts = &crate::test_support::own::gfx().fonts;
         let _lock = crate::test_support::test_lock();
-        let list = crate::memory::ListCells::new(crate::memory::MemoryList {
+        let list = crate::memory::PlainList::new(crate::memory::MemoryList {
             head: 0,
             total: 0,
             cursor: 0,
@@ -1038,7 +1020,7 @@ mod tests {
         use rc2k_core::gfx::raster::{Clip as CoreClip, Surface as CoreSurface};
         let _lock = crate::test_support::test_lock();
         let (width, height) = (20u32, 12u32);
-        let canvas = Arc::new(crate::memory::pool::PoolBytes::from_vec(vec![
+        let canvas = Arc::new(crate::platform::pool::PoolBytes::from_vec(vec![
             0xAA;
             (width * height * 4)
                 as usize
@@ -1142,7 +1124,7 @@ mod tests {
     fn a_solid_rectangle_demoted_fills_its_pixels() {
         let _lock = crate::test_support::test_lock();
         let (width, height) = (6u32, 4u32);
-        let canvas = Arc::new(crate::memory::pool::PoolBytes::from_vec(vec![
+        let canvas = Arc::new(crate::platform::pool::PoolBytes::from_vec(vec![
             0xAA;
             (width * height * 4)
                 as usize

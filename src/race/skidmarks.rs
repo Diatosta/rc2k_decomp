@@ -3,7 +3,6 @@
 //! views it shows in, a bit each) with two points each (`skid_points`, 0xC bytes a point: x, y, z
 //! whole numbers); each link and the one before it give a quad.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::BadInput;
 use crate::errors::Refused;
 
@@ -30,21 +29,21 @@ fn float_of_80(t: [u8; 10]) -> u32 {
 /// (`flat_depth`), else over the depth. x is x times that scale plus `view_centre`, y is
 /// `view_centre[1]` less y times it.
 pub(crate) fn project_record(
-    prefs: &crate::race::prefs_store::StagePrefs,
-    work: &crate::race::course_store::CourseWork,
+    prefs: crate::race::prefs_store::StagePrefsRef<'_>,
+    flat_depth: u32,
     v: &mut crate::scene::point_records::Record,
     window: &crate::scene::view_window::ViewWindow,
 ) {
     use crate::math::x87_float::{ONE, int, ld, st};
     let (x, y, z) = (ld(v[4]), ld(v[5]), ld(v[6]));
-    let reach = window.view_scale.ld();
-    let scale = if prefs.flat_depth.get() != 0 {
-        reach / (int(work.flat_depth.get() as i32) + ONE)
+    let reach = crate::math::x87_float::ld(window.borrow().view_scale);
+    let scale = if prefs.read(|p| p.flat_depth) != 0 {
+        reach / (int(flat_depth as i32) + ONE)
     } else {
         reach / z
     };
-    v[3] = st(x * scale + window.view_centre[0].ld());
-    v[7] = st(-(y * scale) + window.view_centre[1].ld());
+    v[3] = st(x * scale + crate::math::x87_float::ld(window.borrow().view_centre[0]));
+    v[7] = st(-(y * scale) + crate::math::x87_float::ld(window.borrow().view_centre[1]));
 }
 
 /// A skidmark point turned and projected: words 3 .. 8 of its vertex record.
@@ -63,14 +62,14 @@ fn skid_vertex(
     v: u32,
 ) -> Result<Turned, BadInput> {
     let turned = turn_skid_point(ctx, matrix, n)?;
-    put_turned(ctx.part, &ctx.view.polygon.quad_vertices, v, turned)?;
+    put_turned(ctx.part, &ctx.view.polygon.quads, v, turned)?;
     Ok(turned)
 }
 
 /// A point as `skid_vertex` turned it, put into the vertex record `v`.
 fn put_turned(
-    part: &crate::scene::workers::PartScratch,
-    quad: &[crate::memory::session::PlainDword; 32],
+    part: &crate::scene::scratch_store::PartScratch,
+    quad: &crate::scene::polygon_work_store::QuadSlot,
     v: u32,
     turned: Turned,
 ) -> Result<(), BadInput> {
@@ -86,28 +85,30 @@ fn turn_skid_point(
     n: u32,
 ) -> Result<Turned, BadInput> {
     {
-        let points = &ctx.reads.shadow_skids.skid_points;
         let at = n as usize * 0xC;
-        if at + 0xC > 0x6000 {
+        if at + 0xC > crate::race::shadow_skids_store::POINTS_LEN {
             return Err(BadInput("a skidmark point past the table"));
         }
-        let lift = ctx.reads.shadow_skids.skid_lift.get();
+        let (words, lift) = ctx
+            .reads
+            .shadow_skids
+            .read(|skids| ([0, 4, 8].map(|k| skids.point_word(at + k)), skids.skid_lift));
         use crate::math::x87_float::{Rounds, at_rounding};
         let turned = at_rounding!(|r| {
             let point = [
-                r.int(points.get_u32(at) as i32),
-                r.int(points.get_u32(at + 4) as i32) + r.ld(lift),
-                r.int(points.get_u32(at + 8) as i32),
+                r.int(words[0] as i32),
+                r.int(words[1] as i32) + r.ld(lift),
+                r.int(words[2] as i32),
             ];
             crate::scene::rotate_point::turned(r, &matrix[..], point).map(|v| r.st(v))
         });
         // Only words 3 .. 8 are written; the projection reads words 4 .. 6.
         let mut made = [0u32; 8];
         made[4..7].copy_from_slice(&turned);
-        if !crate::math::x87::below_or_unordered(made[6], &ctx.reads.numbers.k4096_a) {
+        if !crate::math::x87::below_or_unordered(made[6], ctx.reads.numbers.k4096_a) {
             project_record(
                 ctx.reads.stage_prefs,
-                ctx.reads.course_work,
+                ctx.reads.course_work.get().flat_depth,
                 &mut made,
                 &ctx.view.polygon.window,
             );
@@ -124,10 +125,10 @@ fn turn_skid_point(
 /// two points and the two before (vertices 3, 2, 0, 1), fogged (`scene::fog_polygon`), cut by
 /// depth and to the screen and drawn in black in mode 3 without the depth test. Refuses what the
 /// scene's functions refuse (mid-way; not met with four vertices).
-pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
+fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let race = ctx.race;
     let mut views = u32::MAX;
-    let mode: u32 = ctx.reads.vars.run_kind.get();
+    let mode: u32 = ctx.reads.vars.run_kind();
     if mode != 0 && mode != 2 {
         views = 1u32.wrapping_shl(ctx.view.drawn_view(race) & 0x1F);
     }
@@ -138,8 +139,8 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
         e.lamp_light.set(0);
     }
     let (u, w) = (
-        ctx.reads.vars.fade_uv[0].get(),
-        ctx.reads.vars.fade_uv[1].get(),
+        crate::race::vars_store::FADE_UV[0],
+        crate::race::vars_store::FADE_UV[1],
     );
     for e in entries {
         e.u.set(u);
@@ -150,22 +151,26 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
         e.amount.set(0x60);
         e.fog.set(0);
     }
-    ctx.view.polygon.polygon_textures[0].set(0xC0u32);
-    ctx.view.polygon.polygon_textures[1].set(0xC0u32);
-    let matrix: [u32; 15] = crate::math::cells::load(&ctx.view.matrices.view_matrix);
+    ctx.view.polygon.scalars.borrow_mut().polygon_textures[0] = 0xC0u32;
+    ctx.view.polygon.scalars.borrow_mut().polygon_textures[1] = 0xC0u32;
+    let matrix: [u32; 15] = {
+        let kept = ctx.view.matrices.borrow().view_matrix;
+        std::array::from_fn(|n| kept[n].to_bits())
+    };
     // The last quad's two points (its link's number and the points as turned): the next quad of
     // the skidmark has them as its two before, and nothing it is drawn with changes what they
     // are turned from.
     let mut last: Option<(u32, Turned, Turned)> = None;
     for n in 0..0x400u32 {
         let link = |at: u32| -> Result<u16, BadInput> {
-            let table = &ctx.reads.shadow_skids.skid_links;
             let at = at as usize;
             // A link is -1 (the table's start values) or a point of the ring: the links are written
             // only by `init_skidmarks` and `add_skid_point`, which refuses one outside the 0x400
             // points, so `before * 8 + 6` ends inside the table's 0x2000 bytes.
-            if at + 2 <= size_of_val(table) {
-                Ok(u16::from_le_bytes([table.get(at), table.get(at + 1)]))
+            if at + 2 <= crate::race::shadow_skids_store::LINKS_LEN {
+                Ok(ctx.reads.shadow_skids.read(|skids| {
+                    u16::from_le_bytes([skids.skid_links[at], skids.skid_links[at + 1]])
+                }))
             } else {
                 Err(BadInput("a skid link past the links' table"))
             }
@@ -183,8 +188,8 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
         let second = skid_vertex(ctx, &matrix, 2 * n + 1, of_quad(2))?;
         match last {
             Some((m, a, b)) if m == before => {
-                put_turned(ctx.part, &ctx.view.polygon.quad_vertices, of_quad(0), a)?;
-                put_turned(ctx.part, &ctx.view.polygon.quad_vertices, of_quad(1), b)?;
+                put_turned(ctx.part, &ctx.view.polygon.quads, of_quad(0), a)?;
+                put_turned(ctx.part, &ctx.view.polygon.quads, of_quad(1), b)?;
             }
             _ => {
                 skid_vertex(ctx, &matrix, before.wrapping_mul(2), of_quad(0))?;
@@ -197,27 +202,25 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
             }
         }
         last = Some((n, first, second));
-        ctx.view.polygon.polygon_vertex_count.set(4u32);
-        ctx.view
-            .polygon
-            .polygon_next_record
-            .set(crate::scene::polygon::pool_start());
+        ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = 4u32;
+        ctx.view.polygon.scalars.borrow_mut().polygon_next_record =
+            crate::scene::polygon::pool_start();
         let list = &ctx.part.polygon.list;
         for k in 0..4u32 {
             list[k as usize].set(k);
         }
         list[4].set(0);
-        ctx.view.polygon.polygon_next_entry.set(4u32);
+        ctx.view.polygon.scalars.borrow_mut().polygon_next_entry = 4u32;
         crate::scene::fog_polygon::fog_polygon(ctx.part, ctx.view)?;
         crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(
             ctx.part,
             &ctx.view.polygon,
             ctx.reads.course(),
-            ctx.reads.draw_switches,
+            &ctx.reads.draw_switches,
             ctx.far_clip,
             ctx.view,
         )?;
-        if ctx.view.polygon.polygon_vertex_count.get() < 3 {
+        if ctx.view.polygon.scalars.borrow().polygon_vertex_count < 3 {
             continue;
         }
         crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
@@ -225,30 +228,31 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
             &ctx.view.polygon,
             ctx.reads.course(),
         )?;
-        if ctx.view.polygon.polygon_vertex_count.get() >= 3 {
-            ctx.view.polygon.polygon_colour.set(0u32);
+        if ctx.view.polygon.scalars.borrow().polygon_vertex_count >= 3 {
+            ctx.view.polygon.scalars.borrow_mut().polygon_colour = 0u32;
             crate::scene::depth_test_off::depth_test_off(ctx.part);
-            ctx.view.face.polygon_mode.set(3u32);
-            ctx.view.polygon.polygon_sides[0].set(0u32);
-            ctx.view.polygon.polygon_sides[1].set(1u32);
+            ctx.view.face.borrow_mut().polygon_mode = 3u32;
+            ctx.view.polygon.scalars.borrow_mut().polygon_sides[0] = 0u32;
+            ctx.view.polygon.scalars.borrow_mut().polygon_sides[1] = 1u32;
             crate::scene::draw_polygon::draw_polygon_in_game(
                 ctx.view,
                 ctx.part,
                 ctx.reads,
                 ctx.reads.screen,
             )?;
-            ctx.view.face.polygon_mode.set(0u32);
-            ctx.view.polygon.polygon_drawn.set(1u32);
+            ctx.view.face.borrow_mut().polygon_mode = 0u32;
             crate::scene::depth_test_on::depth_test_on(ctx.part);
         }
-        ctx.view.polygon.polygon_colour.set(0x00FF_FFFFu32);
+        ctx.view.polygon.scalars.borrow_mut().polygon_colour = 0x00FF_FFFFu32;
     }
     Ok(())
 }
 
 /// `race::draw_skidmarks_if_on`: `draw_skidmarks` unless `drawing` is set.
-pub fn draw_skidmarks_if_on(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
-    if ctx.reads.frame_work.drawing.get() != 0 {
+pub(super) fn draw_skidmarks_if_on(
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
+) -> Result<(), Refused> {
+    if ctx.reads.frame_work.drawing() != 0 {
         return Ok(());
     }
     draw_skidmarks(ctx)
@@ -258,7 +262,7 @@ pub fn draw_skidmarks_if_on(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Res
 mod reference_vectors {
     use super::*;
     use crate::math::x87_float::{X, f80};
-    use crate::race::asm_test::{Rng, at_each_control_word, lock};
+    use crate::race::asm_test::{Rng, at_each_control_word};
     use crate::test_support::vectors::{Recorder, bytes, word};
 
     fn same_bits(a: u32, b: u32) -> bool {
@@ -267,7 +271,6 @@ mod reference_vectors {
 
     #[test]
     fn conversions_match() {
-        let _l = lock();
         let mut r = Rng(3);
         let mut file = Recorder::replay("race.skidmarks.conversions");
         at_each_control_word(|| {
@@ -295,54 +298,53 @@ mod reference_vectors {
 #[cfg(test)]
 mod vector_tests {
     use super::*;
-    use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
+    use crate::race::asm_test::{Rng, at_each_control_word, same};
     use crate::test_support::own::race;
-    use crate::test_support::own::scene;
     use crate::test_support::race_vectors::{Kind, Vectors};
     use crate::test_support::state::Snapshot;
 
     /// The stores the test writes.
-    const STORES: [&str; 3] = [
-        "owners.scene.drawing.scene",
-        "owners.race.course.course",
-        "owners.race.course.stage_prefs",
-    ];
+    const STORES: [&str; 1] = ["owners.scene.draw_work"];
 
     #[test]
     fn project_vertex_is_the_originals() {
-        let drawing = &scene().drawing;
         let course = &race().course;
-        let _l = lock();
         let kept = Snapshot::of(&STORES);
+        let kept_course = *course.course.borrow();
+        let kept_flat = course.stage_prefs.borrow().flat_depth;
         let mut vectors = Vectors::open("race.skidmarks.project_vertex", Kind::Exact, 8);
         let mut r = Rng(4);
-        let win = crate::scene::view_window::ViewWindow::new();
+        let win = crate::scene::view_window::first_window();
         at_each_control_word(|| {
             for n in 0..20000 {
                 let flat = n % 2 == 0;
-                course.stage_prefs.get().flat_depth.set(flat as u32);
-                course.course.get().flat_depth.set(r.int() as u32);
+                course.stage_prefs.borrow_mut().flat_depth = flat as u32;
+                course.course.borrow_mut().flat_depth = r.int() as u32;
                 // The recorded run read the scene's window; this code reads the window it is given.
-                for (old, own) in [
-                    (&drawing.scene.get().view_scale, &win.view_scale),
-                    (&drawing.scene.get().view_centre[1], &win.view_centre[1]),
-                    (&drawing.scene.get().view_centre[0], &win.view_centre[0]),
-                ] {
-                    let value = f32::from_bits(r.float());
-                    old.set(value);
-                    own.set(value);
+                {
+                    let mut win = win.borrow_mut();
+                    win.view_scale = f32::from_bits(r.float());
+                    win.view_centre[1] = f32::from_bits(r.float());
+                    win.view_centre[0] = f32::from_bits(r.float());
                 }
-                drawing.scene.get().scratch.set(0xAAAA_AAAAu32);
+                crate::test_support::own::scene().draw_work_mut().scratch = 0xAAAA_AAAAu32;
                 let mut a = [0xAAAA_AAAAu32; 8];
                 for q in a.iter_mut().skip(4).take(3) {
                     *q = r.float();
                 }
                 let from = a;
-                project_record(course.stage_prefs.get(), course.course.get(), &mut a, &win);
+                project_record(
+                    crate::race::prefs_store::StagePrefsRef::Store(&course.stage_prefs),
+                    course.course.borrow().flat_depth,
+                    &mut a,
+                    &win,
+                );
                 vectors.check(&a, same, || format!("flat {flat} from {from:x?}"));
             }
         });
         kept.restore();
+        course.stage_prefs.borrow_mut().flat_depth = kept_flat;
+        *course.course.borrow_mut() = kept_course;
         vectors.finish();
     }
 }

@@ -1,4 +1,4 @@
-//! The loop of a results screen, by its title "RESULTADOS GERAIS". Screen-specific part of
+//! The loop of a results screen, by its title "OVERALL RESULTS". Screen-specific part of
 //! `menu::screen_loop`: background `results1.png` through `menu::load_background`; leaving is not
 //! asked about; its own 3D scene list is set before the first frame only.
 use crate::menu::draw_lists_store::DRAW_LISTS;

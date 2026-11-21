@@ -1,10 +1,8 @@
 //! `race::viewer_snapshot`: saves the viewer's frame as a picture. The three digits of
-//! `savedata\snapshot\000.pcx` go up by one (999 rounds to 000; the number is found by
+//! `savedata\snapshot\000.png` go up by one (999 rounds to 000; the number is found by
 //! `race::find_snapshot_number`), and the name is used as `Picture.name` while the surface is
 //! locked (`gfx::lock_surface`; if that fails, nothing is saved), written
 //! (`gfx::write_screen_pcx`) and unlocked (`gfx::unlock_surface`); `Picture.name` is put back.
-//!
-//! Called by `race::viewer_frame` when `snapshot_asked` asks.
 
 use crate::errors::Refused;
 use crate::race::find_snapshot_number::DIGITS_AT;
@@ -28,14 +26,17 @@ pub fn viewer_snapshot(
         .write_at(DIGITS_AT, &next, what)
         .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
     // Only when the surface could be locked.
-    if crate::platform::lock_surface(gfx, system) >= 1 {
-        crate::gfx::write_screen_pcx::write_screen_pcx(
-            &gfx.shots,
-            Some(&replay.snapshot().text()),
-            gfx,
-            system,
-        )?;
-        crate::platform::unlock_surface(gfx);
-    }
+    crate::gfx::with_locked_surface::with_locked_surface(
+        crate::gfx::with_locked_surface::lock(gfx, system),
+        || {
+            crate::gfx::write_screen_pcx::write_screen_pcx(
+                &gfx.shots,
+                Some(&replay.snapshot().text()),
+                true,
+                gfx,
+                system,
+            )
+        },
+    )?;
     Ok(())
 }

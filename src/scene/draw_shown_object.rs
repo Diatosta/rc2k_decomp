@@ -9,9 +9,8 @@
 //!   with `scene_set_up` set and `only_object` not 0, every object unless `only_object` - 1 is
 //!   `stage_direction`; and an object without faces (the slots' `face_counts`).
 //!
-//! Outside a race the caller's context carries the menus' marks (`scene::car_marks::MENUS`).
-//! Then `scene::draw_object`. One caller, `scene::draw_scene_object`. Refuses, in a race, an
-//! object's number of 0x100 or more.
+//! Outside a race the caller's context carries the menus' marks (`scene::car_marks::MENUS`). Then
+//! `scene::draw_object`. Refuses, in a race, an object's number of 0x100 or more.
 //!
 //! The race's tests and the kind bytes are in `rc2k_core::scene::shown`.
 
@@ -29,31 +28,31 @@ struct Game<'a>(
 
 impl rc2k_core::scene::shown::RaceObject for Game<'_> {
     fn object(&self) -> u32 {
-        self.0.object_number.get()
+        self.0.borrow().object_number
     }
     fn kind_switch(&self) -> bool {
         self.2.work.in_credits.is_set()
     }
     fn kind_mode(&self) -> u32 {
-        self.2.vars.run_kind.get()
+        self.2.vars.run_kind()
     }
     fn kind(&self, object: u32) -> u32 {
         self.2.object_tables.object_kind(object)
     }
     fn other_way(&self) -> u32 {
-        self.2.switches.scene_set_up.get()
+        self.2.switches.scene_set_up()
     }
     fn shown(&self) -> u32 {
-        self.2.stage_prefs.shown.get()
+        self.2.stage_prefs.read(|p| p.shown)
     }
     fn which(&self) -> u32 {
         self.2.work.stage_direction.get()
     }
     fn only(&self) -> u32 {
-        self.1.only_object.get()
+        self.1.borrow().only_object
     }
     fn faces(&self, object: u32) -> u32 {
-        self.2.object_slots.face_counts[object as usize].get()
+        self.2.object_slots.face_count(object as usize)
     }
 }
 
@@ -65,11 +64,11 @@ pub fn draw_shown_object(
     cars: &crate::race::car_draw_state::CarDrawState,
     object: &crate::scene::object_place::ObjectPlace,
 ) -> Result<bool, Refused> {
-    let in_race = reads.numbers.in_race.is_set();
-    if in_race && cars.object_number.get() >= OBJECTS {
+    let in_race = reads.number_vars.in_race();
+    if in_race && cars.borrow().object_number >= OBJECTS {
         return Err(BadInput("an object's number past the tables").into());
     }
-    object.drawing_object.set(1u32);
+    object.borrow_mut().drawing_object = 1u32;
     let show = if in_race {
         rc2k_core::scene::shown::race_shown(&Game(cars, object, reads))
     } else {
@@ -79,6 +78,6 @@ pub fn draw_shown_object(
     if show {
         draw()?;
     }
-    object.drawing_object.set(0u32);
+    object.borrow_mut().drawing_object = 0u32;
     Ok(show)
 }

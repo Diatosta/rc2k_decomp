@@ -4,23 +4,10 @@
 //! What the x87 holds on its stack is an `X` (an `f64` that rounds as the control word
 //! says, `x87_float.rs`), what it stores as a dword float `st`, `fild` is `int`, `fistp` /
 //! `fist` `to_int`. Their comparison with the x87's instructions is frozen in
-//! `x87_frozen_c.rs`.
+//! `x87_checks/recorded`.
 
 use super::{Flt, out};
 use crate::math::x87_float::{Rounds, X, at_rounding, compare, f80, from_f80, int, ld, st, to_int};
-
-/// `(a * b) / c`, rounded once at the end as the x87 is set to round: a whole number times
-/// a whole number over a float.
-#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_times_int_over_to_int(a: i32, b: i32, c: u32) -> i32 {
-    to_int(int(a) * int(b) / ld(c))
-}
-
-/// `|a|` as a whole number: the size of a float.
-#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn abs_to_int(a: u32) -> i32 {
-    to_int(ld(a).abs())
-}
 
 /// `sqrt(a a + b b)` as a float: the length of two floats at right angles.
 pub fn float_hypot(a: impl Flt, b: impl Flt) -> f32 {
@@ -41,13 +28,6 @@ pub fn below_or_unordered(a: impl Flt, b: impl Flt) -> bool {
     let a = a.value();
     let b = b.value();
     compare(ld(a), ld(b)) & 0x0100 != 0
-}
-
-/// C0 of the compare of `|a h| - k` (kept at the x87's precision) with `b`: below, or one
-/// is no number.
-#[cfg(test)] // the callers use the `_with` form; the tests compare this one
-pub fn scaled_abs_less_below(a: impl Flt, h: impl Flt, k: impl Flt, b: impl Flt) -> bool {
-    at_rounding!(|r| scaled_abs_less_below_with(r, a, h, k, b))
 }
 
 /// `scaled_abs_less_below` at the rounding `r`.
@@ -87,35 +67,6 @@ pub fn rotate_rounding_z(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
         let s = rotated(r, point, matrix);
         [r.st(s[0]), r.st(s[1]), r.to_int(s[2]) as u32]
     })
-}
-
-/// `a a + b b` of two whole numbers, as a float.
-pub fn int_square_sum(a: i32, b: i32) -> f32 {
-    let (a, b) = (int(a), int(b));
-    out(a * a + b * b)
-}
-
-/// `a a + b b` of two floats.
-pub fn float_square_sum(a: impl Flt, b: impl Flt) -> f32 {
-    let a = a.value();
-    let b = b.value();
-    let a2 = ld(a) * ld(a);
-    let b2 = ld(b) * ld(b);
-    out(a2 + b2)
-}
-
-/// `(a + b) c`, a whole number plus a float, times a float.
-pub fn int_plus_times(a: i32, b: impl Flt, c: impl Flt) -> f32 {
-    let b = b.value();
-    let c = c.value();
-    out((int(a) + ld(b)) * ld(c))
-}
-
-/// C0 of the compare of `|a|` with `k`: |a| below k, or one is no number.
-pub fn abs_below_or_unordered(a: impl Flt, k: impl Flt) -> bool {
-    let a = a.value();
-    let k = k.value();
-    compare(ld(a).abs(), ld(k)) & 0x0100 != 0
 }
 
 /// `scene::project_point::rotate` with all three stores whole numbers: the point (three whole

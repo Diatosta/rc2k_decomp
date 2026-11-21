@@ -3,34 +3,32 @@
 //!
 //! Takes the car's sound object and the request. Nothing for a computer's car (negative
 //! `sound_offset`). The car's timed slots are played at the car's place (the fourth only when
-//! `view_flag` is 0), then `slot_b` at `place_b`. One caller, `sound::car_sounds`. Refuses (before
-//! anything) a null object; what the slots refuse puts back what was written (sounds already sent
-//! stay sent).
+//! `view_flag` is 0), then `slot_b` at `place_b`. Refuses (before anything) a null object; what the
+//! slots refuse puts back what was written (sounds already sent stay sent).
 
 use crate::errors::Refused;
 use crate::sound::sets_store::SoundRequest;
+use crate::sound::store::{ObjectSlot, SLOT_B_AT};
 use rc2k_core::sound::engine::{computers, placed_slots};
 
 /// The timed slots of object `so`, through `request`.
 pub fn car_slot_sounds(
-    so: &crate::sound::store::SoundObject,
-    request: &SoundRequest,
+    so: &crate::sound::store::SoundObjectCell,
+    request: &mut SoundRequest,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     // The logic is `rc2k_core::sound::engine` (`computers`, `placed_slots`).
-    if computers(so.sound_offset.get()) {
+    if computers(so.borrow().sound_offset) {
         return Ok(());
     }
-    let place = |from: &[crate::memory::session::PlainFloat; 3]| {
-        for (cell, f) in request.place.iter().zip(from) {
-            cell.set(f.get());
-        }
-    };
-    place(&so.place);
-    for at in placed_slots(so.view_flag.get() == 0) {
-        crate::sound::play_timed_slot::play_timed_slot(so.slot_at(at), request, sound, audio)?;
+    request.place = so.borrow().place;
+    let view_flag = so.borrow().view_flag;
+    for at in placed_slots(view_flag == 0) {
+        let slot = ObjectSlot::new(so, at);
+        crate::sound::play_timed_slot::play_timed_slot(&slot, request, sound, audio)?;
     }
-    place(&so.place_b);
-    crate::sound::play_timed_slot::play_timed_slot(&so.slot_b, request, sound, audio)
+    request.place = so.borrow().place_b;
+    let slot = ObjectSlot::new(so, SLOT_B_AT);
+    crate::sound::play_timed_slot::play_timed_slot(&slot, request, sound, audio)
 }

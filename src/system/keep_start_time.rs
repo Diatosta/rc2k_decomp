@@ -1,12 +1,11 @@
 //! Keeps the date and time the game was started at.
 //!
-//! `GetLocalTime` into the game's `SystemTime`, and from it the weekday, then the day, month
-//! and year (a word), then the hour, minute, second and hundredths are kept (nine bytes):
-//! what `logfile::date_text` and `math::seed_random` read. One
-//! caller, `start`, as its first call.
+//! `GetLocalTime` into the game's `SystemTime`, and from it the weekday, then the day, month and
+//! year (a word), then the hour, minute, second and hundredths are kept (nine bytes): what
+//! `logfile::date_text` and `math::seed_random` read.
 
 /// The nine bytes kept. Written once, by `start`'s first call.
-pub const KEPT_LEN: usize = 9;
+pub(super) const KEPT_LEN: usize = 9;
 
 /// The start's moment as kept (all 0 before `keep_start_time`).
 pub fn start_time(system: &crate::system::owner::System) -> [u8; KEPT_LEN] {

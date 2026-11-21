@@ -64,7 +64,7 @@ impl BestTables {
     }
 
     /// Every table given back.
-    pub fn give_back_all(&self) {
+    pub(super) fn give_back_all(&self) {
         for n in 0..rc2k_core::saves::tables::TABLES {
             self.typed(n).give_back();
         }
@@ -74,7 +74,7 @@ impl BestTables {
 /// What allocating, loading, saving and freeing do with a typed table.
 pub trait Typed: Sync {
     /// Taken new (zeros), `bytes` counted on `list`.
-    fn take(&self, list: &crate::memory::ListCells, bytes: u32) -> Result<(), Refused>;
+    fn take(&self, list: &crate::memory::PlainList, bytes: u32) -> Result<(), Refused>;
     fn give_back(&self);
     /// Its bytes as the file holds them.
     fn bytes(&self) -> Result<Vec<u8>, BadInput>;
@@ -83,7 +83,7 @@ pub trait Typed: Sync {
 }
 
 impl<T: FileTable + Send> Typed for Owned<T> {
-    fn take(&self, list: &crate::memory::ListCells, bytes: u32) -> Result<(), Refused> {
+    fn take(&self, list: &crate::memory::PlainList, bytes: u32) -> Result<(), Refused> {
         let Some(t) = T::zeroed(bytes as usize) else {
             return Err(BadInput("a typed table asked for at a size it cannot be").into());
         };

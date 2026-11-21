@@ -4,7 +4,7 @@
 //! (0 .. 0x16) into `race_car_kinds`; `direction` is 0, `run_kind` 3, and 72 more stores follow
 //! (`WRITES`: the first car block's settings, the race's switches).
 //!
-//! Called by `race::credits_race`. Refuses nothing.
+//! Refuses nothing.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
@@ -13,7 +13,7 @@ use crate::race::settings_copy::StepOperand;
 use crate::race::settings_copy::{car, car_bits, var};
 
 /// The stores after the two draws, in order (the place, the value).
-pub const WRITES: [(StepOperand, u32); 74] = [
+const WRITES: [(StepOperand, u32); 74] = [
     (var!(@race shared.vars.get().direction), 0),
     (var!(@race shared.vars.get().run_kind), 3),
     (car!(0, start_slot_value), 1),
@@ -33,7 +33,13 @@ pub const WRITES: [(StepOperand, u32); 74] = [
     (var!(@race shared.vars.get().settings_words[2]), 1),
     (var!(@race shared.vars.get().settings_words[3]), 0),
     (var!(@race shared.vars.get().settings_words[4]), 1),
-    (var!(@race shared.switches.get().view_marks_on), 1),
+    (
+        crate::race::settings_copy::StepOperand::Plain {
+            get: |o| o.race.shared.switches.borrow().view_marks_on,
+            set: |o, value| o.race.shared.switches.borrow_mut().view_marks_on = value,
+        },
+        1,
+    ),
     (var!(@race shared.vars.get().race_level), 0),
     (var!(@race shared.vars.get().race_stage), 0),
     (car_bits!(0, engine_damage), 0),
@@ -95,7 +101,10 @@ fn drawn_index(shared: &RaceShared, n: u32) -> u32 {
     rc2k_core::race::credits::drawn_place(shared.random.next_random(), n)
 }
 
-pub fn set_up_credits_race(race: &Race, o: &crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn set_up_credits_race(
+    race: &Race,
+    o: &crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
     let shared = &race.shared;
     use rc2k_core::race::credits::{RACE_KINDS, RACE_STAGES};
     let stage = drawn_index(shared, RACE_STAGES);

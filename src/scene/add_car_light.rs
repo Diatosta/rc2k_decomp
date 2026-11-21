@@ -1,15 +1,14 @@
 //! `scene::add_car_light`: what one car's lamps add to the light on an object.
 //!
 //! Does nothing unless the car's lamp flag is set. The place being lit, relative to the car and
-//! turned through the car's matrix, is the place as the car sees it (x across, y up, z ahead).
-//! Two amounts, each held to 0 ..= 255, come from it: a cone ahead of the car, and how near the
-//! place is to the car's height. Their product, scaled by the car's light strength, picks a
-//! colour from `LightTables.car_light_table`, added to the light colour byte by byte without
-//! overflow. The arithmetic runs on `X`, the x87's double-precision stand-in. Callers:
-//! `scene::add_car_lights`, twice.
+//! turned through the car's matrix, is the place as the car sees it (x across, y up, z ahead). Two
+//! amounts, each held to 0 ..= 255, come from it: a cone ahead of the car, and how near the place
+//! is to the car's height. Their product, scaled by the car's light strength, picks a colour from
+//! `LightTables.car_light_table`, added to the light colour byte by byte without overflow. The
+//! arithmetic runs on `X`, the x87's double-precision stand-in.
 
+use crate::math::x87_mem::{Base, cells, fild, fistp, fld};
 use crate::scene::vertex_light::plus;
-use crate::scene::x87_mem::{Base, cells, fild, fistp, fld};
 
 /// Three whole numbers through a matrix and back to whole numbers: `fild` three times,
 /// `scene::rotate_point`, `fistp` three times.
@@ -109,21 +108,20 @@ pub fn add_car_light(
     course: crate::race::owner_course::CourseReads<'_>,
     car: &crate::race::frame_view::CarView,
     marks_count: u32,
-    light_tables: &crate::scene::light_tables_store::LightTables,
+    light_tables: crate::scene::light_tables_store::LightTablesRef<'_>,
     light: &crate::scene::object_light::ObjectLight,
-    mmx: bool,
 ) {
     if car.lights_on.get() == 0 {
         return;
     }
-    let place: [u32; 3] = crate::memory::session::read_bits(&light.lit_place);
+    let place: [u32; 3] = light.borrow().lit_place;
     let mut from = [0u32; 3];
     for k in 0..3 {
         from[k] = place[k].wrapping_sub(car.position[k].get());
     }
     let matrix = crate::memory::session::read_bits(&car.car_inverse_matrix);
     let seen = turned(from, &matrix);
-    crate::memory::session::write_bits(&light.turned_light, seen);
+    light.borrow_mut().turned_light = seen;
     let [x, y, z] = seen;
     let factor = course.numbers.one_over_65536.get();
     let ahead = squares(z.wrapping_sub(0x20_0000), x.wrapping_add(x), factor, true);
@@ -131,10 +129,11 @@ pub fn add_car_light(
     let height = if (y as i32) < 0 { y.wrapping_neg() } else { y };
     let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
     let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(marks_count) >> 8;
-    let colour: u32 = light_tables.car_light_table[held(amount as i32) as usize].get();
-    light
-        .light_colour
-        .set(plus(colour, light.light_colour.get(), mmx));
+    let colour: u32 = light_tables.car_light(held(amount as i32) as usize);
+    {
+        let value = plus(colour, light.borrow().light_colour);
+        light.borrow_mut().light_colour = value;
+    };
 }
 
 #[cfg(test)]

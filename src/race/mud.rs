@@ -1,7 +1,7 @@
 //! `race::loadlevel_init`'s "render3d initmud": 64 KB on `CourseLists.mud_list[0]` for the mud
 //! (`mud`), the car's mud file (`files\b\mudfile.0xx`, xx the car's file number) read into it, the
 //! mud's state cleared, and 256 colours sampled from a picture surface
-//! (`KindTextureTables.kind_first_textures[193]`, locked and unlocked by `d3d::lock_texture` /
+//! (`Textures::first_textures[193]`, locked and unlocked by `d3d::lock_texture` /
 //! `d3d::unlock_texture`).
 
 use crate::errors::BadInput;
@@ -11,19 +11,19 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::net::net_race::NetRace;
 
-pub const MUD_LEN: u32 = 0x1_0000;
+const MUD_LEN: u32 = 0x1_0000;
 
 /// The car number held to 0 .. 0x21 (signed), its entry of `car_file_numbers`.
 pub fn car_file_number(kinds: &KindTables, car: u32) -> u32 {
     // Logic in `rc2k_core::race::cars::table_entry`.
     let n = rc2k_core::race::cars::table_entry(car);
-    kinds.car_file_numbers[n].get()
+    kinds.car_file_numbers[n]
 }
 
 /// The pixel at (x, y) of `surface`, taken apart by `gfx::pixel_to_components`. The conversion
 /// looks only at the bits its format's masks name, which for a 16-bit surface are all in the low
 /// half, so the pixel alone is handed to it.
-pub fn read_pixel(
+fn read_pixel(
     x: u32,
     y: u32,
     gfx: &crate::gfx::owner::Gfx,
@@ -53,7 +53,7 @@ pub fn read_pixel(
 }
 
 /// `read_pixel` inside the surface (unsigned), else 0.
-pub fn mud_pixel(
+pub(super) fn mud_pixel(
     x: u32,
     y: u32,
     gfx: &crate::gfx::owner::Gfx,
@@ -74,7 +74,7 @@ pub fn mud_pixel(
 
 /// Writes the car's file number's two digits (tens and units, each + '0') into the path and
 /// reads the file into the mud's `MUD_LEN` bytes (what the file does not reach stays 0).
-pub fn load_mud(
+fn load_mud(
     kinds: &KindTables,
     shared: &RaceShared,
     net_race: Option<NetRace>,
@@ -95,7 +95,7 @@ pub fn load_mud(
 }
 
 /// Zeroes the 18 mud dwords and the two after them.
-pub fn clear_mud_state(shared: &RaceShared) {
+fn clear_mud_state(shared: &RaceShared) {
     // The 18 dwords from `mud_frames` to the end of `mud_splash_counts`.
     let v = shared.vars.get();
     v.mud_frames.set(0);
@@ -113,33 +113,27 @@ pub fn clear_mud_state(shared: &RaceShared) {
 /// Samples 256 colours from the locked surface (`d3d::lock_texture`): colour n at
 /// (0x89 + (n & 3) + (n >> 5) * 4, 0x68 + ((n & 0x1C) >> 2)) by `mud_pixel`; then unlocks it
 /// (`d3d::unlock_texture`).
-pub fn sample_mud_colours(
+fn sample_mud_colours(
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let textures = &scene.textures;
-    // `KindTextureTables.kind_first_textures[193]`: the surface sampled.
-    crate::d3d::lock_texture::lock_texture_in(
-        gfx,
-        textures.kinds.get().kind_first_textures[193].get(),
-    )?;
+    // `Textures::first_textures[193]`: the surface sampled.
+    crate::d3d::lock_texture::lock_texture_in(gfx, textures.first_textures()[193])?;
     // Logic in `rc2k_core::race::mud::sample_place`.
     for n in 0..rc2k_core::race::mud::SAMPLES {
         let (x, y) = rc2k_core::race::mud::sample_place(n);
         shared.vars.get().mud_colours[n as usize].set(mud_pixel(x, y, gfx, system)?);
     }
-    crate::d3d::unlock_texture::unlock_texture(
-        gfx,
-        textures.kinds.get().kind_first_textures[193].get(),
-    )?;
+    crate::d3d::unlock_texture::unlock_texture(gfx, textures.first_textures()[193])?;
     Ok(())
 }
 
 /// Adds 0x10000 to the list's total, loads the mud and stores it (`StageData::mud`), then runs
 /// `clear_mud_state` and `sample_mud_colours`.
-pub fn init_mud(
+pub(super) fn init_mud(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
@@ -147,19 +141,15 @@ pub fn init_mud(
     net_race: &rc2k_core::net::net_race::NetRaceSlot,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    course.lists.get().course_bytes_total.set(
-        course
-            .lists
-            .get()
-            .course_bytes_total
-            .get()
-            .wrapping_add(MUD_LEN),
-    );
+    {
+        let mut lists = course.lists.borrow_mut();
+        lists.course_bytes_total = lists.course_bytes_total.wrapping_add(MUD_LEN);
+    }
     let mud = load_mud(race.kind_tables(), &race.shared, net_race.get())?;
     course
         .stage
         .mud
-        .take(&course.lists.get().mud_list, MUD_LEN, mud)?;
+        .take(&course.memory().mud_list, MUD_LEN, mud)?;
     clear_mud_state(&race.shared);
     sample_mud_colours(&race.shared, scene, gfx, system)
 }

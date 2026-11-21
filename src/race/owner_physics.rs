@@ -1,37 +1,53 @@
 //! The race owner's physics group (`race::owner::Race::physics`): the physics work: camera,
-//! contact, gear, ground, pace, split tables, damage, car specs, checkpoints. The gear figures and
-//! the checkpoints stay views over their group statics (`groups_store::LightsAndGear`, `BUFFERS`).
+//! contact, gear, pace, split tables, damage, car specs, checkpoints. The checkpoints stay a view
+//! over their group static (`BUFFERS`).
 
-use crate::memory::session::{DrawShared, GameThread};
+use crate::memory::session::GameThread;
 use crate::physics::camera_store::CameraWork;
-use crate::physics::contact_store::ContactWork;
+use crate::physics::contact_store::{ContactWork, ProbeLists};
+use crate::physics::gear_store::GearFigures;
 use crate::physics::ground_probe_store::GroundProbe;
-use crate::physics::ground_store::GroundWork;
+use crate::physics::ground_query::GroundSearch;
+use crate::physics::lit_faces_store::{LitFaces, LitFacesStore};
 use crate::physics::pace_store::PaceNotes;
 use crate::physics::split_tables_store::SplitTables;
 use crate::physics::store::DamageModel;
+use crate::physics::wheel_work::WheelWork;
 use crate::race::car_specs_store::CarSpecs;
+use std::cell::{Ref, RefCell, RefMut};
 
-/// What only the game's thread reaches: the camera, the ground, the pace notes, the split
+/// What only the game's thread reaches: the camera, the ground work and search, the pace notes, the split
 /// tables, the damage model and the car specs (no drawing part, audio, key or network thread
 /// touches them; the drawing's searches have their own copies).
-pub struct PhysicsMain {
-    pub camera: CameraWork,
-    pub ground: GroundWork,
-    pub pace: PaceNotes,
-    pub split_tables: SplitTables,
-    pub damage: DamageModel,
+struct PhysicsMain {
+    pub camera: RefCell<CameraWork>,
+    pub gear: GearFigures,
+    pub ground_search: RefCell<GroundSearch>,
+    pub probes: RefCell<ProbeLists>,
+    pub contact: RefCell<ContactWork>,
+    pub wheel_work: RefCell<WheelWork>,
+    pub pace: RefCell<PaceNotes>,
+    pub split_tables: RefCell<SplitTables>,
+    pub damage: RefCell<DamageModel>,
+    /// The ground search's mark: borrowed for one statement at a time; the drawing parts read the
+    /// copy their scope was opened with (`scene::workers::DrawReads::ground_probe`).
+    pub ground_probe: RefCell<GroundProbe>,
     pub car_specs: CarSpecs,
 }
 
 impl PhysicsMain {
     pub const fn new() -> Self {
         PhysicsMain {
-            camera: CameraWork::new(),
-            ground: GroundWork::new(),
-            pace: PaceNotes::new(),
-            split_tables: SplitTables::new(),
-            damage: DamageModel::new(),
+            camera: RefCell::new(CameraWork::new()),
+            gear: GearFigures::new(),
+            ground_search: RefCell::new(GroundSearch::new()),
+            probes: RefCell::new(ProbeLists::new()),
+            contact: RefCell::new(ContactWork::new()),
+            wheel_work: RefCell::new(WheelWork::new()),
+            pace: RefCell::new(PaceNotes::new()),
+            split_tables: RefCell::new(SplitTables::new()),
+            damage: RefCell::new(DamageModel::new()),
+            ground_probe: RefCell::new(GroundProbe::new()),
             car_specs: CarSpecs::new(),
         }
     }
@@ -39,42 +55,96 @@ impl PhysicsMain {
 
 /// The race's physics state.
 pub struct Physics {
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the drawing's searches have
-    /// their own and read only the lit faces.
-    pub contact: DrawShared<ContactWork>,
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the drawing's searches
-    /// have their own fields and read only its mark.
-    pub ground_probe: DrawShared<GroundProbe>,
+    /// The lit faces, lent to the drawing parts (`scene::workers::DrawReads`) for the lamps.
+    pub lit_faces: LitFacesStore,
     main: GameThread<PhysicsMain>,
 }
 
 impl Physics {
     pub const fn new() -> Self {
         Physics {
-            contact: DrawShared::new(ContactWork::new()),
-            ground_probe: DrawShared::new(GroundProbe::new()),
+            lit_faces: LitFacesStore::new(LitFaces::new()),
             main: GameThread::new(PhysicsMain::new()),
         }
     }
 
-    pub fn camera(&self) -> &CameraWork {
+    /// The camera work, read: no write borrow may be held.
+    pub fn camera(&self) -> Ref<'_, CameraWork> {
+        self.main.get().camera.borrow()
+    }
+
+    /// The camera work, to write: no other borrow may be held.
+    pub fn camera_mut(&self) -> RefMut<'_, CameraWork> {
+        self.main.get().camera.borrow_mut()
+    }
+
+    /// The camera work's cell, for the step inputs that hold it across a step.
+    pub fn camera_cell(&self) -> &RefCell<CameraWork> {
         &self.main.get().camera
     }
 
-    pub fn ground(&self) -> &GroundWork {
-        &self.main.get().ground
+    /// The gearbox figures and the test drive's results.
+    pub fn gear(&self) -> &GearFigures {
+        &self.main.get().gear
     }
 
-    pub fn pace(&self) -> &PaceNotes {
-        &self.main.get().pace
+    /// The ground search's record: the place asked for, the face found, its shares and height. The
+    /// search holds the borrow while it runs; nothing else reads it then.
+    pub fn ground_search(&self) -> &RefCell<GroundSearch> {
+        &self.main.get().ground_search
     }
 
-    pub fn split_tables(&self) -> &SplitTables {
-        &self.main.get().split_tables
+    /// The probe points' lists: one routine borrows them at a time, none across a call that
+    /// borrows them again.
+    pub fn probes(&self) -> &RefCell<ProbeLists> {
+        &self.main.get().probes
     }
 
-    pub fn damage(&self) -> &DamageModel {
-        &self.main.get().damage
+    /// The contact work: one routine borrows it at a time, none across a call that borrows it
+    /// again (`contact_force` borrows it only to read its inputs and to write its results).
+    pub fn contact(&self) -> &RefCell<ContactWork> {
+        &self.main.get().contact
+    }
+
+    /// The drive's working figures: one routine borrows them at a time, none across a call that
+    /// borrows them again.
+    pub fn wheel_work(&self) -> &RefCell<WheelWork> {
+        &self.main.get().wheel_work
+    }
+
+    /// The pace notes, read: no write borrow may be held.
+    pub fn pace(&self) -> Ref<'_, PaceNotes> {
+        self.main.get().pace.borrow()
+    }
+
+    /// The pace notes, to write: no other borrow may be held.
+    pub fn pace_mut(&self) -> RefMut<'_, PaceNotes> {
+        self.main.get().pace.borrow_mut()
+    }
+
+    /// The split tables, read: no write borrow may be held.
+    pub fn split_tables(&self) -> Ref<'_, SplitTables> {
+        self.main.get().split_tables.borrow()
+    }
+
+    /// The split tables, to write: no other borrow may be held.
+    pub fn split_tables_mut(&self) -> RefMut<'_, SplitTables> {
+        self.main.get().split_tables.borrow_mut()
+    }
+
+    /// The damage model, read: no write borrow may be held.
+    pub fn damage(&self) -> Ref<'_, DamageModel> {
+        self.main.get().damage.borrow()
+    }
+
+    /// The damage model, to write: no other borrow may be held.
+    pub fn damage_mut(&self) -> RefMut<'_, DamageModel> {
+        self.main.get().damage.borrow_mut()
+    }
+
+    /// The ground search's mark, for the searches that set it and the ones that read it.
+    pub fn ground_probe(&self) -> &RefCell<GroundProbe> {
+        &self.main.get().ground_probe
     }
 
     pub fn car_specs(&self) -> &CarSpecs {

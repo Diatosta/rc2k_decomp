@@ -9,7 +9,7 @@ use rc2k_core::race::quick_sort::{Order, quick_sort};
 /// The `count` records of `records` (each as its `N` dwords, `words`) sorted by dword `key` in
 /// `order`, the changed records written back whole (nothing is done with fewer than two).
 /// Refuses (before anything) more records than `records` holds.
-pub fn sort_records<T, const N: usize>(
+pub(super) fn sort_records<T, const N: usize>(
     records: &[T],
     count: u32,
     key: usize,
@@ -43,7 +43,7 @@ pub fn sort_records<T, const N: usize>(
 /// The `count` records of `N` dwords at the start of `cells` sorted as `sort_records` does,
 /// on the cells themselves (the changed records written back). Refuses (before anything)
 /// more records than `cells` holds.
-pub fn sort_cells<const N: usize>(
+pub(super) fn sort_cells<const N: usize>(
     cells: &[PlainDword],
     count: u32,
     key: usize,

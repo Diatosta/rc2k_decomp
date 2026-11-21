@@ -17,31 +17,23 @@
 //! The slots (`race_slots`, eight) are loose objects that move on their own, fall, bounce on the
 //! ground and spin; probably debris thrown off in a crash (the code does not say which object).
 //!
-//! Caller: `physics::move_slots`. Refuses (before anything) what `find_ground` would refuse where
-//! the slot moves to.
+//! Refuses (before anything) what `find_ground` would refuse where the slot moves to.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
+use crate::math::matrix3::rounded_value;
 use crate::math::x87;
-use crate::math::x87::{abs_compare, abs_of, mul, mul2_to_int, negated};
+use crate::math::x87::{abs_compare, mul, mul2_to_int, negated};
 use crate::math::x87_float as bh;
-use crate::memory::session::{FloatLike, PlainDword, PlainFloat};
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
 use crate::physics::step_families::SlotInputs;
 use crate::race::work_store::{RaceSlot, RaceWork};
-use crate::scene::matrix::multiply_matrices;
-use crate::scene::matrix3::rounded_value;
+use crate::scene::matrix::{matrix_of, product, store_matrix};
 use crate::scene::view_matrix::{square_matrix, unit_vector};
 
 /// A place (three whole numbers) copied.
 fn copy_place(from: &[PlainDword; 3], to: &[PlainDword; 3]) {
-    for (t, f) in to.iter().zip(from) {
-        t.set(f.get());
-    }
-}
-
-/// A matrix's floats copied.
-fn copy_matrix(from: &[impl FloatLike; 16], to: &[impl FloatLike; 16]) {
     for (t, f) in to.iter().zip(from) {
         t.set(f.get());
     }
@@ -79,14 +71,8 @@ fn spin_axis(work: &RaceWork, number: usize) -> SpinAxis {
 }
 
 /// The slot `s`, number `number` of the table.
-pub fn move_slot(
-    c: &SlotInputs<'_>,
-    s: &RaceSlot,
-    number: usize,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
-    let dt = c.tables.step_time.get();
+pub fn move_slot(c: &SlotInputs<'_>, s: &RaceSlot, number: usize) -> Result<(), Refused> {
+    let dt = c.numbers.step_time.get();
     let k65536 = c.numbers.k65536.get();
     copy_place(&s.place, &c.work.slot_place);
     s.spin_length
@@ -96,33 +82,36 @@ pub fn move_slot(
     // Tested as a dword: any bit set (a NaN too) means a spin.
     if s.spin_length.get().to_bits() != 0 {
         let axis = spin_axis(c.work, number);
-        unit_vector(c.course.reads(), &axis, &c.course.lists.get().spin_axis);
+        unit_vector(c.course.reads(), &axis, &c.course.turn_work().spin_axis);
         c.course
-            .lists
-            .get()
+            .turn_work()
             .spin_angle
             .set(x87::mul(&s.spin_length, dt));
-        axis_turn_matrix(c.course, &c.course.lists.get().turn_matrix);
-        square_matrix(c.course.reads(), &c.course.lists.get().turn_matrix);
-        multiply_matrices(
-            &s.matrix,
-            &c.course.lists.get().turn_matrix,
-            &c.matrices.turned_matrix,
-        );
-        copy_matrix(&c.matrices.turned_matrix, &s.matrix);
+        axis_turn_matrix(c.course, &c.course.turn_work().turn_matrix);
+        square_matrix(c.course.reads(), &c.course.turn_work().turn_matrix);
+        let slot_matrix = matrix_of(&s.matrix);
+        let turn_now = matrix_of(&c.course.turn_work().turn_matrix);
+        let turned = {
+            let mut kept = c.matrices.borrow_mut();
+            kept.turned_matrix = product(&slot_matrix, &turn_now, kept.turned_matrix);
+            kept.turned_matrix
+        };
+        store_matrix(&s.matrix, &turned);
     }
     for k in [1, 0, 2] {
         let d = mul2_to_int(&s.motion[k], dt, k65536) as u32;
-        drawing.scene.get().scratch.set(d);
         s.place[k].set(s.place[k].get().wrapping_add(d));
     }
     s.motion[1].st(-(c.tables.gravity.ld() * bh::ld(dt)) + s.motion[1].ld());
-    c.ground.ground_x.set(s.place[0].get());
-    c.ground.ground_z.set(s.place[2].get());
-    c.course.course.get().ground_face_last.set(s.car_word.get());
-    c.probe.settle_mark.set(0x80);
-    crate::physics::find_ground::find_ground(c.probe, c.ground, c.course, scene)?;
-    let face: u32 = c.course.course.get().ground_slot.get();
+    {
+        let mut search = c.search.borrow_mut();
+        search.x = s.place[0].get();
+        search.z = s.place[2].get();
+        search.last = s.car_word.get();
+    }
+    c.probe.borrow_mut().settle_mark = 0x80;
+    crate::physics::find_ground::find_ground(c.probe, c.search, c.course)?;
+    let face: u32 = c.search.borrow().slot;
     if face == u32::MAX {
         copy_place(&c.work.slot_place, &s.place);
         for cell in s.motion.iter().chain(&s.spin) {
@@ -131,7 +120,7 @@ pub fn move_slot(
         return Ok(());
     }
     s.car_word.set(face);
-    let height: u32 = c.ground.ground_height.get();
+    let height: u32 = c.search.borrow().height;
     if (s.place[1].get().wrapping_sub(height) as i32) >= 0 {
         return Ok(());
     }
@@ -143,7 +132,7 @@ pub fn move_slot(
     for cell in &s.spin {
         cell.set(negated(mul(cell, half)));
     }
-    if abs_compare(&s.motion[1], &c.numbers.one) & 0x100 != 0 {
+    if abs_compare(&s.motion[1], c.numbers.one) & 0x100 != 0 {
         copy_held_matrix(&c.work.part_matrix_flat[..12], &s.matrix);
         let n = s.part.get() % 20;
         if (n.wrapping_sub(5) as i32) >= 0 && (n.wrapping_sub(9) as i32) < 0 {
@@ -151,11 +140,6 @@ pub fn move_slot(
             return Ok(());
         }
     }
-    drawing
-        .scene
-        .get()
-        .scratch
-        .set(abs_of(&s.motion[1]).to_bits());
     Ok(())
 }
 

@@ -1,6 +1,6 @@
-//! The network rally menu, by its title "RALI EM REDE". Screen-specific part of
-//! `menu::screen_loop`: background `nral.png`; leaving is not asked about; the quit switch is not
-//! looked at.
+//! The network rally menu, by its title "NETWORK RALLY". Screen-specific part of
+//! `menu::screen_loop`: background `nral.png`; leaving is not asked about; the menu sound is
+//! cleared every frame.
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
@@ -12,12 +12,12 @@ use crate::menu::screen_loop::{
 
 fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     let screens = &set_up.menus.screens;
-    screens.flow.turning.set(0x1u32);
-    screens.carousel.menu.set(0x6u32);
+    screens.flow.write().turning = 0x1u32;
+    screens.carousel.write().menu = 0x6u32;
     set_up.carousel_with(None)?;
-    let item = screens.items.current[slot::NETWORK_RALLY].get();
-    screens.loop_flags.item.set(item);
-    screens.carousel.front.set(item.wrapping_sub(1));
+    let item = screens.items.current(slot::NETWORK_RALLY);
+    screens.loop_flags.write().item = item;
+    screens.carousel.write().front = item.wrapping_sub(1);
 
     Ok(())
 }
@@ -58,7 +58,7 @@ pub const SCREEN: Screen = Screen {
         Step::WriteFlag(ScreenFlag::LeaveScreen, false),
     ],
     frames: Frames {
-        no_quit_check: true,
+        clears_menu_sound: true,
         ..Frames::DEFAULT
     },
     ..Screen::new(

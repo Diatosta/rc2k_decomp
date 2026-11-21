@@ -31,7 +31,23 @@ pub struct Net {
     /// Chat messages the receiving thread took, as (player, text with its NUL), until the game's
     /// thread adds them to the chat (`net::drain_chat`): measuring a line needs the fonts, which
     /// only the game's thread reaches.
-    chat_waiting: std::sync::Mutex<Vec<(u32, Vec<u8>)>>,
+    chat_waiting: std::sync::Mutex<Vec<WaitingChat>>,
+    /// The host's count of the chat lines it has ordered (the next line's number).
+    chat_sequence: std::sync::atomic::AtomicU32,
+}
+
+/// The chat messages kept waiting for the game's thread (far more than a lobby's eight lines).
+const CHAT_WAITING_MOST: usize = 64;
+
+/// A chat message the receiving thread took.
+pub struct WaitingChat {
+    /// The author's car number.
+    pub player: u32,
+    /// The text with its NUL.
+    pub text: Vec<u8>,
+    /// The host's number for the line when the host ordered it (a joiner's lines all carry
+    /// one); none for a line sent to the host, which orders it when it adds it.
+    pub sequence: Option<u32>,
 }
 
 impl Net {
@@ -44,19 +60,42 @@ impl Net {
             button: GameThread::new(Button::new()),
             race_slot: rc2k_core::net::net_race::NetRaceSlot::new(),
             chat_waiting: std::sync::Mutex::new(Vec::new()),
+            chat_sequence: std::sync::atomic::AtomicU32::new(0),
         }
     }
 
-    /// A chat message from `player`, waiting for the game's thread.
-    pub fn queue_chat(&self, player: u32, text: Vec<u8>) {
-        self.chat_waiting
+    /// A chat message from `player`, waiting for the game's thread. The game's thread takes them
+    /// only in the lobby: past `CHAT_WAITING_MOST` the oldest are dropped, so that a machine that
+    /// sends lines all through a race cannot fill this one's memory.
+    ///
+    /// The text's control bytes are dropped (the NUL that ends it stays): the text engine reads
+    /// them as commands that move the pen or name glyphs, so a line sent by another machine
+    /// could make a line measure as negative or point past the font's glyphs, which ends the game
+    /// on every machine that shows it. This machine's own typing never makes them.
+    pub(super) fn queue_chat(&self, player: u32, mut text: Vec<u8>, sequence: Option<u32>) {
+        text.retain(|&b| b >= 0x20 || b == 0);
+        let mut waiting = self
+            .chat_waiting
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push((player, text));
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if waiting.len() >= CHAT_WAITING_MOST {
+            waiting.remove(0);
+        }
+        waiting.push(WaitingChat {
+            player,
+            text,
+            sequence,
+        });
+    }
+
+    /// The number for the next line the host orders.
+    pub(super) fn next_chat_sequence(&self) -> u32 {
+        self.chat_sequence
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     }
 
     /// The waiting chat messages in the order they came, none left waiting.
-    pub fn take_waiting_chat(&self) -> Vec<(u32, Vec<u8>)> {
+    pub(super) fn take_waiting_chat(&self) -> Vec<WaitingChat> {
         std::mem::take(
             &mut *self
                 .chat_waiting
@@ -99,5 +138,36 @@ impl Net {
     /// The session joined.
     pub fn joined(&self) -> &JoinedVars {
         &self.main.get().joined
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Guards the waiting chat: only the newest `CHAT_WAITING_MOST` lines are kept, in order.
+    #[test]
+    fn a_flood_of_chat_lines_keeps_only_the_newest() {
+        let net: Box<Net> = Box::new(Net::new());
+        for n in 0..CHAT_WAITING_MOST as u32 + 40 {
+            net.queue_chat(n, vec![b'x', 0], None);
+        }
+        let waiting = net.take_waiting_chat();
+        assert_eq!(waiting.len(), CHAT_WAITING_MOST);
+        assert_eq!(waiting[0].player, 40);
+        assert_eq!(
+            waiting.last().map(|w| w.player),
+            Some(CHAT_WAITING_MOST as u32 + 39)
+        );
+        assert!(net.take_waiting_chat().is_empty());
+    }
+
+    /// Guards the chat against the text engine's control bytes sent by another machine.
+    #[test]
+    fn a_received_line_keeps_no_control_bytes() {
+        let net: Box<Net> = Box::new(Net::new());
+        net.queue_chat(1, b"a\x0e\xffb\x1f\xffc\n\x01d\0".to_vec(), None);
+        let waiting = net.take_waiting_chat();
+        assert_eq!(waiting[0].text, b"a\xffb\xffcd\0");
     }
 }

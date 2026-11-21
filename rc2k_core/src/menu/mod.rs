@@ -20,6 +20,7 @@ pub mod inspection;
 pub mod item_params;
 pub mod items;
 pub mod keys;
+pub mod launch;
 pub mod leaving;
 pub mod list_menu;
 pub mod navigation;

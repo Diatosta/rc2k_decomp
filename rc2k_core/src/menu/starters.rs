@@ -20,6 +20,10 @@ pub enum Seats {
     Two,
     Three,
     Four,
+    /// Three players on one split screen, all racing together.
+    SplitThree,
+    /// Four players on one split screen, all racing together.
+    SplitFour,
 }
 
 /// A starter.
@@ -42,8 +46,8 @@ impl Starter {
         match self.seats {
             Seats::One => 1,
             Seats::Split | Seats::Two => 2,
-            Seats::Three => 3,
-            Seats::Four => 4,
+            Seats::Three | Seats::SplitThree => 3,
+            Seats::Four | Seats::SplitFour => 4,
         }
     }
 
@@ -53,8 +57,8 @@ impl Starter {
             Seats::One => 9,
             Seats::Split => 0xA,
             Seats::Two => 0xB,
-            Seats::Three => 0xC,
-            Seats::Four => 0xD,
+            Seats::Three | Seats::SplitThree => 0xC,
+            Seats::Four | Seats::SplitFour => 0xD,
         }
     }
 
@@ -120,7 +124,7 @@ pub trait Event {
 }
 
 /// The repairs' set.
-pub const ALL_REPAIRS: u32 = 0xF;
+pub(crate) const ALL_REPAIRS: u32 = 0xF;
 
 /// A starter's steps: the set-up (the one-player ones in their own order; the A8's
 /// first begins the event unless a saved game goes on), each player's repairs and car

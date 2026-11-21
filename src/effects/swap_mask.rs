@@ -1,4 +1,4 @@
-//! `effects::swap_mask`: when the settings' +0x2704 differs from the last seen (then it is kept),
+//! `effects::swap_mask`: when the settings' `sound_objects_shown` differs from the last seen (then it is kept),
 //! the effects' mask texture is refilled from mask block A (or mask block B when it is set; the
 //! choice is kept): the mask texture slot locked (`d3d::lock_texture`, the platform's), rows 0 ..
 //! 0x7D of 0x100 pixels (the locked surface's width each) put at y + 0x80 by
@@ -13,7 +13,7 @@ use crate::errors::{BadInput, Refused};
 
 /// The lock and unlock (`d3d::lock_texture`,
 /// `unlock_texture`), `gfx::put_surface_pixel`, `scene::forget_slot_texture`.
-// Converted: `rc2k_core::effects::masks::{swapped, check_width, texture_pixels}`
+// The logic is in `rc2k_core::effects::masks::{swapped, check_width, texture_pixels}`
 pub fn swap_mask(
     masks: &Masks,
     scene: &crate::scene::owner::Scene,
@@ -29,30 +29,22 @@ pub fn swap_mask(
     }
     let marks = effects.settings()?;
     let switch = marks.sound_objects_shown.get();
-    let Some(second) = masks::swapped(switch, masks.blocks.seen.get()) else {
+    let Some(second) = masks::swapped(switch, masks.blocks.borrow().seen) else {
         return Ok(());
     };
-    let kept: [u32; 2] = [masks.blocks.seen.get(), masks.blocks.chosen.get()];
-    masks.blocks.seen.set(switch);
+    let kept: [u32; 2] = [masks.blocks.borrow().seen, masks.blocks.borrow().chosen];
+    masks.blocks.borrow_mut().seen = switch;
     let chosen = if second { Mask::Bordered } else { Mask::Plain };
-    masks.blocks.chosen.set(chosen as u32);
-    lock(
-        gfx,
-        scene.textures.kinds.get().kind_first_textures[202].get(),
-        true,
-    )?;
+    masks.blocks.borrow_mut().chosen = chosen as u32;
+    lock(gfx, scene.textures.first_textures()[202], true)?;
     // The width is the locked texture's, not the screen's: checked here (before the lock it
     // refused every frame). A row wider than the mask's would read past its block: unlocked,
     // put back and refused.
     let width: u32 = gfx.drawing.draw_surface.width.get();
     if let Err(e) = masks::check_width(width) {
-        lock(
-            gfx,
-            scene.textures.kinds.get().kind_first_textures[202].get(),
-            false,
-        )?;
-        masks.blocks.seen.set(kept[0]);
-        masks.blocks.chosen.set(kept[1]);
+        lock(gfx, scene.textures.first_textures()[202], false)?;
+        masks.blocks.borrow_mut().seen = kept[0];
+        masks.blocks.borrow_mut().chosen = kept[1];
         return Err(e.into());
     }
     let pixels = chosen.pixels(masks).with(|p| {
@@ -61,25 +53,17 @@ pub fn swap_mask(
             .collect::<Option<Vec<_>>>()
     })?;
     let Some(pixels) = pixels else {
-        lock(
-            gfx,
-            scene.textures.kinds.get().kind_first_textures[202].get(),
-            false,
-        )?;
-        masks.blocks.seen.set(kept[0]);
-        masks.blocks.chosen.set(kept[1]);
+        lock(gfx, scene.textures.first_textures()[202], false)?;
+        masks.blocks.borrow_mut().seen = kept[0];
+        masks.blocks.borrow_mut().chosen = kept[1];
         return Err(BadInput("a mask pixel past its block").into());
     };
     for (row, col, pixel) in pixels {
         put_pixel(pixel, col, row + masks::TEXTURE_ROW_AT, gfx, system)?;
     }
-    lock(
-        gfx,
-        scene.textures.kinds.get().kind_first_textures[202].get(),
-        false,
-    )?;
+    lock(gfx, scene.textures.first_textures()[202], false)?;
     crate::scene::forget_slot_texture::forget_slot_texture(
-        scene.textures.kinds.get().kind_first_slots[202].get(),
+        scene.textures.kinds.borrow().kind_first_slots[202],
         scene,
     )?;
     Ok(())

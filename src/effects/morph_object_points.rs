@@ -1,10 +1,9 @@
-//! `effects::morph_object_points`: for each car (the settings' +0x5C, the last first; its
-//! block at +0x29C of its 0x4C8 bytes) the block's +0xC its +8; when its eight factors
-//! (+0x90 ..) differ from the kept ones (+0xB0 ..): +0xC -1, the factors kept (also in
-//! `MorphWork.kept[0]` ..), and for each of its first object's (+0) points the matching
-//! point of the second object (+4) blended toward from the base list (+0x8C) by
-//! `effects::blend_corner`, where the base and the second object's point differ. Then
-//! `effects::measure_lines`.
+//! `effects::morph_object_points`: for each car (the settings' `cars_copy`, the last first), when
+//! its eight `factors` differ from the `kept_factors`: `morph_kept` -1 (the start `morph_start`
+//! is copied into it first), the factors kept, and for each of
+//! its first object's points the matching point of the second object blended toward from the
+//! base list (`point_block`) by `effects::blend_corner`, where the base and the second
+//! object's point differ. Then `effects::measure_lines`.
 //!
 //! Refuses (before anything) null settings, more than 8 cars, and for a car whose factors changed:
 //! an object past 0xFF, a null base list or one (`Paths::block_points`) shorter than the points,
@@ -13,9 +12,8 @@
 
 use crate::effects::blend_corner::blend_corner;
 use crate::effects::lines::measure_lines;
-use crate::effects::paths::Paths;
+use crate::effects::paths_store::Paths;
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::effects_settings_store::CarEffects;
 use crate::race::owner_course::Course;
 use crate::scene::object_slots_store::SlotTable;
@@ -48,13 +46,13 @@ fn changed(b: &CarEffects) -> bool {
 /// A block's objects' first points (in the object points) and their count.
 fn points(course: &Course, scene: &Scene, b: &CarEffects) -> Result<(u32, u32, i32), Refused> {
     Ok({
-        let base: u32 = course.lists.get().object_points.get();
+        let base: u32 = course.lists.borrow().object_points;
         let first = |id: u32| {
             base.wrapping_add(
                 12 * scene
                     .objects
                     .slots
-                    .get()
+                    .borrow()
                     .slot_value(SlotTable::FirstPoint, id as usize),
             )
         };
@@ -65,7 +63,7 @@ fn points(course: &Course, scene: &Scene, b: &CarEffects) -> Result<(u32, u32, i
             scene
                 .objects
                 .slots
-                .get()
+                .borrow()
                 .slot_value(SlotTable::PointCounts, a as usize) as i32,
         )
     })
@@ -83,8 +81,8 @@ fn refusal(
         if marks.cars_copy.get() as i32 > MOST_CARS {
             return Ok(Some("more than 8 cars"));
         }
-        let base: u32 = course.lists.get().object_points.get();
-        let room: u32 = course.lists.get().object_points_room.get();
+        let base: u32 = course.lists.borrow().object_points;
+        let room: u32 = course.lists.borrow().object_points_room;
         for b in blocks(effects)? {
             if !changed(b) {
                 continue;
@@ -118,7 +116,7 @@ fn refusal(
 
 pub fn morph_object_points(
     course: &Course,
-    faces_table: &crate::scene::faces_store::Faces,
+    faces_table: crate::scene::faces_store::FacesRef,
     paths: &Paths,
     scene: &Scene,
     effects: &crate::effects::owner::Effects,
@@ -136,7 +134,6 @@ pub fn morph_object_points(
             for k in 0..8 {
                 let v = b.factors[k].get();
                 b.kept_factors[k].set(v);
-                paths.morph_work.kept[k].set(v);
             }
             let (a, c, n) = points(course, scene, b)?;
             let points = b.point_block.get();
@@ -153,32 +150,4 @@ pub fn morph_object_points(
         measure_lines(course, faces_table, paths, scene, effects)?;
     }
     Ok(())
-}
-
-/// The object morph's work.
-#[derive(rc2k_derive::Cells)]
-pub struct MorphWork {
-    /// The block last taken for a settings block's points (`lines::set_up_blocks`)
-    pub taken: PlainDword,
-    /// The factors kept
-    pub kept: [PlainFloat; 8],
-}
-
-impl MorphWork {
-    /// The values the game starts with.
-    pub const fn new() -> Self {
-        MorphWork {
-            taken: PlainDword::new(0x0),
-            kept: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-        }
-    }
 }

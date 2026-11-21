@@ -10,8 +10,8 @@ pub fn fits(count: u32) -> bool {
 }
 
 /// The list as the drawing starts it: 0, 1, .. `count` - 1 and a 0 after them.
-pub fn first_list(count: u32) -> Vec<u32> {
-    (0..count).chain([0]).collect()
+pub fn first_list(count: u32) -> impl Iterator<Item = u32> {
+    (0..count).chain([0])
 }
 
 /// The edges `scene::needs_clipping` tests against: the least (for depth, x and y), and the
@@ -79,7 +79,7 @@ mod tests {
     #[test]
     fn fans() {
         assert!(!fits(0) && fits(1) && fits(0x40) && !fits(0x41));
-        assert_eq!(first_list(3), [0, 1, 2, 0]);
+        assert_eq!(first_list(3).collect::<Vec<_>>(), [0, 1, 2, 0]);
         let e = Edges {
             least: 1.0,
             right: 640.0,

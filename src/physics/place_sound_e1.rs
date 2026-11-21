@@ -1,15 +1,12 @@
-//! When the current car is listed, `physics::sound_band_1` gives a band; a band not 0 goes to the
+//! When the current car is listed, the contact band (`sound_bands::CONTACT_BAND`) gives a band; a band not 0 goes to the
 //! car's sound object as sound 0xE1 with that band, the car's place and the update flag set (see
 //! `physics/car_sounds.rs`).
 //!
-//! Callers: `physics::wall_push_back`, `physics::wall_edge_contact`,
-//! `physics::crossed_edge_contact`, `physics::ground_contact`. Refuses (before anything) a car
-//! number past 7, a null sound object when it is written.
+//! Refuses (before anything) a car number past 7, a null sound object when it is written.
 
 use crate::errors::Refused;
 use crate::physics::car_sounds::{listed, object, place};
-use crate::physics::sound_band_1::TWIN;
-use crate::physics::sound_bands::band_value;
+use crate::physics::sound_bands::{CONTACT_BAND, band_value};
 use crate::physics::step_families::SoundInputs;
 
 /// The exact version, for `physics::wall_push_back` and `physics::wall_edge_contact`.
@@ -17,22 +14,23 @@ pub fn place_sound_e1(c: &SoundInputs<'_>) -> Result<(), Refused> {
     if !listed(c.frame_work, c.work.current_car.get())? {
         return Ok(());
     }
-    let b = band_value(c, TWIN);
+    let b = band_value(c, &CONTACT_BAND);
     if b == 0 {
         return Ok(());
     }
     let o = object(c);
-    o.hit_sound.set(0xE1);
-    o.hit_volume.set(b);
-    place(
+    o.borrow_mut().hit_sound = 0xE1;
+    o.borrow_mut().hit_volume = b;
+    let at = place(
         c.numbers,
-        c.matrices,
+        &c.view_turn,
         c.heard_turn,
         c.car,
-        &o.hit_place,
+        c.listener,
         None,
     );
+    o.borrow_mut().hit_place = at;
     // The play switch, the cell the revs' new reading flag shares.
-    o.new_revs.set(1);
+    o.borrow_mut().new_revs = 1;
     Ok(())
 }

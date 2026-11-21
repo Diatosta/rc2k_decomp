@@ -32,17 +32,17 @@ pub fn pick_replay_camera(race: &Race, wish: u32) -> Result<Option<u32>, Refused
     if !any {
         return Err(BadInput("no camera mode the wish stops at").into());
     }
-    let edx = loop {
-        let (_, edx) = draw(race.shared.random.next_random());
-        if fits(edx) {
-            break edx;
+    let mode = loop {
+        let (_, mode) = draw(race.shared.random.next_random());
+        if fits(mode) {
+            break mode;
         }
     };
-    let edx = kept_mode(
-        edx,
+    let mode = kept_mode(
+        mode,
         || race.car_blocks().cars[0].car_kind.get(),
         || race.shared.view.get().players.get() != 1,
         || race.car_blocks().cars[1].car_kind.get(),
     );
-    Ok(Some(edx))
+    Ok(Some(mode))
 }

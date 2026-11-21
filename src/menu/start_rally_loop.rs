@@ -1,6 +1,6 @@
-//! The mode menu, titled "COMEÇAR RALI". Screen-specific part of `menu::screen_loop`: background
+//! The mode menu, titled "START RALLY". Screen-specific part of `menu::screen_loop`: background
 //! `sral.png`; leaving is not asked about; the next frame begins with the steps after the first
-//! frame; it has steps of its own first on leaving; the quit switch is not looked at.
+//! frame; it has steps of its own first on leaving; the menu sound is cleared every frame.
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
@@ -14,27 +14,27 @@ use crate::menu::screen_loop::{
 
 fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     let screens = &set_up.menus.screens;
-    screens.flow.turning.set(0x1u32);
-    screens.carousel.menu.set(0x1u32);
+    screens.flow.write().turning = 0x1u32;
+    screens.carousel.write().menu = 0x1u32;
     set_up.carousel_with(None)?;
-    let item = screens.items.current[slot::START_RALLY].get();
-    screens.loop_flags.item.set(item);
-    screens.carousel.front.set(item.wrapping_sub(1));
+    let item = screens.items.current(slot::START_RALLY);
+    screens.loop_flags.write().item = item;
+    screens.carousel.write().front = item.wrapping_sub(1);
     set_up.set_view(7, 10, 0x100);
     set_up.prepare_scene();
     Ok(())
 }
 
 fn after_first_frame(tables: &Tables) -> Result<Flow, Refused> {
-    if tables.captions.left_by_key.is_set() {
-        tables.captions.left_by_key.set(false);
+    if tables.captions.read().left_by_key {
+        tables.captions.write().left_by_key = false;
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)
 }
 
 fn leaving(menus: &Menus) -> Result<(), Refused> {
-    if menus.tables.captions.left_by_key.is_set() {
+    if menus.tables.captions.read().left_by_key {
         crate::menu::go_back::go_back(menus);
     }
     Ok(())
@@ -67,7 +67,7 @@ pub const SCREEN: Screen = Screen {
     leaving: &[Step::DoMenus(leaving)],
     frames: Frames {
         next_frame_repeats_first: true,
-        no_quit_check: true,
+        clears_menu_sound: true,
         ..Frames::DEFAULT
     },
     ..Screen::new(

@@ -1,6 +1,5 @@
 //! Tries the course faces about the work car against it (`physics::face_contacts_around`).
 //!
-//! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`.
 //! Refuses what `face_contacts_around` refuses (everything written is put back).
 
 use crate::errors::Refused;

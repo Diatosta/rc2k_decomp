@@ -55,22 +55,22 @@ const GROUPS: &[(&str, &[Row])] = &[
                     effects
                         .windscreen_drops
                         .hex
+                        .borrow()
                         .windscreen_flakes_cleared
-                        .get()
                         .into()
                 }),
             ),
             (
                 "?rain.total",
-                Cell(|effects, _| effects.windscreen_drops.state.live.get().into()),
+                Cell(|effects, _| effects.windscreen_drops.state.borrow().live.into()),
             ),
             (
                 "?snow3d.drawn",
-                Cell(|effects, _| effects.weather.snow.drawn.get().into()),
+                Cell(|effects, _| effects.weather.snow.borrow().drawn.into()),
             ),
             (
                 "splash amount",
-                Cell(|effects, _| effects.ring.work.count.get().into()),
+                Cell(|effects, _| effects.ring.work.borrow().count.into()),
             ),
             (
                 "fworks amount",
@@ -79,14 +79,6 @@ const GROUPS: &[(&str, &[Row])] = &[
             (
                 "fworks run",
                 Cell(|effects, _| effects.ring.pool.fireworks_run.get().into()),
-            ),
-            (
-                "fsizefp",
-                Cell(|_, scene| scene.drawing.scene.get().view_scale.get().into()),
-            ),
-            (
-                "maxzspacefp",
-                Cell(|_, scene| scene.drawing.scene.get().farthest.get().into()),
             ),
         ],
     ),
@@ -101,38 +93,38 @@ const GROUPS: &[(&str, &[Row])] = &[
             ("backfire", Through(|s| s.cars[0].gear_notice.get().into())),
             (
                 "car angle",
-                Cell(|effects, _| effects.frame.view_vars.heading.get().into()),
+                Cell(|effects, _| effects.frame.view_vars.borrow().heading.into()),
             ),
             (
                 "car direction of travel",
-                Cell(|effects, _| effects.frame.view_vars.facing.get().into()),
+                Cell(|effects, _| effects.frame.view_vars.borrow().facing.into()),
             ),
             ("car x", Through(|s| s.listener_car_place[0].get().into())),
             ("car y", Through(|s| s.listener_car_place[1].get().into())),
             ("car z", Through(|s| s.listener_car_place[2].get().into())),
             (
                 "?wheels.vect1.x",
-                Cell(|effects, _| effects.kinds.emitter.side_b[0].get().into()),
+                Cell(|effects, _| effects.kinds.emitter.borrow().side_b[0].into()),
             ),
             (
                 "?wheels.vect1.y",
-                Cell(|effects, _| effects.kinds.emitter.side_b[1].get().into()),
+                Cell(|effects, _| effects.kinds.emitter.borrow().side_b[1].into()),
             ),
             (
                 "?wheels.vect1.z",
-                Cell(|effects, _| effects.kinds.emitter.side_b[2].get().into()),
+                Cell(|effects, _| effects.kinds.emitter.borrow().side_b[2].into()),
             ),
             (
                 "?wheels.vect4.x",
-                Cell(|effects, _| effects.kinds.emitter.side_a[0].get().into()),
+                Cell(|effects, _| effects.kinds.emitter.borrow().side_a[0].into()),
             ),
             (
                 "?wheels.vect4.y",
-                Cell(|effects, _| effects.kinds.emitter.side_a[1].get().into()),
+                Cell(|effects, _| effects.kinds.emitter.borrow().side_a[1].into()),
             ),
             (
                 "?wheels.vect4.z",
-                Cell(|effects, _| effects.kinds.emitter.side_a[2].get().into()),
+                Cell(|effects, _| effects.kinds.emitter.borrow().side_a[2].into()),
             ),
         ],
     ),
@@ -141,11 +133,11 @@ const GROUPS: &[(&str, &[Row])] = &[
         &[
             (
                 "?world.time_abs",
-                Cell(|effects, _| effects.setup.clock.now.get().into()),
+                Cell(|effects, _| effects.setup.clock.borrow().now.into()),
             ),
             (
                 "?world.time",
-                Cell(|effects, _| effects.setup.clock.frame_ticks.get().into()),
+                Cell(|effects, _| effects.setup.clock.borrow().frame_ticks.into()),
             ),
             (
                 "clock0",
@@ -219,11 +211,9 @@ fn shown(value: Option<Figure>) -> String {
 /// The tab.
 pub fn tab(effects: &Effects, scene: &Scene, ui: &Ui) {
     // Its warning, when the two counts differ.
-    let frame = &effects.frame.draw_frame;
-    let (drawn, run) = (
-        Some(frame.drawn.get().into()),
-        Some(frame.cleared.get().into()),
-    );
+    let frame = effects.frame.draw_frame.borrow();
+    let (drawn, run) = (Some(frame.drawn.into()), Some(frame.cleared.into()));
+    drop(frame);
     if drawn != run {
         ui.text_colored(
             [1.0, 0.4, 0.3, 1.0],
@@ -274,7 +264,7 @@ fn cracks(ui: &Ui, effects: &Effects) {
     if ui.collapsing_header("Cracks", TreeNodeFlags::DEFAULT_OPEN) {
         ui.text(format!(
             "?crack.flag: {}",
-            shown(Some(effects.paths.lines_work.any.get().into()))
+            shown(Some(effects.paths.lines_work.borrow().any.into()))
         ));
         for (set, figure) in CRACK_SETS.iter().enumerate() {
             let figures: Vec<String> = (0..6)

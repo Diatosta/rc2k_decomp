@@ -4,21 +4,48 @@
 use super::*;
 
 impl Session {
-    /// The host's session made, at `port` (its TCP connections and its UDP answers).
-    pub fn host(mut desc: Desc, port: u16, signal: Signal) -> std::io::Result<Arc<Session>> {
+    /// A host's session on a port the system picks (the TCP listener's own: nothing is bound
+    /// and let go), the pings and the wait on a wrong guess as `pace` says.
+    #[cfg(test)]
+    pub(super) fn host_anywhere(
+        desc: Desc,
+        signal: Signal,
+        password: &[u8],
+        pace: Pace,
+    ) -> std::io::Result<Arc<Session>> {
+        Session::host_bound(desc, 0, signal, password, pace)
+    }
+
+    /// The host's session made, locked by `password` unless it is empty: joiners must prove they
+    /// know it, and the session's description says it is locked.
+    pub fn host_locked(
+        desc: Desc,
+        port: u16,
+        signal: Signal,
+        password: &[u8],
+    ) -> std::io::Result<Arc<Session>> {
+        Session::host_bound(desc, port, signal, password, Pace::default())
+    }
+
+    /// `host_locked` at `port`, or at the TCP port the system gives when it is 0 (the UDP
+    /// answers then use that number too).
+    fn host_bound(
+        desc: Desc,
+        port: u16,
+        signal: Signal,
+        password: &[u8],
+        pace: Pace,
+    ) -> std::io::Result<Arc<Session>> {
         let listener = TcpListener::bind(("0.0.0.0", port))?;
+        let port = listener.local_addr()?.port();
         let udp = UdpSocket::bind(("0.0.0.0", port))?;
         udp.set_read_timeout(Some(Duration::from_millis(300)))?;
-        desc.current_players = 0;
-        let session = Session::new(
-            1,
-            World {
-                desc,
-                ..Default::default()
-            },
-            signal,
-            port,
-        );
+        let session = Session::host_over_paced(desc, port, signal, password, pace);
+        *session
+            .listener_at
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Some((std::net::Ipv4Addr::LOCALHOST, listener.local_addr()?.port()).into());
         let s = session.clone();
         std::thread::spawn(move || s.accept(listener));
         let s = session.clone();
@@ -26,21 +53,72 @@ impl Session {
         Ok(session)
     }
 
+    /// The host's session made with no listener of its own: machines come through connections
+    /// handed to `serve_wire` (a kind of connection that finds its own machines).
+    pub fn host_over(desc: Desc, port: u16, signal: Signal, password: &[u8]) -> Arc<Session> {
+        Session::host_over_paced(desc, port, signal, password, Pace::default())
+    }
+
+    fn host_over_paced(
+        mut desc: Desc,
+        port: u16,
+        signal: Signal,
+        password: &[u8],
+        pace: Pace,
+    ) -> Arc<Session> {
+        desc.current_players = 0;
+        let lock = if password.is_empty() {
+            desc.flags &= !DPSESSION_PASSWORDREQUIRED;
+            None
+        } else {
+            desc.flags |= DPSESSION_PASSWORDREQUIRED;
+            let salt = random_16();
+            Some(Lock {
+                salt,
+                key: rc2k_core::net::password::key(&salt, password),
+            })
+        };
+        let session = Session::new_paced(
+            1,
+            World {
+                desc,
+                ..Default::default()
+            },
+            signal,
+            port,
+            lock,
+            pace,
+        );
+        let weak = Arc::downgrade(&session);
+        let stop = session.stop.clone();
+        std::thread::spawn(move || ping_machines(&weak, &stop, pace.ping_every));
+        session
+    }
+
+    /// A machine's connection taken in, on a thread of its own, until it ends.
+    pub fn serve_wire(self: &Arc<Self>, wire: Box<dyn Wire>) {
+        if self.connections.fetch_add(1, Ordering::SeqCst) >= CONNECTIONS_MOST {
+            self.connections.fetch_sub(1, Ordering::SeqCst);
+            let _ = wire.shutdown();
+            return;
+        }
+        let s = self.clone();
+        std::thread::spawn(move || {
+            s.clone().serve(wire);
+            s.connections.fetch_sub(1, Ordering::SeqCst);
+        });
+    }
+
     pub(super) fn accept(self: Arc<Self>, listener: TcpListener) {
-        let _ = listener.set_nonblocking(true);
-        while !self.stop.load(Ordering::SeqCst) {
+        // Blocks in `accept`; `close` connects once to wake it.
+        while !self.stop.is_set() {
             match listener.accept() {
                 Ok((stream, _)) => {
-                    if self.connections.fetch_add(1, Ordering::SeqCst) >= CONNECTIONS_MOST {
-                        self.connections.fetch_sub(1, Ordering::SeqCst);
-                        continue;
+                    if self.stop.is_set() {
+                        break;
                     }
-                    let _ = stream.set_nonblocking(false);
-                    let s = self.clone();
-                    std::thread::spawn(move || {
-                        s.clone().serve(stream);
-                        s.connections.fetch_sub(1, Ordering::SeqCst);
-                    });
+                    let _ = stream.set_nodelay(true);
+                    self.serve_wire(Box::new(stream));
                 }
                 Err(_) => std::thread::sleep(Duration::from_millis(50)),
             }
@@ -48,8 +126,11 @@ impl Session {
     }
 
     pub(super) fn answer_probes(self: Arc<Self>, udp: UdpSocket) {
+        // Announced for as long as the probes are answered (not by the unit tests' sessions).
+        #[cfg(not(test))]
+        let _announced = crate::net::bonjour::announce(self.port);
         let mut buffer = [0u8; 64];
-        while !self.stop.load(Ordering::SeqCst) {
+        while !self.stop.is_set() {
             let Ok((n, from)) = udp.recv_from(&mut buffer) else {
                 continue;
             };
@@ -66,15 +147,33 @@ impl Session {
     }
 
     /// One joined machine's connection, until it ends.
-    pub(super) fn serve(self: Arc<Self>, mut stream: TcpStream) {
-        let _ = stream.set_nodelay(true);
+    pub(super) fn serve(self: Arc<Self>, mut stream: Box<dyn Wire>) {
         let _ = stream.set_write_timeout(Some(WRITE_WAIT));
         let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
         let Ok(first) = read_frame(&mut stream) else {
             return;
         };
         let _ = stream.set_read_timeout(None);
-        if first.first() != Some(&JOIN) || first.get(1..9) != Some(MAGIC) {
+        if first.first() != Some(&JOIN) {
+            return;
+        }
+        if first.get(1..9) != Some(MAGIC) {
+            // Another version of this protocol is told so (the machine shows its reason);
+            // anything else is not a machine of this game and is dropped.
+            if first.get(1..8) == Some(MAGIC_FAMILY) {
+                let _ = write_frame(&mut stream, &W::default().u8(REFUSE).u32(DPERR_VERSION).0);
+            }
+            return;
+        }
+        if let Some(lock) = &self.lock
+            && !self.proves_password(&mut *stream, lock)
+        {
+            // A wrong guess waits before it is answered: guesses cost a second each.
+            std::thread::sleep(self.pace.wrong_guess);
+            let _ = write_frame(
+                &mut stream,
+                &W::default().u8(REFUSE).u32(DPERR_INVALIDPASSWORD).0,
+            );
             return;
         }
         let (machine, welcome) = {
@@ -105,17 +204,18 @@ impl Session {
         let Ok(writer) = stream.try_clone() else {
             return;
         };
-        // the welcome under the links' lock, so that no change goes out before it
+        let Some(link) = Link::new(writer) else {
+            return;
+        };
+        // The welcome goes first in the machine's queue, under the links' lock, so that no change
+        // goes out before it.
         {
             let mut links = self
                 .links
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            let mut writer = writer;
-            if write_frame(&mut writer, &welcome).is_err() {
-                return;
-            }
-            links.insert(machine, writer);
+            link.send(&welcome);
+            links.insert(machine, link);
         }
         while let Ok(frame) = read_frame(&mut stream) {
             let mut r = R(&frame);
@@ -144,7 +244,13 @@ impl Session {
                         self.route(from, to, data);
                     }
                 }
-                _ => break,
+                Some(PONG) => {
+                    let Some(stamp) = r.u32() else { break };
+                    self.note_round_trip(machine, stamp);
+                }
+                // A kind this host does not know is passed over.
+                Some(_) => {}
+                None => break,
             }
         }
         // the machine has gone: its players with it
@@ -152,6 +258,11 @@ impl Session {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove(&machine);
+        {
+            let mut s = self.lock();
+            s.pings.remove(&machine);
+            s.pings_outstanding.remove(&machine);
+        }
         let gone: Vec<Id> = {
             let s = self.lock();
             s.world
@@ -166,15 +277,78 @@ impl Session {
         }
     }
 
+    /// The session's clock in ms (wraps after 49 days: the stamps are only subtracted).
+    fn clock_ms(&self) -> u32 {
+        self.started.elapsed().as_millis() as u32
+    }
+
+    /// A machine's `PONG` for the ping stamped `stamp`: its round trip joins the machine's moving
+    /// average (a quarter new), and every machine is told the figures.
+    fn note_round_trip(&self, machine: u32, stamp: u32) {
+        let trip = self.clock_ms().wrapping_sub(stamp);
+        let bytes = {
+            let mut s = self.lock();
+            // An answer to a ping this machine was never sent (or already answered) is passed
+            // over: otherwise a machine could make the host send the whole list at will.
+            let Some(waiting) = s.pings_outstanding.get_mut(&machine) else {
+                return;
+            };
+            let Some(at) = waiting.iter().position(|&sent| sent == stamp) else {
+                return;
+            };
+            waiting.remove(at);
+            let average = s
+                .pings
+                .get(&machine)
+                .map_or(trip, |&old| moving_average(old, trip));
+            s.pings.insert(machine, average);
+            let mut w = W::default().u8(PINGS).u32(s.pings.len() as u32);
+            for (&m, &ms) in &s.pings {
+                w = w.u32(m).u32(ms);
+            }
+            w.0
+        };
+        let machines: Vec<u32> = self
+            .links
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .keys()
+            .copied()
+            .collect();
+        for m in machines {
+            self.to_machine(m, &bytes);
+        }
+    }
+
+    /// Whether the machine on `stream` answers a fresh challenge with the proof of the password.
+    fn proves_password(&self, stream: &mut dyn Wire, lock: &Lock) -> bool {
+        use rc2k_core::net::password::{KEY_LEN, proof, same};
+        let challenge = random_16();
+        let asked = W::default().u8(CHALLENGE).raw(&lock.salt).raw(&challenge);
+        if write_frame(stream, &asked.0).is_err() {
+            return false;
+        }
+        let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
+        let answer = read_frame(stream);
+        let _ = stream.set_read_timeout(None);
+        let Ok(answer) = answer else {
+            return false;
+        };
+        let mut r = R(&answer);
+        let given = (r.u8() == Some(PROOF))
+            .then(|| r.raw::<KEY_LEN>())
+            .flatten();
+        given.is_some_and(|given| same(&given, &proof(&challenge, &lock.key)))
+    }
+
+    /// `bytes` queued for `machine` (none for one that is gone); it never waits for the machine.
     pub(super) fn to_machine(&self, machine: u32, bytes: &[u8]) {
-        let mut links = self
+        let links = self
             .links
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some(link) = links.get_mut(&machine)
-            && write_frame(link, bytes).is_err()
-        {
-            let _ = link.shutdown(std::net::Shutdown::Both);
+        if let Some(link) = links.get(&machine) {
+            link.send(bytes);
         }
     }
 
@@ -200,14 +374,12 @@ impl Session {
         };
         let bytes = change.write(W::default().u8(CHANGE)).0;
         {
-            let mut links = self
+            let links = self
                 .links
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            for link in links.values_mut() {
-                if write_frame(link, &bytes).is_err() {
-                    let _ = link.shutdown(std::net::Shutdown::Both);
-                }
+            for link in links.values() {
+                link.send(&bytes);
             }
         }
         if !messages.is_empty() {
@@ -305,6 +477,8 @@ impl Session {
                     // what only the host keeps
                     d.instance = s.world.desc.instance;
                     d.application = s.world.desc.application;
+                    d.flags = (d.flags & !DPSESSION_PASSWORDREQUIRED)
+                        | (s.world.desc.flags & DPSESSION_PASSWORDREQUIRED);
                     Change::Desc(d)
                 }
             };
@@ -367,4 +541,60 @@ impl Session {
             );
         }
     }
+}
+
+/// A machine's round trip averaged with a new one, a quarter of it new. The stamp a machine gives
+/// back is its own to choose, so the trips can be any figure: no sum may overflow.
+pub(super) fn moving_average(old: u32, trip: u32) -> u32 {
+    ((u64::from(old) * 3 + u64::from(trip)) / 4) as u32
+}
+
+/// How many unanswered pings the host remembers per machine (a slower link than that many
+/// ping periods is not measured).
+const PINGS_OUTSTANDING_MOST: usize = 8;
+
+/// The host's thread that pings every machine every `every` until the session closes or goes.
+fn ping_machines(session: &std::sync::Weak<Session>, stop: &Closing, every: Duration) {
+    // A closing ends the wait at once; a session dropped unclosed is noticed at the next ping.
+    while !stop.wait(every) {
+        let Some(s) = session.upgrade() else { return };
+        let stamp = s.clock_ms();
+        let ping = W::default().u8(PING).u32(stamp).0;
+        let machines: Vec<u32> = s
+            .links
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .keys()
+            .copied()
+            .collect();
+        for m in machines {
+            {
+                let mut shared = s.lock();
+                let waiting = shared.pings_outstanding.entry(m).or_default();
+                if waiting.len() == PINGS_OUTSTANDING_MOST {
+                    waiting.remove(0);
+                }
+                waiting.push(stamp);
+            }
+            s.to_machine(m, &ping);
+        }
+    }
+}
+
+/// Sixteen random bytes (a salt or a challenge): each half from a hasher the system keyed
+/// at random, with the time in.
+pub(super) fn random_16() -> [u8; 16] {
+    use std::hash::{BuildHasher, Hasher};
+    let mut out = [0u8; 16];
+    for half in out.chunks_mut(8) {
+        let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+        h.write_u128(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos(),
+        );
+        half.copy_from_slice(&h.finish().to_le_bytes());
+    }
+    out
 }

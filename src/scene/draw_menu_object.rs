@@ -2,8 +2,8 @@
 //!
 //! Sets the shine to 0x200, makes the matrix from the angles, place and size the caller set
 //! (`scene::make_object_matrix`), sets `LightState.view_kind` = 5 and the light kind = 4, draws
-//! (`scene::draw_scene_object`), then sets the shine to 0x100. 14 callers: the carousel's entry
-//! and thirteen menus' objects.
+//! (`scene::draw_scene_object`), then sets the shine to 0x100. Used for the carousel's entry
+//! and the menus' objects.
 
 use crate::errors::Refused;
 use crate::scene::matrix::make_object_matrix;
@@ -24,12 +24,12 @@ pub fn draw_menu_object(
     mine: &crate::race::view_course::ViewCourse,
 ) -> Result<(), Refused> {
     {
-        mine.shine.set(0x200u32);
+        mine.borrow_mut().shine = 0x200;
         step(Step::Matrix)?;
-        light.view_kind.set(5u32);
-        light.light_kind.set(4u32);
+        light.borrow_mut().view_kind = 5u32;
+        light.borrow_mut().light_kind = 4u32;
         step(Step::Draw)?;
-        mine.shine.set(0x100u32);
+        mine.borrow_mut().shine = 0x100;
         Ok(())
     }
 }
@@ -43,10 +43,11 @@ pub fn draw_menu_object_in_game(
     draw_menu_object(
         &mut |step| match step {
             Step::Matrix => {
+                let view_turn = race.frame.view_kept.borrow().view_turn_matrix;
                 make_object_matrix(
-                    &ctx.reads.buffers.engine_tables,
-                    &ctx.view.matrices,
-                    &race.frame.matrices.get().view_turn_matrix,
+                    ctx.reads.engine_tables,
+                    &mut ctx.view.matrices.borrow_mut(),
+                    &view_turn,
                     &ctx.view.light,
                     &ctx.view.object,
                 );

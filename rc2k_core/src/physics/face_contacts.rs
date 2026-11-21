@@ -4,10 +4,10 @@
 use crate::Invalid;
 
 /// The object byte that marks a face touched without a contact.
-pub const TOUCH_ONLY: u32 = 0x3B;
+pub(crate) const TOUCH_ONLY: u32 = 0x3B;
 
 /// The object material records' room (0x80 bytes each).
-pub const MATERIALS: u32 = 0x4B0;
+pub(crate) const MATERIALS: u32 = 0x4B0;
 
 /// What a face's first two bytes make of it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -4,10 +4,10 @@
 //! list only before the first frame after set-up (and in the unread `flow.unread_list` at the other
 //! two places); the list of the menu before is cleared with `Screen::first_frame_lists`, so the
 //! table shows without them. Screen-specific part of `menu::screen_loop`: nothing happens before
-//! the loop; its background comes from `menu::load_background` (a failed load is fatal
-//! error 0x80712345); leaving is asked about, and a "no" sets the screen up again. If
+//! the loop; its background comes from `menu::load_background` (a failed load is fatal error
+//! 0x80712345); leaving is asked about, and a "no" sets the screen up again. If
 //! `state.menus.standings_shown` is set when the screen is left, nothing more is done: no question,
-//! and the highlight is not saved. One caller.
+//! and the highlight is not saved.
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Frames, List, Screen, ScreenFlag, Step};

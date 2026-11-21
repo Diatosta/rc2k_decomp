@@ -23,9 +23,9 @@
 //! - Game thread only (`LobbyVars`): `mode`, `sequence`, `first_host`, `send_buffer`,
 //!   `show_gaps`, `data_size`, `racing`, `after_race`, `sync_clock`.
 
-use crate::memory::session::{
-    Byte, Bytes, Dword, Flag, PlainByte, PlainBytes, PlainDword, Word, with_runs,
-};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::{Byte, Bytes, Dword, Flag, PlainByte, PlainDword, Word, with_runs};
+use crate::net::shared_bytes::SharedBytes;
 use rc2k_core::net::inbox::Inbox;
 use rc2k_core::net::players::State;
 use rc2k_core::net::record::{self, Record};
@@ -41,34 +41,27 @@ pub const APP_GUID: [u8; 16] = with_runs::<16>(&[
 ]);
 
 /// `IID_IDirectPlay4A`: never written.
-pub const IID_DPLAY4A: [u8; 16] = with_runs::<16>(&[
+pub(super) const IID_DPLAY4A: [u8; 16] = with_runs::<16>(&[
     (0, b"A\xfe>\x13\xdc2\xd0\x11\x9c\xfb"),
     (11, b"\xa0\xc9\x0aC\xcb"),
 ]);
 
 /// `IID_IDirectPlayLobby2A`: never written.
-pub const IID_LOBBY2A: [u8; 16] = with_runs::<16>(&[
+pub(super) const IID_LOBBY2A: [u8; 16] = with_runs::<16>(&[
     (0, b"\x80\xaf\xb4\x1b\x03\xa3\xd0\x11\x9cO"),
     (11, b"\xa0\xc9\x05B^"),
 ]);
 
 /// `CLSID_DirectPlay`: never written.
-pub const CLSID_DPLAY: [u8; 16] = with_runs::<16>(&[
+pub(super) const CLSID_DPLAY: [u8; 16] = with_runs::<16>(&[
     (0, b" m\xeb\xd1#\x89\xd0\x11\x9d\x97"),
     (11, b"\xa0\xc9\x0aC\xcb"),
 ]);
 
 /// `CLSID_DirectPlayLobby`: never written.
-pub const CLSID_LOBBY: [u8; 16] = with_runs::<16>(&[
+pub(super) const CLSID_LOBBY: [u8; 16] = with_runs::<16>(&[
     (0, b"\x10\xf8\xe8/\xa5\xb2\xd0\x11\xa7\x87"),
     (12, b"\xf8\x03\xab\xfc"),
-]);
-
-/// `DPSPGUID_IPX`: never written.
-pub const SP_IPX: [u8; 16] = with_runs::<16>(&[
-    (1, b"\xc4[h,\x9d\xcf\x11\xa9\xcd"),
-    (11, b"\xaa"),
-    (13, b"h\x86\xe3"),
 ]);
 
 /// `DPSPGUID_TCPIP`: never written.
@@ -78,126 +71,222 @@ pub const SP_TCPIP: [u8; 16] = with_runs::<16>(&[
 ]);
 
 /// `DPSPGUID_SERIAL`: never written.
-pub const SP_SERIAL: [u8; 16] = with_runs::<16>(&[
+pub(super) const SP_SERIAL: [u8; 16] = with_runs::<16>(&[
     (0, b"`h\x1d\x0f\xd9\x88\xcf\x11\x9cN"),
     (11, b"\xa0\xc9\x05B^"),
 ]);
 
 /// `DPSPGUID_MODEM`: never written.
-pub const SP_MODEM: [u8; 16] = with_runs::<16>(&[
+pub(super) const SP_MODEM: [u8; 16] = with_runs::<16>(&[
     (0, b"`\xa7\xeaDh\xcb\xcf\x11\x9cN"),
     (11, b"\xa0\xc9\x05B^"),
 ]);
 
 /// `DPAID_ServiceProvider`: never written.
-pub const AID_SERVICE_PROVIDER: [u8; 16] = with_runs::<16>(&[
+pub(super) const AID_SERVICE_PROVIDER: [u8; 16] = with_runs::<16>(&[
     (0, b"\xc0\x16\xd9\x07\xaf\xe0\xcf\x11\x9cN"),
     (11, b"\xa0\xc9\x05B^"),
 ]);
 
 /// `DPAID_INet`: never written.
-pub const AID_INET: [u8; 16] = with_runs::<16>(&[
+pub(super) const AID_INET: [u8; 16] = with_runs::<16>(&[
     (0, b"\xa0M\xa5\xc4\xaf\xe0\xcf\x11\x9cN"),
     (11, b"\xa0\xc9\x05B^"),
 ]);
 
 /// `DPAID_INetPort`: never written.
-pub const AID_INET_PORT: [u8; 16] = with_runs::<16>(&[
+pub(super) const AID_INET_PORT: [u8; 16] = with_runs::<16>(&[
     (0, b"AER\xe4\xa5\x8e\xd1\x11\x8a\x96"),
     (11, b"`\x97\xb0\x14\x11"),
 ]);
 
 /// "susanivanovafanclub", the host's group's name; never written.
-pub const GROUP_NAME: [u8; 20] = with_runs::<20>(&[(0, b"susanivanovafanclub")]);
+pub(super) const GROUP_NAME: [u8; 20] = with_runs::<20>(&[(0, b"susanivanovafanclub")]);
 
-/// A player's 16 bytes of DirectPlay player data (`NetPlayerRecord`; this machine's own record
-/// is `own`).
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
-pub struct PlayerRecord {
-    /// +0 the state bits (1 ready, 2 waiting, 4 racing, 0x10 the host), +1 the car, +2 its
-    /// colours, +3 the nationality, +4 the stage, +5 its direction, +6 the race number, +7 a
-    /// random number.
-    pub head: Bytes<8>,
-    /// +8: the race's time.
-    pub race_time: Dword,
-    /// +0xC: the total.
-    pub total: Dword,
-}
+/// A player's 16 bytes of DirectPlay player data (`own` is this machine's record): +0 the state
+/// bits (1 ready, 2 waiting, 4 racing, 0x10 the host), +1 the car, +2 its colours, +3 the
+/// nationality, +4 the stage, +5 its direction, +6 the race number, +7 a random number, then the
+/// race's time and the total as little-endian dwords.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PlayerRecord([u8; 16]);
 
 impl PlayerRecord {
     pub const fn zero() -> Self {
-        Self {
-            head: Bytes::new([0; 8]),
-            race_time: Dword::new(0),
-            total: Dword::new(0),
-        }
+        Self([0; 16])
     }
 
     /// The player's state.
     pub fn state(&self) -> State {
-        State::from_byte(self.head.get(record::STATE))
+        State::from_byte(self.0[record::STATE])
     }
 
-    pub fn set_state(&self, state: State) {
-        self.head.set(record::STATE, state.byte());
+    pub fn set_state(&mut self, state: State) {
+        self.0[record::STATE] = state.byte();
     }
 
     /// The record as a value.
     pub fn get(&self) -> Record {
-        Record::from_bytes(&self.bytes())
+        Record::from_bytes(&self.0)
     }
 
     /// The record's 16 bytes, as DirectPlay's player data.
     pub fn bytes(&self) -> [u8; 16] {
-        let mut b = [0u8; 16];
-        b[..8].copy_from_slice(&self.head.read());
-        b[8..12].copy_from_slice(&self.race_time.get().to_le_bytes());
-        b[12..].copy_from_slice(&self.total.get().to_le_bytes());
-        b
+        self.0
+    }
+
+    /// The record's first `data.len()` bytes (at most 16) set from `data`.
+    pub fn set_bytes(&mut self, data: &[u8]) {
+        let n = data.len().min(16);
+        self.0[..n].copy_from_slice(&data[..n]);
+    }
+
+    /// One of the first eight bytes (`record::CAR` ..).
+    pub fn byte(&self, index: usize) -> u8 {
+        self.0[index]
+    }
+
+    pub fn set_byte(&mut self, index: usize, value: u8) {
+        self.0[index] = value;
+    }
+
+    /// The race's time.
+    pub fn race_time(&self) -> u32 {
+        u32::from_le_bytes([self.0[8], self.0[9], self.0[10], self.0[11]])
+    }
+
+    pub fn set_race_time(&mut self, value: u32) {
+        self.0[8..12].copy_from_slice(&value.to_le_bytes());
+    }
+
+    /// The total.
+    pub fn total(&self) -> u32 {
+        u32::from_le_bytes([self.0[12], self.0[13], self.0[14], self.0[15]])
+    }
+
+    pub fn set_total(&mut self, value: u32) {
+        self.0[12..].copy_from_slice(&value.to_le_bytes());
+    }
+}
+
+/// A player's record where the game's thread and the receiving thread both reach it: behind a
+/// lock, taken for one call at a time (every method hands back a copy).
+pub struct SharedRecord(std::sync::Mutex<PlayerRecord>);
+
+impl SharedRecord {
+    pub const fn zero() -> Self {
+        Self(std::sync::Mutex::new(PlayerRecord::zero()))
+    }
+
+    /// A copy of the record.
+    pub fn get(&self) -> PlayerRecord {
+        *self
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// The record replaced.
+    pub fn set(&self, value: PlayerRecord) {
+        *self
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = value;
+    }
+
+    /// The record changed by `change`, under the lock: `change` must not reach this record.
+    pub fn update(&self, change: impl FnOnce(&mut PlayerRecord)) {
+        change(
+            &mut self
+                .0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+    }
+
+    /// The player's state.
+    pub fn state(&self) -> State {
+        self.get().state()
+    }
+
+    pub fn set_state(&self, state: State) {
+        self.update(|r| r.set_state(state));
+    }
+
+    /// The record's 16 bytes, as DirectPlay's player data.
+    pub fn bytes(&self) -> [u8; 16] {
+        self.get().bytes()
     }
 
     /// The record's first `data.len()` bytes (at most 16) set from `data`.
     pub fn set_bytes(&self, data: &[u8]) {
-        let mut b = self.bytes();
-        let n = data.len().min(16);
-        b[..n].copy_from_slice(&data[..n]);
-        for (k, &v) in b[..8].iter().enumerate() {
-            self.head.set(k, v);
-        }
-        self.race_time
-            .set(u32::from_le_bytes([b[8], b[9], b[10], b[11]]));
-        self.total
-            .set(u32::from_le_bytes([b[12], b[13], b[14], b[15]]));
+        self.update(|r| r.set_bytes(data));
     }
 }
 
 /// A player's block: name, id, record and the copy of the messages taken for the race. The
 /// messages themselves wait in the player's `Inbox`, behind the received messages' lock.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct PlayerBlock {
     /// The player's name.
-    pub name: Bytes<32>,
+    pub name: SharedBytes<32>,
     /// Its DirectPlay id.
     pub id: Dword,
     /// Its record.
-    pub record: PlayerRecord,
+    pub record: SharedRecord,
     /// The count of their copy for the race (`net::copy_received`).
     pub copied_count: Dword,
     /// Their copy (`net::apply_received`).
-    pub copied: Bytes<0x4000>,
+    pub copied: SharedBytes<0x4000>,
 }
 
 impl PlayerBlock {
     pub const fn zero() -> Self {
         Self {
-            name: Bytes::new([0; 32]),
+            name: SharedBytes::new([0; 32]),
             id: Dword::new(0),
-            record: PlayerRecord::zero(),
+            record: SharedRecord::zero(),
             copied_count: Dword::new(0),
-            copied: Bytes::new([0; 0x4000]),
+            copied: SharedBytes::new([0; 0x4000]),
         }
+    }
+
+    /// Everything but the copy of the messages, as a value.
+    pub fn view(&self) -> PlayerView {
+        PlayerView {
+            name: self.name.read(),
+            id: self.id.get(),
+            record: self.record.get(),
+        }
+    }
+
+    /// This block's contents and `other`'s exchanged, the copy of the messages with them.
+    pub fn swap_with(&self, other: &Self) {
+        self.name.swap_with(&other.name);
+        let id = self.id.get();
+        self.id.set(other.id.get());
+        other.id.set(id);
+        let record = self.record.get();
+        self.record.set(other.record.get());
+        other.record.set(record);
+        let count = self.copied_count.get();
+        self.copied_count.set(other.copied_count.get());
+        other.copied_count.set(count);
+        self.copied.swap_with(&other.copied);
+    }
+}
+
+/// A player's name, id and record as values (the lobby's sorted table).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PlayerView {
+    pub name: [u8; 32],
+    pub id: u32,
+    pub record: PlayerRecord,
+}
+
+impl PlayerView {
+    /// The name up to its first NUL (or all of it).
+    pub fn name_text(&self) -> &[u8] {
+        let n = self.name.iter().position(|&c| c == 0).unwrap_or(32);
+        &self.name[..n]
     }
 }
 
@@ -226,7 +315,10 @@ impl Inboxes {
 }
 
 /// Player `n`'s inbox among the locked ones; a number of 8 or more is refused.
-pub fn inbox_of(inboxes: &mut [Inbox; 8], n: u32) -> Result<&mut Inbox, crate::errors::BadInput> {
+pub(super) fn inbox_of(
+    inboxes: &mut [Inbox; 8],
+    n: u32,
+) -> Result<&mut Inbox, crate::errors::BadInput> {
     inboxes
         .get_mut(n as usize)
         .ok_or(crate::errors::BadInput("a player number of 8 or more"))
@@ -301,10 +393,9 @@ impl SessionDesc {
 /// What the screen's text edit works on: the item edited, which text, how wide it may be, its
 /// font, and the text as it was before the edit (put back by Escape). The network settings and
 /// the lobby each have their own.
-#[derive(rc2k_derive::Cells)]
 pub struct Editing {
-    /// The text of the item edited, by number (`net::begin_edit::EditedText`).
-    pub edit_text: PlainDword,
+    /// The text of the item edited (none: nothing is edited).
+    pub edit_text: crate::net::begin_edit::EditedTextCell,
     /// The item edited (-1: none).
     pub edited: PlainDword,
     /// The widest the edited text may be.
@@ -312,47 +403,45 @@ pub struct Editing {
     /// The font the edited text is measured with.
     pub edit_font: crate::gfx::typefaces::FontCell,
     /// The edited text as it was before the edit, put back by Escape.
-    pub text_before_edit: PlainBytes<64>,
+    pub text_before_edit: PlainBuffer<64>,
 }
 
 impl Editing {
     pub const fn new() -> Self {
         Self {
-            edit_text: PlainDword::new(0),
+            edit_text: crate::net::begin_edit::EditedTextCell::new(),
             edited: PlainDword::new(0),
             edit_width: PlainDword::new(0),
             // 0 in the image: the first font's number; read only once an edit has set it.
             edit_font: crate::gfx::typefaces::FontCell::new(
                 crate::gfx::typefaces::FontId::numbered(0),
             ),
-            text_before_edit: PlainBytes::new([0; 64]),
+            text_before_edit: PlainBuffer::new([0; 64]),
         }
     }
 }
 
 /// The network settings screen's state, the game thread's.
-#[derive(rc2k_derive::Cells)]
 pub struct SettingsScreen {
     /// The setting being edited.
     pub edit: Editing,
     /// The players' count as text while it is edited.
-    pub most_players_text: PlainBytes<64>,
+    pub most_players_text: PlainBuffer<64>,
     /// The saved connection's name.
-    pub saved_name: PlainBytes<64>,
+    pub saved_name: PlainBuffer<64>,
 }
 
 impl SettingsScreen {
     pub const fn new() -> Self {
         Self {
             edit: Editing::new(),
-            most_players_text: PlainBytes::new([0; 64]),
-            saved_name: PlainBytes::new([0; 64]),
+            most_players_text: PlainBuffer::new([0; 64]),
+            saved_name: PlainBuffer::new([0; 64]),
         }
     }
 }
 
 /// The sessions list screen's state, the game thread's.
-#[derive(rc2k_derive::Cells)]
 pub struct SessionsScreen {
     /// The time of the sessions' last listing.
     pub listed_at: PlainDword,
@@ -367,41 +456,41 @@ impl SessionsScreen {
 }
 
 /// This machine's network settings and name: the fields kept in the options file, the
-/// player's name and the session's password.
-#[derive(rc2k_derive::Cells)]
+/// player's name and a hosted session's mark.
 pub struct SetupVars {
     /// This player's name.
-    pub player_name: PlainBytes<32>,
+    pub player_name: PlainBuffer<32>,
     /// The machine's name (kept in `var\ral.dat`).
-    pub machine_name: PlainBytes<64>,
+    pub machine_name: PlainBuffer<64>,
     /// The most players a hosted session takes (kept).
     pub most_players: PlainDword,
-    /// The session's password.
-    pub session_password: PlainBytes<16>,
+    /// The four values of the game's own in a hosted session's description: a fixed mark
+    /// (the second's bit 0 says the session is this game's). Nobody types them and nothing
+    /// compares them as a password.
+    pub session_user_values: PlainBuffer<16>,
     /// The host's address (TCP/IP), kept.
-    pub host_address: PlainBytes<64>,
+    pub host_address: PlainBuffer<64>,
     /// The TCP/IP port (the `inetport` setting, kept).
     pub port: PlainDword,
     /// The saved connection's GUID (kept).
-    pub saved_connection: PlainBytes<16>,
+    pub saved_connection: PlainBuffer<16>,
 }
 
 impl SetupVars {
     pub const fn new() -> Self {
         Self {
-            player_name: PlainBytes::new([0; 32]),
-            machine_name: PlainBytes::new([0; 64]),
+            player_name: PlainBuffer::new([0; 32]),
+            machine_name: PlainBuffer::new([0; 64]),
             most_players: PlainDword::new(0x8),
-            session_password: PlainBytes::new(with_runs::<16>(&[(0, b"\x17\x00\x00\x00\x01")])),
-            host_address: PlainBytes::new([0; 64]),
+            session_user_values: PlainBuffer::new(with_runs::<16>(&[(0, b"\x17\x00\x00\x00\x01")])),
+            host_address: PlainBuffer::new([0; 64]),
             port: PlainDword::new(0),
-            saved_connection: PlainBytes::new([0; 16]),
+            saved_connection: PlainBuffer::new([0; 16]),
         }
     }
 }
 
 /// The address being built for a connection, the game thread's.
-#[derive(rc2k_derive::Cells)]
 pub struct AddressVars {
     /// The address elements added.
     pub elements: PlainDword,
@@ -422,36 +511,34 @@ impl AddressVars {
 }
 
 /// The joined variables, the game thread's.
-#[derive(rc2k_derive::Cells)]
 pub struct JoinedVars {
     /// The joined session's GUID.
-    pub joined: PlainBytes<16>,
+    pub joined: PlainBuffer<16>,
     /// Its name.
-    pub joined_name: PlainBytes<64>,
+    pub joined_name: PlainBuffer<64>,
     /// Its most players.
     pub joined_most: PlainDword,
-    /// Its password.
-    pub joined_password: PlainBytes<16>,
+    /// Its description's four values of the game's own (the host's mark).
+    pub joined_user_values: PlainBuffer<16>,
 }
 
 impl JoinedVars {
     pub const fn new() -> Self {
         Self {
-            joined: PlainBytes::new([0; 16]),
-            joined_name: PlainBytes::new([0; 64]),
+            joined: PlainBuffer::new([0; 16]),
+            joined_name: PlainBuffer::new([0; 64]),
             joined_most: PlainDword::new(0),
-            joined_password: PlainBytes::new([0; 16]),
+            joined_user_values: PlainBuffer::new([0; 16]),
         }
     }
 }
 
 /// The lobby screen's state, the game thread's.
-#[derive(rc2k_derive::Cells)]
 pub struct LobbyScreen {
     /// The chat message being edited.
     pub edit: Editing,
     /// What this player types into the chat.
-    pub chat_input: PlainBytes<64>,
+    pub chat_input: PlainBuffer<64>,
     /// The time of the players' last listing.
     pub listed_at: PlainDword,
     /// The lobby's car item can be chosen.
@@ -461,7 +548,7 @@ pub struct LobbyScreen {
     /// The first player not the host.
     pub first_host: PlainDword,
     /// The message being sent.
-    pub send_buffer: PlainBytes<256>,
+    pub send_buffer: PlainBuffer<256>,
     /// Times shown as gaps.
     pub show_gaps: PlainDword,
     /// The size of the player data listed.
@@ -474,28 +561,31 @@ pub struct LobbyScreen {
     pub sync_clock: PlainDword,
     /// The sequence byte of the messages sent.
     pub sequence: PlainByte,
-    /// Three bytes that fill the record's last dword (`Cells` takes no padding); nothing
+    /// 1 when the last network race's replay is kept and can be saved from the lobby.
+    pub replay_kept: PlainByte,
+    /// Two bytes that fill the record's last dword (`Cells` takes no padding); nothing
     /// reads or writes them.
-    pub _pad_cells: PlainBytes<3>,
+    pub _pad_cells: PlainBuffer<2>,
 }
 
 impl LobbyScreen {
     pub const fn new() -> Self {
         Self {
             edit: Editing::new(),
-            chat_input: PlainBytes::new([0; 64]),
+            chat_input: PlainBuffer::new([0; 64]),
             listed_at: PlainDword::new(0),
             car_item: PlainDword::new(0x1),
             mode: PlainDword::new(0x3),
             first_host: PlainDword::new(0),
-            send_buffer: PlainBytes::new([0; 256]),
+            send_buffer: PlainBuffer::new([0; 256]),
             show_gaps: PlainDword::new(0),
             data_size: PlainDword::new(0),
             after_race: PlainDword::new(0),
             racing: PlainDword::new(0),
             sync_clock: PlainDword::new(0),
             sequence: PlainByte::new(128),
-            _pad_cells: PlainBytes::new([0; 3]),
+            replay_kept: PlainByte::new(0),
+            _pad_cells: PlainBuffer::new([0; 2]),
         }
     }
 }
@@ -583,7 +673,6 @@ impl ReceiverState {
 }
 
 /// The network's variables the receiving thread shares with the game thread (atomic cells).
-#[derive(rc2k_derive::Cells)]
 pub struct NetShared {
     /// Set when the receiving thread has ended; also the `nonetwork` setting's variable
     /// (`settings::read_settings`).
@@ -601,7 +690,7 @@ pub struct NetShared {
     /// The lobby's stage item can be chosen.
     pub stage_item: Dword,
     /// This machine's player record.
-    pub own: PlayerRecord,
+    pub own: SharedRecord,
     /// Every player is ready.
     pub all_raced: Dword,
     /// Every player has finished.
@@ -624,7 +713,7 @@ impl NetShared {
             receiver: ReceiverState::new(),
             event: Dword::new(0),
             stage_item: Dword::new(0x1),
-            own: PlayerRecord::zero(),
+            own: SharedRecord::zero(),
             all_raced: Dword::new(0),
             race_over: Dword::new(0),
             sync_first: Dword::new(0x1),
@@ -645,23 +734,23 @@ impl NetShared {
 
     /// Player `n`'s block for a core's closure, which cannot carry a refusal: a number the
     /// block table has no room for ends the program with it.
-    pub fn player_block_or_end(&self, n: u32) -> &PlayerBlock {
+    pub(super) fn player_block_or_end(&self, n: u32) -> &PlayerBlock {
         self.player_block(n)
             .unwrap_or_else(|e| crate::fatal::raise::end("a player's block", e))
     }
 
     /// Whether player `n` has answered the sync (the players are at most 8).
-    pub fn synced(&self, n: usize) -> Result<bool, crate::errors::BadInput> {
+    pub(super) fn synced(&self, n: usize) -> Result<bool, crate::errors::BadInput> {
         Ok(self.synced_flag(n)?.is_set())
     }
 
-    pub fn set_synced(&self, n: usize, value: bool) -> Result<(), crate::errors::BadInput> {
+    pub(super) fn set_synced(&self, n: usize, value: bool) -> Result<(), crate::errors::BadInput> {
         self.synced_flag(n)?.set(value);
         Ok(())
     }
 
     /// No player has answered.
-    pub fn clear_synced(&self) {
+    pub(super) fn clear_synced(&self) {
         for flag in &self.synced {
             flag.set(false);
         }
@@ -675,7 +764,6 @@ impl NetShared {
 }
 
 /// `net::draw_button`'s arguments and measurements, the game thread's.
-#[derive(rc2k_derive::Cells)]
 pub struct Button {
     /// `net::draw_button`'s string.
     pub text: PlainDword,
@@ -714,7 +802,7 @@ mod tests {
     /// A record kept in the cells reads back as the value it was set from, in every state.
     #[test]
     fn a_player_record_in_cells_round_trips_in_every_state() {
-        let cells = PlayerRecord::zero();
+        let mut cells = PlayerRecord::zero();
         for byte in [0u8, 1, 2, 4, 0x10, 0x11, 0x14, 0x82, 0xFF] {
             let record = Record {
                 state: State::from_byte(byte),

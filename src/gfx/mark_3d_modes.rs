@@ -1,13 +1,13 @@
 //! The screen modes Direct3D can draw in, marked in the modes' table. Nothing unless
-//! `machine.has_fpu` (set by `system::test_processor`) is 1. First Direct3D's devices are looked at
+//! `machine.has_fpu` (set by `system::detect_processor`) is 1. First Direct3D's devices are looked at
 //! ("D3D: detect card"): the depth formats go to `mode.depth_bits` and `mode.depth_extra`, and
 //! failure says none fit (the platform's version is below). Then over the modes' table
 //! (`modes.count` entries of 8 bytes: flags, a word of extra flags): the next entry with all of the
 //! card kind's bits (`system::find_entry_with_bits`), from there the next with any of the depth
 //! bits (`system::find_entry_with_any_bit`); that one gets 0x100000 and, with `depth_extra` not 0,
 //! 0x200000 and `depth_extra` in its second dword; one entry on (`system::next_entry`, its failure
-//! not looked at), again, until a search finds nothing. In the standalone the device is its
-//! rasteriser: it draws in both pixel kinds with a depth buffer of 16 or 32 bits and has every
+//! not looked at), again, until a search finds nothing. The device is the program's own
+//! renderer: it draws in both pixel kinds with a depth buffer of 16 or 32 bits and has every
 //! capability the game asks about (the depth formats and the `cards.mode_switches` that the
 //! graphics options read), so one always fits. Refuses (before anything) more than 0x20 entries,
 //! the table's room.

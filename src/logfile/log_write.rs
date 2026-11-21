@@ -38,7 +38,7 @@ pub fn log_nul(text: &(impl LogText + ?Sized), newline: bool, level: u8) {
     log_text(text.log_bytes(), newline, level);
 }
 
-/// The NUL-terminated text at `at` (a place, checked: `files::cstring`) logged as
+/// The NUL-terminated text at `at` (a place, checked) logged as
 /// `log_write`; a text with no NUL before its place's end ends the program
 /// (`fatal::raise::end`).
 pub fn log_at(at: impl Into<crate::memory::place::BytePlace>, newline: bool, level: u8) {
@@ -46,10 +46,4 @@ pub fn log_at(at: impl Into<crate::memory::place::BytePlace>, newline: bool, lev
         Ok(text) => log_text(&text, newline, level),
         Err(e) => crate::fatal::raise::end("logfile::log_write", e),
     }
-}
-
-/// An empty line at level 1 (the empty text is the
-/// end of the log's path literal).
-pub fn log_newline_l1() {
-    log_text(b"", true, 1);
 }

@@ -34,7 +34,7 @@ pub enum Step<'a> {
     Convert,
 }
 
-pub fn load_slideshow_picture(
+pub(super) fn load_slideshow_picture(
     menus: &'static Menus,
     way: u32,
     step: &mut dyn FnMut(Step<'_>) -> Result<bool, Refused>,
@@ -43,10 +43,10 @@ pub fn load_slideshow_picture(
     let car = slides::slideshow_car(shown_car(menus)?)?;
     let template = crate::menu::texts_store::text_at(
         &menus.texts,
-        menus.lists.slideshow_templates[car as usize].get(),
+        menus.lists.read().slideshow_templates[car as usize],
     )?
     .text("a path template")?;
-    let start: u32 = menus.screens.event.shown.picture.get();
+    let start: u32 = menus.screens.event.read().shown.picture;
     // Set by the first try (`search` always makes one).
     let mut path: Option<Vec<u8>> = None;
     slides::search(
@@ -67,7 +67,7 @@ pub fn load_slideshow_picture(
             path = Some(text);
             Ok(exists)
         },
-        |next| menus.screens.event.shown.picture.set(next),
+        |next| menus.screens.event.write().shown.picture = next,
     )?;
     let path = path.ok_or(crate::errors::BadInput("no slideshow picture tried"))?;
     let title_bar = &menus.texts.titlebar_png;
@@ -79,13 +79,13 @@ pub fn load_slideshow_picture(
 }
 
 /// With the game's own steps for what it calls.
-pub fn load_slideshow_picture_in(o: Owners<'static>, way: u32) -> Result<(), Refused> {
+pub(super) fn load_slideshow_picture_in(o: Owners<'static>, way: u32) -> Result<(), Refused> {
     load_slideshow_picture(o.menus, way, &mut |step| match step {
         Step::Overlay(path, over) => {
             load_picture_with_overlay_in(&MirroredPath::new(path), over, o.gfx, o.system, o.strings)
         }
         Step::Load(path) => load_picture_with(path, o.gfx, o.system).map(|_| false),
-        Step::Convert => convert_picture_now_in(o.gfx, o.system)
+        Step::Convert => convert_picture_now_in(o.gfx)
             .map(|_| false)
             .map_err(Into::into),
     })

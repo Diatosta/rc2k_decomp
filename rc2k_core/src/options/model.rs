@@ -2,13 +2,12 @@
 //! after its head) has a field here; `Options::visit` lists them in the file's order, the one
 //! place that order is written.
 
-use serde::de::Error as _;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 /// The pieces' lengths together.
 pub const PIECES_LEN: usize = 0xB656;
 /// How many pieces the old file has.
-pub const PIECE_COUNT: usize = 69;
+pub(crate) const PIECE_COUNT: usize = 69;
 
 /// A value of the old file, one piece.
 pub trait Field {
@@ -32,7 +31,7 @@ impl Field for u32 {
     }
 }
 
-/// A run of bytes (a name, a record, a table), as hex text in the new file.
+/// A run of bytes (a name, a record, a table) as the old file holds it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Bytes<const N: usize>(pub Vec<u8>);
 
@@ -54,35 +53,7 @@ impl<const N: usize> Field for Bytes<N> {
     }
 }
 
-impl<const N: usize> Serialize for Bytes<N> {
-    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        let mut text = String::with_capacity(2 * N);
-        for b in &self.0 {
-            text.push_str(&format!("{b:02x}"));
-        }
-        s.serialize_str(&text)
-    }
-}
-
-impl<'de, const N: usize> Deserialize<'de> for Bytes<N> {
-    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let text = String::deserialize(d)?;
-        if text.len() != 2 * N || !text.is_ascii() {
-            return Err(D::Error::custom(format!(
-                "expected {N} bytes as {} hex digits",
-                2 * N
-            )));
-        }
-        let mut bytes = vec![0u8; N];
-        for (n, byte) in bytes.iter_mut().enumerate() {
-            *byte = u8::from_str_radix(&text[2 * n..2 * n + 2], 16)
-                .map_err(|_| D::Error::custom("a hex digit expected"))?;
-        }
-        Ok(Self(bytes))
-    }
-}
-
-/// A list of dwords (a page's switches, the car numbers), as a list of numbers.
+/// A list of dwords (a page's switches, the car numbers).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Words<const N: usize>(pub Vec<u32>);
 
@@ -108,33 +79,144 @@ impl<const N: usize> Field for Words<N> {
     }
 }
 
-impl<const N: usize> Serialize for Words<N> {
-    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        self.0.serialize(s)
-    }
-}
-
-impl<'de, const N: usize> Deserialize<'de> for Words<N> {
-    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let list = Vec::<u32>::deserialize(d)?;
-        if list.len() != N {
-            return Err(D::Error::invalid_length(list.len(), &"the list's length"));
-        }
-        Ok(Self(list))
-    }
-}
-
 /// The screen modes.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Display {
     pub menu_mode: u32,
     pub race_mode: u32,
     /// Mipmapping, off or on.
     pub mipmapping: u32,
+    /// The frame rate limit (only in the new file; the display's pace when missing).
+    #[serde(
+        default,
+        skip_serializing_if = "crate::gfx::frame_limit::is_default",
+        with = "crate::gfx::frame_limit::as_option"
+    )]
+    pub frame_limit: crate::gfx::frame_limit::FrameLimit,
+    /// The race's 3D drawn at this percent of the screen's size (only in the new file; 100
+    /// when missing).
+    #[serde(
+        default = "crate::gfx::render_scale::default_percent",
+        skip_serializing_if = "crate::gfx::render_scale::is_default",
+        with = "crate::gfx::render_scale::as_option"
+    )]
+    pub render_scale: u32,
+    /// The renderer tried first at start (`"gpu"` or `"software"`; the advanced page sets it).
+    /// Only in the new file; left out when nothing was chosen, which is the normal order.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub renderer: Option<String>,
+    /// The race's size when it is none of the game's own list (`[width, height]`; only in the
+    /// new file, left out when the size is one of the list's, which `race_mode` names).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub race_size: Option<[u32; 2]>,
+    /// A size set by hand: the race uses it and the page lists it as "custom" (only in the new
+    /// file, with `custom_height`; left out when unset).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_width: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_height: Option<u32>,
+    /// How the window is shown: `"window"`, `"fullscreen"` or `"borderless"` (only in the new
+    /// file; left out for a window).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub window_mode: Option<String>,
+    /// The box the HUD keeps to: `"4:3"`, `"16:9"` or `"21:9"` (only in the new file; left out
+    /// for the whole screen).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hud_box: Option<String>,
+    /// How many parts of a frame may be drawn at once (1 = one after another); only in the new
+    /// file, left out for as many as the machine has cores.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub draw_threads: Option<u32>,
+    /// The race's quit question with the controller's pictures in its text (only in the new
+    /// file; on when missing).
+    #[serde(default = "on", skip_serializing_if = "is_on")]
+    pub quit_pictures: bool,
+    /// The race drawn between the simulation's ticks, so that a screen faster than a hundred
+    /// frames a second shows motion in every frame (only in the new file; on when missing).
+    /// Off, a frame shows the last tick, at most a hundred a second.
+    #[serde(default = "on", skip_serializing_if = "is_on")]
+    pub smooth_frames: bool,
+    /// The layout of a split screen of three or four players, by its place in the layouts the
+    /// race cycles through (only in the new file; the first when missing).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub split_layout: u32,
+    /// What the replay viewer's render dialog was last set to (only in the new file; the
+    /// defaults when missing).
+    #[serde(default, skip_serializing_if = "VideoChoices::is_default")]
+    pub video: VideoChoices,
+}
+
+/// The render dialog's choices that are kept between runs, each only when it differs from the
+/// dialog's default (`race::render_dialog`).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VideoChoices {
+    /// The video's size when it is not the screen's (`[width, height]`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size: Option<[u32; 2]>,
+    /// The frames a second, when not 60.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fps: Option<u32>,
+    /// The encoder's quality (`low`, `medium`, `high`, `best`), when not `high`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quality: Option<String>,
+    /// Which encoder writes the picture (`software`), when not the automatic choice.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encoder: Option<String>,
+    /// Whether the video has the sound, when it has not.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sound: Option<bool>,
+}
+
+impl VideoChoices {
+    fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+fn on() -> bool {
+    true
+}
+
+fn is_on(value: &bool) -> bool {
+    *value
+}
+
+fn is_zero(value: &u32) -> bool {
+    *value == 0
+}
+
+impl Default for Display {
+    fn default() -> Self {
+        Display {
+            menu_mode: 0,
+            race_mode: 0,
+            mipmapping: 0,
+            frame_limit: Default::default(),
+            render_scale: crate::gfx::render_scale::DEFAULT,
+            race_size: None,
+            custom_width: None,
+            custom_height: None,
+            window_mode: None,
+            hud_box: None,
+            renderer: None,
+            draw_threads: None,
+            quit_pictures: true,
+            smooth_frames: true,
+            split_layout: 0,
+            video: VideoChoices::default(),
+        }
+    }
+}
+
+/// The films' volume at its fullest (the sliders' range is 0 ..= 0x40).
+pub(crate) const FILM_VOLUME_FULL: u32 = 0x40;
+
+fn film_volume_full() -> u32 {
+    FILM_VOLUME_FULL
 }
 
 /// The sound settings.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Sound {
     pub menu_sound_mode: u32,
     pub race_sound_mode: u32,
@@ -146,19 +228,59 @@ pub struct Sound {
     pub tune_turn: u32,
     pub music_volume: u32,
     pub race_music_volume: u32,
-    pub master_volume_shown: u32,
-    pub music_level: u32,
-    /// Read by the music "up" step.
-    pub other_volume: u32,
-    pub menu_sounds_c: u32,
-    pub menu_sounds_a: u32,
-    pub speech_level: u32,
-    pub sounds_a: u32,
-    pub sounds_b: u32,
+    /// The sound page's "general volume" slider.
+    pub general_volume: u32,
+    /// The "menu music" slider.
+    pub menu_music_volume: u32,
+    /// The "race music" slider (read by the music "up" step).
+    pub race_music_level: u32,
+    /// The "menu effects" slider.
+    pub menu_effects_volume: u32,
+    /// The "race effects" slider.
+    pub race_effects_volume: u32,
+    /// The "menu voices" slider.
+    pub menu_voices_volume: u32,
+    /// The "co-driver's voice" slider.
+    pub codriver_voice_volume: u32,
+    /// The "car engine" slider.
+    pub engine_volume: u32,
+    /// The films' volume, 0 ..= `FILM_VOLUME_FULL` (only in the new file; an old file or a file
+    /// without it gives full volume).
+    #[serde(default = "film_volume_full")]
+    pub film_volume: u32,
+    /// Whether the sound goes on while the window is not in front (only in the new file; off
+    /// when missing).
+    #[serde(default)]
+    pub sound_in_background: bool,
+}
+
+impl Default for Sound {
+    fn default() -> Self {
+        Self {
+            menu_sound_mode: 0,
+            race_sound_mode: 0,
+            master_volume: 0,
+            unread_option_f0: 0,
+            race_music_on: 0,
+            tune_turn: 0,
+            music_volume: 0,
+            race_music_volume: 0,
+            general_volume: 0,
+            menu_music_volume: 0,
+            race_music_level: 0,
+            menu_effects_volume: 0,
+            race_effects_volume: 0,
+            menu_voices_volume: 0,
+            codriver_voice_volume: 0,
+            engine_volume: 0,
+            film_volume: FILM_VOLUME_FULL,
+            sound_in_background: false,
+        }
+    }
 }
 
 /// The network settings.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Network {
     pub machine_name: Bytes<0x40>,
     /// The most players a hosted session takes.
@@ -167,14 +289,20 @@ pub struct Network {
     pub port: u32,
     /// The saved connection's GUID.
     pub saved_connection: Bytes<0x10>,
+    /// The password a hosted session is locked by (only in the new file; none when missing).
+    pub password: Bytes<0x40>,
+    /// The address of the last host joined, probed again when the address is left empty (only
+    /// in the new file; none when missing).
+    pub last_host: Bytes<0x40>,
 }
 
 /// The options pages' own settings and what the front end keeps.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Pages {
     /// The pages' work copies, the first switch up to the headlights.
     pub switches: Words<11>,
-    /// The audio quality, the 3D switches and the channels.
+    /// The audio quality, DirectSound 3D, EAX, a switch no longer used (Aureal's A3D, which
+    /// the files still hold), Dolby and the channels.
     pub audio: Words<6>,
     /// The services counted.
     pub services: u32,
@@ -187,7 +315,7 @@ pub struct Pages {
 }
 
 /// The car number lists.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Cars {
     pub first_numbers: Words<40>,
     /// 20 entries.
@@ -195,14 +323,20 @@ pub struct Cars {
 }
 
 /// The four players: their records and names.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Players {
     pub records: [Bytes<0x28C>; 4],
     pub names: [Bytes<0x20>; 4],
+    /// The controller each player chose, by what it is (only in the new file: the old one
+    /// has the record's number alone).
+    pub devices: [Option<crate::input::device_id::DeviceId>; 4],
+    /// Each player's profile for every controller the player has used (only in the new
+    /// file).
+    pub profiles: [Vec<crate::input::profile::Profile>; 4],
 }
 
 /// The best times and records kept in the options file.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Records {
     pub tyre_change_holder: Bytes<0x20>,
     pub tyre_change_time: u32,
@@ -224,8 +358,7 @@ pub struct Kept {
 }
 
 /// Everything the old file holds.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub display: Display,
     pub sound: Sound,
@@ -238,6 +371,22 @@ pub struct Options {
 }
 
 impl Options {
+    /// Options read from a file that names Aureal's A3D, which the game no longer has, become
+    /// the nearest it has: the sound modes on DirectSound with their 3D kept, and the page's
+    /// A3D switch off with DirectSound 3D on in its place.
+    pub fn without_a3d(&mut self) {
+        use crate::audio::device::without_a3d;
+        self.sound.menu_sound_mode = without_a3d(self.sound.menu_sound_mode);
+        self.sound.race_sound_mode = without_a3d(self.sound.race_sound_mode);
+        if let [_, ds3d, _, a3d, dolby, _] = self.pages.audio.0.as_mut_slice()
+            && *a3d != 0
+        {
+            *a3d = 0;
+            *ds3d = 1;
+            *dolby = 0;
+        }
+    }
+
     /// Calls `f` with every value, in the old file's order.
     #[rustfmt::skip]
     pub fn visit(&mut self, f: &mut dyn FnMut(&mut dyn Field)) {
@@ -269,14 +418,14 @@ impl Options {
         for item in self.players.records.iter_mut().take(4) {
             f(item);
         }
-        f(&mut self.sound.master_volume_shown);
-        f(&mut self.sound.music_level);
-        f(&mut self.sound.other_volume);
-        f(&mut self.sound.menu_sounds_c);
-        f(&mut self.sound.menu_sounds_a);
-        f(&mut self.sound.speech_level);
-        f(&mut self.sound.sounds_a);
-        f(&mut self.sound.sounds_b);
+        f(&mut self.sound.general_volume);
+        f(&mut self.sound.menu_music_volume);
+        f(&mut self.sound.race_music_level);
+        f(&mut self.sound.menu_effects_volume);
+        f(&mut self.sound.race_effects_volume);
+        f(&mut self.sound.menu_voices_volume);
+        f(&mut self.sound.codriver_voice_volume);
+        f(&mut self.sound.engine_volume);
         f(&mut self.pages.switches);
         f(&mut self.pages.audio);
         f(&mut self.pages.services);

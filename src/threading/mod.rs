@@ -1,12 +1,5 @@
-//! The game's threads, events and waits.
+//! The game's own threads: their slots, how they start and how the shutdown waits for them.
 
-pub mod create_event;
-pub mod find_thread_slot;
-pub mod request_quit;
-pub mod set_priority;
-pub mod shutdown_thread;
-pub mod start_slot_thread;
-pub mod start_threads;
-pub mod thread_slot;
-pub mod wait_for_object;
-pub mod wait_for_threads;
+pub(crate) mod request_quit;
+mod shutdown_thread;
+pub(crate) mod thread_slot;

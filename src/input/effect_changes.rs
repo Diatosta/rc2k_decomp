@@ -16,7 +16,7 @@ use crate::input::types::{ForceEffect, InputDevice};
 
 /// The change `what` (with `a`, `b`) of the effect `effect` of the device `record`, by
 /// the effect's function `number` (`input::effect_N_change`).
-pub fn effect_change(
+pub(super) fn effect_change(
     devices: &Devices,
     number: u32,
     record: &InputDevice,
@@ -66,12 +66,9 @@ pub fn effect_change(
     Ok(())
 }
 
-/// The six functions' addresses (`input::effect_0_change` .. `_5_`), in number order.
-const FUNCTIONS: [u32; 6] = [0x409708, 0x4097FA, 0x409754, 0x4097B4, 0x409871, 0x4098BF];
-
-/// The effect's function (`ForceEffect::change`, the game's address of one of the six)
-/// with the change.
-pub fn effect_change_at(
+/// The effect's own change function (`ForceEffect::change`, the number of one of the six) with
+/// the change.
+pub(super) fn effect_change_at(
     devices: &Devices,
     function: u32,
     record: &InputDevice,
@@ -80,8 +77,8 @@ pub fn effect_change_at(
     a: u32,
     b: u32,
 ) -> Result<(), Refused> {
-    let Some(number) = FUNCTIONS.iter().position(|&f| f == function) else {
+    if function >= 6 {
         return Err(BadInput("an effect's function that is none of the six").into());
-    };
-    effect_change(devices, number as u32, record, effect, what, a, b)
+    }
+    effect_change(devices, function, record, effect, what, a, b)
 }

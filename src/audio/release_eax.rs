@@ -4,7 +4,7 @@
 use crate::audio::own::AudioOwn;
 
 /// The property set released, and the room asked for and the room set back to 6.
-pub fn release_eax(state: &AudioOwn) {
+pub(super) fn release_eax(state: &AudioOwn) {
     let object = state.eax_properties.get();
     if object != 0 {
         crate::platform::sound::release(object);

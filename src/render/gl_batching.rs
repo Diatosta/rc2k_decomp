@@ -39,6 +39,11 @@ pub struct Part {
     /// The background under the canvas's rows, if the frame has one.
     pub background: Option<Background>,
     pub size: (i32, i32),
+    /// The percent of the screen's size the part's 3D is drawn at (`render::flush_scale`).
+    pub scale: u32,
+    /// The percent of the frame's size a menu part's 3D is drawn at when that is larger than the
+    /// frame (`render::menu_high_percent`); 0 for none.
+    pub high: u32,
 }
 
 /// A part made ready to draw.
@@ -58,18 +63,35 @@ pub enum Job<Draw> {
     /// The textures whose memory is gone, by address.
     Forget(Vec<TextureId>),
     Draw(Draw),
-    ShowTarget,
+    /// The target shown; `menu`: the frame is a menu's.
+    ShowTarget {
+        menu: bool,
+    },
     ShowPicture {
         frame: Vec<u8>,
+        width: i32,
+        height: i32,
+        menu: bool,
+    },
+    /// The menu's wash, a small picture (32-bit, blue first), shown beside the menus' frames.
+    Wash {
+        pixels: Vec<u8>,
         width: i32,
         height: i32,
     },
     ReadTarget(Sender<Vec<u8>>),
 }
 
+/// Whether the batches are told what their draws can leave out (`Batches::of_layered`'s
+/// `fast_path`): unless `RC2K_FAST_PATH=0`, read once.
+fn fast_path_wanted() -> bool {
+    static WANTED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *WANTED.get_or_init(|| std::env::var("RC2K_FAST_PATH").map_or(true, |v| v != "0"))
+}
+
 /// Whether every pixel's alpha of a texture's picture (`texture_as_bgra`'s bytes) is full: a
 /// first pass over it can take a second (`Batches::of`).
-pub fn opaque_picture(bytes: &[u8]) -> bool {
+fn opaque_picture(bytes: &[u8]) -> bool {
     bytes
         .as_chunks::<4>()
         .0
@@ -105,7 +127,7 @@ impl Opacity {
 /// the textures gone noted as let go of; the rest as they are. The part's commands are of no
 /// use to the GL once batched unless `keep_commands`: they are emptied here, so that the
 /// render states they share are let go of on this thread and not on the GL's.
-pub fn batched(
+pub(super) fn batched(
     opacity: &mut Opacity,
     job: Job<Part>,
     same_array: fn(&TextureNote, &TextureNote) -> bool,
@@ -124,6 +146,7 @@ pub fn batched(
                 height as u32,
                 &opaque,
                 same_array,
+                fast_path_wanted(),
             );
             let opaque = batches
                 .textures
@@ -145,13 +168,24 @@ pub fn batched(
             opacity.forget(&gone);
             Job::Forget(gone)
         }
-        Job::ShowTarget => Job::ShowTarget,
+        Job::ShowTarget { menu } => Job::ShowTarget { menu },
         Job::ShowPicture {
             frame,
             width,
             height,
+            menu,
         } => Job::ShowPicture {
             frame,
+            width,
+            height,
+            menu,
+        },
+        Job::Wash {
+            pixels,
+            width,
+            height,
+        } => Job::Wash {
+            pixels,
             width,
             height,
         },
@@ -161,7 +195,6 @@ pub fn batched(
 
 /// The batching thread: the game's jobs, in order, batched and handed to the GL's thread. It
 /// ends when the game's side is dropped or the GL's thread has ended.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 pub fn run(
     jobs: std::sync::mpsc::Receiver<Job<Part>>,
     gl: std::sync::mpsc::SyncSender<Job<Batched>>,
@@ -354,9 +387,11 @@ mod tests {
                 quads: Taken::default(),
                 background: None,
                 size: (320, 240),
+                scale: 100,
+                high: 0,
             }));
             if numbers.below(2) == 0 {
-                jobs.push(Job::ShowTarget);
+                jobs.push(Job::ShowTarget { menu: false });
             }
         }
         jobs
@@ -386,6 +421,7 @@ mod tests {
                         part.size.1 as u32,
                         &opaque,
                         same_size,
+                        fast_path_wanted(),
                     ));
                 }
                 _ => {}
@@ -483,6 +519,8 @@ mod tests {
             quads: Taken::default(),
             background: Some(Background::Held),
             size: (4, 8),
+            scale: 100,
+            high: 0,
         };
         let Job::Draw(b) = batched(&mut opacity, Job::Draw(part), same_size, true) else {
             panic!("a part not drawn");
@@ -496,11 +534,13 @@ mod tests {
             frame: vec![1, 2],
             width: 1,
             height: 2,
+            menu: false,
         };
         let Job::ShowPicture {
             frame,
             width,
             height,
+            ..
         } = batched(&mut opacity, job, same_size, true)
         else {
             panic!("a picture not shown");
@@ -515,8 +555,13 @@ mod tests {
         answer.send(vec![9]).unwrap();
         assert_eq!(picture.recv().unwrap(), vec![9]);
         assert!(matches!(
-            batched(&mut opacity, Job::ShowTarget, same_size, true),
-            Job::ShowTarget
+            batched(
+                &mut opacity,
+                Job::ShowTarget { menu: false },
+                same_size,
+                true
+            ),
+            Job::ShowTarget { .. }
         ));
     }
 
@@ -543,6 +588,8 @@ mod tests {
             },
             background: Some(Background::Upload(vec![9; 4])),
             size: (8, 8),
+            scale: 100,
+            high: 0,
         };
         let Job::Draw(b) = batched(&mut Opacity::default(), Job::Draw(part), same_size, true)
         else {
@@ -612,7 +659,7 @@ mod dump_breaks {
             let (data, rest) = r.0.split_at(len);
             r.0 = rest;
             notes.push(TextureNote {
-                pixels: crate::platform::direct3d::test_level(data.to_vec()),
+                pixels: crate::d3d::device::test_level(data.to_vec()),
                 len,
                 width: w,
                 height: h,
@@ -677,11 +724,70 @@ mod dump_breaks {
             print("seconds", &Batches::of(&list, width, height, Some(&opaque)));
             print(
                 "layered",
-                &Batches::of_layered(&list, width, height, &opaque, same_array),
+                &Batches::of_layered(&list, width, height, &opaque, same_array, false),
+            );
+            let fast = Batches::of_layered(&list, width, height, &opaque, same_array, true);
+            let switches = fast
+                .batches
+                .windows(2)
+                .filter(|p| p[0].discard_free != p[1].discard_free)
+                .count();
+            let area = |keep: &dyn Fn(&Batch) -> bool| -> f64 {
+                let size = (f64::from(width), f64::from(height));
+                fast.batches
+                    .iter()
+                    .filter(|b| keep(b))
+                    .map(|b| {
+                        let at = |v: &[u32; 8]| {
+                            (
+                                f64::from(f32::from_bits(v[0])),
+                                f64::from(f32::from_bits(v[1])),
+                            )
+                        };
+                        fast.vertices
+                            [b.first_vertex as usize..(b.first_vertex + b.vertices) as usize]
+                            .as_chunks::<3>()
+                            .0
+                            .iter()
+                            .map(|t| {
+                                super::super::dev::seethru::triangle_pixels(
+                                    t.each_ref().map(at),
+                                    size,
+                                )
+                            })
+                            .sum::<f64>()
+                    })
+                    .sum::<f64>()
+                    / (size.0 * size.1)
+            };
+            println!(
+                "FAST PATH screens: all {:.2}, no alpha test {:.2}, blend off {:.2}, second passes {:.2}, blended still {:.2}",
+                area(&|_| true),
+                area(&|b| b.discard_free),
+                area(&|b| b.pipeline.blend.is_none() && b.second.is_none() && b.scissor.is_none()),
+                area(&|b| b.second.is_some()),
+                area(&|b| b.pipeline.blend.is_some()),
+            );
+            println!(
+                "FAST PATH: {} batches (without: {}), {} with no alpha test, {} of them with the blend off, {} with the blend off in all, {} program switches",
+                fast.batches.len(),
+                Batches::of_layered(&list, width, height, &opaque, same_array, false)
+                    .batches
+                    .len(),
+                fast.batches.iter().filter(|b| b.discard_free).count(),
+                fast.batches
+                    .iter()
+                    .filter(|b| b.discard_free && b.pipeline.blend.is_none())
+                    .count(),
+                fast.batches
+                    .iter()
+                    .filter(|b| b.pipeline.blend.is_none())
+                    .count(),
+                switches,
             );
         }
         let start = std::time::Instant::now();
-        let batches = Batches::of_layered(&list, width, height, &opaque, same_array);
+        let batches = Batches::of_layered(&list, width, height, &opaque, same_array, true);
         let took = start.elapsed();
         let changes = |f: &dyn Fn(&Batch, &Batch) -> bool| {
             batches

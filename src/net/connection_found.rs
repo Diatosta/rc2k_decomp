@@ -22,7 +22,7 @@ pub fn connection_found(
 ) -> Result<u32, Refused> {
     log_bytes(&lines.text(texts::NET_FOUND), false, 2);
     log_bytes(short, true, 2);
-    if crate::strings::load_language::notice_kind(strings) == lists::LEAVES_OUT_PROVIDERS
+    if crate::strings::locale::notice_kind(strings) == lists::LEAVES_OUT_PROVIDERS
         && [&crate::net::store::SP_SERIAL, &crate::net::store::SP_MODEM]
             .into_iter()
             .any(|left_out| *left_out == *guid)
@@ -52,7 +52,7 @@ pub fn callback(
     data: &[u8],
     short: &[u8],
 ) -> u32 {
-    crate::net::lobby::callback_entry("net::connection_found", 0x4186E5, || {
+    crate::net::lobby::callback_entry("net::connection_found", || {
         connection_found(link, strings, lines, guid, data, short)
     })
 }

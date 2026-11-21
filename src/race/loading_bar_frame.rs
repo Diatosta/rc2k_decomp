@@ -1,6 +1,6 @@
 //! The loading bar: the `Progress` sink the loaders report to, and the frame it draws. Outside a
-//! stage's loading and the credits a frame does nothing; otherwise it sets `scene_state` to the
-//! frame mark and, unless the game is quitting, draws `race::loading_bar_quad` in an unframed view
+//! stage's loading and the credits a frame does nothing; otherwise, unless the game is
+//! quitting, it draws `race::loading_bar_quad` in an unframed view
 //! window and presents the frame. A frame that cannot be drawn (the window inactive, its surfaces
 //! lost, or the lock refused) is skipped: nothing is shown and the load goes on; the next frame
 //! tries again.
@@ -21,12 +21,14 @@ pub trait Progress {
     fn textures_done(&mut self, textures: u32, done: u32) -> Result<(), Refused>;
 }
 
-/// The loading bar on the screen: a `Progress` that draws a frame (at most 30 a second) at
-/// each mark.
+/// The loading bar on the screen: a `Progress` that draws a frame at each mark, unless one was
+/// shown under 33 ms before.
 pub struct LoadingBar {
     o: crate::owners::Owners<'static>,
     share: u32,
     span: BarEnds,
+    /// The share the other players were last told (a game with others only).
+    told: Option<u32>,
 }
 
 impl LoadingBar {
@@ -36,6 +38,15 @@ impl LoadingBar {
             o,
             share: 0,
             span: BarEnds { low: 0, high: 100 },
+            told: None,
+        }
+    }
+
+    /// The other players told the share when it has moved.
+    fn tell(&mut self) {
+        if self.told != Some(self.share) {
+            self.told = Some(self.share);
+            crate::net::loading::report(self.o.net, self.share);
         }
     }
 }
@@ -43,6 +54,7 @@ impl LoadingBar {
 impl Progress for LoadingBar {
     fn mark(&mut self, share: u32) -> Result<(), Refused> {
         self.share = share;
+        self.tell();
         loading_bar_frame(self.o, share)
     }
 
@@ -54,19 +66,22 @@ impl Progress for LoadingBar {
         if let Some(share) = self.span.progress(done, textures) {
             self.share = share;
         }
+        self.tell();
         loading_bar_frame(self.o, self.share)
     }
 }
 
 /// A stage is loading (`race::load_stage`). The bar is drawn for every stage, over the loading
 /// picture.
-pub static STAGE_LOADING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+pub(super) static STAGE_LOADING: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
 /// The bar's frames and their microseconds since last asked (the load's log line).
 static FRAMES: [std::sync::atomic::AtomicU64; 2] =
     [const { std::sync::atomic::AtomicU64::new(0) }; 2];
 
-/// The time between the bar's frames, and when the last was.
+/// The least time between two frames of the loading screen (the picture's and the bar's), and
+/// when the last was shown.
 const BAR_FRAME: std::time::Duration = std::time::Duration::from_millis(33);
 static LAST_FRAME: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
 
@@ -76,26 +91,40 @@ pub fn shown() -> (u64, u64) {
     (FRAMES[0].swap(0, Relaxed), FRAMES[1].swap(0, Relaxed))
 }
 
-/// Draws a frame showing `share` percent, at most one in 33 ms (every frame from 100 on).
+/// The loading picture was just shown: the bar's first frame waits its 33 ms after it.
+pub(super) fn picture_shown() {
+    *LAST_FRAME
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(std::time::Instant::now());
+}
+
+/// Whether a frame may be shown at `now`, the last one having been shown at `last`.
+fn frame_due(last: Option<std::time::Instant>, now: std::time::Instant) -> bool {
+    last.is_none_or(|last| now.duration_since(last) >= BAR_FRAME)
+}
+
+/// Draws a frame showing `share` percent, unless a frame of the loading screen was shown under
+/// 33 ms ago: the load does not wait for the screen, and the bar's last steps may go unseen
+/// (the race's first frame follows).
 fn loading_bar_frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
     use std::sync::atomic::Ordering::Relaxed;
-    // At most some 30 frames a second, and the last: drawing every step's frame took 3/4 of a
-    // load (882 ms of 1231).
-
+    // Drawing every step's frame took 3/4 of a load (882 ms of 1231).
     let begun = std::time::Instant::now();
     {
         let mut last = LAST_FRAME
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if share < 100 && last.is_some_and(|last| begun.duration_since(last) < BAR_FRAME) {
+        if !frame_due(*last, begun) {
             return Ok(());
         }
         *last = Some(begun);
     }
     let result = {
-        let _timed = crate::race::load_times::scope(crate::race::load_times::Category::BarFrame);
+        let _timed =
+            crate::logfile::load_times::scope(crate::logfile::load_times::Category::BarFrame);
         frame(o, share)
     };
+    crate::remote::hold_loading_frame(o);
     FRAMES[0].fetch_add(1, Relaxed);
     FRAMES[1].fetch_add(begun.elapsed().as_micros() as u64, Relaxed);
     result
@@ -105,15 +134,14 @@ fn frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
     let (race, system, scene, gfx, d3d) = (o.race, o.system, o.scene, o.gfx, &o.gfx.d3d);
     let session = &system.session;
     let shared = &race.shared;
-    // Logic in `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
+    // Logic in `rc2k_core::race::loading::{frame_tried}`.
     use crate::scene::*;
-    use rc2k_core::race::loading::{FRAME_MARK, frame_tried};
+    use rc2k_core::race::loading::frame_tried;
     if !shared.work.get().in_credits.is_set()
         && !STAGE_LOADING.load(std::sync::atomic::Ordering::Relaxed)
     {
         return Ok(());
     }
-    scene.lights.state.get().scene_state.set(FRAME_MARK);
     if session.flags.quitting.is_set() {
         return Ok(());
     }
@@ -124,19 +152,39 @@ fn frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
             break 'frame;
         }
         begin_scene::begin_scene(race, d3d, o.scene.scratch.game_scratch());
-        let framed: u32 = shared.switches.get().editor_mode.get();
-        shared.switches.get().editor_mode.set(0u32);
+        let framed: u32 = shared.switches.borrow().editor_mode;
+        shared.switches.borrow_mut().editor_mode = 0u32;
         choose_view_window::choose_view_window(race, scene, system);
-        shared.switches.get().editor_mode.set(framed);
+        shared.switches.borrow_mut().editor_mode = framed;
         crate::race::loading_bar_quad::loading_bar_quad(race, system, scene, o.net, share)?;
         end_scene::end_scene(d3d);
-        if lock_frame::lock_frame(race, gfx, system).0 < 1 {
+        if lock_frame::lock_frame(gfx, system) < 1 {
             break 'frame;
         }
-        unlock_frame::unlock_frame(&race.frame, gfx);
+        // The other players' loads, as 2D text over the frame.
+        crate::net::loading::draw(o)?;
+        unlock_frame::unlock_frame(gfx);
         // A refused present is skipped as well.
-        let _timed = crate::race::load_times::scope(crate::race::load_times::Category::Present);
+        let _timed =
+            crate::logfile::load_times::scope(crate::logfile::load_times::Category::Present);
         present_frame::present_frame(o);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_frame_is_due_33_ms_after_the_last() {
+        let last = std::time::Instant::now();
+        let after = |millis| last + std::time::Duration::from_millis(millis);
+        assert!(frame_due(None, last));
+        assert!(!frame_due(Some(last), last));
+        assert!(!frame_due(Some(last), after(32)));
+        assert!(frame_due(Some(last), after(33)));
+        // A time before the last frame's (two threads' clocks read out of order) is no frame.
+        assert!(!frame_due(Some(after(5)), last));
+    }
 }

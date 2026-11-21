@@ -9,8 +9,6 @@
 //!   `clock - champ_view.key_clock.cursor_time` is clear: 512 ms on, 512 ms off;
 //! - `loop_flags.idle` is 1 once `clock - champ_view.key_clock.last_key_time` has reached
 //!   300000: five minutes without a key.
-//!
-//! 179 callers.
 use crate::menu::champ_store::ChampView;
 use crate::menu::entry_store::EntryState;
 use crate::menu::owner::Menus;
@@ -23,19 +21,21 @@ pub use rc2k_core::menu::blink::blink_states;
 fn states_now(champ: &ChampView, entry: &EntryState, system: &System) -> (bool, bool, bool) {
     blink_states(
         system.clocks().frame.get(),
-        champ.key_clock.last_key_time.get(),
-        champ.key_clock.cursor_time.get(),
-        entry.redefining_key.is_set(),
+        champ.read().key_clock.last_key_time,
+        champ.read().key_clock.cursor_time,
+        entry.read().redefining_key,
     )
 }
 
 pub fn update_blink(menus: &Menus, system: &System) {
     let screens = &menus.screens;
     update_frame_clock(system);
+    // What other threads (the sound's) found wrong waits for a menu frame to be told.
+    crate::error_dialog::show_pending();
     {
         let (blink, cursor_on, idle) = states_now(&menus.play.champ_view, &screens.entry, system);
-        screens.draw_work.blink.set(blink);
-        screens.draw_work.cursor_on.set(cursor_on);
-        screens.loop_flags.idle.set(idle);
+        screens.draw_work.write().blink = blink;
+        screens.draw_work.write().cursor_on = cursor_on;
+        screens.loop_flags.write().idle = idle;
     }
 }

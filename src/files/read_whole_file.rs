@@ -21,13 +21,13 @@ pub fn read_whole_file_cells<C: crate::memory::session::DwordLike>(
 
 /// `read_whole_file` into a plain buffer (all of its bytes at most; what the file does not
 /// reach is kept). Gives the bytes read (0 when the file could not be opened or closed).
-pub fn read_whole_file_plain_bytes<const N: usize>(
+pub fn read_whole_file_plain_buffer<B: crate::memory::session::ByteBuffer>(
     path: &[u8],
-    bytes: &crate::memory::session::PlainBytes<N>,
+    bytes: &B,
 ) -> Result<u32, BadInput> {
-    let mut into = bytes.read();
+    let mut into = bytes.read_vec();
     let (_, bytes_read) = read_whole_file_counted(path, &mut into)?;
-    bytes.write(&into);
+    bytes.write_bytes_at(0, &into, "read_whole_file_plain_buffer")?;
     Ok(bytes_read)
 }
 

@@ -1,11 +1,10 @@
-//! The race paused until a key. The hold count
-//! `hold_count` 0x19, five keys taken, the race's sounds stopped (`race::stop_race_sounds`),
-//! `scene_switch` 1, the two first blocks' notice 0xCB (+0x71C, +0x730 0, +0x72C -1); the
+//! The race paused until a key. Five keys taken, the race's sounds stopped (`race::stop_race_sounds`),
+//! `scene_switch` 1, the two first blocks' notice 0xCB (`notice_id`, `notice_time_b` 0, `notice_time` -1); the
 //! wait `pause_wait` 30, held at 10 or more while the window is not active; each turn a key
 //! taken and the race's frame drawn (`drive::race_frame`, stream A's: through the game); with the
 //! window active, `input::update` and, the wait over, `race::race_keys` and any key down
 //! but Ctrl, Alt, Tab, F1 .. F10 and F11 ends it. Then the notices cleared, `scene_switch`
-//! 0 and the sounds woken (`race::wake_car_sounds`), a key taken, the first block's +0x468
+//! 0 and the sounds woken (`race::wake_car_sounds`), a key taken, the first block's `input_keys`
 //! 0.
 //!
 //! Refuses what its calls refuse.
@@ -27,7 +26,7 @@ fn any_ending_key(input: &crate::input::owner::Input) -> u32 {
 pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (input, system) = (o.input, o.system);
     let shared = &race.shared;
-    shared.vars.get().hold_count.set(0x19);
+    let pad_at_start = input.pad_marker();
     for _ in 0..5 {
         take_key(input);
     }
@@ -69,7 +68,7 @@ pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result
             continue;
         }
         race_keys(race, o)?;
-        if any_ending_key(input) != 0 {
+        if any_ending_key(input) != 0 || input.pad_pressed_since(pad_at_start) {
             break;
         }
     }
@@ -79,7 +78,7 @@ pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result
         race.car_blocks().cars[c as usize].notice_last.set(0);
     }
     shared.vars.get().scene_switch.set(0);
-    wake_car_sounds(race, o.sound, o.audio, o.system)?;
+    wake_car_sounds(race, o.sound, o.audio, &o.system.session.picture_clock)?;
     take_key(input);
     race.car_blocks().cars[0].input_keys.set(0);
     Ok(())

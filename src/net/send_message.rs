@@ -9,7 +9,7 @@ use rc2k_core::net::inbox;
 use rc2k_core::net::message::{Message, Payload};
 
 /// Sends `payload` as the next race message.
-pub fn send_payload(net: &Net, payload: Payload) -> Result<(), Refused> {
+pub(super) fn send_payload(net: &Net, payload: Payload) -> Result<(), Refused> {
     let sequence = inbox::next_sequence(net.lobby().sequence.get());
     let message = Message::Race { sequence, payload }.encode_for_send()?;
     net.lobby().sequence.set(sequence);
@@ -22,6 +22,6 @@ pub fn send_payload(net: &Net, payload: Payload) -> Result<(), Refused> {
 
 /// Sends `bytes` as the payload of the next race message (the framing tests' entry).
 #[cfg(test)]
-pub fn send_message(net: &Net, bytes: &[u8]) -> Result<(), Refused> {
+pub(super) fn send_message(net: &Net, bytes: &[u8]) -> Result<(), Refused> {
     send_payload(net, Payload::parse(bytes))
 }

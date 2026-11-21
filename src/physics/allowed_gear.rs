@@ -2,7 +2,7 @@
 //! (its damage word holds the bits of 100.0), when `physics::gear_bit` bars a gear of 1 or more,
 //! and when `engine_power_factor` is not set.
 //!
-//! Caller: `physics::take_asked_gear`. Refuses a gear whose bit is past 31 (as `gear_bit`).
+//! Refuses a gear whose bit is past 31 (as `gear_bit`).
 
 use crate::errors::Refused;
 use crate::memory::session::{PlainDword, PlainFloat};
@@ -12,7 +12,7 @@ use crate::race::numbers_store::Numbers;
 
 /// On the engine damage word, the engine power factor and the gear bits at these places.
 // Core: `rc2k_core::physics::gearbox::allowed_gear`.
-pub fn allowed_gear_at(
+fn allowed_gear_at(
     numbers: &Numbers,
     locked: &PlainFloat,
     open: &PlainFloat,

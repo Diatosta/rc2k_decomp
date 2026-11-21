@@ -24,8 +24,6 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::input::take_key::take_key;
-use crate::logfile::program_log::log;
-use crate::memory::session::{DwordLike, FlagLike, PlainFloat};
 use crate::menu::handle_keys::handle_keys;
 use crate::menu::lists_store::{CarList, CarListParts};
 use crate::menu::menus_store::MenuId;
@@ -36,6 +34,7 @@ use crate::menu::run_list::run_list;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::update_blink::update_blink;
 use crate::owners::Owners;
+use crate::program_log::log;
 use crate::system::owner::System;
 pub use rc2k_core::menu::keys::MenuSound;
 use rc2k_core::menu::keys::Pressed;
@@ -93,28 +92,53 @@ pub enum ScreenVar {
 }
 
 impl ScreenVar {
-    /// The variable in `menus`.
-    pub fn cell(self, menus: &Menus) -> &dyn DwordLike {
+    /// The variable's value in `menus`.
+    pub fn get(self, menus: &Menus) -> u32 {
         let screens = &menus.screens;
         match self {
-            ScreenVar::ArcadeLevel => &menus.play.arcade.level,
-            ScreenVar::ArcadeStage => &menus.play.arcade.stage,
-            ScreenVar::StageMode => &menus.play.champ_view.stage_mode,
-            ScreenVar::NoticeDue => &menus.play.cheats.notice_due,
-            ScreenVar::ActionMode => &screens.draw_work.action_mode,
-            ScreenVar::ClearsEscapeFlag => &screens.event.clears_escape_flag,
-            ScreenVar::CurrentPlayer => &screens.event.current_player,
-            ScreenVar::EventIndex => &screens.event.stage_in_section,
-            ScreenVar::EventSection => &screens.event.section,
-            ScreenVar::ServiceNext => &screens.event.service.next,
-            ScreenVar::StageGroup => &screens.event.stage.group,
-            ScreenVar::StageNumber => &screens.event.stage.number,
-            ScreenVar::StageSub => &screens.event.stage.sub,
-            ScreenVar::LeftService => &screens.flow.left_service,
-            ScreenVar::Quiet => &screens.flow.quiet,
-            ScreenVar::Highlight => &screens.loop_flags.item,
-            ScreenVar::SavedItem(slot) => &screens.items.current[slot],
-            ScreenVar::YesNoAnswer => &menus.tables.pages.yes_no_answer,
+            ScreenVar::ArcadeLevel => menus.play.arcade.read().level,
+            ScreenVar::ArcadeStage => menus.play.arcade.read().stage,
+            ScreenVar::StageMode => menus.play.champ_view.read().stage_mode,
+            ScreenVar::NoticeDue => menus.play.cheats.read().notice_due,
+            ScreenVar::ActionMode => screens.draw_work.read().action_mode,
+            ScreenVar::ClearsEscapeFlag => screens.event.read().clears_escape_flag,
+            ScreenVar::CurrentPlayer => screens.event.read().current_player,
+            ScreenVar::EventIndex => screens.event.read().stage_in_section,
+            ScreenVar::EventSection => screens.event.read().section,
+            ScreenVar::ServiceNext => screens.event.read().service.next,
+            ScreenVar::StageGroup => screens.event.read().stage.group,
+            ScreenVar::StageNumber => screens.event.read().stage.number,
+            ScreenVar::StageSub => screens.event.read().stage.sub,
+            ScreenVar::LeftService => screens.flow.read().left_service,
+            ScreenVar::Quiet => screens.flow.read().quiet,
+            ScreenVar::Highlight => screens.loop_flags.read().item,
+            ScreenVar::SavedItem(slot) => screens.items.current(slot),
+            ScreenVar::YesNoAnswer => menus.tables.pages.read().yes_no_answer,
+        }
+    }
+
+    /// Sets the variable in `menus`.
+    pub fn set(self, menus: &Menus, value: u32) {
+        let screens = &menus.screens;
+        match self {
+            ScreenVar::ArcadeLevel => menus.play.arcade.write().level = value,
+            ScreenVar::ArcadeStage => menus.play.arcade.write().stage = value,
+            ScreenVar::StageMode => menus.play.champ_view.write().stage_mode = value,
+            ScreenVar::NoticeDue => menus.play.cheats.write().notice_due = value,
+            ScreenVar::ActionMode => screens.draw_work.write().action_mode = value,
+            ScreenVar::ClearsEscapeFlag => screens.event.write().clears_escape_flag = value,
+            ScreenVar::CurrentPlayer => screens.event.write().current_player = value,
+            ScreenVar::EventIndex => screens.event.write().stage_in_section = value,
+            ScreenVar::EventSection => screens.event.write().section = value,
+            ScreenVar::ServiceNext => screens.event.write().service.next = value,
+            ScreenVar::StageGroup => screens.event.write().stage.group = value,
+            ScreenVar::StageNumber => screens.event.write().stage.number = value,
+            ScreenVar::StageSub => screens.event.write().stage.sub = value,
+            ScreenVar::LeftService => screens.flow.write().left_service = value,
+            ScreenVar::Quiet => screens.flow.write().quiet = value,
+            ScreenVar::Highlight => screens.loop_flags.write().item = value,
+            ScreenVar::SavedItem(slot) => screens.items.set_current(slot, value),
+            ScreenVar::YesNoAnswer => menus.tables.pages.write().yes_no_answer = value,
         }
     }
 }
@@ -145,20 +169,37 @@ pub enum ScreenFlag {
 }
 
 impl ScreenFlag {
-    /// The flag in `menus`.
-    pub fn cell(self, menus: &Menus) -> &dyn FlagLike {
+    /// Whether the flag is set in `menus`.
+    pub fn is_set(self, menus: &Menus) -> bool {
         let screens = &menus.screens;
         match self {
-            ScreenFlag::EscapePressed => &screens.draw_work.escape_pressed,
-            ScreenFlag::EventOver => &screens.event.event_over,
-            ScreenFlag::Asking => &screens.flow.asking,
-            ScreenFlag::AskLeave => &screens.loop_flags.ask_leave,
-            ScreenFlag::EventLeft => &screens.loop_flags.event_left,
-            ScreenFlag::LeaveScreen => &screens.loop_flags.leave_screen,
-            ScreenFlag::LeftWithCarry => &screens.loop_flags.left_with_carry,
-            ScreenFlag::SkipEditValues => &screens.state.menus.skip_edit_values,
-            ScreenFlag::StandingsShown => &screens.state.menus.standings_shown,
-            ScreenFlag::LeftByKey => &menus.tables.captions.left_by_key,
+            ScreenFlag::EscapePressed => screens.draw_work.read().escape_pressed,
+            ScreenFlag::EventOver => screens.event.read().event_over,
+            ScreenFlag::Asking => screens.flow.read().asking,
+            ScreenFlag::AskLeave => screens.loop_flags.read().ask_leave,
+            ScreenFlag::EventLeft => screens.loop_flags.read().event_left,
+            ScreenFlag::LeaveScreen => screens.loop_flags.read().leave_screen,
+            ScreenFlag::LeftWithCarry => screens.loop_flags.read().left_with_carry,
+            ScreenFlag::SkipEditValues => screens.state.read().menus.skip_edit_values,
+            ScreenFlag::StandingsShown => screens.state.read().menus.standings_shown,
+            ScreenFlag::LeftByKey => menus.tables.captions.read().left_by_key,
+        }
+    }
+
+    /// Sets or clears the flag in `menus`.
+    pub fn set(self, menus: &Menus, on: bool) {
+        let screens = &menus.screens;
+        match self {
+            ScreenFlag::EscapePressed => screens.draw_work.write().escape_pressed = on,
+            ScreenFlag::EventOver => screens.event.write().event_over = on,
+            ScreenFlag::Asking => screens.flow.write().asking = on,
+            ScreenFlag::AskLeave => screens.loop_flags.write().ask_leave = on,
+            ScreenFlag::EventLeft => screens.loop_flags.write().event_left = on,
+            ScreenFlag::LeaveScreen => screens.loop_flags.write().leave_screen = on,
+            ScreenFlag::LeftWithCarry => screens.loop_flags.write().left_with_carry = on,
+            ScreenFlag::SkipEditValues => screens.state.write().menus.skip_edit_values = on,
+            ScreenFlag::StandingsShown => screens.state.write().menus.standings_shown = on,
+            ScreenFlag::LeftByKey => menus.tables.captions.write().left_by_key = on,
         }
     }
 }
@@ -192,22 +233,73 @@ pub enum SceneVar {
 }
 
 impl SceneVar {
-    /// The variable in the front end's scene.
-    pub fn cell(self, scratch: &crate::scene::workers::DrawingScratch) -> &dyn DwordLike {
-        let window = &scratch.front_end_polygon().window;
-        let light = &scratch.front_end().light;
+    /// The variable's value among the window's, for the ones that are the window's.
+    #[cfg(test)]
+    fn window_value(self, scratch: &crate::scene::scratch_store::DrawingScratch) -> Option<u32> {
+        let window = scratch.front_end_polygon().window.borrow();
+        Some(match self {
+            SceneVar::ViewOffsetX => window.view_offset[0],
+            SceneVar::ViewOffsetY => window.view_offset[1],
+            SceneVar::ViewZoom => window.view_zoom,
+            SceneVar::ClipLeft => window.clip_edges[2],
+            SceneVar::ClipRight => window.clip_edges[3],
+            _ => return None,
+        })
+    }
+
+    /// Sets the variable if it is the window's; says whether it was.
+    fn set_window_value(
+        self,
+        scratch: &crate::scene::scratch_store::DrawingScratch,
+        value: u32,
+    ) -> bool {
+        let mut window = scratch.front_end_polygon().window.borrow_mut();
         match self {
-            SceneVar::ViewOffsetX => &window.view_offset[0],
-            SceneVar::ViewOffsetY => &window.view_offset[1],
-            SceneVar::ViewZoom => &window.view_zoom,
-            SceneVar::ClipLeft => &window.clip_edges[2],
-            SceneVar::ClipRight => &window.clip_edges[3],
-            SceneVar::LightLowest => &light.light_lowest,
-            SceneVar::LightHighest => &light.light_highest,
-            SceneVar::LightLevel => &light.light_level,
-            SceneVar::LightTurn0 => &light.light_turns[0],
-            SceneVar::LightTurn1 => &light.light_turns[1],
-            SceneVar::ObjectLightStrength => &scratch.front_end().object.light_strength,
+            SceneVar::ViewOffsetX => window.view_offset[0] = value,
+            SceneVar::ViewOffsetY => window.view_offset[1] = value,
+            SceneVar::ViewZoom => window.view_zoom = value,
+            SceneVar::ClipLeft => window.clip_edges[2] = value,
+            SceneVar::ClipRight => window.clip_edges[3] = value,
+            _ => return false,
+        }
+        true
+    }
+
+    /// The variable's value in the front end's scene.
+    #[cfg(test)]
+    pub fn get(self, scratch: &crate::scene::scratch_store::DrawingScratch) -> u32 {
+        if let Some(value) = self.window_value(scratch) {
+            return value;
+        }
+        if self == SceneVar::ObjectLightStrength {
+            return scratch.front_end().object.borrow().light_strength;
+        }
+        let light = scratch.front_end().light.borrow();
+        match self {
+            SceneVar::LightLowest => light.light_lowest,
+            SceneVar::LightHighest => light.light_highest,
+            SceneVar::LightLevel => light.light_level,
+            SceneVar::LightTurn0 => light.light_turns[0],
+            _ => light.light_turns[1],
+        }
+    }
+
+    /// Sets the variable in the front end's scene.
+    pub fn set(self, scratch: &crate::scene::scratch_store::DrawingScratch, value: u32) {
+        if self.set_window_value(scratch, value) {
+            return;
+        }
+        if self == SceneVar::ObjectLightStrength {
+            scratch.front_end().object.borrow_mut().light_strength = value;
+            return;
+        }
+        let mut light = scratch.front_end().light.borrow_mut();
+        match self {
+            SceneVar::LightLowest => light.light_lowest = value,
+            SceneVar::LightHighest => light.light_highest = value,
+            SceneVar::LightLevel => light.light_level = value,
+            SceneVar::LightTurn0 => light.light_turns[0] = value,
+            _ => light.light_turns[1] = value,
         }
     }
 }
@@ -222,12 +314,22 @@ pub enum SceneFloat {
 }
 
 impl SceneFloat {
-    /// The variable in the front end's scene.
-    pub fn cell(self, scratch: &crate::scene::workers::DrawingScratch) -> &PlainFloat {
-        let window = &scratch.front_end_polygon().window;
+    /// The variable's value in the front end's scene.
+    #[cfg(test)]
+    pub fn get(self, scratch: &crate::scene::scratch_store::DrawingScratch) -> f32 {
+        let window = scratch.front_end_polygon().window.borrow();
         match self {
-            SceneFloat::ClipLeft => &window.clip_screen[2],
-            SceneFloat::ClipRight => &window.clip_screen[3],
+            SceneFloat::ClipLeft => window.clip_screen[2],
+            SceneFloat::ClipRight => window.clip_screen[3],
+        }
+    }
+
+    /// Sets the variable in the front end's scene.
+    pub fn set(self, scratch: &crate::scene::scratch_store::DrawingScratch, value: f32) {
+        let mut window = scratch.front_end_polygon().window.borrow_mut();
+        match self {
+            SceneFloat::ClipLeft => window.clip_screen[2] = value,
+            SceneFloat::ClipRight => window.clip_screen[3] = value,
         }
     }
 }
@@ -281,13 +383,17 @@ pub enum Step {
 impl Step {
     /// Runs the step if it only writes a variable (to `menus`, or the front end's scene):
     /// whether it did.
-    pub fn write(&self, menus: &Menus, scratch: &crate::scene::workers::DrawingScratch) -> bool {
+    pub fn write(
+        &self,
+        menus: &Menus,
+        scratch: &crate::scene::scratch_store::DrawingScratch,
+    ) -> bool {
         match *self {
-            Step::Write(variable, value) => variable.cell(menus).set(value),
-            Step::WriteFlag(flag, on) => flag.cell(menus).set(on),
+            Step::Write(variable, value) => variable.set(menus, value),
+            Step::WriteFlag(flag, on) => flag.set(menus, on),
             Step::Sound(sound) => menus.screens.entry.set_sound(sound),
-            Step::WriteScene(variable, value) => variable.cell(scratch).set(value),
-            Step::WriteSceneF32(variable, value) => variable.cell(scratch).set(value),
+            Step::WriteScene(variable, value) => variable.set(scratch, value),
+            Step::WriteSceneF32(variable, value) => variable.set(scratch, value),
             Step::Call(_)
             | Step::CallOrFatal(..)
             | Step::Do(_)
@@ -404,9 +510,8 @@ pub struct Frames {
     pub after_blink: &'static [Step],
     /// Steps of the screen's own once a frame, after the frame and before the keys.
     pub each_frame: &'static [Step],
-    /// The quit switch is not looked at; `entry.menu_sound` = 0x6F is stored once a frame in
-    /// that place.
-    pub no_quit_check: bool,
+    /// `entry.menu_sound` = 0x6F is stored once a frame, before the frame.
+    pub clears_menu_sound: bool,
 }
 
 impl Frames {
@@ -421,7 +526,7 @@ impl Frames {
         before_frame: &[],
         after_blink: &[],
         each_frame: &[],
-        no_quit_check: false,
+        clears_menu_sound: false,
     };
 }
 
@@ -468,6 +573,9 @@ pub struct Screen {
     pub late_highlight: bool,
     pub keys: Keys,
     pub frames: Frames,
+    /// Whether an accepted invitation to a network game is followed from this screen: false on
+    /// the screens that belong to a race (the pause menu, its question, the service areas).
+    pub invites: bool,
 }
 
 impl Screen {
@@ -477,7 +585,7 @@ impl Screen {
             late_highlight: self.late_highlight,
             escape_leaves: self.keys.escape_leaves,
             action_check: self.keys.action_check,
-            no_quit_check: self.frames.no_quit_check,
+            clears_menu_sound: self.frames.clears_menu_sound,
             next_frame_repeats_first: self.frames.next_frame_repeats_first,
             asking: self.asking.as_ref().map(|asking| AskShape {
                 always: asking.always,
@@ -514,6 +622,7 @@ impl Screen {
             late_highlight: false,
             keys: Keys::DEFAULT,
             frames: Frames::DEFAULT,
+            invites: true,
         }
     }
 }
@@ -526,18 +635,18 @@ pub struct Entry {
     pub menus: &'static Menus,
     pub cars: Option<CarList>,
     /// The front end's slot of polygon work (its window is the screens' view).
-    pub front_end: &'static crate::scene::polygon_work::PolygonWork,
+    pub front_end: &'static crate::scene::polygon_work_store::PolygonWork,
     /// Every owner: the screens reach the others (`owners.system`, `owners.race`, ..) through it.
     pub owners: Owners<'static>,
 }
 
 impl Entry {
     /// The view's offset and zoom a front-end screen draws with.
-    pub fn set_view(&self, x: i32, y: i32, zoom: u32) {
+    pub(super) fn set_view(&self, x: i32, y: i32, zoom: u32) {
         let window = &self.front_end.window;
-        window.view_offset[0].set(x as u32);
-        window.view_offset[1].set(y as u32);
-        window.view_zoom.set(zoom);
+        window.borrow_mut().view_offset[0] = x as u32;
+        window.borrow_mut().view_offset[1] = y as u32;
+        window.borrow_mut().view_zoom = zoom;
     }
 
     /// Entered with nothing carried in.
@@ -557,7 +666,7 @@ impl Entry {
     }
 
     /// The same entry, carrying the list of cars the carousel shows.
-    pub fn with_list(&self, cars: Option<CarList>) -> Self {
+    pub(super) fn with_list(&self, cars: Option<CarList>) -> Self {
         Entry {
             menus: self.menus,
             cars,
@@ -582,7 +691,7 @@ impl Entry {
 pub struct SetUp<'a> {
     pub menus: &'a Menus,
     pub cars: Option<CarList>,
-    front_end: &'a crate::scene::polygon_work::PolygonWork,
+    front_end: &'a crate::scene::polygon_work_store::PolygonWork,
     race: &'a crate::race::owner::Race,
     scene: &'a crate::scene::owner::Scene,
     system: &'a System,
@@ -590,24 +699,24 @@ pub struct SetUp<'a> {
 
 impl SetUp<'_> {
     /// The view's offset and zoom the screen draws with.
-    pub fn set_view(&self, x: i32, y: i32, zoom: u32) {
+    pub(super) fn set_view(&self, x: i32, y: i32, zoom: u32) {
         let window = &self.front_end.window;
-        window.view_offset[0].set(x as u32);
-        window.view_offset[1].set(y as u32);
-        window.view_zoom.set(zoom);
+        window.borrow_mut().view_offset[0] = x as u32;
+        window.borrow_mut().view_offset[1] = y as u32;
+        window.borrow_mut().view_zoom = zoom;
     }
 
     /// The clip's left and right edges (also as the floats the clipper reads).
-    pub fn set_clip_sides(&self, left: i32, right: i32) {
+    pub(super) fn set_clip_sides(&self, left: i32, right: i32) {
         let window = &self.front_end.window;
-        window.clip_edges[2].set(left as u32);
-        window.clip_edges[3].set(right as u32);
-        window.clip_screen[2].set(left as f32);
-        window.clip_screen[3].set(right as f32);
+        window.borrow_mut().clip_edges[2] = left as u32;
+        window.borrow_mut().clip_edges[3] = right as u32;
+        window.borrow_mut().clip_screen[2] = left as f32;
+        window.borrow_mut().clip_screen[3] = right as f32;
     }
 
     /// Prepares the menu scene.
-    pub fn prepare_scene(&self) {
+    pub(super) fn prepare_scene(&self) {
         crate::scene::prepare_menu_scene::prepare_menu_scene(
             self.race,
             self.scene,
@@ -622,7 +731,7 @@ impl SetUp<'_> {
     }
 
     /// Sets up the carousel with the given list of cars.
-    pub fn carousel_with(&self, cars: Option<CarList>) -> Result<(), Refused> {
+    pub(super) fn carousel_with(&self, cars: Option<CarList>) -> Result<(), Refused> {
         crate::scene::set_up_carousel::set_up_carousel(
             CarListParts::of(self.menus),
             &self.scene.scratch,
@@ -637,7 +746,7 @@ pub fn quitting(system: &System) -> bool {
 }
 
 /// `scene::prepare_menu_scene`.
-pub fn prepare_scene(owners: &Owners<'static>) {
+pub(super) fn prepare_scene(owners: &Owners<'static>) {
     crate::scene::prepare_menu_scene::prepare_menu_scene(
         owners.race,
         owners.scene,
@@ -656,8 +765,7 @@ pub fn carousel(entry: &Entry, cars: Option<CarList>) -> Result<(), Refused> {
     )
 }
 
-/// A line for the game's log at level 1 with its line break (`logfile::log_write_l1_nl`,
-/// changes no register).
+/// A line for the game's log at level 1 with its line break.
 pub fn log_line(text: &std::ffi::CStr) {
     crate::logfile::log_write::log_nul(&text, true, 1);
 }
@@ -667,8 +775,6 @@ pub fn log_line(text: &std::ffi::CStr) {
 pub enum Callee {
     /// Takes the pending key.
     TakeKey,
-    /// A function that does nothing.
-    NoOp,
     /// Loads the screen's background picture from the given path.
     LoadBackground(Text),
     /// Prepares the menu scene.
@@ -750,7 +856,6 @@ impl Callee {
             Self::TakeKey => {
                 take_key(input);
             }
-            Self::NoOp => {}
             // It never fails.
             Self::LoadBackground(path) => {
                 crate::menu::load_background::load_background_in(
@@ -774,7 +879,7 @@ impl Callee {
             }
             Self::StopMusic => crate::sound::stop_music::stop_music(entry.owners),
             Self::StepCarStream => {
-                crate::sound::step_car_stream::step_car_stream_in_game(entry.owners)?;
+                crate::sound::step_car_stream::step_car_stream(entry.owners)?;
             }
             Self::PlayCarStream => crate::sound::play_car_stream::play_car_stream(
                 &mut |name, volume| {
@@ -785,7 +890,19 @@ impl Callee {
                 &audio.sample_names,
             )?,
             Self::AxisMoved(axis) => {
-                crate::input::axes::axis_moved(axis, input)?;
+                // The bindings page is entered: the player's profile is kept for its undo, the
+                // page waits a moment before it reads the controller.
+                if axis == 0 {
+                    let current = menus.screens.event.read().current_player;
+                    if let Some(player) = crate::menu::player::player(menus, current) {
+                        crate::input::profiles::remember_for_undo(
+                            input,
+                            current,
+                            player.get().controller,
+                        );
+                    }
+                    crate::system::pause::hold(entry.owners, 250);
+                }
             }
             Self::RankStageTimes => rs::rank_stage_times(menus)?,
             Self::RankTotals => rs::rank_totals(menus)?,
@@ -834,7 +951,6 @@ impl Callee {
                     entry.owners.input,
                     crate::strings::append_string_by_id::StringOwners::of(entry.owners),
                     menus,
-                    entry.owners.saves,
                     entry.owners.race,
                     &mut GameCanvas::new(entry.owners.gfx),
                 );
@@ -847,9 +963,8 @@ impl Callee {
             Self::LoadSlideshowPicture => {
                 crate::menu::load_slideshow_picture::load_slideshow_picture_in(entry.owners, 0)?;
             }
-            // It never fails.
             Self::LoadCarBackground => {
-                crate::menu::load_car_background::load_car_background_in_game(
+                crate::menu::load_car_background::load_car_background(
                     menus,
                     entry.owners.gfx,
                     entry.owners.system,
@@ -863,12 +978,14 @@ impl Callee {
                 )?);
             }
             Self::ConvertPicture => {
-                return Ok(crate::gfx::convert_picture::convert_picture_now_in(
-                    entry.owners.gfx,
-                    entry.owners.system,
-                )?);
+                crate::gfx::convert_picture::convert_picture_now_in(entry.owners.gfx)?;
+                return Ok(false);
             }
-            Self::SetUpFrontEnd => crate::menu::set_up_front_end::set_up_front_end(entry.owners)?,
+            Self::SetUpFrontEnd => {
+                crate::logfile::load_times::begin("front end: sprites, names, best times");
+                crate::menu::set_up_front_end::set_up_front_end(entry.owners)?;
+                crate::logfile::load_times::end();
+            }
             Self::SetUpEngine => {
                 crate::scene::set_up_engine::set_up_engine_in(
                     entry.owners.race,
@@ -889,16 +1006,16 @@ impl Callee {
 /// anyway): before, a "no" given with Escape left the screen below at its next frame.
 /// Returns whether it was set (and so `leave_screen` was cleared with it).
 fn clear_escape(screens: &Screens) -> bool {
-    let pressed = screens.draw_work.escape_pressed.is_set();
+    let pressed = screens.draw_work.read().escape_pressed;
     if pressed {
-        screens.draw_work.escape_pressed.set(false);
-        screens.loop_flags.leave_screen.set(false);
+        screens.draw_work.write().escape_pressed = false;
+        screens.loop_flags.write().leave_screen = false;
     }
     pressed
 }
 
 /// A call whose failure is the fatal error `code`.
-pub fn call_or_fatal(entry: &Entry, function: Callee, code: u32) -> Result<(), Refused> {
+fn call_or_fatal(entry: &Entry, function: Callee, code: u32) -> Result<(), Refused> {
     if { function.run(entry) }? {
         log(&format!("a screen loop raises fatal error {code:#x}"));
         return Err(FatalError { code, message: "" }.into());
@@ -990,7 +1107,7 @@ fn run_frame(o: Owners<'static>, callback: FrameRoutine, menu: MenuId) -> Result
         FrameRoutine::Menu => crate::menu::frame_callback::frame_callback(o, menu),
         FrameRoutine::Inspection => crate::menu::inspection_frame::inspection_frame(o, menu),
     };
-    match crate::platform::run_frame_now(o, frame) {
+    match crate::shell::frame::run_frame_now(o, frame) {
         Some(made) => made.map(|_| ()),
         None => Ok(()),
     }
@@ -1003,6 +1120,8 @@ struct MenuHost<'a> {
     entry: &'a Entry,
     menu: MenuId,
     action_menu: MenuId,
+    /// An accepted invitation taken at this frame's keys: the action that follows is the join.
+    invited: Option<crate::net::invite::Invite>,
 }
 
 impl MenuHost<'_> {
@@ -1011,14 +1130,13 @@ impl MenuHost<'_> {
     }
 
     /// The variable the highlight is kept in around an item's action.
-    fn action_item(&self) -> &dyn DwordLike {
+    fn action_item(&self) -> ScreenVar {
         ScreenVar::SavedItem(
             self.screen
                 .keys
                 .action_saved_item
                 .unwrap_or(self.screen.saved_item),
         )
-        .cell(self.entry.menus)
     }
 }
 
@@ -1031,12 +1149,9 @@ impl ScreenHost for MenuHost<'_> {
 
     fn restore_highlight(&mut self) {
         let menus = self.entry.menus;
-        menus.tables.captions.left_by_key.set(false);
-        self.screens().loop_flags.item.set(
-            ScreenVar::SavedItem(self.screen.saved_item)
-                .cell(menus)
-                .get(),
-        );
+        menus.tables.captions.write().left_by_key = false;
+        self.screens().loop_flags.write().item =
+            ScreenVar::SavedItem(self.screen.saved_item).get(menus);
         clear_escape(self.screens());
     }
 
@@ -1058,7 +1173,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn clear_leave_screen(&mut self) {
-        self.screens().loop_flags.leave_screen.set(false);
+        self.screens().loop_flags.write().leave_screen = false;
     }
 
     fn draw_set_up_frame(&mut self) -> Result<(), Refused> {
@@ -1071,14 +1186,7 @@ impl ScreenHost for MenuHost<'_> {
     fn note_set_up_time(&mut self) {
         let clocks = self.entry.owners.system.clocks();
         clocks.setup_time.set(clocks.frame.get());
-        self.entry
-            .owners
-            .race
-            .shared
-            .physics_tables
-            .get()
-            .scene_clock
-            .set(0u32);
+        self.entry.owners.race.shared.run_mut().scene_clock = 0u32;
     }
 
     fn put_frame_lists(&mut self, first: bool) {
@@ -1106,7 +1214,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn escape_flag(&self) -> bool {
-        self.screens().draw_work.escape_pressed.is_set()
+        self.screens().draw_work.read().escape_pressed
     }
 
     fn quitting(&self) -> bool {
@@ -1125,41 +1233,38 @@ impl ScreenHost for MenuHost<'_> {
 
     fn note_frame_time(&mut self) {
         let clocks = self.entry.owners.system.clocks();
-        self.entry
-            .owners
-            .race
-            .shared
-            .physics_tables
-            .get()
-            .scene_clock
-            .set(clocks.frame.get().wrapping_sub(clocks.setup_time.get()));
+        self.entry.owners.race.shared.run_mut().scene_clock =
+            clocks.frame.get().wrapping_sub(clocks.setup_time.get());
     }
 
     fn handle_keys(&mut self) -> Result<Pressed, Refused> {
+        // An invitation to a network game acts as the player's Enter on a join item: the loop
+        // runs the join as the item's action and sets the screen up again after it.
+        if self.screen.invites
+            && !self.entry.owners.net.race_slot.is_on()
+            && !quitting(self.entry.owners.system)
+            && let Some(invite) = crate::net::invite::take_in_menus()
+        {
+            self.invited = Some(invite);
+            return Ok(Pressed::Enter);
+        }
         // The handler is handed the time since set-up, as noted for this frame.
         handle_keys(
             self.entry.owners,
-            self.entry
-                .owners
-                .race
-                .shared
-                .physics_tables
-                .get()
-                .scene_clock
-                .get(),
+            self.entry.owners.race.shared.run().scene_clock,
         )
     }
 
     fn action_pending(&self) -> bool {
-        self.screens().entry.sound() == MenuSound::Enter
+        self.invited.is_some() || self.screens().entry.sound() == MenuSound::Enter
     }
 
     fn highlight(&self) -> u32 {
-        self.screens().loop_flags.item.get()
+        self.screens().loop_flags.read().item
     }
 
     fn keep_action_item(&mut self, item: u32) {
-        self.action_item().set(item);
+        self.action_item().set(self.entry.menus, item);
     }
 
     fn clear_escape(&mut self) -> bool {
@@ -1167,20 +1272,25 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn run_item_action(&mut self) -> Result<ActionResult, Refused> {
+        if let Some(invite) = self.invited.take() {
+            crate::program_log::log("menu: an invitation to a network game is followed");
+            crate::net::start_link::start_link_invited(self.entry.owners, invite)?;
+            return Ok(ActionResult::default());
+        }
         run_item_action(self.entry.owners, self.action_menu)
     }
 
     fn clear_left_by_key(&mut self) {
-        self.entry.menus.tables.captions.left_by_key.set(false);
+        self.entry.menus.tables.captions.write().left_by_key = false;
     }
 
     fn restore_action_item(&mut self) {
-        let kept = self.action_item().get();
-        self.screens().loop_flags.item.set(kept);
+        let kept = self.action_item().get(self.entry.menus);
+        self.screens().loop_flags.write().item = kept;
     }
 
     fn clear_answer(&mut self) {
-        self.entry.menus.tables.pages.yes_no_answer.set(0u32);
+        self.entry.menus.tables.pages.write().yes_no_answer = 0u32;
     }
 
     fn take_key(&mut self) -> Result<(), Refused> {
@@ -1192,11 +1302,11 @@ impl ScreenHost for MenuHost<'_> {
         let menus = self.entry.menus;
         self.screen
             .leave_at_once
-            .is_some_and(|flag| flag.cell(menus).is_set())
+            .is_some_and(|flag| flag.is_set(menus))
     }
 
     fn left_by_key(&self) -> bool {
-        self.entry.menus.tables.captions.left_by_key.is_set()
+        self.entry.menus.tables.captions.read().left_by_key
     }
 
     fn ask_suppressed(&self) -> bool {
@@ -1214,7 +1324,7 @@ impl ScreenHost for MenuHost<'_> {
             .asking
             .as_ref()
             .and_then(|asking| asking.also_if)
-            .is_some_and(|flag| flag.cell(menus).is_set())
+            .is_some_and(|flag| flag.is_set(menus))
     }
 
     fn confirm_leaving(&mut self) -> Result<(), Refused> {
@@ -1223,7 +1333,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn answered_yes(&self) -> bool {
-        self.entry.menus.tables.pages.yes_no_answer.get() == 1
+        self.entry.menus.tables.pages.read().yes_no_answer == 1
     }
 
     fn save_leave_item(&mut self) {
@@ -1232,9 +1342,7 @@ impl ScreenHost for MenuHost<'_> {
             .screen
             .leave_saved_item
             .unwrap_or(self.screen.saved_item);
-        ScreenVar::SavedItem(kept)
-            .cell(menus)
-            .set(self.screens().loop_flags.item.get());
+        ScreenVar::SavedItem(kept).set(menus, self.screens().loop_flags.read().item);
     }
 }
 
@@ -1248,12 +1356,13 @@ pub fn screen_loop(_screens: &Screens, screen: &Screen, entry: &Entry) -> Result
         entry,
         menu,
         action_menu: screen.keys.action_menu.map_or(menu, |other| other(menus)),
+        invited: None,
     };
     core_loop(&screen.shape(), &mut host)
 }
 
 /// `menu::confirm_leaving`: the question's screen (`menu::leave_question_loop`),
-/// which reads nothing it is entered with; every register comes back as it was.
+/// which reads nothing it is entered with.
 pub fn confirm_leaving(o: Owners<'static>) -> Result<u32, Refused> {
     let mut asked = Ok(());
     let answer = {
@@ -1261,7 +1370,7 @@ pub fn confirm_leaving(o: Owners<'static>) -> Result<u32, Refused> {
             if o.system.session.flags.quitting.is_set() {
                 // The window was closed: leaving is the answer. Fixed bug (`wiki/Fixed-bugs.md`,
                 // the "leave?" question loops once the game is quitting).
-                o.menus.tables.pages.yes_no_answer.set(1u32);
+                o.menus.tables.pages.write().yes_no_answer = 1u32;
                 return;
             }
             asked = run_screen(ScreenId::LeaveQuestion, &Entry::new(o)).map(|_| ());
@@ -1270,8 +1379,7 @@ pub fn confirm_leaving(o: Owners<'static>) -> Result<u32, Refused> {
     asked.map(|()| answer)
 }
 
-/// Runs a screen from the menus' tables, starting with nothing carried in. Rust callers use
-/// `run_screen`.
+/// Runs a screen from the menus' tables, starting with nothing carried in.
 pub fn screen_entry(o: Owners<'static>, id: ScreenId) -> Result<(), Refused> {
     let screens = &o.menus.screens;
     let screen = id.screen();
@@ -1282,6 +1390,9 @@ pub fn screen_entry(o: Owners<'static>, id: ScreenId) -> Result<(), Refused> {
     log(&format!("{name}: runs"));
     let exit = screen_loop(screens, screen, &Entry::new(o))?;
     log(&format!("{name}: has left the screen ({exit})"));
+    if id.changes_settings() {
+        crate::saves::save_game_data::save_settings_in_game(o);
+    }
     Ok(())
 }
 
@@ -1293,6 +1404,9 @@ pub fn run_screen(id: ScreenId, entry: &Entry) -> Result<Option<u32>, Refused> {
     let menus = entry.menus;
     let screens = &menus.screens;
     { screen_loop(screens, screen, entry) }?;
+    if id.changes_settings() {
+        crate::saves::save_game_data::save_settings_in_game(entry.owners);
+    }
     Ok(screen.result.map(|result| result(menus)))
 }
 

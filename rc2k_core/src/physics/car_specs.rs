@@ -14,7 +14,7 @@ pub const RECORD_LEN: u32 = 0xB0;
 /// The kinds below which the whole figures come from the constants.
 pub const OWN_FIGURES_FROM: u32 = 0x17;
 /// The number of drive kinds.
-pub const DRIVE_KINDS: u32 = 4;
+pub(crate) const DRIVE_KINDS: u32 = 4;
 
 /// The record's index for a kind (kinds past the last use the last).
 pub fn record_of(kind: u32) -> u32 {

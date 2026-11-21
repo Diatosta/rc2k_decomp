@@ -163,6 +163,24 @@ pub unsafe fn store_words(base: *mut u8, size: usize, offset: usize, from: &[u8]
     let end = offset + from.len();
     let mut at = offset;
     while at < end {
+        // A run of whole dwords from a dword's start (a texture's or a picture's rows mostly
+        // are one): stored one after the other.
+        let whole = if at.is_multiple_of(4) && at < words {
+            (end.min(words) - at) / 4
+        } else {
+            0
+        };
+        if whole > 0 {
+            let (dwords, _) = from[at - offset..at - offset + whole * 4].as_chunks::<4>();
+            for (n, dword) in dwords.iter().enumerate() {
+                // SAFETY: as `load_words`': `at + 4 * n + 4 <= words <= size`, a whole dword of
+                // the object, 4-aligned (`base` is, and `at`).
+                unsafe { AtomicU32::from_ptr(base.add(at + 4 * n).cast()) }
+                    .store(u32::from_ne_bytes(*dword), Relaxed);
+            }
+            at += whole * 4;
+            continue;
+        }
         if at < words {
             let word = at & !3;
             let upto = end.min(word + 4);
@@ -317,6 +335,30 @@ mod tests {
                 assert!(first == 0 || first == 0x00FF_FFFF, "{seen:?}");
             }
         });
+    }
+
+    /// Every offset and length in objects of every size up to 23 bytes: the bytes stored are
+    /// read back, the others kept.
+    #[test]
+    fn word_stores_of_every_shape_land_where_they_should() {
+        for size in 0..=23usize {
+            for offset in 0..=size {
+                for len in 0..=size - offset {
+                    let mut object = [0x5555_5555u32; 6];
+                    let base = object.as_mut_ptr().cast::<u8>();
+                    let from: Vec<u8> = (0..len).map(|n| (n * 7 + offset + 1) as u8).collect();
+                    let mut want = [0x55u8; 24];
+                    want[offset..offset + len].copy_from_slice(&from);
+                    let mut back = [0u8; 24];
+                    // SAFETY: the array's own bytes, reached only by word copies here.
+                    unsafe {
+                        store_words(base, size, offset, &from);
+                        load_words(base, 24, 0, &mut back);
+                    }
+                    assert_eq!(back, want, "size {size}, offset {offset}, len {len}");
+                }
+            }
+        }
     }
 
     #[test]

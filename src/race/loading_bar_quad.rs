@@ -5,7 +5,7 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-pub fn loading_bar_quad(
+pub(super) fn loading_bar_quad(
     race: &Race,
     system: &crate::system::owner::System,
     scene: &crate::scene::owner::Scene,
@@ -23,12 +23,12 @@ pub fn loading_bar_quad(
     let scratch = scene.scratch.front_end();
     let polygon = &scratch.polygon;
     // The quad's colour; x at corners 0 / 1, y at 4 / 5.
-    scratch.quad.corners[0].set(bar.left);
-    scratch.quad.colour[0].set(BAR_COLOUR);
-    scratch.quad.corners[4].set(bar.top);
-    scratch.quad.corners[5].set(bar.bottom);
-    scratch.quad.corners[1].set(bar.right);
-    polygon.texture_page.set(0xFFFF_FFFFu32);
+    scratch.quad.borrow_mut().corners[0] = bar.left;
+    scratch.quad.borrow_mut().colour[0] = BAR_COLOUR;
+    scratch.quad.borrow_mut().corners[4] = bar.top;
+    scratch.quad.borrow_mut().corners[5] = bar.bottom;
+    scratch.quad.borrow_mut().corners[1] = bar.right;
+    polygon.scalars.borrow_mut().texture_page = 0xFFFF_FFFFu32;
     crate::race::frame_draw::draw_screen_quad(
         polygon,
         scene.scratch.game_scratch(),

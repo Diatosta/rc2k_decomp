@@ -4,15 +4,15 @@
 //! angle, colour -1, size 0x10000. A glow over the scene, by the look of it (a reading).
 
 use crate::errors::Refused;
+use crate::math::matrix3::extended;
 use crate::math::x87;
-use crate::scene::matrix3::extended;
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
 /// The render states (`scene::set_render_state`), the texture (`scene::set_texture`),
 /// `draw_turned_sprite`.
-pub fn draw_glow(
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+pub(super) fn draw_glow(
+    engine_tables: crate::math::engine_tables::EngineTablesRef,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
@@ -20,7 +20,8 @@ pub fn draw_glow(
     let part = scene.scratch.game_scratch();
     let clipping = &effects.clipping;
     {
-        if clipping.glow.off.get() == 1 {
+        let glow = clipping.glow.borrow();
+        if glow.off == 1 {
             return Ok(());
         }
         for (value, state) in STATES {
@@ -29,17 +30,17 @@ pub fn draw_glow(
         crate::scene::set_texture::set_texture(
             part,
             scene,
-            scene.textures.kinds.get().kind_first_slots[211].get(),
+            scene.textures.kinds.borrow().kind_first_slots[211],
         );
         let place = [
-            x87::add_80(&clipping.glow.place[2], &clipping.glow.offset[0]),
-            x87::add_80(&clipping.glow.place[1], &clipping.glow.offset[1]),
-            extended(clipping.glow.place[0].get()),
+            x87::add_80(glow.place[2], glow.offset[0]),
+            x87::add_80(glow.place[1], glow.offset[1]),
+            extended(glow.place[0]),
         ];
         crate::effects::draw_turned_sprite::draw_turned_sprite(
             engine_tables,
             buffer,
-            clipping.glow.angle.get(),
+            glow.angle,
             0xFFFF_FFFF,
             0x1_0000,
             place,

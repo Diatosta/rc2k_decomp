@@ -1,4 +1,4 @@
-//! The language's set-up file, `files\<locale>\*.loc` (read by `strings::load_language`).
+//! The language's set-up file, `files\<locale>\*.loc` (read by `language::load_language`).
 
 use crate::Invalid;
 

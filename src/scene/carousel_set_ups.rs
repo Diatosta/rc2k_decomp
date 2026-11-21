@@ -25,7 +25,10 @@ const fn menu_ops<const N: usize>(
         n += 1;
         k += 1;
     }
-    ops[n] = Run(|scratch| &scratch.front_end().object.size, size);
+    ops[n] = Run(
+        |scratch, value| scratch.front_end().object.borrow_mut().size = value,
+        size,
+    );
     n += 1;
     k = 0;
     while k < kinds.len() {
@@ -106,7 +109,7 @@ menu!(
 menu!(
     MENU_07, 1,
     textures [0x10, 0x11, 0xD, 0xA, 0x8, 0x17, 0x5, 0xF], 16,
-    kinds [0x27A, 0x268, 0x26A, 0x266, 0x263, 0x279, 0x26D], 7,
+    kinds [0x27A, 0x268, 0x26A, 0x266, 0x263, 0x279, 0x263, 0x268, 0x26D], 9,
     [0x235C0, 0xFFFF4000, 0x27900, 0x20000]
 );
 menu!(
@@ -141,8 +144,8 @@ menu!(
 );
 menu!(
     MENU_11, 1,
-    textures [0xA, 0x8, 0x5, 0x19], 16,
-    kinds [0x26D, 0x266, 0x263, 0x28B, 0x28C, 0x28D, 0x28E], 7,
+    textures [0xA, 0x8, 0x5, 0x19, 0x10], 16,
+    kinds [0x26D, 0x266, 0x263, 0x28B, 0x28C, 0x28D, 0x28E, 0x27A, 0x263], 9,
     [0x235C0, 0xFFFF4000, 0x27900, 0x20000]
 );
 menu!(
@@ -158,6 +161,15 @@ menu!(
     [0x235C0, 0xFFFF4000, 0x27900, 0x20000]
 );
 menu!(
+    /// The single rally's players menu: the split screens of three and four players shown by
+    /// the third and fourth players' helmets of the players' details menu, the back item's
+    /// object last.
+    MENU_15, 0,
+    textures [0x5, 0x10], 16,
+    kinds [0x270, 0x264, 0x26F, 0x265, 0x26C, 0x272, 0x273, 0x26D], 8,
+    [0x214C0, 0xFFFF4000, 0x36F00, 0x20000]
+);
+menu!(
     MENU_14, 1,
     textures [0xF, 0xC, 0xD, 0x7, 0x7, 0x13, 0x12], 16,
     kinds [0x26E, 0x26A, 0x27B, 0x262, 0x279, 0x277], 5,
@@ -165,7 +177,7 @@ menu!(
 );
 
 /// By menu number; `None` for the menus written by hand.
-pub const PLAIN: [Option<&[Op]>; 21] = [
+pub const PLAIN: [Option<&[Op]>; 22] = [
     Some(MENU_00),
     Some(MENU_01),
     Some(MENU_02),
@@ -187,4 +199,5 @@ pub const PLAIN: [Option<&[Op]>; 21] = [
     Some(MENU_12),
     Some(MENU_13),
     Some(MENU_14),
+    Some(MENU_15),
 ];

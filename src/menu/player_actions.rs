@@ -1,7 +1,7 @@
 //! More menu item actions (found by surveying the menu and draw-list tables):
-//! - the current player's settings: keep the key copy (0x2C bytes to +0x50), lower the dead
-//!   zones (+0x40, +0x44), step the strength (+0x48, by ten, 0 .. 100), turn the mode's bit 0
-//!   (+0x3C);
+//! - the current player's settings: keep the key copy (the bindings), lower the dead
+//!   zones (`end_zone_pct`, `centre_dead_zone_pct`), step the `strength` (by ten, 0 .. 100), turn
+//!   the `controller_mode`'s bit 0;
 //! - the best scores' page (`pages.scores_page`, 0 .. 10) and the replays' range
 //!   (`pages.replay_page`, 0 .. 4) one more or less, wrapping, then the replays' caption;
 //! - `menu::player_N_car_specs`: `menu::show_car_specs` for player N (0 .. 3);
@@ -21,7 +21,7 @@ use rc2k_core::menu::steps;
 
 /// The current player's record.
 fn player(menus: &Menus) -> Result<crate::menu::standings::PlayerCell<'_>, Refused> {
-    crate::menu::player::player(menus, menus.screens.event.current_player.get())
+    crate::menu::player::player(menus, menus.screens.event.read().current_player)
         .ok_or_else(|| BadInput("no current player (or one past the four)").into())
 }
 
@@ -36,20 +36,10 @@ fn with_player(menus: &Menus, f: impl FnOnce(&mut Player)) -> Result<(), Refused
 
 /// `menu::keep_player_keys`: the keys' table's bindings into the player's.
 pub fn keep_player_keys(menus: &Menus) -> Result<(), Refused> {
-    let controls = menus.keys.tables.controls.read();
+    let controls = menus.keys.tables().controls;
     with_player(menus, |p| {
         p.bindings = rc2k_core::menu::player::ControlsBlock::from_bytes(controls);
     })
-}
-
-/// The first dead zone one less.
-pub fn lower_end_zone(menus: &Menus) -> Result<(), Refused> {
-    with_player(menus, Player::lower_end_zone)
-}
-
-/// The second dead zone one less.
-pub fn lower_centre_dead_zone(menus: &Menus) -> Result<(), Refused> {
-    with_player(menus, Player::lower_centre_dead_zone)
 }
 
 /// The device's strength ten more.
@@ -62,64 +52,49 @@ pub fn lower_strength(menus: &Menus) -> Result<(), Refused> {
     with_player(menus, |p| p.step_strength(false))
 }
 
-/// The controller's mode flipped.
-pub fn toggle_controller_mode(menus: &Menus) -> Result<(), Refused> {
-    with_player(menus, Player::toggle_controller_mode)
-}
-
 pub fn next_scores_page(tables: &Tables) {
-    tables
-        .pages
-        .scores_page
-        .set(steps::scores_page(tables.pages.scores_page.get(), true));
+    let value = steps::scores_page(tables.pages.read().scores_page, true);
+    tables.pages.write().scores_page = value;
 }
 
 pub fn previous_scores_page(tables: &Tables) {
-    tables
-        .pages
-        .scores_page
-        .set(steps::scores_page(tables.pages.scores_page.get(), false));
+    let value = steps::scores_page(tables.pages.read().scores_page, false);
+    tables.pages.write().scores_page = value;
 }
 
-pub fn previous_replay_range(
+pub(super) fn previous_replay_range(
     menus: &Menus,
     tables: &Tables,
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), BadInput> {
-    tables
-        .pages
-        .replay_page
-        .set(steps::replay_range(tables.pages.replay_page.get(), false));
+    let value = steps::replay_range(tables.pages.read().replay_page, false);
+    tables.pages.write().replay_page = value;
     crate::screens::best_scores::replay_range_caption(&menus.tables.pages, text)
 }
 
-pub fn next_replay_range(
+pub(super) fn next_replay_range(
     menus: &Menus,
     tables: &Tables,
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), BadInput> {
-    tables
-        .pages
-        .replay_page
-        .set(steps::replay_range(tables.pages.replay_page.get(), true));
+    let value = steps::replay_range(tables.pages.read().replay_page, true);
+    tables.pages.write().replay_page = value;
     crate::screens::best_scores::replay_range_caption(&menus.tables.pages, text)
 }
 
 /// `menu::toggle_caption_choice`: the choice flipped and its caption written.
-pub fn toggle_caption_choice(
+pub(super) fn toggle_caption_choice(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     screens: &Screens,
+    text_buffers: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), BadInput> {
-    let choice = steps::flip(screens.state.menus.caption_choice.get());
-    screens.state.menus.caption_choice.set(choice);
+    let choice = steps::flip(screens.state.read().menus.caption_choice);
+    screens.state.write().menus.caption_choice = choice;
     let caption = rc2k_core::screens::page_values::stage_options_caption(choice);
     let mut text = Vec::new();
     crate::strings::append_string_by_id::push_string(so, &mut text, caption)?;
     text.push(0);
-    so.menus
-        .text_buffers
-        .caption
-        .write_at(0, &text, "the caption")
+    text_buffers.caption.write_at(0, &text, "the caption")
 }
 
 pub fn leave_with_carry(menus: &Menus) {
@@ -128,11 +103,11 @@ pub fn leave_with_carry(menus: &Menus) {
 
 /// `menu::player_N_car_specs`: the car specifications screen with player `n` the current
 /// one.
-pub fn player_car_specs(menus: &Menus, n: u32, entry: &Entry) -> Result<(), Refused> {
+pub(super) fn player_car_specs(menus: &Menus, n: u32, entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let kept = screens.event.current_player.get();
-    screens.event.current_player.set(n);
+    let kept = screens.event.read().current_player;
+    screens.event.write().current_player = n;
     let done = { crate::menu::show_car_specs::show_car_specs(menus, entry) };
-    screens.event.current_player.set(kept);
+    screens.event.write().current_player = kept;
     done
 }

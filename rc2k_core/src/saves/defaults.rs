@@ -8,13 +8,10 @@ use crate::Invalid;
 
 /// A time entry's length.
 pub const ENTRY_LEN: usize = 0x9C;
-/// A stage's ten time entries, in bytes.
-pub const STAGE_LEN: usize = 10 * ENTRY_LEN;
 /// The stages a stage table has room for.
-pub const STAGE_ROOM: u32 = 36;
+pub(crate) const STAGE_ROOM: u32 = 36;
 /// A rally's table: twenty time entries.
-pub const RALLY_ENTRIES: usize = 20;
-pub const RALLY_TABLE_LEN: usize = RALLY_ENTRIES * ENTRY_LEN;
+pub(crate) const RALLY_ENTRIES: usize = 20;
 /// The number of rallies with a table.
 pub const RALLIES: usize = 6;
 pub const CHECKPOINTS: usize = 16;
@@ -57,7 +54,7 @@ pub enum Piece {
 pub struct Driver {
     /// Fields +8, +0x14, +0x18 of the driver's record.
     pub fields: [u32; 3],
-    pub name_id: u32,
+    pub name_id: crate::saves::name_id::NameId,
     /// Without a NUL; at most 0x20 bytes (the adapter refuses longer).
     pub name: Vec<u8>,
 }
@@ -76,15 +73,15 @@ pub trait Source {
 /// A championship record (164 bytes) as these functions read it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Record {
-    /// +0: 0 a stage, 3 or 4 a rally's end.
+    /// 0 a stage, 3 or 4 a rally's end.
     pub tag: u32,
-    /// +4: the stage's track.
+    /// The stage's track.
     pub track: u32,
-    /// +0x18: the stage's time (or length).
+    /// The stage's time (or length).
     pub length: u32,
-    /// +0x24
+    /// The record's time.
     pub time: u32,
-    /// +0x3C: which ten entries of a stage table.
+    /// Which ten entries of a stage table.
     pub picked: u32,
 }
 
@@ -93,7 +90,7 @@ fn put(bytes: &mut [u8], at: usize, value: u32) {
 }
 
 /// Checkpoint n of `count` at `time` * (n + 1) / count, the rest 0.
-pub fn guess_checkpoints(time: u32, count: u32) -> [u32; CHECKPOINTS] {
+pub(crate) fn guess_checkpoints(time: u32, count: u32) -> [u32; CHECKPOINTS] {
     let mut guessed = [0; CHECKPOINTS];
     for (n, g) in guessed.iter_mut().enumerate().take(count as usize) {
         *g = ((n as u64 + 1) * u64::from(time) / u64::from(count)) as u32;
@@ -123,7 +120,7 @@ impl TimeEntry {
             }
         }
         put(entry, 0x10, self.driver.fields[2]);
-        put(entry, 0xC, self.driver.name_id);
+        put(entry, 0xC, self.driver.name_id.to_file());
         entry[0x20..0x20 + self.driver.name.len()].copy_from_slice(&self.driver.name);
     }
 }
@@ -414,7 +411,7 @@ mod tests {
             }
             Ok(Driver {
                 fields: [number, number + 1, number + 2],
-                name_id: 0x100 + number,
+                name_id: crate::saves::name_id::NameId::String(0x100 + number),
                 name: format!("D{number}").into_bytes(),
             })
         }

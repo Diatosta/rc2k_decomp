@@ -188,12 +188,12 @@ pub fn first_addr<T: Cells>(record: &T, path: &str) -> Option<usize> {
 }
 
 /// The one-byte cell at `path`.
-pub fn get_u8<T: Cells>(record: &T, path: &str) -> Option<u8> {
+fn get_u8<T: Cells>(record: &T, path: &str) -> Option<u8> {
     Some(u8::from_le_bytes(bytes(record, path)?.try_into().ok()?))
 }
 
 /// The two-byte cell at `path`.
-pub fn get_u16<T: Cells>(record: &T, path: &str) -> Option<u16> {
+fn get_u16<T: Cells>(record: &T, path: &str) -> Option<u16> {
     Some(u16::from_le_bytes(bytes(record, path)?.try_into().ok()?))
 }
 
@@ -203,17 +203,17 @@ pub fn get_u32<T: Cells>(record: &T, path: &str) -> Option<u32> {
 }
 
 /// The float cell at `path`.
-pub fn get_f32<T: Cells>(record: &T, path: &str) -> Option<f32> {
+fn get_f32<T: Cells>(record: &T, path: &str) -> Option<f32> {
     get_u32(record, path).map(f32::from_bits)
 }
 
 /// The one-byte cell at `path` set; says whether there was one.
-pub fn set_u8<T: Cells>(record: &T, path: &str, value: u8) -> bool {
+fn set_u8<T: Cells>(record: &T, path: &str, value: u8) -> bool {
     set_bytes(record, path, &value.to_le_bytes())
 }
 
 /// The two-byte cell at `path` set; says whether there was one.
-pub fn set_u16<T: Cells>(record: &T, path: &str, value: u16) -> bool {
+fn set_u16<T: Cells>(record: &T, path: &str, value: u16) -> bool {
     set_bytes(record, path, &value.to_le_bytes())
 }
 
@@ -223,7 +223,7 @@ pub fn set_u32<T: Cells>(record: &T, path: &str, value: u32) -> bool {
 }
 
 /// The float cell at `path` set; says whether there was one.
-pub fn set_f32<T: Cells>(record: &T, path: &str, value: f32) -> bool {
+fn set_f32<T: Cells>(record: &T, path: &str, value: f32) -> bool {
     set_u32(record, path, value.to_bits())
 }
 
@@ -453,15 +453,6 @@ pub fn set_field_range<T: Cells>(record: &T, prefix: &str, bytes: &[u8]) -> bool
         walk_under(record, prefix, Some(bytes.len()), Span::Set(&mut rest));
     }
     fits
-}
-
-/// How many bytes of cells come before the field `prefix` names in field order (a path ending
-/// in an index names that cell of its array), or none when it has no cells.
-pub fn field_start<T: Cells>(record: &T, prefix: &str) -> Option<usize> {
-    let (base, index) = split_index(prefix).map_or((prefix, 0), |(base, i)| (base, i));
-    let mut out = None;
-    walk_under(record, base, None, Span::Before(&mut out));
-    out.map(|(seen, width)| seen + index * width)
 }
 
 #[cfg(test)]

@@ -1,0 +1,424 @@
+#!/usr/bin/env bash
+# build.sh: builds the program for one target into dist/<target>/, and with --deploy copies
+# that folder where deploy.local says. Run on Linux or macOS; on Windows itself use build.cmd.
+#
+#     ./build.sh <target> [--deploy] [--release|--debug] [--pgo] [--arch x64|a64]
+#     ./build.sh                    lists the targets
+#
+# dist/<target>/ holds the program and everything it needs beside it, the same for every
+# target: copy the folder's contents into the game's folder (the one with `files` and `var`)
+# and it runs. Cargo's own folders stay as they were (target/, target/x64, target/linux ..).
+#
+# deploy.local (not in git; shell variables) names where --deploy copies each target:
+#     DEPLOY_WINDOWS=<folder>        windows
+#     DEPLOY_WINDOWS_X64=<folder>    windows-x64
+#     DEPLOY_LINUX=<folder>          linux and deck (default: ~/.local/share/rally-championship)
+#     DEPLOY_WEB=<folder>            web
+#     ANBERNIC_HOST=root@address     handheld, over SSH (ANBERNIC_KEY, ANBERNIC_GAME)
+#     MAC_HOST=user@address          mac, built on that Mac over SSH when this is not one
+#                                    (MAC_KEY, MAC_PORT, MAC_SRC); MAC_GAME_DIR its game folder
+# RC2K_FEATURES in the environment adds cargo features (e.g. RC2K_FEATURES=remote).
+set -euo pipefail
+
+cd "$(dirname "$0")"
+
+usage() {
+    cat <<'EOF'
+usage: ./build.sh <target> [--deploy] [--release|--debug]
+
+targets:
+  windows       Windows, 32 bits (crossed with cargo-xwin)    dist/windows/
+  windows-x64   Windows, 64 bits (crossed with cargo-xwin)    dist/windows-x64/
+  linux         Linux, x86-64                                 dist/linux/
+  mac           macOS, Intel and Apple silicon in one bundle  dist/mac/
+                (on a Mac; from elsewhere on MAC_HOST over SSH; --arch x64|a64 for one)
+  ios           iPhone / iPad, crossed on Linux (needs Apple's SDK)   dist/ios/
+                (tools/ios/README.md: the SDK, signing and installing from Linux)
+  deck          Steam Deck (Linux x86-64 in a Docker container of Ubuntu 22.04, glibc 2.35;
+                tuned for its Zen 2 processor, with Steam)    dist/deck/
+  handheld      Anbernic RG34XXSP (in its Docker container)   dist/handheld/
+                (--pgo: with the profile of tools/anbernic/pgo.sh)
+  web           WebAssembly through Emscripten (experimental) dist/web/
+
+--deploy   also copy dist/<target>/ where deploy.local says (see the top of this script)
+--debug    an unoptimised build (default: --release)
+EOF
+}
+
+fail() { echo "build.sh: $*" >&2; exit 1; }
+
+# Stops with what to install when a tool is not there.
+need() {
+    command -v "$1" >/dev/null 2>&1 || fail "no $1: $2"
+}
+
+TARGET=""
+DEPLOY=false
+PROFILE=release
+PGO=false
+MAC_ARCH=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --deploy) DEPLOY=true ;;
+        --release) PROFILE=release ;;
+        --debug) PROFILE=debug ;;
+        --pgo) PGO=true ;;
+        --arch) shift; MAC_ARCH="${1:-}" ;;
+        -h|--help) usage; exit 0 ;;
+        -*) usage >&2; fail "unknown switch $1" ;;
+        *) [ -z "$TARGET" ] || fail "one target at a time (got $TARGET and $1)"; TARGET="$1" ;;
+    esac
+    shift
+done
+if [ -z "$TARGET" ]; then usage; exit 0; fi
+
+# shellcheck disable=SC1091
+[ -f deploy.local ] && source deploy.local
+
+DIST="dist/$TARGET"
+# Cargo's switches for the profile and the features, and the profile's folder name.
+CARGO_FLAGS=()
+[ "$PROFILE" = release ] && CARGO_FLAGS+=(--release)
+[ -n "${RC2K_FEATURES:-}" ] && CARGO_FLAGS+=(--features "$RC2K_FEATURES")
+
+# An empty dist/<target>/.
+fresh_dist() {
+    rm -rf "$DIST" "$DIST-debug"
+    mkdir -p "$DIST"
+}
+
+# The program's symbols and line tables moved into a file of their own, dist/<target>-debug/rc2k.debug,
+# and the program stripped, with a link to that file: put beside the program, it lets a fault's
+# backtrace in rc2k.log name functions, files and lines again. Without objcopy the program keeps them.
+split_debug_info() {
+    local program="$1" debug_dir="$DIST-debug"
+    if ! command -v objcopy >/dev/null 2>&1; then
+        echo "no objcopy: $program keeps its symbols"
+        return
+    fi
+    mkdir -p "$debug_dir"
+    objcopy --only-keep-debug "$program" "$debug_dir/rc2k.debug"
+    objcopy --strip-all --add-gnu-debuglink="$debug_dir/rc2k.debug" "$program"
+}
+
+# Copies dist/<target>/ into a folder, replacing what is there by the same names (a program
+# that is running keeps its old file), with the debug file beside the program when the build
+# made one (`split_debug_info`), so the log's backtraces are named on the developer's machine.
+deploy_to_folder() {
+    local dest="$1" item
+    mkdir -p "$dest"
+    for item in "$DIST"/* "$DIST-debug"/*; do
+        [ -e "$item" ] || continue
+        rm -rf "$dest/$(basename "$item")"
+        cp -R "$item" "$dest/"
+    done
+    echo "deployed $(ls "$DIST" | tr '\n' ' ')to $dest"
+}
+
+# With --deploy: stops before the build when deploy.local lacks the target's line.
+need_deploy_line() {
+    local name="$1" example="$2"
+    if $DEPLOY && [ -z "${!name:-}" ]; then
+        fail "--deploy for $TARGET needs a line $name=$example in deploy.local"
+    fi
+}
+
+report() {
+    echo "built $DIST/:"
+    (cd "$DIST" && find . -type f -exec ls -l {} + | awk '{printf "  %10d  %s\n", $5, $NF}')
+}
+
+# Network play through Steam is in every desktop build, and loads Valve's library while the program
+# runs when it is beside the program. A release with Steam asks for the library
+# (RC2K_STEAM=1): it is copied from the Steamworks SDK's `redistributable_bin` folder (the SDK's
+# folder in STEAM_SDK_LOCATION, or the copy `steamworks-sys` 0.13.0 leaves in cargo's registry, the
+# SDK the program is written against). `$1`: the file's folder inside `redistributable_bin`
+# (empty for 32-bit Windows), `$2`: its name, `$3`: where it goes. Without RC2K_STEAM nothing is
+# copied, and the program starts and plays without Steam.
+copy_steam_library() {
+    [ "${RC2K_STEAM:-}" = 1 ] || return 0
+    local found="" dir
+    for dir in "${STEAM_SDK_LOCATION:-}/redistributable_bin" \
+        "${CARGO_HOME:-$HOME/.cargo}"/registry/src/*/steamworks-sys-0.13.0/lib/steam/redistributable_bin; do
+        [ -f "$dir/${1:+$1/}$2" ] && { found="$dir/${1:+$1/}$2"; break; }
+    done
+    [ -n "$found" ] || fail "RC2K_STEAM=1 but $2 was not found: set STEAM_SDK_LOCATION to the Steamworks SDK's folder"
+    cp "$found" "$3/"
+    echo "steam: $2 copied beside the program (Steam play needs the Steam client running)"
+}
+
+build_windows() {
+    local arch="$1" triple="$2" xwin_arch="$3" target_dir="$4"
+    need cargo "install rustup (https://rustup.rs)"
+    cargo xwin --version >/dev/null 2>&1 || fail "no cargo-xwin: cargo install --locked cargo-xwin"
+    need clang-cl "the Windows builds need LLVM's clang-cl, lld-link, llvm-lib and llvm-nm (Clang 19 or later)"
+    need lld-link "the Windows builds need LLVM's lld-link"
+    need curl "SDL's library is downloaded with curl"
+    need unzip "SDL's library comes as a zip"
+    tools/fetch_sdl3.sh
+    CARGO_TARGET_DIR="$target_dir" cargo xwin build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} \
+        --xwin-arch "$xwin_arch" --target "$triple" --bin rc2k
+    fresh_dist
+    cp "$target_dir/$triple/$PROFILE/rc2k.exe" "third_party/sdl3/lib/$arch/SDL3.dll" "$DIST/"
+    if [ "$arch" = x86 ]; then
+        copy_steam_library "" steam_api.dll "$DIST"
+    else
+        copy_steam_library win64 steam_api64.dll "$DIST"
+    fi
+}
+
+build_linux() {
+    need cargo "install rustup (https://rustup.rs)"
+    need cmake "SDL is built from source: install cmake and your system's video and sound development packages"
+    CARGO_TARGET_DIR=target/linux CARGO_PROFILE_RELEASE_DEBUG=line-tables-only \
+        cargo build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} --target x86_64-unknown-linux-gnu --bin rc2k
+    fresh_dist
+    cp "target/linux/x86_64-unknown-linux-gnu/$PROFILE/rc2k" "$DIST/"
+    split_debug_info "$DIST/rc2k"
+    copy_steam_library linux64 libsteam_api.so "$DIST"
+    if command -v objdump >/dev/null 2>&1; then
+        echo "the Linux program needs glibc $(objdump -T "$DIST/rc2k" | grep -v ' w ' \
+            | grep -oE 'GLIBC_[0-9.]+' | sort -uV | tail -1 | cut -d_ -f2) or newer"
+    fi
+}
+
+# The Steam Deck: built in a container of Ubuntu 22.04 (tools/deck/Dockerfile), whose glibc 2.35 is
+# older than any SteamOS 3 system's, with SDL built from source inside it, for the Deck's Zen 2
+# processor (tools/deck/run.sh), and Valve's library beside the program (RC2K_STEAM=1 asks for it,
+# as for the other desktop builds; the copy is made here, on the host). A CARGO_TARGET_DIR in the
+# environment names the build folder (default target/deck).
+build_deck() {
+    need docker "the Steam Deck's build runs in a container (tools/deck/Dockerfile)"
+    docker build -q -t rc2k-deck tools/deck >/dev/null
+    local target_dir="${CARGO_TARGET_DIR:-target/deck}"
+    tools/deck/run.sh env CARGO_PROFILE_RELEASE_DEBUG=line-tables-only \
+        cargo build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} --target x86_64-unknown-linux-gnu --bin rc2k
+    fresh_dist
+    cp "$target_dir/x86_64-unknown-linux-gnu/$PROFILE/rc2k" "$DIST/"
+    split_debug_info "$DIST/rc2k"
+    cp tools/deck/rally.sh "$DIST/"
+    chmod +x "$DIST/rc2k" "$DIST/rally.sh"
+    copy_steam_library linux64 libsteam_api.so "$DIST"
+    echo "the Steam Deck program needs glibc $(objdump -T "$DIST/rc2k" | grep -v ' w ' \
+        | grep -oE 'GLIBC_[0-9.]+' | sort -uV | tail -1 | cut -d_ -f2) or newer"
+}
+
+# The handheld: built in a container of its stock system, the program stripped (the one with
+# its line tables stays in cargo's folder, for the profiler's addresses).
+build_handheld() {
+    need docker "the handheld's build runs in a container (tools/anbernic/Dockerfile)"
+    docker build -q -t rc2k-anbernic tools/anbernic >/dev/null
+    local built
+    if $PGO; then
+        local profile="$PWD/target/a64-pgo/rc2k.profdata"
+        [ -f "$profile" ] || fail "no $profile: run tools/anbernic/pgo.sh first"
+        tools/anbernic/run.sh env CARGO_TARGET_DIR=target/a64-linux-pgo \
+            CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C target-cpu=cortex-a53 -C profile-use=$profile -C llvm-args=-pgo-warn-missing-function=false" \
+            cargo build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} --target aarch64-unknown-linux-gnu --bin rc2k
+        built="target/a64-linux-pgo/aarch64-unknown-linux-gnu/$PROFILE/rc2k"
+    else
+        tools/anbernic/run.sh cargo build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} \
+            --target aarch64-unknown-linux-gnu --bin rc2k
+        built="target/a64-linux/aarch64-unknown-linux-gnu/$PROFILE/rc2k"
+    fi
+    fresh_dist
+    tools/anbernic/run.sh aarch64-linux-gnu-strip -o "$DIST/rc2k" "$built"
+    cp tools/anbernic/Rally.sh "$DIST/"
+    cp assets/handheld.png "$DIST/rally-image.png"
+    chmod +x "$DIST/rc2k" "$DIST/Rally.sh"
+}
+
+# Over SSH into the device's ports folder: the program in the game's folder, and beside that
+# folder the entry the device's menu lists.
+deploy_handheld() {
+    local key="${ANBERNIC_KEY:-$HOME/.ssh/rg34xxsp}"
+    [ -f "$key" ] || fail "no SSH key $key: set ANBERNIC_KEY=<ssh key> in deploy.local"
+    local ssh=(ssh -i "$key" -o BatchMode=yes "$ANBERNIC_HOST")
+    local game="${ANBERNIC_GAME:-/userdata/roms/ports/rally}"
+    "${ssh[@]}" "rm -f $game/rc2k"
+    "${ssh[@]}" "cat > $game/rc2k; chmod +x $game/rc2k" < "$DIST/rc2k"
+    "${ssh[@]}" "cat > $game/../Rally.sh; chmod +x $game/../Rally.sh" < "$DIST/Rally.sh"
+    # The entry's picture in the device's menu: the icon in the ports' images folder, named in
+    # the ports' game list (the line added once; the list made if there is none). The menu
+    # (EmulationStation, through its local API; nothing if it is not up) is told to read its
+    # lists before and after the edit: a reload first saves what it holds (play counts), which
+    # would otherwise be written over the edit.
+    "${ssh[@]}" "mkdir -p $game/../images; cat > $game/../images/rally-image.png" < "$DIST/rally-image.png"
+    "${ssh[@]}" "cd $game/.. && curl -s -m 10 http://127.0.0.1:1234/reloadgames >/dev/null 2>&1; sleep 2
+      if [ ! -f gamelist.xml ]; then
+        printf '<?xml version=\"1.0\"?>\n<gameList>\n\t<game>\n\t\t<path>./Rally.sh</path>\n\t\t<name>Rally</name>\n\t</game>\n</gameList>\n' > gamelist.xml; fi
+      if ! grep -q 'rally-image.png' gamelist.xml; then
+        cp gamelist.xml gamelist.xml.before_rally_image
+        if grep -q '<path>./Rally.sh</path>' gamelist.xml; then
+          sed -i 's|<path>./Rally.sh</path>|&\n\t\t<image>./images/rally-image.png</image>|' gamelist.xml
+        else
+          sed -i 's|</gameList>|\t<game>\n\t\t<path>./Rally.sh</path>\n\t\t<name>Rally</name>\n\t\t<image>./images/rally-image.png</image>\n\t</game>\n</gameList>|' gamelist.xml
+        fi
+      fi
+      curl -s -m 5 http://127.0.0.1:1234/reloadgames >/dev/null 2>&1 || true"
+    echo "deployed rc2k, Rally.sh and the menu's picture to the handheld ($game)"
+}
+
+# macOS, on a Mac: each processor's program (the other one crossed), joined by lipo into
+# `Rally Championship.app` and signed ad hoc (not notarised). SDL is linked in.
+build_mac() {
+    export PATH="$HOME/.cargo/bin:/opt/local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+    export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
+    need cargo "install rustup (https://rustup.rs) with the two apple-darwin targets"
+    need cmake "SDL is built from source: install cmake (MacPorts or Homebrew)"
+    need lipo "install the Command Line Tools (xcode-select --install)"
+    local triples=() bins=() triple
+    case "$MAC_ARCH" in
+        x64) triples=(x86_64-apple-darwin) ;;
+        a64) triples=(aarch64-apple-darwin) ;;
+        "") triples=(x86_64-apple-darwin aarch64-apple-darwin) ;;
+        *) fail "--arch takes x64 or a64" ;;
+    esac
+    for triple in "${triples[@]}"; do
+        CARGO_TARGET_DIR=target/mac cargo build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} \
+            --target "$triple" --bin rc2k
+        bins+=("target/mac/$triple/$PROFILE/rc2k")
+    done
+    fresh_dist
+    local app="$DIST/Rally Championship.app"
+    mkdir -p "$app/Contents/MacOS"
+    lipo -create -output "$app/Contents/MacOS/rc2k" "${bins[@]}"
+    # Valve's library (one file holds both processors').
+    copy_steam_library osx libsteam_api.dylib "$app/Contents/MacOS"
+    cp tools/mac/Info.plist "$app/Contents/"
+    mkdir -p "$app/Contents/Resources"
+    cp assets/icon.icns "$app/Contents/Resources/"
+    codesign --force --sign - "$app"
+    echo "Rally Championship.app holds: $(lipo -archs "$app/Contents/MacOS/rc2k")"
+}
+
+# macOS from another system: the source copied to the Mac that deploy.local names and built
+# there by this script; the bundle comes back into dist/mac/ here.
+build_mac_over_ssh() {
+    [ -n "${MAC_HOST:-}" ] || fail "the mac target is built on a Mac: run this there, or set MAC_HOST=<user@address> in deploy.local to build on one over SSH (crossing from Linux by hand: tools/mac/README.md)"
+    need rsync "the source is copied to the Mac with rsync"
+    local key="${MAC_KEY:-$HOME/.ssh/rc2k_mac}"
+    [ -f "$key" ] || fail "no SSH key $key: set MAC_KEY in deploy.local"
+    local ssh="ssh -i $key -p ${MAC_PORT:-22} -o BatchMode=yes"
+    local src="${MAC_SRC:-rc2k_src}" there="mac --$PROFILE"
+    [ -n "$MAC_ARCH" ] && there="$there --arch $MAC_ARCH"
+    $DEPLOY && there="$there --deploy"
+    rsync -a --delete -e "$ssh" --exclude=/target/ --exclude=/dist/ --exclude=/ida_db/ \
+        --exclude=/.git/ --exclude=/third_party --exclude=/fuzz/target/ --exclude=/deploy.local \
+        ./ "$MAC_HOST:$src/"
+    $ssh "$MAC_HOST" "cd $src && MAC_GAME_DIR='${MAC_GAME_DIR:-}' RC2K_FEATURES='${RC2K_FEATURES:-}' RC2K_STEAM='${RC2K_STEAM:-}' STEAM_SDK_LOCATION='${STEAM_SDK_LOCATION:-}' ./build.sh $there"
+    fresh_dist
+    rsync -a -e "$ssh" "$MAC_HOST:$src/dist/mac/" "$DIST/"
+}
+
+# iOS, crossed on Linux (tools/ios/README.md): the arm64 program in `Rally Championship.app`
+# and the `.ipa` (the app zipped in a Payload folder), unsigned: signing needs the owner's
+# Apple ID (xtool, or zsign), which `tools/ios/install.sh` does.
+build_ios() {
+    need cmake "SDL is built from source: install cmake"
+    need python3 "the .ipa is zipped by a small Python script"
+    if [ "$(uname)" = Darwin ]; then
+        # On a Mac (the CI's runner): Xcode's own compiler and iOS SDK, as cargo and cmake find them.
+        SDKROOT="$(xcrun --sdk iphoneos --show-sdk-path)" || fail "no iOS SDK: install Xcode"
+        export SDKROOT IPHONEOS_DEPLOYMENT_TARGET=${IPHONEOS_DEPLOYMENT_TARGET:-13.0}
+    else
+        need clang "the iOS build crosses with clang, lld and cmake (tools/ios/README.md)"
+        # shellcheck disable=SC1091
+        source tools/ios/env.sh || fail "no iOS SDK (tools/ios/README.md, step 2)"
+    fi
+    CARGO_TARGET_DIR=target/ios cargo build ${CARGO_FLAGS[@]+"${CARGO_FLAGS[@]}"} \
+        --features ios-sdl-source --target aarch64-apple-ios --bin rc2k
+    fresh_dist
+    local app="$DIST/Rally Championship.app"
+    mkdir -p "$app"
+    cp "target/ios/aarch64-apple-ios/$PROFILE/rc2k" "$app/rc2k"
+    cp tools/ios/Info.plist "$app/Info.plist"
+    # The home-screen name also as a localised string (it keeps its space where a signing
+    # step rewrites the property list).
+    # (and the permission questions' texts, in English and Portuguese)
+    for lang in en pt; do
+        mkdir -p "$app/$lang.lproj" && cp "tools/ios/$lang.lproj/InfoPlist.strings" "$app/$lang.lproj/"
+    done
+    cp tools/ios/icons/AppIcon*@*.png "$app/"
+    (cd "$DIST" && rm -rf Payload && mkdir Payload && cp -R "Rally Championship.app" Payload/ \
+        && python3 -c 'import os, sys, zipfile
+z = zipfile.ZipFile(sys.argv[1], "w", zipfile.ZIP_DEFLATED)
+for d, _, fs in os.walk("Payload"):
+    for f in fs:
+        p = os.path.join(d, f)
+        info = zipfile.ZipInfo.from_file(p, p)
+        info.external_attr = (0o755 if f == "rc2k" else 0o644) << 16
+        z.writestr(info, open(p, "rb").read(), zipfile.ZIP_DEFLATED)' "Rally Championship.ipa" \
+        && rm -rf Payload)
+    echo "built $DIST/Rally Championship.ipa (unsigned): install it with tools/ios/install.sh"
+}
+
+build_web() {
+    [ -f "$HOME/emsdk/emsdk_env.sh" ] || fail "no Emscripten SDK in ~/emsdk (https://emscripten.org/docs/getting_started/downloads.html)"
+    rustup toolchain list | grep -q '^nightly' || fail "no nightly toolchain: rustup toolchain install nightly --target wasm32-unknown-emscripten --component rust-src"
+    local web_flags=()
+    [ "$PROFILE" = debug ] && web_flags+=(--debug)
+    [ -n "${RC2K_FEATURES:-}" ] && web_flags+=(--features "$RC2K_FEATURES")
+    tools/web/build.sh ${web_flags[@]+"${web_flags[@]}"}
+    # The saves page's save code module (the game's own save code, for the QR codes).
+    tools/web/build_codes.sh
+    fresh_dist
+    local out="target/web/wasm32-unknown-emscripten/$PROFILE"
+    cp "$out/rc2k.js" "$out/rc2k.wasm" tools/web/index.html tools/web/unzip.js tools/web/coi-serviceworker.js tools/web/saves.html tools/web/saves.js tools/web/codes_worker.js tools/web/serve.py "$DIST/"
+    cp "${CODES_TARGET_DIR:-target/web_codes}/wasm32-unknown-unknown/release/rc2k_web_codes.wasm" "$DIST/"
+    echo "serve it with: python3 $DIST/serve.py $DIST"
+}
+
+case "$TARGET" in
+    windows)
+        need_deploy_line DEPLOY_WINDOWS "<the game's folder>"
+        build_windows x86 i686-pc-windows-msvc x86 target
+        report
+        if $DEPLOY; then deploy_to_folder "$DEPLOY_WINDOWS"; fi
+        ;;
+    windows-x64)
+        need_deploy_line DEPLOY_WINDOWS_X64 "<folder, e.g. x64 in the game's folder>"
+        build_windows x64 x86_64-pc-windows-msvc x86_64 target/x64
+        report
+        if $DEPLOY; then deploy_to_folder "$DEPLOY_WINDOWS_X64"; fi
+        ;;
+    linux)
+        build_linux
+        report
+        if $DEPLOY; then deploy_to_folder "${DEPLOY_LINUX:-$HOME/.local/share/rally-championship}"; fi
+        ;;
+    ios)
+        build_ios
+        ;;
+    deck)
+        build_deck
+        report
+        if $DEPLOY; then deploy_to_folder "${DEPLOY_LINUX:-$HOME/.local/share/rally-championship}"; fi
+        ;;
+    handheld)
+        need_deploy_line ANBERNIC_HOST "root@<address>"
+        build_handheld
+        report
+        if $DEPLOY; then deploy_handheld; fi
+        ;;
+    mac)
+        if [ "$(uname)" = Darwin ]; then
+            build_mac
+            report
+            if $DEPLOY; then deploy_to_folder "${MAC_GAME_DIR:-$HOME/rally}"; fi
+        else
+            build_mac_over_ssh
+            report
+        fi
+        ;;
+    web)
+        need_deploy_line DEPLOY_WEB "<folder>"
+        build_web
+        report
+        if $DEPLOY; then deploy_to_folder "$DEPLOY_WEB"; fi
+        ;;
+    *)
+        usage >&2
+        fail "unknown target $TARGET"
+        ;;
+esac

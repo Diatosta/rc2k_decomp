@@ -16,7 +16,7 @@ pub struct PixelFormat {
 
 impl PixelFormat {
     /// The four rotation counts, if this is the kind of layout that has them.
-    pub fn rotations(&self) -> Option<[u32; 4]> {
+    pub(crate) fn rotations(&self) -> Option<[u32; 4]> {
         ((self.layout as i32) < 0).then(|| self.layout.to_le_bytes().map(|b| b as u32 & 31))
     }
 }
@@ -188,9 +188,10 @@ pub fn alpha_from_kept(buffer: &mut [u8], count: usize) -> Option<()> {
     Some(())
 }
 
+#[cfg(test)]
 /// Alpha made 0xFF; a colour whose top five bits are all 0 becomes the key, magenta
 /// (0xF800F8 by those bits) with alpha 0.
-pub fn key_colours(pixels: &mut [u32], key: u32) {
+pub(crate) fn key_colours(pixels: &mut [u32], key: u32) {
     let key = key | 0xFF00_0000;
     for p in pixels {
         *p = match *p & 0xF8_F8F8 {
@@ -261,9 +262,10 @@ pub fn grade(pixels: &mut [u32], key: u32, saturation: u32, table: &[u8; 0x100])
     }
 }
 
-/// Whether `halve` can do it: every pass at least one pixel wide and high.
+/// Whether `halve` can do it: every pass at least one pixel wide and high (a pass count of 32
+/// or more never, since a 32-bit shift by it would not shift).
 pub fn halvable(width: u32, height: u32, times: u32) -> bool {
-    times <= 32 && (width >> times) > 0 && (height >> times) > 0
+    times < 32 && (width >> times) > 0 && (height >> times) > 0
 }
 
 /// A texture made half as wide and high in place, `times` times: each
@@ -349,38 +351,12 @@ pub fn palette_to_dwords(buffer: &mut [u8], count: usize, palette: &[u32; 256]) 
     Some(())
 }
 
+#[cfg(test)]
 /// A pixel of four eight-bit components as format 4's two bytes: the top four bits of the first
 /// and second component in the first byte (low half, high half), of the third and fourth in the
 /// second.
-pub fn to_4444(c: [u8; 4]) -> [u8; 2] {
+pub(crate) fn to_4444(c: [u8; 4]) -> [u8; 2] {
     [c[0] >> 4 | c[1] & 0xF0, c[2] >> 4 | c[3] & 0xF0]
-}
-
-/// A picture of four components a pixel made the surface's pixels in place, for a format without
-/// a converter: each packed (`pack`) and written from the buffer's start as words (`words`, a
-/// 16-bit screen) or dwords. Gives the last scratch the packing left (the caller keeps it).
-/// Refused: a buffer shorter than the pixels.
-pub fn convert_in_place(
-    buffer: &mut [u8],
-    pixels: usize,
-    format: &PixelFormat,
-    words: bool,
-) -> Result<Option<[u8; 4]>, crate::Invalid> {
-    if buffer.len() < pixels * 4 {
-        return Err(crate::Invalid("a picture larger than its buffer"));
-    }
-    let mut kept = None;
-    for n in 0..pixels {
-        let c = u32::from_le_bytes(buffer[n * 4..n * 4 + 4].try_into().unwrap());
-        let (pixel, scratch) = pack(format, c);
-        kept = scratch.or(kept);
-        if words {
-            buffer[n * 2..n * 2 + 2].copy_from_slice(&(pixel as u16).to_le_bytes());
-        } else {
-            buffer[n * 4..n * 4 + 4].copy_from_slice(&pixel.to_le_bytes());
-        }
-    }
-    Ok(kept)
 }
 
 /// A row of pixels of four components packed into the surface's format: `from` holds the row's
@@ -527,6 +503,9 @@ mod tests {
         assert_eq!(big[0] >> 24, (0xFF * 3) >> 2);
         assert_eq!(halve(&mut [0u32; 3], 2, 2, 1), None);
         assert!(!halvable(4, 1, 1));
+        assert!(halvable(4, 4, 2) && !halvable(4, 4, 3));
+        // A shift by the full width would leave the size as it is; it is refused.
+        assert!(!halvable(u32::MAX, u32::MAX, 32) && !halvable(1, 1, 33));
         let table = grades(0x100);
         assert_eq!(table[0x80], 0x80);
         let mut pixels = [0xFF10_2030u32];

@@ -12,7 +12,16 @@
 
 use sdl3_sys::everything::*;
 use std::ffi::CStr;
-use std::ptr::{null, null_mut};
+use std::ptr::null_mut;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+/// Whether the device made can clamp depth (see `Device::create`).
+static DEPTH_CLAMP: AtomicBool = AtomicBool::new(true);
+
+/// Whether the device made clamps depth; a pipeline that wants the clamp clips when not.
+pub fn depth_clamp() -> bool {
+    DEPTH_CLAMP.load(Ordering::Relaxed)
+}
 
 /// SDL's last error text, copied.
 pub fn error() -> String {
@@ -39,6 +48,10 @@ macro_rules! handle {
         impl $name {
             /// Not made.
             pub const NONE: $name = $name(null_mut());
+            /// Whether it is not made.
+            pub fn is_none(self) -> bool {
+                self.0.is_null()
+            }
         }
     };
 }
@@ -54,9 +67,6 @@ impl Device {
     }
 }
 impl Texture {
-    pub fn is_none(self) -> bool {
-        self.0.is_null()
-    }
     /// The SDL object, for the platform's own SDL calls.
     pub fn as_raw(self) -> *mut SDL_GPUTexture {
         self.0
@@ -92,6 +102,19 @@ sized_handle!(
     Transfer(*mut SDL_GPUTransferBuffer)
 );
 
+impl Transfer {
+    /// The size it was made with, in bytes.
+    pub fn size(self) -> u32 {
+        self.1
+    }
+}
+
+/// A submitted command buffer's fence: it is signalled when the GPU has done the buffer.
+#[derive(Debug)]
+pub struct Fence(*mut SDL_GPUFence);
+// SAFETY: SDL's object, used one thread at a time (see the module header).
+unsafe impl Send for Fence {}
+
 /// A command buffer, until it is submitted.
 pub struct CommandBuffer(*mut SDL_GPUCommandBuffer);
 /// A copy pass, until it is ended.
@@ -110,29 +133,76 @@ pub struct PipelineSpec<'a> {
     pub depth: Option<(SDL_GPUDepthStencilState, SDL_GPUTextureFormat)>,
 }
 
-/// A shader's code in each format a device may take: SPIR-V (Vulkan), and on macOS also
+/// A shader's code in each format a device may take: SPIR-V (Vulkan), and on Apple systems also
 /// Metal's source (MSL, made from the SPIR-V by `tools/compile_shaders.sh`).
 #[derive(Clone, Copy)]
 pub struct ShaderCode {
     pub spirv: &'static [u8],
-    #[cfg(target_os = "macos")]
+    #[cfg(apple)]
     pub msl: &'static [u8],
 }
-
-/// The shader formats a device is asked for: SPIR-V, and on macOS Metal's too (SDL takes the
-/// first backend that takes one of them: Metal there, Vulkan elsewhere).
-#[cfg(not(target_os = "macos"))]
-const SHADER_FORMATS: SDL_GPUShaderFormat = SDL_GPU_SHADERFORMAT_SPIRV;
-#[cfg(target_os = "macos")]
-const SHADER_FORMATS: SDL_GPUShaderFormat =
-    SDL_GPUShaderFormat(SDL_GPU_SHADERFORMAT_SPIRV.0 | SDL_GPU_SHADERFORMAT_MSL.0);
 
 impl Device {
     /// A device that takes our shaders (SPIR-V; on macOS SPIR-V or MSL); none (SDL's error is
     /// `error()`) when the system has no such.
+    ///
+    /// SDL's Vulkan driver refuses a device that lacks a feature it was not told to do without, and
+    /// by default asks for three the renderer never uses (shader clip distance, anisotropic
+    /// filtering, indirect draws with a first instance), which some phones' drivers (Mali) do not
+    /// offer. They are switched off here on every system: nothing drawn changes. Depth clamping
+    /// the scene's pipeline does use, so a device is tried with it first and, when the system has
+    /// none that takes it, once more without (`depth_clamp()` then says so, and the pipelines clip
+    /// instead of clamping).
     pub fn create() -> Option<Device> {
-        // SAFETY: no pointers but SDL's error text.
-        let device = unsafe { SDL_CreateGPUDevice(SHADER_FORMATS, false, null()) };
+        for clamp in [true, false] {
+            if let Some(device) = Self::create_with(clamp) {
+                DEPTH_CLAMP.store(clamp, Ordering::Relaxed);
+                return Some(device);
+            }
+        }
+        None
+    }
+
+    fn create_with(depth_clamp: bool) -> Option<Device> {
+        // SAFETY: the properties are made, filled with names that are NUL-ended constants and
+        // plain values, used by one call and destroyed after it.
+        let device = unsafe {
+            let props = SDL_CreateProperties();
+            // SDL's properties default to its debug mode (validation, which on Metal stops the
+            // program at its first complaint); the plain device, as `SDL_CreateGPUDevice`'s
+            // `debug_mode` false gave.
+            SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN, false);
+            SDL_SetBooleanProperty(
+                props,
+                SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN,
+                true,
+            );
+            #[cfg(apple)]
+            SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN, true);
+            SDL_SetBooleanProperty(
+                props,
+                SDL_PROP_GPU_DEVICE_CREATE_FEATURE_CLIP_DISTANCE_BOOLEAN,
+                false,
+            );
+            SDL_SetBooleanProperty(
+                props,
+                SDL_PROP_GPU_DEVICE_CREATE_FEATURE_ANISOTROPY_BOOLEAN,
+                false,
+            );
+            SDL_SetBooleanProperty(
+                props,
+                SDL_PROP_GPU_DEVICE_CREATE_FEATURE_INDIRECT_DRAW_FIRST_INSTANCE_BOOLEAN,
+                false,
+            );
+            SDL_SetBooleanProperty(
+                props,
+                SDL_PROP_GPU_DEVICE_CREATE_FEATURE_DEPTH_CLAMPING_BOOLEAN,
+                depth_clamp,
+            );
+            let device = SDL_CreateGPUDeviceWithProperties(props);
+            SDL_DestroyProperties(props);
+            device
+        };
         (!device.is_null()).then_some(Device(device))
     }
 
@@ -151,7 +221,7 @@ impl Device {
         self,
         code: ShaderCode,
     ) -> (SDL_GPUShaderFormat, &'static [u8], &'static CStr) {
-        #[cfg(target_os = "macos")]
+        #[cfg(apple)]
         {
             // SAFETY: no pointers.
             let formats = unsafe { SDL_GetGPUShaderFormats(self.0) };
@@ -211,6 +281,18 @@ impl Device {
         height: u32,
         usage: SDL_GPUTextureUsageFlags,
     ) -> Result<Texture, String> {
+        self.create_texture_levels(format, width, height, usage, 1)
+    }
+
+    /// As `create_texture`, with `levels` mipmap levels (the full size counts as one).
+    pub fn create_texture_levels(
+        self,
+        format: SDL_GPUTextureFormat,
+        width: u32,
+        height: u32,
+        usage: SDL_GPUTextureUsageFlags,
+        levels: u32,
+    ) -> Result<Texture, String> {
         let info = SDL_GPUTextureCreateInfo {
             r#type: SDL_GPU_TEXTURETYPE_2D,
             format,
@@ -218,7 +300,7 @@ impl Device {
             width,
             height,
             layer_count_or_depth: 1,
-            num_levels: 1,
+            num_levels: levels,
             sample_count: SDL_GPU_SAMPLECOUNT_1,
             props: SDL_PropertiesID(0),
         };
@@ -316,6 +398,22 @@ impl Device {
         unsafe { SDL_ReleaseGPUTexture(self.0, texture.0) };
     }
 
+    /// Lets go of a shader (a pipeline made from it keeps its own copy).
+    pub fn release_shader(self, shader: Shader) {
+        // SAFETY: as `release_texture`.
+        unsafe { SDL_ReleaseGPUShader(self.0, shader.0) };
+    }
+
+    pub fn release_sampler(self, sampler: Sampler) {
+        // SAFETY: as `release_texture`.
+        unsafe { SDL_ReleaseGPUSampler(self.0, sampler.0) };
+    }
+
+    pub fn release_pipeline(self, pipeline: Pipeline) {
+        // SAFETY: as `release_texture`.
+        unsafe { SDL_ReleaseGPUGraphicsPipeline(self.0, pipeline.0) };
+    }
+
     pub fn release_transfer(self, transfer: Transfer) {
         // SAFETY: as `release_texture`.
         unsafe { SDL_ReleaseGPUTransferBuffer(self.0, transfer.0) };
@@ -336,7 +434,7 @@ impl Device {
         cycle: bool,
     ) -> Result<(), String> {
         assert!(
-            at + bytes.len() <= transfer.1 as usize,
+            within(at, bytes.len(), transfer.1),
             "past the transfer buffer"
         );
         // SAFETY: the buffer holds `at + bytes.len()` bytes (checked above), mapped only here
@@ -362,7 +460,7 @@ impl Device {
         assert!(
             parts
                 .iter()
-                .all(|(at, bytes)| at + bytes.len() <= transfer.1 as usize),
+                .all(|(at, bytes)| within(*at, bytes.len(), transfer.1)),
             "past the transfer buffer"
         );
         // SAFETY: every part lies within the buffer (checked above); the mapping is made only
@@ -399,6 +497,15 @@ impl Device {
             SDL_UnmapGPUTransferBuffer(self.0, transfer.0);
         }
         Ok(())
+    }
+
+    /// Waits until the GPU has done what `fence` is for, then releases the fence.
+    pub fn wait_fence(self, fence: Fence) {
+        // SAFETY: the fence is ours (made by `submit_with_fence`) and is given up here.
+        unsafe {
+            SDL_WaitForGPUFences(self.0, true, &raw const fence.0, 1);
+            SDL_ReleaseGPUFence(self.0, fence.0);
+        }
     }
 
     pub fn acquire_command_buffer(self) -> Result<CommandBuffer, String> {
@@ -449,6 +556,56 @@ impl CommandBuffer {
         })
     }
 
+    /// A render pass into `colour` alone, without a depth target; the target's old pixels are
+    /// not kept (every pixel is written).
+    pub fn begin_plain_pass(&self, colour: Texture) -> RenderPass {
+        let colour = SDL_GPUColorTargetInfo {
+            texture: colour.0,
+            load_op: SDL_GPU_LOADOP_DONT_CARE,
+            store_op: SDL_GPU_STOREOP_STORE,
+            ..Default::default()
+        };
+        // SAFETY: our open command buffer; the record lives through the call; no depth target
+        // is a null pointer.
+        RenderPass(unsafe {
+            SDL_BeginGPURenderPass(self.0, &raw const colour, 1, std::ptr::null())
+        })
+    }
+
+    /// The top-left `from` (width, height) pixels of `source` copied to the top-left `to` pixels
+    /// of `destination`, each destination pixel the nearest source pixel, or with `smooth` the
+    /// bilinear mean of the four around it (outside a pass). Both
+    /// textures are ours, made for blitting (a sampler and a colour target), and the regions are
+    /// inside them.
+    pub fn blit(
+        &self,
+        source: Texture,
+        from: (u32, u32),
+        destination: Texture,
+        to: (u32, u32),
+        smooth: bool,
+    ) {
+        let region = |texture: Texture, (w, h): (u32, u32)| SDL_GPUBlitRegion {
+            texture: texture.0,
+            w,
+            h,
+            ..Default::default()
+        };
+        let info = SDL_GPUBlitInfo {
+            source: region(source, from),
+            destination: region(destination, to),
+            load_op: SDL_GPU_LOADOP_DONT_CARE,
+            filter: if smooth {
+                SDL_GPU_FILTER_LINEAR
+            } else {
+                SDL_GPU_FILTER_NEAREST
+            },
+            ..Default::default()
+        };
+        // SAFETY: our open command buffer, no pass open; `info` lives through the call.
+        unsafe { SDL_BlitGPUTexture(self.0, &raw const info) };
+    }
+
     /// Two floats for the vertex shader's uniform buffer `slot`.
     pub fn push_vertex_uniform(&self, slot: u32, values: &[f32; 2]) {
         // SAFETY: eight bytes, copied by the call.
@@ -469,6 +626,18 @@ impl CommandBuffer {
             Ok(())
         } else {
             Err(error())
+        }
+    }
+
+    /// Submitted, with a fence to wait for later (`Device::wait_fence`).
+    pub fn submit_with_fence(self) -> Result<Fence, String> {
+        // SAFETY: our command buffer, given up here; the fence is handed to the caller, who
+        // gives it back to `Device::wait_fence`.
+        let fence = unsafe { SDL_SubmitGPUCommandBufferAndAcquireFence(self.0) };
+        if fence.is_null() {
+            Err(error())
+        } else {
+            Ok(Fence(fence))
         }
     }
 
@@ -515,6 +684,19 @@ impl CopyPass {
         width: u32,
         height: u32,
     ) {
+        self.upload_texture_level(transfer, offset, texture, 0, width, height);
+    }
+
+    /// As `upload_texture`, into mipmap level `level` (`width` x `height` its size).
+    pub fn upload_texture_level(
+        &self,
+        transfer: Transfer,
+        offset: u32,
+        texture: Texture,
+        level: u32,
+        width: u32,
+        height: u32,
+    ) {
         assert!(
             u64::from(offset) + u64::from(width) * u64::from(height) * 4 <= u64::from(transfer.1),
             "past the transfer buffer"
@@ -527,14 +709,17 @@ impl CopyPass {
         };
         let to = SDL_GPUTextureRegion {
             texture: texture.0,
+            mip_level: level,
             w: width,
             h: height,
             d: 1,
             ..Default::default()
         };
+        // The first level may take a fresh backing (the GPU may still be reading the old one); a
+        // later level must not, or it would discard the levels already sent.
         // SAFETY: our open pass; the records live through the call; the picture is within the
         // transfer buffer (checked above).
-        unsafe { SDL_UploadToGPUTexture(self.0, &raw const from, &raw const to, true) };
+        unsafe { SDL_UploadToGPUTexture(self.0, &raw const from, &raw const to, level == 0) };
     }
 
     /// `rows` rows of `width` four-byte pixels from the transfer buffer at `offset` into
@@ -606,8 +791,22 @@ impl CopyPass {
 
     /// `texture`'s `width` x `height` pixels into the start of the transfer buffer.
     pub fn download_texture(&self, texture: Texture, width: u32, height: u32, transfer: Transfer) {
+        self.download_texture_at(texture, (width, height), 4, transfer, 0);
+    }
+
+    /// As `download_texture` for a texture of `bytes_per_pixel` bytes a pixel, its picture
+    /// written `offset` bytes into the transfer buffer.
+    pub fn download_texture_at(
+        &self,
+        texture: Texture,
+        (width, height): (u32, u32),
+        bytes_per_pixel: u32,
+        transfer: Transfer,
+        offset: u32,
+    ) {
         assert!(
-            u64::from(width) * u64::from(height) * 4 <= u64::from(transfer.1),
+            u64::from(width) * u64::from(height) * u64::from(bytes_per_pixel) + u64::from(offset)
+                <= u64::from(transfer.1),
             "past the transfer buffer"
         );
         let region = SDL_GPUTextureRegion {
@@ -619,6 +818,7 @@ impl CopyPass {
         };
         let to = SDL_GPUTextureTransferInfo {
             transfer_buffer: transfer.0,
+            offset,
             ..Default::default()
         };
         // SAFETY: our open pass; the records live through the call; the picture fits the
@@ -657,6 +857,16 @@ impl RenderPass {
         };
         // SAFETY: our open pass; `bound` lives through the call.
         unsafe { SDL_BindGPUFragmentSamplers(self.0, 0, &raw const bound, 1) };
+    }
+
+    /// Three textures with their samplers in the fragment shader's slots 0 to 2.
+    pub fn bind_fragment_samplers3(&self, bindings: [(Texture, Sampler); 3]) {
+        let bound = bindings.map(|(texture, sampler)| SDL_GPUTextureSamplerBinding {
+            texture: texture.0,
+            sampler: sampler.0,
+        });
+        // SAFETY: our open pass; `bound` lives through the call.
+        unsafe { SDL_BindGPUFragmentSamplers(self.0, 0, bound.as_ptr(), 3) };
     }
 
     /// The viewport over the target's top-left `width` by `height` pixels, depth 0 to 1.
@@ -699,8 +909,31 @@ impl RenderPass {
     }
 }
 
+/// Whether `len` bytes from byte `at` lie within a buffer of `size` bytes (an `at` so large that
+/// the end would wrap round is outside).
+fn within(at: usize, len: usize, size: u32) -> bool {
+    at.checked_add(len).is_some_and(|end| end <= size as usize)
+}
+
 /// The records' dwords as bytes, for a transfer buffer.
 pub fn words_as_bytes<const N: usize>(records: &[[u32; N]]) -> &[u8] {
     // SAFETY: dwords as bytes: same memory, a smaller alignment, every value valid.
     unsafe { std::slice::from_raw_parts(records.as_ptr().cast(), size_of_val(records)) }
+}
+
+#[cfg(test)]
+mod within_tests {
+    use super::within;
+
+    #[test]
+    fn a_range_is_within_a_buffer_only_when_its_end_is() {
+        assert!(within(0, 16, 16));
+        assert!(within(16, 0, 16));
+        assert!(within(8, 8, 16));
+        assert!(!within(8, 9, 16));
+        assert!(!within(17, 0, 16));
+        // An end that would wrap round to a small number is still outside.
+        assert!(!within(usize::MAX, 2, 16));
+        assert!(!within(2, usize::MAX, 16));
+    }
 }

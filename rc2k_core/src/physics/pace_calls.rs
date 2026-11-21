@@ -5,7 +5,7 @@
 use crate::Invalid;
 
 /// The start timer from which notes are called (unsigned).
-pub const CALL_FROM: u32 = 1000;
+pub(crate) const CALL_FROM: u32 = 1000;
 
 /// Whether notes are called this step: all gates 0, mode 1, the start timer at `CALL_FROM`.
 pub fn calling(gates: impl IntoIterator<Item = u32>, mode: u32, timer: u32) -> bool {
@@ -26,7 +26,7 @@ pub fn call_target(checkpoint: u32, ahead: i32, count: u32) -> u32 {
 }
 
 /// The most checkpoints called in one step; past it the last called jumps to the target.
-pub const MOST_CALLED: u32 = 0x10;
+pub(crate) const MOST_CALLED: u32 = 0x10;
 
 /// The checkpoints whose groups are called: (the last called as the calls begin, the
 /// difference); `None` when the target is not past the last called (unsigned). The calls run
@@ -40,7 +40,7 @@ pub fn calls(target: u32, last: u32) -> Option<(u32, u32)> {
 }
 
 /// The most groups.
-pub const MOST_GROUPS: u32 = 0x400;
+pub(crate) const MOST_GROUPS: u32 = 0x400;
 
 /// The first group called at `checkpoint`; `None` when there are none or none is at it
 /// (an error past `MOST_GROUPS`).
@@ -61,7 +61,7 @@ pub fn find_group(
 /// The texts' room.
 pub const TEXT_LEN: u32 = 0x4000;
 /// The first bad code.
-pub const BAD_CODE: u32 = 0x54;
+pub(crate) const BAD_CODE: u32 = 0x54;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Code {

@@ -1,22 +1,25 @@
-//! `d3d::draw_fan_unclipped`: draws the polygon in the vertex buffer: a triangle fan of
-//! transformed and lit vertices, not to be clipped, lit or measured. The polygon vertex buffer
-//! is the drawing part's (`scene::workers::PartScratch`), the number of vertices the polygon's vertex
-//! count. Two callers, `scene::draw_fan` and `race::draw_view_backdrop`. The fan is only
-//! noted and the rasteriser draws it (`platform::direct3d::draw_fan`); the result is 0.
+//! `d3d::draw_fan_unclipped`: draws the polygon in the vertex buffer: a triangle fan of transformed
+//! and lit vertices, not to be clipped, lit or measured. The polygon vertex buffer is the drawing
+//! part's (`scene::scratch_store::PartScratch`), the number of vertices the polygon's vertex count. The
+//! fan is only noted and the rasteriser draws it (`d3d::device::draw_fan`); the result is 0.
 
 use crate::d3d::Vertex;
 use crate::d3d::vertices_store::PolygonVertices;
 
+/// Vertices a polygon holds without the heap: what clipping against the depth and screen edges
+/// makes of a face stays under it.
+const INLINE_VERTICES: usize = 12;
+
 /// The polygon as it stands in the buffer (the store's 64 vertices). More vertices than the
 /// buffer holds is a count gone wrong: a refusal.
 pub fn polygon(
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &PolygonVertices,
-) -> smallvec::SmallVec<[Vertex; 6]> {
-    let count = poly.polygon_vertex_count.get() as usize;
+) -> smallvec::SmallVec<[Vertex; INLINE_VERTICES]> {
+    let count = poly.scalars.borrow().polygon_vertex_count as usize;
     let vertices = &buffer.vertices;
     if count > vertices.len() {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "d3d::draw_fan_unclipped: a polygon of {count} vertices, the buffer holds {}",
             vertices.len()
         ));
@@ -38,12 +41,11 @@ pub fn polygon(
         .collect()
 }
 
-/// The fan drawn: Direct3D's result, always 0 here.
+/// Draws the polygon's fan.
 pub fn draw_fan_unclipped(
-    part: &crate::scene::workers::PartScratch,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &PolygonVertices,
-) -> u32 {
-    crate::platform::direct3d::draw_fan(part, &polygon(poly, buffer));
-    0
+) {
+    crate::d3d::device::draw_fan(part, &polygon(poly, buffer));
 }

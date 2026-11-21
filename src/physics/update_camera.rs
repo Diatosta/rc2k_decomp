@@ -19,11 +19,12 @@
 //! `physics::ease_view_angles`, `ease_view_blend` and `physics::camera_avoid_ground` run; the
 //! offset's length goes into `flat_depth` and the first camera figure into `camera_first`.
 //!
-//! Caller: `physics::camera_frame`. Refuses a mode past 0x33 on the blending path (past
-//! `view_records`), and what the ground checks refuse; everything written is put back.
+//! Refuses a mode past 0x33 on the blending path (past `view_records`), and what the ground checks
+//! refuse; everything written is put back.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
+use crate::math::matrix3::rounded_value;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
@@ -33,49 +34,38 @@ use crate::physics::car_store::Car;
 use crate::physics::flow::{ZERO_BITS as ZERO, hold_high, hold_low, hold_low_bits};
 use crate::physics::step_families::CameraInputs;
 use crate::physics::tables_store::PhysicsTables;
-use crate::race::course_store::CourseWork;
 use crate::race::groups_store::ViewAndRecords;
 use crate::race::numbers_store::Numbers;
 use crate::race::view_vars_store::ViewVars;
-use crate::scene::matrix3::rounded_value;
 
-use crate::memory::session::DwordLike;
-use crate::memory::session::PlainFloat;
 use rc2k_core::physics::camera_view;
 
 /// The fixed camera: `second` picks the second tables.
-fn fixed_camera(
-    c: &CameraInputs<'_>,
-    second: bool,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), crate::errors::BadInput> {
-    let (nearest, replay) = if second {
-        (
-            &c.checkpoints.nearest_camera_2,
-            &c.checkpoints.replay_cameras_2,
-        )
-    } else {
-        (
-            &c.checkpoints.nearest_camera_1,
-            &c.checkpoints.replay_cameras_1,
-        )
-    };
-    // The car's checkpoint is held to the line's count (5144 at most; the tables hold 5146),
-    // its nearest camera is a number of the list (0x400 at most; the table holds 0x400).
-    let camera = nearest
-        .get(c.car.checkpoint.get() as usize)
-        .ok_or(crate::errors::BadInput(
-            "a checkpoint past the nearest cameras",
-        ))?
-        .get();
-    let face = replay
-        .get(camera as usize)
-        .ok_or(crate::errors::BadInput("a camera past the replay cameras"))?
-        .get();
+fn fixed_camera(c: &CameraInputs<'_>, second: bool) -> Result<(), crate::errors::BadInput> {
+    let face = c.checkpoints.read(|tables| {
+        let (nearest, replay) = if second {
+            (&tables.nearest_camera_2, &tables.replay_cameras_2)
+        } else {
+            (&tables.nearest_camera_1, &tables.replay_cameras_1)
+        };
+        // The car's checkpoint is held to the line's count (5144 at most; the tables hold 5146),
+        // its nearest camera is a number of the list (0x400 at most; the table holds 0x400).
+        let camera =
+            *nearest
+                .get(c.car.checkpoint.get() as usize)
+                .ok_or(crate::errors::BadInput(
+                    "a checkpoint past the nearest cameras",
+                ))?;
+        replay
+            .get(camera as usize)
+            .copied()
+            .ok_or(crate::errors::BadInput("a camera past the replay cameras"))
+    })?;
     let point = crate::race::course_places::face_field::<u32>(c.course.reads(), face, 4)
         .unwrap_or_else(|e| crate::fatal::raise::end("a checkpoint face", e));
     for k in 0..3 {
-        c.car.camera_position[k as usize].set(
+        c.car.camera_position.set_bits_at(
+            k as usize,
             crate::race::scene_points::point_word(
                 c.course.reads(),
                 &crate::race::scene_points::no_own(),
@@ -85,16 +75,12 @@ fn fixed_camera(
             .unwrap_or_else(|e| crate::fatal::raise::end("a scene point", e)),
         );
     }
-    crate::physics::camera_height_bias::camera_height_bias(
-        c.numbers,
-        c.view_records,
-        c.car,
-        scene,
-    )?;
+    crate::physics::camera_height_bias::camera_height_bias(c.numbers, c.view_records, c.car)?;
     let d = |k: usize| {
-        c.car.position[k]
-            .get()
-            .wrapping_sub(c.car.camera_position[k].get())
+        c.car
+            .position
+            .bits_at(k)
+            .wrapping_sub(c.car.camera_position.bits_at(k))
     };
     let (dx, dy, dz) = (d(0), d(1), d(2));
     let v = [dx, dz, dy];
@@ -105,19 +91,16 @@ fn fixed_camera(
         .set((c.car.camera_pitch.get() << 4).wrapping_neg());
     let w = [dx, dy, dz];
     x87_2(c.numbers, c.view_records, w);
-    scene.drawing.scene.get().scratch.set(dz);
     c.view_records.view_vars.camera_distance.set(rounded_value({
         crate::physics::vector_length::vector_length(&c.view_records.view_vars.camera_vector)
     }));
-    c.car.camera_zoom.set(c.camera.camera_zoom_kept.get());
+    c.car.camera_zoom.set(c.camera.borrow().camera_zoom_kept);
     if record(c.view_records, c.car)?.fixed_zoom.get() != 0 {
         x87_3(c.car, c.numbers, c.view_records, 0x180);
         hold_low(&c.car.camera_zoom, &c.numbers.k384);
     }
     c.car.camera_roll_turn.set(0);
-    for turn in &c.car.camera_offset_turns {
-        turn.set(0);
-    }
+    c.car.camera_offset_turns.set_bits([0; 3]);
     Ok(())
 }
 
@@ -125,54 +108,44 @@ fn fixed_camera(
 // Core: `rc2k_core::physics::camera_view::{fixed_camera, keeps_light_figure, switch_over,
 // mode_after_switch, check_modes}` (the x87 sums stay).
 pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    crate::physics::camera_low_switch::camera_low_switch(&c.ground, scene)?;
+    crate::physics::camera_low_switch::camera_low_switch(&c.ground)?;
     for k in 0..3 {
-        c.frame_work.camera_car[k].set(c.car.position[k].get());
+        c.frame_work.borrow_mut().camera_car[k] = c.car.position.bits_at(k);
     }
     let car = c.car.car_kind.get();
     // The car kind's light record (a kind one past the 34 would read on into the gear figures:
     // refused).
     let head = c
         .light_records
-        .records
-        .get(car as usize)
+        .read(|records| records.records.get(car as usize).map(|record| record.head))
         .ok_or(crate::errors::BadInput(
             "a car kind past the 34 light records",
-        ))?
-        .head
-        .each_ref()
-        .map(crate::memory::session::PlainDword::get);
+        ))?;
     x87_4(c.tables, c.numbers, c.view_records, &head);
     ViewVars::record(c.view_records, 3).angles[0].set(head[3]);
     ViewVars::record(c.view_records, 3).angles[0].set(head[7]);
-    if !camera_view::keeps_light_figure(car, || c.kind_tables.kind_has_views[car as usize].get()) {
+    if !camera_view::keeps_light_figure(car, || c.kind_tables.kind_has_views[car as usize]) {
         ViewVars::record(c.view_records, 1).focus[2]
             .set(crate::math::x87::loaded(head[10]).to_bits());
     }
     if c.car.camera_switch_active.get() == 0
         && let Some(second) = camera_view::fixed_camera(c.car.camera_view.get())
     {
-        fixed_camera(c, second, scene)?;
+        fixed_camera(c, second)?;
         return Ok(());
     }
     // The camera at the car, the views blended.
-    for (k, copy) in [
-        &c.course.course.get().place_x,
-        &c.course.course.get().place_y,
-        &c.course.course.get().place_z,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let v = c.car.position[k].get();
-        copy.set(v);
-        c.car.camera_position[k].set(v);
+    let position = [0, 1, 2].map(|k| c.car.position.bits_at(k));
+    for (k, v) in position.into_iter().enumerate() {
+        c.car.camera_position.set_bits_at(k, v);
     }
-    c.course
-        .course
-        .get()
-        .place_heading
-        .set(c.car.car_heading.get());
+    {
+        let mut place = c.course.course.borrow_mut();
+        place.place_x = position[0];
+        place.place_y = position[1];
+        place.place_z = position[2];
+        place.place_heading = c.car.car_heading.get();
+    }
     if c.car.camera_switch_active.get() != 0 {
         if camera_view::switch_over(
             c.car.step_clock.get(),
@@ -196,99 +169,57 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     let (mode, before) = (c.car.camera_view.get(), c.car.camera_blend_view.get());
     camera_view::check_modes(mode, before)?;
     crate::physics::take_first_view::take_first_view(
-        c.camera,
+        &mut c.camera.borrow_mut(),
         c.car,
         c.view_records,
         ViewVars::record_of(c.view_records, mode as usize)?,
         scene,
     )?;
     crate::physics::take_second_view::take_second_view(
-        c.camera,
+        &mut c.camera.borrow_mut(),
         c.car,
         ViewVars::record_of(c.view_records, before as usize)?,
         scene,
     );
-    x87_6(c.camera, c.car);
-    // The offsets and turns: (to, from b, from a) each a + (b - a) x share, x 65536.
-    let (work, offset_turns) = (&c.camera, &c.car.camera_offset_turns);
-    let rows: [(&dyn DwordLike, &PlainFloat, &PlainFloat); 9] = [
-        (
-            &work.camera_offset_x,
-            &work.view_b_offset[0],
-            &work.view_a_offset[0],
-        ),
-        (
-            &work.camera_offset_y,
-            &work.view_b_offset[1],
-            &work.view_a_offset[1],
-        ),
-        (
-            &work.camera_offset_z,
-            &work.view_b_offset[2],
-            &work.view_a_offset[2],
-        ),
-        (
-            &work.view_turn_x,
-            &work.view_b_turn[0],
-            &work.view_a_turn[0],
-        ),
-        (
-            &work.view_turn_y,
-            &work.view_b_turn[1],
-            &work.view_a_turn[1],
-        ),
-        (
-            &work.view_turn_z,
-            &work.view_b_turn[2],
-            &work.view_a_turn[2],
-        ),
-        (
-            &offset_turns[0],
-            &work.view_b_point[0],
-            &work.view_a_point[0],
-        ),
-        (
-            &offset_turns[1],
-            &work.view_b_point[1],
-            &work.view_a_point[1],
-        ),
-        (
-            &offset_turns[2],
-            &work.view_b_point[2],
-            &work.view_a_point[2],
-        ),
-    ];
-    for (to, x, y) in rows {
-        x87_7(c.car, c.numbers, x, y, to);
+    {
+        let mut work = c.camera.borrow_mut();
+        x87_6(&mut work, c.car);
+        let offset_turns = &c.car.camera_offset_turns;
+        // Each row: the blend of the second view's figure toward the first's, by the switch
+        // share, times 65536 as a whole number.
+        let blended = |from_b: f32, from_a: f32| x87_7(c.car, c.numbers, from_b, from_a);
+        work.camera_offset_x = blended(work.view_b_offset[0], work.view_a_offset[0]);
+        work.camera_offset_y = blended(work.view_b_offset[1], work.view_a_offset[1]);
+        work.camera_offset_z = blended(work.view_b_offset[2], work.view_a_offset[2]);
+        work.view_turn_x = blended(work.view_b_turn[0], work.view_a_turn[0]);
+        work.view_turn_y = blended(work.view_b_turn[1], work.view_a_turn[1]);
+        work.view_turn_z = blended(work.view_b_turn[2], work.view_a_turn[2]);
+        for k in 0..3 {
+            offset_turns.set_bits_at(k, blended(work.view_b_point[k], work.view_a_point[k]));
+        }
+        for k in 0..3 {
+            offset_turns.set_bits_at(k, offset_turns.bits_at(k) << 16);
+        }
+        work.view_share_pitch = work.view_a_shares[0];
+        work.view_share_heading = work.view_a_shares[1];
+        work.view_share_roll = work.view_a_shares[2];
+        work.view_blend_aux_2 = work.view_a_aux_2;
+        x87_8(&work, c.car);
     }
-    for turn in &c.car.camera_offset_turns {
-        turn.set(turn.get() << 16);
-    }
-    c.camera
-        .view_share_pitch
-        .set(c.camera.view_a_shares[0].get());
-    c.camera
-        .view_share_heading
-        .set(c.camera.view_a_shares[1].get());
-    c.camera
-        .view_share_roll
-        .set(c.camera.view_a_shares[2].get());
-    c.camera.view_blend_aux.set(c.camera.view_a_aux.get());
-    c.camera.view_blend_aux_2.set(c.camera.view_a_aux_2.get());
-    x87_8(c.camera, c.car);
     hold_low(
         &c.car.camera_zoom,
         &c.view_records.view_vars.camera_zoom_hold,
     );
-    crate::physics::ease_view_angles::ease_view_angles(c.numbers, c.shared, c.view_records, scene)?;
-    crate::physics::ease_view_blend::ease_view_blend(c, scene)?;
+    crate::physics::ease_view_angles::ease_view_angles(c.numbers, c.shared, c.view_records)?;
+    crate::physics::ease_view_blend::ease_view_blend(c)?;
     crate::physics::camera_avoid_ground::steps(c, scene)?;
-    x87_9(c.camera, c.course.course.get());
-    c.course
-        .course
-        .get()
-        .camera_first
-        .set(c.view_records.view_vars.view_angles[1].get());
+    let flat_depth = x87_9(&c.camera.borrow());
+    let camera_first = c.view_records.view_vars.view_angles[1].get();
+    {
+        let mut course = c.course.course.borrow_mut();
+        course.flat_depth = flat_depth;
+        course.camera_first = camera_first;
+    }
     Ok(())
 }
 
@@ -413,278 +344,71 @@ fn x87_5(car: &Car) {
 ///  int [view_a_heading]`
 /// `int [start_roll] = ((int [view_b_roll] - int [view_a_roll]) * [camera_switch_share]) + int
 ///  [view_a_roll]`
-fn x87_6(camera: &CameraWork, car: &Car) {
-    let t0 = int(camera.view_b_pitch.get());
-    let t1 = int(camera.view_a_pitch.get());
+fn x87_6(camera: &mut CameraWork, car: &Car) {
+    let t0 = int(camera.view_b_pitch);
+    let t1 = int(camera.view_a_pitch);
     let t2 = t0 - t1;
     let t3 = car.camera_switch_share.ld();
     let t4 = t2 * t3;
-    let t5 = int(camera.view_a_pitch.get());
+    let t5 = int(camera.view_a_pitch);
     let t6 = t4 + t5;
-    camera.start_pitch.set(to_int(t6) as u32);
-    let t7 = int(camera.view_b_heading.get() as i32);
-    let t8 = int(camera.view_a_heading.get() as i32);
+    camera.start_pitch = to_int(t6) as u32;
+    let t7 = int(camera.view_b_heading as i32);
+    let t8 = int(camera.view_a_heading as i32);
     let t9 = t7 - t8;
     let t10 = car.camera_switch_share.ld();
     let t11 = t9 * t10;
-    let t12 = int(camera.view_a_heading.get() as i32);
+    let t12 = int(camera.view_a_heading as i32);
     let t13 = t11 + t12;
-    camera.start_heading.set(to_int(t13) as u32);
-    let t14 = int(camera.view_b_roll.get());
-    let t15 = int(camera.view_a_roll.get());
+    camera.start_heading = to_int(t13) as u32;
+    let t14 = int(camera.view_b_roll);
+    let t15 = int(camera.view_a_roll);
     let t16 = t14 - t15;
     let t17 = car.camera_switch_share.ld();
     let t18 = t16 * t17;
-    let t19 = int(camera.view_a_roll.get());
+    let t19 = int(camera.view_a_roll);
     let t20 = t18 + t19;
-    camera.start_roll.set(to_int(t20) as u32);
+    camera.start_roll = to_int(t20) as u32;
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [t + 0] = ((([x + 0] - [y + 0]) * [camera_switch_share]) + [y + 0]) * [k65536]`
-fn x87_7(car: &Car, numbers: &Numbers, x: &PlainFloat, y: &PlainFloat, t: &dyn DwordLike) {
-    let t0 = x.ld();
-    let t1 = y.ld();
+fn x87_7(car: &Car, numbers: &Numbers, x: f32, y: f32) -> u32 {
+    let t0 = ld(x);
+    let t1 = ld(y);
     let t2 = t0 - t1;
     let t3 = car.camera_switch_share.ld();
     let t4 = t2 * t3;
-    let t5 = y.ld();
+    let t5 = ld(y);
     let t6 = t4 + t5;
     let t7 = numbers.k65536.ld();
     let t8 = t6 * t7;
-    t.set(to_int(t8) as u32);
+    to_int(t8) as u32
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[camera_zoom] = int [view_blend_aux_2]`
 fn x87_8(camera: &CameraWork, car: &Car) {
-    let t0 = int(camera.view_blend_aux_2.get() as i32);
+    let t0 = int(camera.view_blend_aux_2 as i32);
     car.camera_zoom.st(t0);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables named below (`[name]`: a
 /// float; `int [..]`: a whole number; `ext [..]`: 80 bits): A long formula, covered by the tests.
-fn x87_9(camera: &CameraWork, course_work: &CourseWork) {
-    let t0 = int(camera.camera_offset_x.get() as i32);
+fn x87_9(camera: &CameraWork) -> u32 {
+    let t0 = int(camera.camera_offset_x as i32);
     let t1 = t0 * t0;
-    let t2 = int(camera.camera_offset_y.get() as i32);
+    let t2 = int(camera.camera_offset_y as i32);
     let t3 = t2 * t2;
-    let t4 = int(camera.camera_offset_z.get() as i32);
+    let t4 = int(camera.camera_offset_z as i32);
     let t5 = t4 * t4;
     let t6 = t3 + t5;
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
-    course_work.flat_depth.set(to_int(t8) as u32);
+    to_int(t8) as u32
 }
 
 #[cfg(test)]
-mod reference_vectors {
-    use super::*;
-    use crate::scene::x87_mem::view;
-    use crate::test_support::own::race;
-    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
-
-    fn blocks() -> Vec<Block> {
-        vec![
-            Block {
-                name: "update_camera line 64",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[(0, In::I), (4, In::I), (8, In::I)],
-                        writes: &[],
-                    },
-                    Operand::RaceBlock {
-                        reads: &[(0x1C5D98, In::F), (0x1C5DD4, In::F), (0x1C5E28, In::F)],
-                        writes: &[(0x31A688, Out::I), (0x31A690, Out::I)],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    x87_1(
-                        race().shared.car(),
-                        race().course.numbers.get(),
-                        *view(a[0], 0),
-                    );
-                },
-            },
-            Block {
-                name: "update_camera line 89",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[(0, In::I), (4, In::I), (8, In::I)],
-                        writes: &[],
-                    },
-                    Operand::RaceBlock {
-                        reads: &[(0x1C5D98, In::F)],
-                        writes: &[(0x2062D8, Out::F), (0x2062DC, Out::F), (0x2062E0, Out::F)],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    x87_2(
-                        crate::test_support::own::race().course.numbers.get(),
-                        crate::test_support::own::race()
-                            .frame
-                            .view_and_records
-                            .get(),
-                        *view(a[0], 0),
-                    );
-                },
-            },
-            Block {
-                name: "update_camera line 109",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[(0x1C5D48, In::F), (0x20631C, In::F), (0x31A6A0, In::I)],
-                    writes: &[(0x31A6A0, Out::F)],
-                }],
-                ulps: 0,
-                plain: |_| {
-                    let car = crate::test_support::own::race().shared.car();
-                    // The block reads the zoom as a whole number (the 384 the step puts there).
-                    x87_3(
-                        car,
-                        crate::test_support::own::race().course.numbers.get(),
-                        crate::test_support::own::race()
-                            .frame
-                            .view_and_records
-                            .get(),
-                        car.camera_zoom.get().to_bits() as i32,
-                    );
-                },
-            },
-            Block {
-                name: "update_camera line 133",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[
-                            (0, In::I),
-                            (4, In::I),
-                            (8, In::I),
-                            (0x10, In::I),
-                            (0x14, In::I),
-                            (0x18, In::I),
-                            (0x20, In::I),
-                            (0x24, In::F),
-                        ],
-                        writes: &[],
-                    },
-                    Operand::RaceBlock {
-                        reads: &[(0x1C5DA0, In::F), (0x213FC0, In::F)],
-                        writes: &[
-                            (0x206570, Out::F),
-                            (0x206574, Out::F),
-                            (0x2065C8, Out::F),
-                            (0x2065CC, Out::F),
-                            (0x2065D0, Out::F),
-                            (0x206624, Out::F),
-                            (0x206628, Out::F),
-                            (0x20662C, Out::F),
-                        ],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    x87_4(
-                        race().shared.physics_tables.get(),
-                        race().course.numbers.get(),
-                        race().frame.view_and_records.get(),
-                        &core::array::from_fn(|k| {
-                            if k < 10 {
-                                crate::scene::x87_mem::Base::dword(a[0], 4 * k)
-                            } else {
-                                0
-                            }
-                        }),
-                    );
-                },
-            },
-            Block {
-                name: "update_camera line 190",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[(0x319FE0, In::I), (0x31A668, In::I), (0x31A670, In::I)],
-                    writes: &[(0x31A674, Out::F)],
-                }],
-                ulps: 0,
-                plain: |_| x87_5(race().shared.car()),
-            },
-            Block {
-                name: "update_camera line 205",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[
-                        (0x208B5C, In::I),
-                        (0x208B60, In::I),
-                        (0x208B64, In::I),
-                        (0x208B68, In::I),
-                        (0x208B6C, In::I),
-                        (0x208B70, In::I),
-                        (0x31A674, In::F),
-                    ],
-                    writes: &[(0x208B50, Out::I), (0x208B54, Out::I), (0x208B58, Out::I)],
-                }],
-                ulps: 0,
-                plain: |_| x87_6(race().physics.camera(), race().shared.car()),
-            },
-            Block {
-                name: "update_camera line 235",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[(0, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Buffer {
-                        reads: &[(0, In::F)],
-                        writes: &[],
-                    },
-                    Operand::RaceBlock {
-                        reads: &[(0x1C5D98, In::F), (0x31A674, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Buffer {
-                        reads: &[],
-                        writes: &[(0, Out::I)],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    x87_7(
-                        race().shared.car(),
-                        race().course.numbers.get(),
-                        view(a[0], 0),
-                        view(a[1], 0),
-                        view::<crate::memory::session::Dword>(a[3], 0),
-                    );
-                },
-            },
-            Block {
-                name: "update_camera line 257",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[(0x208BF0, In::I)],
-                    writes: &[(0x31A6A0, Out::F)],
-                }],
-                ulps: 0,
-                plain: |_| x87_8(race().physics.camera(), race().shared.car()),
-            },
-            Block {
-                name: "update_camera line 266",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[(0x208B30, In::I), (0x208B34, In::I), (0x208B38, In::I)],
-                    writes: &[(0x1CCD80, Out::I)],
-                }],
-                ulps: 0,
-                plain: |_| {
-                    x87_9(
-                        crate::test_support::own::race().physics.camera(),
-                        crate::test_support::own::race().course.course.get(),
-                    );
-                },
-            },
-        ]
-    }
-
-    #[test]
-    fn x87_blocks_matches_the_assembly() {
-        sparse("physics.update_camera", &blocks(), 1200, 100);
-    }
-}
+mod tests;

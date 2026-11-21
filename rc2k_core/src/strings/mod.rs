@@ -5,6 +5,7 @@ pub mod case;
 pub mod format;
 pub mod language;
 pub mod lexicon;
+pub mod own;
 pub mod table;
 pub mod text;
 pub mod words;

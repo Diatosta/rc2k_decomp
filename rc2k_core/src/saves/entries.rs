@@ -4,43 +4,44 @@
 //! seven groups of ten `Entry`s (arcade levels 0 .. 5 and the "class times" page).
 
 use crate::menu::bests::NewBest;
+use crate::saves::name_id::NameId;
 
 pub const ENTRY_LEN: usize = 0x50;
 pub const PER_LIST: usize = 10;
 /// The name's room in bytes.
 pub const NAME_ROOM: usize = 0x20;
 /// What a move takes of a name (and what an entered name gets): its room less the last byte.
-pub const NAME_MOVED: usize = 0x1F;
+pub(crate) const NAME_MOVED: usize = 0x1F;
 
 /// The head of a best entry (0x50 bytes).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Entry {
-    /// +0: -1 ends a list.
+    /// -1 ends a list.
     pub first: u32,
-    /// +4: the player (1 .. 4); 0 for a made-up entry.
+    /// The player (1 .. 4); 0 for a made-up entry.
     pub player: u32,
-    /// +8: the nationality.
+    /// The nationality.
     pub nation: u32,
-    /// +0xC: the name's string id (made up), or the player's name pointer (entered).
-    pub name_id: u32,
-    /// +0x10: the car.
+    /// The driver's name string (made up), or the player's name (entered).
+    pub name_id: NameId,
+    /// The car.
     pub car: u32,
-    /// +0x14: what ranks it: the time or the score.
+    /// What ranks it: the time or the score.
     pub key: u32,
-    /// +0x18: a rally's table keeps its time here.
+    /// A rally's table keeps its time here.
     pub rally_time: u32,
-    /// +0x1C: the group.
+    /// The group.
     pub group: u32,
-    /// +0x20: the name; a made-up entry's has no NUL, an entered one the player's first 0x1F
+    /// The name; a made-up entry's has no NUL, an entered one the player's first 0x1F
     /// bytes.
     pub name: [u8; NAME_ROOM],
-    /// +0x40: 1 for the entry just made.
+    /// 1 for the entry just made.
     pub mark: u32,
     /// +0x44.
     pub figure: u32,
-    /// +0x48: the name's tail (`name_text` reads on into it).
+    /// The name's tail (`name_text` reads on into it).
     pub unread_48: u32,
-    /// +0x4C: the records' taking part.
+    /// The records' taking part.
     pub entered: u32,
 }
 
@@ -81,7 +82,7 @@ impl Entry {
             first: dword(b, 0),
             player: dword(b, 4),
             nation: dword(b, 8),
-            name_id: dword(b, 0xC),
+            name_id: NameId::from_file(dword(b, 0xC)),
             car: dword(b, 0x10),
             key: dword(b, 0x14),
             rally_time: dword(b, 0x18),
@@ -100,7 +101,7 @@ impl Entry {
         put(b, 0, self.first);
         put(b, 4, self.player);
         put(b, 8, self.nation);
-        put(b, 0xC, self.name_id);
+        put(b, 0xC, self.name_id.to_file());
         put(b, 0x10, self.car);
         put(b, 0x14, self.key);
         put(b, 0x18, self.rally_time);
@@ -118,7 +119,7 @@ impl Entry {
             Field::First => self.first,
             Field::Player => self.player,
             Field::Nation => self.nation,
-            Field::NameId => self.name_id,
+            Field::NameId => self.name_id.to_file(),
             Field::Car => self.car,
             Field::Key => self.key,
             Field::RallyTime => self.rally_time,
@@ -149,7 +150,7 @@ impl Entry {
         self.key = best.key;
         self.group = best.group;
         self.nation = best.nationality;
-        self.name_id = best.name_at;
+        self.name_id = best.name_id;
         self.car = best.car;
         if let Some(entered) = best.entered {
             self.entered = entered;
@@ -178,11 +179,15 @@ impl Ranked for Entry {
     }
 
     fn exchange_field(a: &mut Self, b: &mut Self, f: Field) {
+        if f == Field::NameId {
+            std::mem::swap(&mut a.name_id, &mut b.name_id);
+            return;
+        }
         let (x, y) = match f {
             Field::First => (&mut a.first, &mut b.first),
             Field::Player => (&mut a.player, &mut b.player),
             Field::Nation => (&mut a.nation, &mut b.nation),
-            Field::NameId => (&mut a.name_id, &mut b.name_id),
+            Field::NameId => unreachable!("exchanged above"),
             Field::Car => (&mut a.car, &mut b.car),
             Field::Key => (&mut a.key, &mut b.key),
             Field::RallyTime => (&mut a.rally_time, &mut b.rally_time),
@@ -222,7 +227,7 @@ pub fn exchange<T: Ranked>(
 
 /// Moves the tenth up: nine steps from the bottom, each pair exchanged when
 /// `exchange_if(lower's key, upper's key)`.
-pub fn bubble_up<T: Ranked>(
+pub(crate) fn bubble_up<T: Ranked>(
     list: &mut [T; PER_LIST],
     fields: &[Field],
     exchange_if: fn(u32, u32) -> bool,
@@ -237,7 +242,7 @@ pub fn bubble_up<T: Ranked>(
 }
 
 /// The fields an arcade level's score moves (the first eight of the arcade's best times').
-pub const SCORE_FIELDS: [Field; 8] = [
+pub(crate) const SCORE_FIELDS: [Field; 8] = [
     Field::NameId,
     Field::Key,
     Field::Player,
@@ -262,7 +267,7 @@ pub fn clear_marks<T: Ranked>(list: &mut [T; PER_LIST]) {
 
 pub const LEVELS: usize = 7;
 /// The levels' table's bytes in `var\hst.dat`.
-pub const LEVELS_LEN: usize = LEVELS * PER_LIST * ENTRY_LEN;
+pub(crate) const LEVELS_LEN: usize = LEVELS * PER_LIST * ENTRY_LEN;
 
 /// The levels' best scores.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -309,11 +314,11 @@ pub fn fill_made_up(t: &mut LevelScores, entries: &[(u32, crate::saves::defaults
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct BestTime {
     pub head: Entry,
-    /// +0x50: the cheats on when it was driven (a made-up time has 0xB).
+    /// The cheats on when it was driven (a made-up time has 0xB).
     pub cheats: u32,
     /// +0x54, +0x58: the sealed time.
     pub sealed: [u32; 2],
-    /// +0x5C: the checkpoint times (the player's line).
+    /// The checkpoint times (the player's line).
     pub checkpoints: [u32; CHECKPOINTS],
 }
 
@@ -420,7 +425,7 @@ impl Ranked for BestTime {
 pub type Times = [BestTime; PER_LIST];
 
 /// The fields a record's entry moves (`menu::rank_record_entry`).
-pub const RECORD_FIELDS: [Field; 12] = [
+pub(crate) const RECORD_FIELDS: [Field; 12] = [
     Field::NameId,
     Field::Key,
     Field::Player,
@@ -436,7 +441,7 @@ pub const RECORD_FIELDS: [Field; 12] = [
 ];
 
 /// The fields the arcade's and the time trial's best times move.
-pub const TIME_FIELDS: [Field; 12] = [
+pub(crate) const TIME_FIELDS: [Field; 12] = [
     Field::NameId,
     Field::Key,
     Field::Player,
@@ -473,7 +478,7 @@ pub struct StageTimes {
 }
 
 /// A stage's ten entries in the file, in bytes.
-pub const STAGE_LEN: usize = PER_LIST * TIME_LEN;
+pub(crate) const STAGE_LEN: usize = PER_LIST * TIME_LEN;
 
 impl StageTimes {
     /// The zero bytes the block holds past the table (its pages less its header): what a read
@@ -556,7 +561,7 @@ mod tests {
             key: 250,
             player: 1,
             nationality: 3,
-            name_at: 0x4000,
+            name_id: NameId::of_player(2),
             car: 4,
             group: 2,
             name: [b'z'; NAME_MOVED],
@@ -594,7 +599,7 @@ mod tests {
             time: 0x1234,
             driver: Driver {
                 fields: [1, 2, 3],
-                name_id: 4,
+                name_id: NameId::String(4),
                 name: b"Someone".to_vec(),
             },
             checkpoints: Some(std::array::from_fn(|n| n as u32 * 3)),

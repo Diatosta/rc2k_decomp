@@ -1,4 +1,4 @@
-//! The stage selection of the time trial, by its title "ESCOLHA ETAPA" and its callers.
+//! The stage selection of the time trial, by its title "SELECT STAGE".
 //! Screen-specific part of `menu::screen_loop`: leaving is asked about; left without the
 //! question, the highlight is not saved.
 use crate::menu::draw_lists_store::DRAW_LISTS;

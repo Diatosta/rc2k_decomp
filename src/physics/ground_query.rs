@@ -1,214 +1,66 @@
-//! What a ground search (`physics::ground`) reads and writes, as references: the physics' own
-//! fields (`GroundQuery::of_physics`, scattered over the ground work, the ground probe and the
-//! course work) or a drawing's cells (`GroundCells`: the shadow's and the course view's searches do
-//! not write the physics' work, since nothing in the physics reads what they leave there).
+//! What a ground search (`physics::ground`) reads and writes: one plain record of values
+//! (`GroundSearch`) that the physics keeps for the game's thread (`race::owner_physics::Physics`)
+//! and each drawing part keeps as a local of its own (the shadow's and the course view's searches
+//! do not touch the physics' record, since nothing in the physics reads what they leave there),
+//! and the inputs the search only reads (`GroundEnv`).
 
-use crate::memory::session::{PlainDword, PlainFloat};
-use crate::physics::ground_probe_store::GroundProbe;
-use crate::physics::ground_store::GroundWork;
-use crate::race::course_store::CourseWork;
+use crate::race::owner_course::CourseReads;
+use crate::race::scene_points::OwnPoints;
 
-/// The search's fields (the physics' names in brackets).
-#[derive(Clone, Copy)]
-pub struct GroundQuery<'a> {
+/// The search's fields (the physics' names in brackets), all 0 to begin with.
+#[derive(Clone, Debug, Default)]
+pub struct GroundSearch {
     /// The place asked for (`ground_x`, `ground_z`).
-    pub x: &'a PlainDword,
-    pub z: &'a PlainDword,
+    pub x: u32,
+    pub z: u32,
     /// The ground's height under it (`ground_height`), 1 when a face was found
-    /// (`ground_found`), 1 once `face_under_point` found one (`face_under_point_done`).
-    pub height: &'a PlainDword,
-    pub found: &'a PlainDword,
-    pub done: &'a PlainDword,
+    /// (`ground_found`).
+    pub height: u32,
+    pub found: u32,
     /// The face's three corner point numbers (`face_corner_numbers`), their places
-    /// (`face_corners`), the point copied (`face_point_x`, `face_point_z`) and the
-    /// differences (`corner_x_differences`, `corner_y_differences`, `corner_z_differences`).
-    pub corner_numbers: &'a [PlainDword; 3],
-    pub corners: &'a [PlainDword; 9],
-    pub point_x: &'a PlainDword,
-    pub point_z: &'a PlainDword,
-    pub x_differences: &'a [PlainDword; 3],
-    pub y_differences: &'a [PlainDword; 2],
-    pub z_differences: &'a [PlainDword; 3],
-    /// `physics::face_shares`' outputs (`face_share_a` .. `face_share_scale`, `plane_f`,
-    /// `plane_g`, `share_s`, `share_t`).
-    pub share_a: &'a PlainFloat,
-    pub share_b: &'a PlainFloat,
-    pub share_c: &'a PlainFloat,
-    pub share_scale: &'a PlainFloat,
-    pub plane_f: &'a PlainFloat,
-    pub plane_g: &'a PlainFloat,
-    pub share_s: &'a PlainDword,
-    pub share_t: &'a PlainDword,
-    /// The edge test's 64-bit product (`GroundProbe.product`) and the caller's mark
-    /// (`GroundProbe.settle_mark`, 0x40 or 0x80).
-    pub product: &'a [PlainDword; 2],
-    pub settle_mark: &'a PlainDword,
-    /// The course work's search fields: the face tested (`ground_number`), the face found
-    /// (`ground_slot`), its half (`ground_half`) and corners (`ground_corners`), the face
-    /// tried first (`ground_face_last`).
-    pub number: &'a PlainDword,
-    pub slot: &'a PlainDword,
-    pub half: &'a PlainDword,
-    pub face_corners: &'a [PlainDword; 3],
-    pub last: &'a PlainDword,
-    /// The scene points the search reads the faces' corners through: a drawing part's own
-    /// past the count in the drawing (`race::scene_points::OwnPoints`).
-    pub points: &'a crate::race::scene_points::OwnPoints,
+    /// (`face_corners`).
+    pub corner_numbers: [u32; 3],
+    pub corners: [u32; 9],
+    /// `physics::face_shares`' outputs a later step reads: the two shares as floats (`plane_f`,
+    /// `plane_g`) and as whole numbers (`share_s`, `share_t`).
+    pub plane_f: f32,
+    pub plane_g: f32,
+    pub share_s: u32,
+    pub share_t: u32,
+    /// The face found (`ground_slot`), its half (`ground_half`) and the face tried first
+    /// (`ground_face_last`).
+    pub slot: u32,
+    pub half: u32,
+    pub last: u32,
 }
 
-impl<'a> GroundQuery<'a> {
-    /// The physics' own fields.
-    pub fn of_physics(
-        g: &'a GroundWork,
-        p: &'a GroundProbe,
-        c: &'a CourseWork,
-        points: &'a crate::race::scene_points::OwnPoints,
-    ) -> Self {
-        GroundQuery {
-            x: &g.ground_x,
-            z: &g.ground_z,
-            height: &g.ground_height,
-            found: &g.ground_found,
-            done: &g.face_under_point_done,
-            corner_numbers: &g.face_corner_numbers,
-            corners: &g.face_corners,
-            point_x: &g.face_point_x,
-            point_z: &g.face_point_z,
-            x_differences: &g.corner_x_differences,
-            y_differences: &g.corner_y_differences,
-            z_differences: &g.corner_z_differences,
-            share_a: &g.face_share_a,
-            share_b: &g.face_share_b,
-            share_c: &g.face_share_c,
-            share_scale: &g.face_share_scale,
-            plane_f: &g.plane_f,
-            plane_g: &g.plane_g,
-            share_s: &g.share_s,
-            share_t: &g.share_t,
-            product: &p.product,
-            settle_mark: &p.settle_mark,
-            number: &c.ground_number,
-            slot: &c.ground_slot,
-            half: &c.ground_half,
-            face_corners: &c.ground_corners,
-            last: &c.ground_face_last,
-            points,
+impl GroundSearch {
+    /// All 0, as a race begins.
+    pub const fn new() -> Self {
+        GroundSearch {
+            x: 0,
+            z: 0,
+            height: 0,
+            found: 0,
+            corner_numbers: [0; 3],
+            corners: [0; 9],
+            plane_f: 0.0,
+            plane_g: 0.0,
+            share_s: 0,
+            share_t: 0,
+            slot: 0,
+            half: 0,
+            last: 0,
         }
     }
 }
 
-/// A drawing's own search fields (see `GroundQuery`), all 0 to begin with.
-#[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells)]
-pub struct GroundCells {
-    x: PlainDword,
-    z: PlainDword,
-    height: PlainDword,
-    found: PlainDword,
-    done: PlainDword,
-    corner_numbers: [PlainDword; 3],
-    corners: [PlainDword; 9],
-    point_x: PlainDword,
-    point_z: PlainDword,
-    x_differences: [PlainDword; 3],
-    y_differences: [PlainDword; 2],
-    z_differences: [PlainDword; 3],
-    share_a: PlainFloat,
-    share_b: PlainFloat,
-    share_c: PlainFloat,
-    share_scale: PlainFloat,
-    plane_f: PlainFloat,
-    plane_g: PlainFloat,
-    share_s: PlainDword,
-    share_t: PlainDword,
-    product: [PlainDword; 2],
-    settle_mark: PlainDword,
-    number: PlainDword,
-    slot: PlainDword,
-    half: PlainDword,
-    face_corners: [PlainDword; 3],
-    last: PlainDword,
-}
-
-impl GroundCells {
-    pub fn new() -> Self {
-        let d = || PlainDword::new(0);
-        let f = || PlainFloat::new(0.0);
-        GroundCells {
-            x: d(),
-            z: d(),
-            height: d(),
-            found: d(),
-            done: d(),
-            corner_numbers: std::array::from_fn(|_| d()),
-            corners: std::array::from_fn(|_| d()),
-            point_x: d(),
-            point_z: d(),
-            x_differences: std::array::from_fn(|_| d()),
-            y_differences: std::array::from_fn(|_| d()),
-            z_differences: std::array::from_fn(|_| d()),
-            share_a: f(),
-            share_b: f(),
-            share_c: f(),
-            share_scale: f(),
-            plane_f: f(),
-            plane_g: f(),
-            share_s: d(),
-            share_t: d(),
-            product: std::array::from_fn(|_| PlainDword::new(0)),
-            settle_mark: PlainDword::new(0),
-            number: PlainDword::new(0),
-            slot: PlainDword::new(0),
-            half: PlainDword::new(0),
-            face_corners: std::array::from_fn(|_| PlainDword::new(0)),
-            last: PlainDword::new(0),
-        }
-    }
-
-    /// The query on these cells, reading the scene points through `points`.
-    pub fn query<'a>(
-        &'a self,
-        points: &'a crate::race::scene_points::OwnPoints,
-    ) -> GroundQuery<'a> {
-        GroundQuery {
-            x: &self.x,
-            z: &self.z,
-            height: &self.height,
-            found: &self.found,
-            done: &self.done,
-            corner_numbers: &self.corner_numbers,
-            corners: &self.corners,
-            point_x: &self.point_x,
-            point_z: &self.point_z,
-            x_differences: &self.x_differences,
-            y_differences: &self.y_differences,
-            z_differences: &self.z_differences,
-            share_a: &self.share_a,
-            share_b: &self.share_b,
-            share_c: &self.share_c,
-            share_scale: &self.share_scale,
-            plane_f: &self.plane_f,
-            plane_g: &self.plane_g,
-            share_s: &self.share_s,
-            share_t: &self.share_t,
-            product: &self.product,
-            settle_mark: &self.settle_mark,
-            number: &self.number,
-            slot: &self.slot,
-            half: &self.half,
-            face_corners: &self.face_corners,
-            last: &self.last,
-            points,
-        }
-    }
-
-    /// The edge test's product (`GroundQuery::product`).
-    pub fn product(&self) -> &[PlainDword; 2] {
-        &self.product
-    }
-
-    /// The share kept in `plane_f` (`GroundQuery::plane_f`).
-    pub fn plane_f(&self) -> &PlainFloat {
-        &self.plane_f
-    }
+/// What the search only reads: the course, the scene points the faces' corners are read through
+/// (a drawing part's own past the count in the drawing, `race::scene_points::OwnPoints`), and
+/// the caller's mark (`settle_mark`, 0x40 or 0x80) that picks which faces count.
+#[derive(Clone, Copy)]
+pub struct GroundEnv<'a> {
+    pub course: CourseReads<'a>,
+    pub points: &'a OwnPoints,
+    pub mark: u32,
 }

@@ -1,31 +1,27 @@
 //! The game's menus and its screens' draw lists as Rust data: functions are the enums `ItemFn` and
-//! `ScreenFn`, fonts are `MenuFont`. The data is generated (`tables_data.rs`, `tools/menu_tables`).
+//! `ScreenFn`, fonts are `MenuFont`. The data is in `tables_data.rs`.
 //!
 //! These tables are the one source of the menus and the lists: the game's crate keeps, per item,
 //! only the fields that change in play (string id, font, `behind`, sprite, skip mark and highlight
 //! font: `menu::menus_store::MenuItem`, starting as the table has them) and names a menu or list by
-//! its number here. Each menu and list keeps the address RAL.EXE stores it at (`at`), for the test
-//! that checks the tables against RAL.EXE's data.
+//! its number here.
 
 pub use super::item_params::{EventStart, OptionSwitch, StageCounter, VolumeKind};
 pub use super::tables_data::{ItemFn, LISTS, MENUS, MenuFont, ScreenFn};
 
-/// A menu: its labels (texts that are not items) and its items, without the -1 dwords that end both
-/// lists in RAL.EXE's layout.
+/// A menu: its labels (texts that are not items) and its items.
 #[derive(Debug)]
 pub struct Menu {
-    /// The address RAL.EXE stores it at.
-    pub at: u32,
     /// Whether anything names it (eight menus follow another's end mark and nothing refers
     /// to them).
     pub referenced: bool,
-    /// The address RAL.EXE stores its labels at (0: none).
-    pub labels_at: u32,
+    /// Which of the label lists holds its labels as they change in play (None: no labels).
+    pub label_list: Option<u8>,
     pub labels: &'static [MenuLabel],
     pub items: &'static [MenuItem],
 }
 
-/// A label: 0x10 bytes in RAL.EXE's layout.
+/// A label.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MenuLabel {
     pub x: i32,
@@ -34,7 +30,15 @@ pub struct MenuLabel {
     pub string: u32,
 }
 
-/// An item: 0x5C bytes in RAL.EXE's layout.
+/// What is drawn behind an item: a sprite by its number (and its palette), or for a button
+/// one of the sprite lists (the button's look in each state).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ItemSprite {
+    Sprite(u32),
+    List(usize),
+}
+
+/// An item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MenuItem {
     pub x: i32,
@@ -47,9 +51,9 @@ pub struct MenuItem {
     pub string: u32,
     /// The font as the game starts; changed in play (`menu::disable_item` / `enable_item`).
     pub font: MenuFont,
-    /// The item's backdrop (+0x1C in RAL.EXE's layout) as the game starts; changed in play.
+    /// The item's backdrop as the game starts; changed in play.
     pub behind: u32,
-    pub sprites: u32,
+    pub sprites: ItemSprite,
     /// The items up, down, left and right of this one, by `id`.
     pub links: [u32; 4],
     /// What a key does on it: up, down, left, right.
@@ -65,11 +69,9 @@ pub struct MenuItem {
     pub spaced: u32,
 }
 
-/// A screen's list of functions, run in order (`menu::run_list`): RAL.EXE's dwords without the -1
-/// that ends them in RAL.EXE.
+/// A screen's list of functions, run in order (`menu::run_list`).
 #[derive(Debug)]
 pub struct DrawList {
-    pub at: u32,
     /// Whether anything names it (ten follow another's end mark and nothing refers to them).
     pub referenced: bool,
     pub functions: &'static [ScreenFn],
@@ -80,115 +82,79 @@ mod tests {
     use super::*;
 
     #[test]
-    fn sorted_and_found() {
-        assert!(MENUS.windows(2).all(|w| w[0].at < w[1].at));
-        assert!(LISTS.windows(2).all(|w| w[0].at < w[1].at));
-    }
-
-    #[test]
     fn counts() {
-        assert_eq!(MENUS.len(), 96);
-        assert_eq!(MENUS.iter().map(|m| m.items.len()).sum::<usize>(), 567);
+        assert_eq!(MENUS.len(), 99);
+        assert_eq!(MENUS.iter().map(|m| m.items.len()).sum::<usize>(), 606);
         assert_eq!(MENUS.iter().filter(|m| !m.referenced).count(), 8);
-        assert_eq!(LISTS.len(), 301);
+        assert_eq!(LISTS.len(), 304);
         assert_eq!(LISTS.iter().filter(|l| !l.referenced).count(), 10);
     }
 
-    /// Every dword the tables stand for, as RAL.EXE lays them out: `(address, dword)` for each
-    /// menu's label pointer, label, item and end mark, and each list's functions and end mark, the
-    /// enums turned back into the addresses they replace.
-    fn ral_dwords() -> Vec<(u32, u32)> {
-        let mut out = Vec::new();
-        for m in MENUS.iter() {
-            out.push((m.at, m.labels_at));
-            for (n, l) in m.labels.iter().enumerate() {
-                let at = m.labels_at + 0x10 * n as u32;
-                out.extend([
-                    (at, l.x as u32),
-                    (at + 4, l.y as u32),
-                    (at + 8, l.font.ral()),
-                    (at + 12, l.string),
-                ]);
-            }
-            if m.labels_at != 0 {
-                out.push((m.labels_at + 0x10 * m.labels.len() as u32, u32::MAX));
-            }
-            for (n, it) in m.items.iter().enumerate() {
-                let at = m.at + 4 + 0x5C * n as u32;
-                let fields = [
-                    it.x as u32,
-                    it.y as u32,
-                    it.width_or_text_x as u32,
-                    it.alignment_or_text_y as u32,
-                    it.id,
-                    it.string,
-                    it.font.ral(),
-                    it.behind,
-                    it.sprites,
-                    it.links[0],
-                    it.links[1],
-                    it.links[2],
-                    it.links[3],
-                    it.on_key[0].ral(),
-                    it.on_key[1].ral(),
-                    it.on_key[2].ral(),
-                    it.on_key[3].ral(),
-                    it.action.ral(),
-                    it.skip_mark,
-                    it.measuring_font.ral(),
-                    it.highlight_font.ral(),
-                    it.action_value,
-                    it.spaced,
-                ];
-                out.extend((0..).step_by(4).zip(fields).map(|(o, w)| (at + o, w)));
-            }
-            out.push((m.at + 4 + 0x5C * m.items.len() as u32, u32::MAX));
-        }
-        for l in LISTS.iter() {
-            for (n, f) in l.functions.iter().enumerate() {
-                out.push((l.at + 4 * n as u32, f.ral()));
-            }
-            out.push((l.at + 4 * l.functions.len() as u32, u32::MAX));
-        }
-        out
+    /// The FNV-1a hash of a text.
+    fn digest(text: &str) -> u64 {
+        text.bytes().fold(0xCBF2_9CE4_8422_2325u64, |h, b| {
+            (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01B3)
+        })
     }
 
-    /// The FNV-1a hash of `(address, dword)` pairs, little-endian.
-    fn digest(dwords: &[(u32, u32)]) -> u64 {
-        dwords
+    /// The menus and the lists are as they were frozen: every field of every menu, label, item
+    /// and list, by the hash of their debug text.
+    #[test]
+    fn tables_are_as_frozen() {
+        let menus = digest(&format!("{MENUS:?}"));
+        let lists = digest(&format!("{LISTS:?}"));
+        assert_eq!(
+            (menus, lists),
+            (FROZEN_MENUS, FROZEN_LISTS),
+            "{menus:#018x} {lists:#018x}"
+        );
+    }
+
+    const FROZEN_MENUS: u64 = 0xba44_a6b1_311c_0434;
+    const FROZEN_LISTS: u64 = 0xa9db_5fd8_cdce_a49a;
+
+    /// The options menu: its items from advanced to back follow in both directions.
+    #[test]
+    fn the_options_menu_runs_advanced_save_code_back() {
+        let menu = MENUS
             .iter()
-            .flat_map(|(at, w)| at.to_le_bytes().into_iter().chain(w.to_le_bytes()))
-            .fold(0xCBF2_9CE4_8422_2325u64, |h, b| {
-                (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01B3)
-            })
+            .find(|m| m.items.iter().any(|i| i.action == ItemFn::SaveCodeLoop))
+            .unwrap();
+        let by = |action| menu.items.iter().find(|i| i.action == action).unwrap();
+        let (advanced, save, back) = (
+            by(ItemFn::AdvancedLoop),
+            by(ItemFn::SaveCodeLoop),
+            by(ItemFn::GoBack),
+        );
+        assert_eq!(advanced.links[..2], [advanced.id - 1, save.id]);
+        assert_eq!(save.links[..2], [advanced.id, back.id]);
+        assert_eq!(back.links[..2], [save.id, 1]);
+        assert_eq!(menu.items[0].links[0], back.id);
+        // Items are named by their place in the menu (item `n` is the nth).
+        assert_eq!([advanced.id, save.id, back.id], [7, 8, 9]);
+        for (n, item) in menu.items.iter().enumerate() {
+            assert_eq!(item.id as usize, n + 1);
+            assert!(item.links[..2].iter().all(|&l| (1..=9).contains(&l)));
+        }
+        // Up from an item is the one above it, down the one below, with the ends joined.
+        for (n, item) in menu.items.iter().enumerate() {
+            let len = menu.items.len();
+            assert_eq!(item.links[0] as usize, (n + len - 1) % len + 1);
+            assert_eq!(item.links[1] as usize, (n + 1) % len + 1);
+        }
     }
 
-    /// Every dword of every menu, label, item and list, at its RAL.EXE address, equals what RAL.EXE
-    /// holds there: checked by count and hash, frozen from a comparison with RAL.EXE's bytes that
-    /// covered every dword. The one difference the enums make: the 194 item functions at 0x471C81
-    /// (a second empty function) read as `ItemFn::Nothing`, which stands for 0x471C80.
     #[test]
-    fn tables_are_the_games() {
-        let dwords = ral_dwords();
-        assert_eq!(dwords.len(), FROZEN_DWORDS);
-        assert_eq!(digest(&dwords), FROZEN_DIGEST, "{:#018x}", digest(&dwords));
-    }
-
-    /// The dwords' count (16 addresses come twice, reached from two tables, each time with
-    /// the same dword) and hash.
-    const FROZEN_DWORDS: usize = 14_212;
-    const FROZEN_DIGEST: u64 = 0x5b76_643d_e740_5f28;
-
-    #[test]
-    fn enums_and_addresses_agree() {
-        for f in ItemFn::ALL {
-            assert_eq!(ItemFn::from_ral(f.ral()), Some(*f));
-        }
-        for f in ScreenFn::ALL {
-            assert_eq!(ScreenFn::from_ral(f.ral()), Some(*f));
-        }
-        for f in MenuFont::ALL {
-            assert_eq!(MenuFont::from_ral(f.ral()), Some(*f));
-        }
+    fn the_lists_of_all_are_whole() {
+        let used_item: std::collections::HashSet<_> = MENUS
+            .iter()
+            .flat_map(|m| m.items)
+            .flat_map(|i| i.on_key.into_iter().chain([i.action]))
+            .collect();
+        assert!(used_item.iter().all(|f| ItemFn::ALL.contains(f)));
+        let used_screen: std::collections::HashSet<_> =
+            LISTS.iter().flat_map(|l| l.functions).collect();
+        assert!(used_screen.iter().all(|f| ScreenFn::ALL.contains(f)));
+        assert_eq!(MenuFont::ALL.len(), 12);
     }
 }

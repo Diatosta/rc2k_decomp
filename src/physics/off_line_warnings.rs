@@ -7,12 +7,13 @@
 //! time moves the time on by 3000 and cues a sound (`physics::cue_listed_car_sound`: 0x50 turned,
 //! 0x52 off the line).
 //!
-//! Caller: `physics::track_checkpoints`. Refuses (before anything) a checkpoint past 0x1418.
+//! Refuses (before anything) a checkpoint past 0x1418.
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
+use crate::physics::figures::{OFF_LINE_DISTANCE, OFF_LINE_WORD};
 use crate::physics::tables_store::PhysicsTables;
-use crate::race::frame_store::FrameWork;
+use crate::race::frame_store::FrameWorkStore;
 use crate::race::replay_file_store::ReplayFileBlock;
 use crate::race::work_store::RaceWork;
 use rc2k_core::physics::progress::{
@@ -57,11 +58,11 @@ fn store(car: &Car, w: &Warnings) {
     reason = "the race's tables the warnings read, and the owners"
 )]
 pub fn off_line_warnings(
-    frame_work: &FrameWork,
+    frame_work: &FrameWorkStore,
     work: &RaceWork,
     replay_file: &ReplayFileBlock,
     physics_tables: &PhysicsTables,
-    checkpoints: &crate::race::checkpoints_store::Checkpoints,
+    checkpoints: crate::race::checkpoints_store::CheckpointsRef,
     car: &Car,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
@@ -75,16 +76,16 @@ pub fn off_line_warnings(
     }
     let near = x87_below(
         physics_tables.nearest_checkpoint_distance.get() as f64,
-        physics_tables.off_line_distance.get() as f64,
+        OFF_LINE_DISTANCE as f64,
     );
     let mut w = load(car);
     w.count_off(off_line(near, || spread(cp, car.reset_checkpoint.get())));
     w.count_turned(
         spread(
             car.car_heading.get(),
-            crate::race::checkpoints_store::angle_run_on(checkpoints, cp as usize).get(),
+            crate::race::checkpoints_store::angle_run_on(checkpoints, cp as usize),
         ),
-        physics_tables.off_line_word.get(),
+        OFF_LINE_WORD,
     );
     store(car, &w);
     if replay_file.hold_car_revs.get() != 0 {

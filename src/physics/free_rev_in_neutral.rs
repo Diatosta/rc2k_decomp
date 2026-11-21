@@ -1,13 +1,11 @@
 //! `physics::free_rev` in neutral.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::physics::free_rev::free_rev;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 
 /// The exact version, for `physics::car_physics_step`.
-pub fn free_rev_in_neutral(
+pub(super) fn free_rev_in_neutral(
     course: &Course,
     shared: &RaceShared,
     gear: &crate::physics::gear_store::GearFigures,

@@ -11,7 +11,7 @@ use std::path::Path;
 pub struct Unix;
 
 /// The folder's name in the user's data folder.
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "ios")))]
 const NAME: &str = "rally-championship";
 /// The folder's name in the user's Application Support folder (macOS names these as the
 /// application is named).
@@ -72,7 +72,17 @@ impl Folders for Unix {
         Some(crate::files::ansi_bytes(&shown))
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "ios")]
+    fn first_folder() -> Option<Vec<u8>> {
+        // The app's Documents folder, the one the Files app shows (`platform::os::enter_documents`).
+        let shown = match home() {
+            Some(h) => format!("{h}/Documents/Rally Championship"),
+            None => "Rally Championship".to_string(),
+        };
+        Some(crate::files::ansi_bytes(&shown))
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "ios")))]
     fn first_folder() -> Option<Vec<u8>> {
         // Without a home folder (none set): the name alone, in the current folder.
         let shown = match (std::env::var("XDG_DATA_HOME"), home()) {
@@ -113,12 +123,11 @@ impl Folders for Unix {
             || inner.windows(2).any(|w| w == b"//"))
     }
 
-    fn make(at: crate::memory::place::BytePlace) -> Result<bool, Refused> {
-        let text = at.text("a folder")?;
-        let folder = crate::files::host_path(&text);
+    fn make(at: &[u8]) -> Result<bool, Refused> {
+        let folder = crate::files::host_path(at);
         let made = std::fs::create_dir_all(&folder);
         if let Err(e) = &made {
-            crate::logfile::program_log::log(&format!("install: {}: {e}", folder.display()));
+            crate::program_log::log(&format!("install: {}: {e}", folder.display()));
         }
         Ok(made.is_ok())
     }

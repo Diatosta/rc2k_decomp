@@ -6,13 +6,17 @@
 //! model is read through.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::cells::Store;
-use crate::memory::session::{DwordLike, Run, Shared};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::{DwordLike, PlayerSlot, Run};
 use crate::menu::player::Player;
 use crate::owners::Owners;
 use crate::records::stages_store::{RECORD_LEN, Record};
 use crate::saves::best_times_store::TimeEntry;
 use rc2k_core::options::Options;
+use std::sync::atomic::Ordering::Relaxed;
+
+/// A best-time entry's name field, in bytes.
+const NAME_LEN: usize = 0x20;
 
 /// The options as the game's stores hold them now.
 pub fn capture(o: Owners<'static>) -> Result<Options, Refused> {
@@ -25,6 +29,34 @@ pub fn capture(o: Owners<'static>) -> Result<Options, Refused> {
     if !options.take_pieces(&refs) {
         return Err(BadInput("the options' pieces do not fit the model").into());
     }
+    options.players.devices = crate::input::device_ids::kept(o.input);
+    options.players.profiles = crate::input::profiles::kept(o.input);
+    options.sound.film_volume = crate::platform::sound::FILM_VOLUME.load(Relaxed);
+    options.sound.sound_in_background = crate::platform::sound::SOUND_IN_BACKGROUND.load(Relaxed);
+    options.network.password.0 = crate::net::password::get();
+    options.network.password.0.resize(0x40, 0);
+    options.network.last_host.0 = crate::net::last_host::get();
+    options.network.last_host.0.resize(0x40, 0);
+    options.display.frame_limit = crate::platform::pacing::frame_limit();
+    options.display.render_scale = crate::render::render_scale();
+    options.display.renderer = crate::render::choice::wanted();
+    options.display.draw_threads = crate::scene::workers::chosen_threads();
+    options.display.quit_pictures = crate::drive::quit_question::pictures_on();
+    // A race size beyond the game's table is kept as its size; the mode word has the table's
+    // 800 x 600 in its place, which the old file reads.
+    let race = o.gfx.display.mode.race_mode.get();
+    options.display.race_mode = crate::gfx::monitor_sizes::kept_mode(race);
+    options.display.race_size = crate::gfx::monitor_sizes::size_of_mode(race).map(|(w, h)| [w, h]);
+    let custom = crate::gfx::monitor_sizes::custom();
+    options.display.custom_width = custom.map(|c| c.0);
+    options.display.custom_height = custom.map(|c| c.1);
+    let window = crate::platform::window_mode::get();
+    options.display.window_mode = (window != Default::default()).then(|| window.name().to_owned());
+    let hud_box = crate::hud::box_ratio::get();
+    options.display.hud_box = (hud_box != Default::default()).then(|| hud_box.name().to_owned());
+    options.display.smooth_frames = crate::race::blend::smooth_on();
+    options.display.split_layout = crate::race::split_layout::index();
+    options.display.video = crate::race::render_row::kept();
     Ok(options)
 }
 
@@ -35,23 +67,108 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
     for (place, bytes) in pieces_of(o).iter().zip(&pieces) {
         place.write(bytes)?;
     }
+    crate::input::device_ids::keep(o.input, options.players.devices.clone());
+    crate::input::profiles::keep(o.input, options.players.profiles.clone());
+    crate::platform::sound::FILM_VOLUME.store(options.sound.film_volume, Relaxed);
+    crate::platform::sound::SOUND_IN_BACKGROUND.store(options.sound.sound_in_background, Relaxed);
+    crate::net::password::set(&options.network.password.0);
+    crate::net::last_host::set(&options.network.last_host.0);
+    crate::platform::pacing::set_frame_limit(options.display.frame_limit);
+    crate::render::set_render_scale(options.display.render_scale);
+    crate::render::choice::set_wanted(options.display.renderer.clone());
+    crate::scene::workers::set_threads(options.display.draw_threads);
+    crate::drive::quit_question::set_pictures_on(options.display.quit_pictures);
+    let d = &options.display;
+    crate::gfx::monitor_sizes::set_custom(d.custom_width.zip(d.custom_height));
+    crate::platform::window_mode::set(
+        d.window_mode
+            .as_deref()
+            .map(crate::platform::window_mode::WindowMode::of)
+            .unwrap_or_default(),
+    );
+    crate::hud::box_ratio::set(
+        d.hud_box
+            .as_deref()
+            .map(rc2k_core::hud::anchor::BoxRatio::of)
+            .unwrap_or_default(),
+    );
+    // The size set by hand wins; else the size the file kept beyond the game's table.
+    // A video's size wins over both.
+    let wanted = crate::video::size()
+        .or(crate::gfx::monitor_sizes::custom())
+        .or(d.race_size.map(|[w, h]| (w, h)));
+    // A phone with no size kept starts at its own screen's size (the game's list has only
+    // sizes far below it).
+    #[cfg(phone)]
+    let wanted = wanted.or_else(|| {
+        (d.race_mode == Options::default().display.race_mode)
+            .then(crate::platform::phone_default_size)
+            .flatten()
+    });
+    // The handheld with no size kept starts at its panel's size.
+    #[cfg(handheld)]
+    let wanted = wanted.or_else(|| {
+        (d.race_mode == Options::default().display.race_mode)
+            .then_some(crate::platform::handheld::SCREEN)
+    });
+    if let Some((w, h)) = wanted {
+        let race = o.gfx.display.mode.race_mode.get();
+        if let Some(mode) =
+            crate::gfx::monitor_sizes::race_mode_for(&o.gfx.display.modes, race, w, h)
+        {
+            o.gfx.display.mode.race_mode.set(mode);
+        }
+    }
+    // The size the file kept beyond the game's table was the window's: the list offers it when
+    // nothing else does.
+    crate::gfx::monitor_sizes::set_window(d.race_size.map(|[w, h]| (w, h)));
+    // A video's frames between the ticks need the blend, whatever the options say.
+    crate::race::blend::set_smooth(options.display.smooth_frames || crate::video::active());
+    crate::race::split_layout::set_index(options.display.split_layout);
+    crate::race::render_row::set_kept(options.display.video.clone());
     Ok(())
+}
+
+/// Reads a plain store's bytes.
+type BytesGet<'a> = dyn Fn() -> Vec<u8> + 'a;
+/// Writes a plain store's bytes.
+type BytesSet<'a> = dyn Fn(&[u8]) + 'a;
+
+/// Reads a plain store's dword.
+type WordGet<'a> = dyn Fn() -> u32 + 'a;
+/// Writes a plain store's dword.
+type WordSet<'a> = dyn Fn(u32) + 'a;
+
+/// A buffer's bytes as a field: read whole, written whole.
+fn buffer_field<const N: usize>(buffer: &'static PlainBuffer<N>) -> Field<'static> {
+    Field::Bytes {
+        len: N,
+        get: Box::new(move || buffer.read().to_vec()),
+        set: Box::new(move |bytes| {
+            if let Err(e) = buffer.write_at(0, bytes, "an options text") {
+                crate::fatal::raise::end("saves::options_state", e);
+            }
+        }),
+    }
 }
 
 /// One entry of the options file: named fields of the game's state, in the file's order.
 pub(crate) enum Field<'a> {
     /// One dword.
     Dword(&'a dyn DwordLike),
-    /// Dwords one after the other, each a field of its own.
-    Dwords(Vec<&'a dyn DwordLike>),
-    /// `len` bytes of a text, name or GUID, from byte `from` of its cells.
-    Text {
-        cells: &'a dyn Store,
-        from: usize,
+    /// One dword of a plain store, read and written through functions.
+    Value {
+        get: Box<WordGet<'a>>,
+        set: Box<WordSet<'a>>,
+    },
+    /// `len` bytes of a plain store, read and written through functions.
+    Bytes {
         len: usize,
+        get: Box<BytesGet<'a>>,
+        set: Box<BytesSet<'a>>,
     },
     /// A player's record.
-    Player(&'a Shared<Player>),
+    Player(&'a dyn PlayerSlot),
     /// Records of the stage tables.
     Records(&'a [Record]),
     /// Best-time entries.
@@ -63,8 +180,15 @@ trait Move {
     fn dword(&mut self, field: &dyn DwordLike) -> Result<(), BadInput>;
     /// The dwords of a run (a record), each in turn.
     fn words(&mut self, run: &dyn Run) -> Result<(), BadInput>;
-    fn text(&mut self, cells: &dyn Store, from: usize, len: usize) -> Result<(), BadInput>;
-    fn player(&mut self, field: &Shared<Player>) -> Result<(), BadInput>;
+    /// A dword of a plain store.
+    fn value(&mut self, get: &dyn Fn() -> u32, set: &dyn Fn(u32)) -> Result<(), BadInput>;
+    fn bytes(
+        &mut self,
+        len: usize,
+        get: &dyn Fn() -> Vec<u8>,
+        set: &dyn Fn(&[u8]),
+    ) -> Result<(), BadInput>;
+    fn player(&mut self, field: &dyn PlayerSlot) -> Result<(), BadInput>;
 }
 
 /// The file's bytes made from the fields.
@@ -76,6 +200,11 @@ impl Move for Put {
         Ok(())
     }
 
+    fn value(&mut self, get: &dyn Fn() -> u32, _: &dyn Fn(u32)) -> Result<(), BadInput> {
+        self.0.extend_from_slice(&get().to_le_bytes());
+        Ok(())
+    }
+
     fn words(&mut self, run: &dyn Run) -> Result<(), BadInput> {
         for i in 0..run.count() {
             self.0.extend_from_slice(&run.bits(i).to_le_bytes());
@@ -83,13 +212,19 @@ impl Move for Put {
         Ok(())
     }
 
-    fn text(&mut self, cells: &dyn Store, from: usize, len: usize) -> Result<(), BadInput> {
-        let at = self.0.len();
-        self.0.resize(at + len, 0);
-        cells.load(from, &mut self.0[at..])
+    fn bytes(
+        &mut self,
+        len: usize,
+        get: &dyn Fn() -> Vec<u8>,
+        _: &dyn Fn(&[u8]),
+    ) -> Result<(), BadInput> {
+        let mut bytes = get();
+        bytes.resize(len, 0);
+        self.0.extend_from_slice(&bytes);
+        Ok(())
     }
 
-    fn player(&mut self, field: &Shared<Player>) -> Result<(), BadInput> {
+    fn player(&mut self, field: &dyn PlayerSlot) -> Result<(), BadInput> {
         self.0.extend_from_slice(&field.get().to_le_bytes());
         Ok(())
     }
@@ -120,6 +255,11 @@ impl Move for Take<'_> {
         Ok(())
     }
 
+    fn value(&mut self, _: &dyn Fn() -> u32, set: &dyn Fn(u32)) -> Result<(), BadInput> {
+        set(Take::dword(self)?);
+        Ok(())
+    }
+
     fn words(&mut self, run: &dyn Run) -> Result<(), BadInput> {
         for i in 0..run.count() {
             run.set_bits(i, Take::dword(self)?);
@@ -127,11 +267,17 @@ impl Move for Take<'_> {
         Ok(())
     }
 
-    fn text(&mut self, cells: &dyn Store, from: usize, len: usize) -> Result<(), BadInput> {
-        cells.store(from, self.next(len)?)
+    fn bytes(
+        &mut self,
+        len: usize,
+        _: &dyn Fn() -> Vec<u8>,
+        set: &dyn Fn(&[u8]),
+    ) -> Result<(), BadInput> {
+        set(self.next(len)?);
+        Ok(())
     }
 
-    fn player(&mut self, field: &Shared<Player>) -> Result<(), BadInput> {
+    fn player(&mut self, field: &dyn PlayerSlot) -> Result<(), BadInput> {
         let bytes = self
             .next(size_of::<Player>())?
             .try_into()
@@ -147,7 +293,7 @@ fn time_entry(entry: &TimeEntry, m: &mut impl Move) -> Result<(), BadInput> {
         &entry.unread_0,
         &entry.player,
         &entry.nation,
-        &entry.name_id,
+        entry.name_id.file_dword(),
         &entry.car,
         &entry.stage_time,
         &entry.rally_time,
@@ -155,7 +301,11 @@ fn time_entry(entry: &TimeEntry, m: &mut impl Move) -> Result<(), BadInput> {
     ] {
         m.dword(field)?;
     }
-    m.text(&entry.name, 0, entry.name.size())?;
+    m.bytes(NAME_LEN, &|| entry.name.read().to_vec(), &|bytes| {
+        let mut name = [0u8; NAME_LEN];
+        name.copy_from_slice(bytes);
+        entry.name.write(&name);
+    })?;
     m.dword(&entry.is_player)?;
     m.dword(&entry.figure)?;
     for field in entry
@@ -174,21 +324,20 @@ impl Field<'_> {
     /// How many bytes it takes in the file.
     pub(crate) fn len(&self) -> usize {
         match self {
-            Self::Dword(_) => 4,
-            Self::Dwords(fields) => 4 * fields.len(),
-            Self::Text { len, .. } => *len,
+            Self::Dword(_) | Self::Value { .. } => 4,
+            Self::Bytes { len, .. } => *len,
             Self::Player(_) => size_of::<Player>(),
             Self::Records(records) => records.len() * RECORD_LEN as usize,
-            Self::TimeEntries(entries) => size_of_val(*entries),
+            Self::TimeEntries(entries) => entries.len() * TimeEntry::FILE_LEN,
         }
     }
 
     fn walk(&self, m: &mut impl Move) -> Result<(), BadInput> {
         match self {
             Self::Dword(field) => m.dword(*field),
-            Self::Dwords(fields) => fields.iter().try_for_each(|field| m.dword(*field)),
-            Self::Text { cells, from, len } => m.text(*cells, *from, *len),
-            Self::Player(player) => m.player(player),
+            Self::Value { get, set } => m.value(get, set),
+            Self::Bytes { len, get, set } => m.bytes(*len, get, set),
+            Self::Player(player) => m.player(*player),
             Self::Records(records) => records.iter().try_for_each(|record| m.words(record)),
             Self::TimeEntries(entries) => entries.iter().try_for_each(|entry| time_entry(entry, m)),
         }
@@ -218,14 +367,21 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
     let display = &o.gfx.display;
     let menus = o.menus;
 
-    let text = |cells: &'static dyn Store, len: usize| Field::Text { cells, from: 0, len };
     let work = &menus.options;
     let numbers = &menus.cars.numbers;
     let tables = &system.records().stage_tables;
-    let names = |n: usize| Field::Text {
-        cells: &menus.play.slots.names.player_names,
-        from: 0x20 * n,
+    let names = |n: usize| Field::Bytes {
         len: 0x20,
+        get: Box::new(move || menus.play.slots.names.player_names.read()[0x20 * n..][..0x20].to_vec()),
+        set: Box::new(move |bytes| {
+            menus
+                .play
+                .slots
+                .names
+                .player_names
+                .write_at(0x20 * n, bytes, "a player's name")
+                .expect("the four names lie inside their area");
+        }),
     };
     [
         Field::Dword(&system.start().run_count.runs),                   // how many times the game was run
@@ -240,16 +396,23 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
         Field::Dword(&audio.state.tune_turn),                   // which tune comes next
         Field::Dword(&o.sound.menu.options.music_volume),                // the music volume
         Field::Dword(&o.sound.menu.options.race_music_volume),           // the race music's volume
-        text(&net.setup().machine_name, 0x40),                         // the machine's name
+        buffer_field(&net.setup().machine_name),                         // the machine's name
         Field::Dword(&net.setup().most_players),                          // the most players a hosted session takes
-        text(&net.setup().host_address, 0x40),                         // the host's address (TCP/IP)
+        buffer_field(&net.setup().host_address),                         // the host's address (TCP/IP)
         Field::Dword(&net.setup().port),                                  // the TCP/IP port
-        text(&net.setup().saved_connection, 0x10),                     // the saved connection's GUID
+        buffer_field(&net.setup().saved_connection),                     // the saved connection's GUID
         Field::Dword(&saves.save_games.kept_a),                         // a saved-games word kept in the file and read by no other code
         Field::Dword(&saves.save_games.kept_b),                         // a saved-games word kept in the file and read by no other code
         Field::Dword(&o.menus.service.set_ups.kept),                              // a car set-ups word kept in the file and read by no other code
-        text(&race.shared.tyre_change().record_name, 0x20),                  // the tyre change record holder's name
-        Field::Dword(&race.shared.tyre_change().record),                        // the tyre change record time
+        Field::Bytes {                                          // the tyre change record holder's name
+            len: 0x20,
+            get: Box::new(|| race.shared.tyre_change().record_name.to_vec()),
+            set: Box::new(|bytes| race.shared.tyre_change_mut().record_name.copy_from_slice(bytes)),
+        },
+        Field::Value {                                          // the tyre change record time
+            get: Box::new(|| race.shared.tyre_change().record),
+            set: Box::new(|time| race.shared.tyre_change_mut().record = time),
+        },
         Field::Dword(&saves.files.options_kept[0]),                                   // four dwords nothing else reads
         Field::Dword(&saves.files.options_kept[1]),
         Field::Dword(&saves.files.options_kept[2]),
@@ -258,28 +421,48 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
         Field::Player(&menus.play.slots.records[1]),
         Field::Player(&menus.play.slots.records[2]),
         Field::Player(&menus.play.slots.records[3]),
-        Field::Dword(&audio.levels.master_volume_shown),           // the master volume shown
-        Field::Dword(&work.music_level),                   // the music level
-        Field::Dword(&work.race_music_level),                  // read by the music "up" step
-        Field::Dword(&work.menu_sounds_level),                 // the menu sounds' third volume
-        Field::Dword(&audio.levels.menu_sounds_a),                 // the menu sounds' first volume
-        Field::Dword(&work.speech_level),                  // the speech level
-        Field::Dword(&audio.levels.sounds_a),                      // the sounds' first level
-        Field::Dword(&audio.levels.sounds_b),                      // the sounds' second level
-        Field::Dwords(vec![                                        // the options pages' work copies, mipmapping .. headlights
-            &work.mipmapping, &work.buffering, &work.mode_changed, &work.modes_switch,
-            &work.lens_flare, &work.unused_percent_a, &work.unused_percent_b,
-            &work.reflections, &work.car_shadows, &work.car_detail, &work.headlights,
-        ]),
-        Field::Dwords(vec![                                        // the audio quality, the 3D switches and the channels
-            &work.audio_quality, &work.ds3d, &work.eax, &work.a3d, &work.dolby, &work.channels,
-        ]),
-        Field::Dword(&menus.play.champ_view.services),                       // the services counted
-        Field::Dword(&menus.screens.flow.kept),                          // kept by the event races
+        Field::Dword(&audio.levels.general_volume),           // the "general volume" slider
+        Field::Value { get: Box::new(|| work.read().menu_music_volume), set: Box::new(|v| work.write().menu_music_volume = v) },                   // the "menu music" slider
+        Field::Value { get: Box::new(|| work.read().race_music_level), set: Box::new(|v| work.write().race_music_level = v) },                  // the "race music" slider
+        Field::Value { get: Box::new(|| work.read().menu_effects_volume), set: Box::new(|v| work.write().menu_effects_volume = v) },                 // the "menu effects" slider
+        Field::Dword(&audio.levels.race_effects_volume),                 // the "race effects" slider
+        Field::Value { get: Box::new(|| work.read().menu_voices_volume), set: Box::new(|v| work.write().menu_voices_volume = v) },                  // the "menu voices" slider
+        Field::Dword(&audio.levels.codriver_voice_volume),                      // the "co-driver's voice" slider
+        Field::Dword(&audio.levels.engine_volume),                      // the "car engine" slider
+        Field::Bytes {                                          // the options pages' work copies, mipmapping .. headlights
+            len: 0x2C,
+            get: Box::new(|| work.visual_run_bytes()),
+            set: Box::new(|bytes| work.set_visual_run(bytes)),
+        },
+        Field::Bytes {                                          // the audio quality, the 3D switches and the channels
+            len: 0x18,
+            get: Box::new(|| work.audio_run_bytes()),
+            set: Box::new(|bytes| work.set_audio_run(bytes)),
+        },
+        Field::Value {                                          // the services counted
+            get: Box::new(|| menus.play.champ_view.read().services),
+            set: Box::new(|services| menus.play.champ_view.write().services = services),
+        },
+        Field::Value {                                          // kept by the event races
+            get: Box::new(|| menus.screens.flow.read().kept),
+            set: Box::new(|kept| menus.screens.flow.write().kept = kept),
+        },
         Field::Dword(&race.shared.state.settings.a8_game),               // the race settings' first word
-        Field::Text { cells: &menus.play.arcade.levels_won, from: 0, len: 6 },                    // the arcade levels won, a byte each
-        Field::Dwords(numbers.first_numbers.iter().map(|n| n as &dyn DwordLike).collect()),                // the first list of car numbers
-        Field::Dwords(numbers.second_numbers[..20].iter().map(|n| n as &dyn DwordLike).collect()),         // the second list of car numbers, 20 entries
+        Field::Bytes {                                          // the arcade levels won, a byte each
+            len: 6,
+            get: Box::new(|| menus.play.arcade.read().levels_won[..6].to_vec()),
+            set: Box::new(|bytes| menus.play.arcade.write().levels_won[..6].copy_from_slice(bytes)),
+        },
+        Field::Bytes {                                          // the first list of car numbers
+            len: 0xA0,
+            get: Box::new(|| numbers.first_bytes()),
+            set: Box::new(|bytes| numbers.set_first(bytes)),
+        },
+        Field::Bytes {                                          // the second list of car numbers, 20 entries
+            len: 0x50,
+            get: Box::new(|| numbers.second_bytes()),
+            set: Box::new(|bytes| numbers.set_second(bytes)),
+        },
         Field::Records(&tables.championship),              // the championship's records
         Field::Records(&tables.events[5].records),          // the events' record tables, in the file's order
         Field::Records(&tables.events[4].records),

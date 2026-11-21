@@ -1,25 +1,30 @@
 //! The race's stores that sit inside its groups, as views from the owner.
 
 use crate::errors::BadInput;
+use crate::math::engine_tables::EngineTablesRef;
 use crate::physics::gear_store::GearFigures;
 use crate::race::blocks_store::CarBlocks;
-use crate::race::checkpoints_store::Checkpoints;
+use crate::race::checkpoints_store::CheckpointsRef;
 use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::race::kind_store::KindTables;
-use crate::race::light_records_store::LightRecords;
+use crate::race::light_records_store::LightRecordsRef;
 use crate::race::owner::Race;
 use crate::race::replay_work_store::ReplayWork;
 use crate::race::viewer_buffers_store::ViewerBuffers;
 use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::scene::engine_tables_store::EngineTables;
-use crate::scene::faces_store::Faces;
-use crate::scene::polygon_store::PolygonTables;
+use crate::scene::faces_store::FacesRef;
+use crate::scene::polygon_store::PolygonTablesRef;
 
 #[allow(dead_code, reason = "the call sites move to it in the M6 rounds")]
 impl Race {
     /// The ten cars' blocks.
     pub fn car_blocks(&self) -> &CarBlocks {
         self.shared.car_blocks.get()
+    }
+
+    /// The cars' drawing state.
+    pub fn car_parts(&self) -> &crate::race::car_parts_store::CarParts {
+        self.shared.car_parts.get()
     }
 
     /// Car record `n` (`car_records[n]`, the name of one of the effects' car records).
@@ -54,12 +59,17 @@ impl Race {
 
     /// The gear figures.
     pub fn gear(&self) -> &GearFigures {
-        &self.frame.lights_and_gear.get().gear
+        self.physics.gear()
     }
 
     /// The replay's work area.
-    pub fn replay_work(&self) -> &ReplayWork {
+    pub fn replay_work(&self) -> std::cell::Ref<'_, ReplayWork> {
         self.replay.replay_work()
+    }
+
+    /// The replay's work area, to write: no other borrow may be held.
+    pub fn replay_work_mut(&self) -> std::cell::RefMut<'_, ReplayWork> {
+        self.replay.replay_work_mut()
     }
 
     /// The effects' settings.
@@ -68,32 +78,32 @@ impl Race {
     }
 
     /// The scene's faces.
-    pub fn faces(&self) -> &Faces {
-        &self.shared.buffers.reads.get().faces
+    pub fn faces(&self) -> FacesRef<'_> {
+        self.shared.buffers.faces()
     }
 
     /// The surface kinds' tables.
-    pub fn kind_tables(&self) -> &KindTables {
-        &self.replay.viewer_and_kinds.kind_tables
+    pub fn kind_tables(&self) -> &'static KindTables {
+        &crate::race::kind_store::KIND_TABLES
     }
 
     /// The checkpoints.
-    pub fn checkpoints(&self) -> &Checkpoints {
-        &self.shared.buffers.reads.get().checkpoints
+    pub fn checkpoints(&self) -> CheckpointsRef<'_> {
+        self.shared.checkpoints()
     }
 
     /// The light records.
-    pub fn light_records(&self) -> &LightRecords {
-        &self.frame.lights_and_gear.get().light_records
+    pub fn light_records(&self) -> LightRecordsRef<'_> {
+        LightRecordsRef::Store(&self.frame.light_records)
     }
 
     /// The engine tables.
-    pub fn engine_tables(&self) -> &EngineTables {
-        &self.shared.buffers.reads.get().engine_tables
+    pub fn engine_tables(&self) -> EngineTablesRef<'_> {
+        self.shared.buffers.engine_tables()
     }
 
     /// The polygon tables.
-    pub fn polygon_tables(&self) -> &PolygonTables {
-        &self.shared.buffers.reads.get().polygon_tables
+    pub fn polygon_tables(&self) -> PolygonTablesRef<'_> {
+        self.shared.buffers.polygon_tables()
     }
 }

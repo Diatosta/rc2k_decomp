@@ -6,13 +6,12 @@
 //! (as a float).
 //!
 //! Returns i on the curve's path.
-//!
-//! Callers: `physics::engine_torque_or_cut`, `physics::test_drive_run`, `physics::free_rev`.
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87::{lerp_table, trunc_mul_to_int};
-use crate::physics::flow::{FloatView, ZERO_BITS as ZERO};
+use crate::physics::figures::TORQUE_EASE;
+use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 use std::cmp::Ordering;
@@ -26,18 +25,16 @@ pub fn below(a: impl crate::math::x87::Flt, b: impl crate::math::x87::Flt) -> bo
 }
 
 /// The exact version, for `physics::engine_torque_or_cut`, `drive_force`, `free_rev*`,
-/// `test_drive_run`.
+/// `acceleration_run`.
 pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let shared_store = shared;
-    let drawing = &scene.drawing;
     let s = x87::div(
         &shared_store.car().engine_speed,
         &shared_store.car().engine_speed_limit,
     );
-    drawing.scene.get().scratch.set_float(s);
-    if below(s, course.numbers.get().one.get()) && !below(s, ZERO) {
-        let i = trunc_mul_to_int(s, course.numbers.get().eight.get()) as u32;
-        drawing.scene.get().work_dword.set(i);
+    if below(s, course.numbers.one.get()) && !below(s, ZERO) {
+        let i = trunc_mul_to_int(s, course.numbers.eight.get()) as u32;
+        scene.draw_work_mut().work_dword = i;
         let k = i as usize;
         shared_store
             .physics_tables
@@ -45,8 +42,8 @@ pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene:
             .engine_force
             .set(lerp_table(
                 s,
-                &shared_store.physics_tables.get().torque_curve[k],
-                &shared_store.physics_tables.get().torque_curve[k + 1],
+                crate::physics::figures::TORQUE_CURVE[k],
+                crate::physics::figures::TORQUE_CURVE[k + 1],
                 shared_store.physics_tables.get().spec_torque[k].get(),
                 shared_store.physics_tables.get().spec_torque[k + 1].get(),
             ));
@@ -65,7 +62,7 @@ pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene:
         .engine_torque
         .st(
             shared_store.car().engine_speed.ld() / shared_store.car().engine_speed_limit.ld()
-                * shared_store.physics_tables.get().torque_ease.ld(),
+                * crate::math::x87_float::ld(TORQUE_EASE),
         );
     shared_store.physics_tables.get().engine_force.set(x87::mul(
         &shared_store.physics_tables.get().engine_force,

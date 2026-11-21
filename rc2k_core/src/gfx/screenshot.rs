@@ -42,8 +42,8 @@ pub fn take_screenshot<S: Shooting>(s: &mut S) -> Result<(), S::Error> {
 /// The jade font's room: its file must be smaller.
 pub const JADE_ROOM: u32 = 0x1400;
 /// The fatal errors: the file could not be read; it filled the room.
-pub const JADE_UNREAD: u32 = 0x80F0_B0D1;
-pub const JADE_TOO_BIG: u32 = 0x80F0_B0D2;
+pub(crate) const JADE_UNREAD: u32 = 0x80F0_B0D1;
+pub(crate) const JADE_TOO_BIG: u32 = 0x80F0_B0D2;
 /// The jade fonts' colour (0x00RRGGBB), in the surface's format.
 pub const JADE_COLOUR: u32 = 0xFF_FFFF;
 

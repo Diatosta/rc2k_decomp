@@ -4,14 +4,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
-use crate::menu::player::{Player, player};
+use crate::menu::player::player;
 use crate::screens::car_caption::put_string;
 
 pub const TEXT_LEN: usize = 0x100;
 const FIRST_STRING: u32 = 0x21F;
 
-pub fn current(menus: &Menus) -> Result<&'_ crate::memory::session::Shared<Player>, Refused> {
-    Ok(player(menus, menus.screens.event.current_player.get())
+pub fn current(menus: &Menus) -> Result<&'_ crate::menu::players_store::PlayerRecord, Refused> {
+    Ok(player(menus, menus.screens.event.read().current_player)
         .ok_or(BadInput("a current player past the four"))?)
 }
 
@@ -22,7 +22,7 @@ pub fn gearing_text(
 ) -> Result<(), Refused> {
     let value = current(menus)?.get().gearing;
     put_string(so, FIRST_STRING.wrapping_add(value), &text.title, TEXT_LEN)?;
-    menus.screens.flow.shown_gearing.set(value);
+    menus.screens.flow.write().shown_gearing = value;
     Ok(())
 }
 
@@ -36,11 +36,11 @@ pub fn step_gearing(
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
     let p = current(menus)?;
-    let kept = screens.flow.shown_gearing.get() as i32;
+    let kept = screens.flow.read().shown_gearing as i32;
     // The logic is in `rc2k_core::screens::captions::step_gearing`.
     let value = rc2k_core::screens::captions::step_gearing(kept, on);
     put_string(so, FIRST_STRING.wrapping_add(value), &text.title, TEXT_LEN)?;
-    screens.flow.shown_gearing.set(value);
+    screens.flow.write().shown_gearing = value;
     p.update(|p| p.gearing = value);
     Ok(())
 }

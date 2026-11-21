@@ -2,7 +2,7 @@
 
 Three ways to the Mac program:
 
-- **On a Mac**: `./deploy_standalone.sh mac` (Intel and Apple silicon joined by `lipo` into
+- **On a Mac**: `./build.sh mac` (Intel and Apple silicon joined by `lipo` into
   `Rally Championship.app`), or from another machine through SSH (`MAC_HOST`).
 - **On Linux, crossed** (below): Intel (`x86_64-apple-darwin`, `env.sh x64`) and Apple
   silicon (`aarch64-apple-darwin`, `env.sh a64`), joined by `llvm-lipo` into the bundle.
@@ -20,16 +20,14 @@ bsdtar / bsdcpio, and Rust's target (`rustup target add x86_64-apple-darwin`).
    `tools/mac/cross/fetch_tools.sh --accept-apple-license` (into `~/.cache/rc2k_mac`, or
    `RC2K_MAC_TOOLS`). Written from the steps that fetched them by hand on 2026-11-08; the
    script itself not yet run.
-2. FFmpeg's decoders: `SDKROOT=... tools/build_ffmpeg.sh mac-x64` and `mac-a64` (into
-   `third_party/ffmpeg-mac-x64`, `third_party/ffmpeg-mac-a64`).
-3. The program, for each processor (`x64` / `x86_64-apple-darwin`, `a64` /
+2. The program, for each processor (`x64` / `x86_64-apple-darwin`, `a64` /
    `aarch64-apple-darwin`; each in its own shell, `env.sh` sets the target's linker):
 
    ```sh
    source tools/mac/cross/env.sh x64
    CARGO_TARGET_DIR=target/mac cargo build --release --target x86_64-apple-darwin --bin rc2k
    ```
-4. The bundle, as `deploy_standalone.sh mac` makes it on a Mac:
+3. The bundle, as `build.sh mac` makes it on a Mac:
 
    ```sh
    APP="target/mac/Rally Championship.app"
@@ -37,9 +35,11 @@ bsdtar / bsdcpio, and Rust's target (`rustup target add x86_64-apple-darwin`).
    llvm-lipo -create -output "$APP/Contents/MacOS/rc2k" \
        target/mac/x86_64-apple-darwin/release/rc2k target/mac/aarch64-apple-darwin/release/rc2k
    cp tools/mac/Info.plist "$APP/Contents/"
+   mkdir -p "$APP/Contents/Resources"
+   cp assets/icon.icns "$APP/Contents/Resources/"
    ```
 
-   SDL and FFmpeg are linked in: the program loads only the system's frameworks and
+   SDL is linked in: the program loads only the system's frameworks and
    libraries. `ld64.lld` signs the arm64 slice ad hoc (linker-signed, as Apple's linker
    does; Apple silicon runs nothing unsigned); the bundle as a whole is not signed on Linux
    (`codesign --force --sign -` on a Mac seals it), nor notarised.

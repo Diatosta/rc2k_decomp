@@ -3,6 +3,7 @@
 
 use crate::net::owner::Net;
 use crate::net::store::Editing;
+use rc2k_core::net::editing;
 
 /// The texts an edit works on: the settings' machine name, host address and players' count,
 /// and the chat's input line.
@@ -16,7 +17,7 @@ pub enum EditedText {
 
 impl EditedText {
     /// The text's buffer.
-    pub fn text(self, net: &Net) -> &dyn crate::memory::cells::Store {
+    pub fn text(self, net: &Net) -> &crate::memory::plain_buffer::PlainBuffer<64> {
         match self {
             EditedText::MachineName => &net.setup().machine_name,
             EditedText::HostAddress => &net.setup().host_address,
@@ -24,18 +25,25 @@ impl EditedText {
             EditedText::ChatInput => &net.lobby().chat_input,
         }
     }
+}
 
-    /// The text `edit` names (refused when none is).
-    pub fn edited(edit: &Editing) -> Result<Self, crate::errors::BadInput> {
-        Ok(match edit.edit_text.get() {
-            1 => EditedText::MachineName,
-            2 => EditedText::HostAddress,
-            3 => EditedText::MostPlayers,
-            4 => EditedText::ChatInput,
-            _ => return Err(crate::errors::BadInput("no edited text")),
-        })
+/// Which text an edit works on (none: nothing is edited).
+pub struct EditedTextCell(crate::memory::session::Plain<Option<EditedText>>);
+
+impl EditedTextCell {
+    pub const fn new() -> Self {
+        Self(crate::memory::session::Plain::new(None))
+    }
+
+    pub fn get(&self) -> Option<EditedText> {
+        self.0.get()
+    }
+
+    pub fn set(&self, text: EditedText) {
+        self.0.set(Some(text));
     }
 }
+
 /// Starts the edit `edit` of `text` for item `item`.
 pub fn begin_edit(
     net: &Net,
@@ -46,17 +54,13 @@ pub fn begin_edit(
     font: crate::gfx::typefaces::FontId,
 ) -> Result<(), crate::errors::Refused> {
     edit.edited.set(item);
-    edit.edit_text.set(text as u32);
+    edit.edit_text.set(text);
     edit.edit_width.set(width);
     edit.edit_font.set(font);
-    Ok(crate::memory::cells::copy_between(
-        text.text(net),
-        0,
-        &edit.text_before_edit,
-        0,
-        0x40,
-        "an edited text",
-    )?)
+    let kept = text
+        .text(net)
+        .read_at(0, editing::TEXT_LEN, "an edited text")?;
+    Ok(edit.text_before_edit.write_at(0, &kept, "an edited text")?)
 }
 
 #[cfg(test)]
@@ -72,15 +76,12 @@ mod tests {
         main.settings.edit.edited.set(u32::MAX);
         main.lobby.edit.edited.set(u32::MAX);
         main.setup.machine_name.set(0, b'A');
-        main.settings
-            .edit
-            .edit_text
-            .set(EditedText::MachineName as u32);
+        main.settings.edit.edit_text.set(EditedText::MachineName);
         assert_eq!(
-            EditedText::edited(&main.settings.edit).unwrap(),
-            EditedText::MachineName
+            main.settings.edit.edit_text.get(),
+            Some(EditedText::MachineName)
         );
-        assert!(EditedText::edited(&main.lobby.edit).is_err());
+        assert_eq!(main.lobby.edit.edit_text.get(), None);
         assert_eq!(main.lobby.edit.edited.get(), u32::MAX);
         assert_eq!(main.settings.edit.text_before_edit.get(0), 0);
     }

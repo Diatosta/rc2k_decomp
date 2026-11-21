@@ -5,8 +5,8 @@
 //! `physics::passed_split_point` is true, `reset_checkpoint` and `checkpoint` become the split's
 //! checkpoint (`SplitTables.checkpoints[1][splits_passed]`) and `splits_passed` goes up by one.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses (before writing) a checkpoint
-//! past 0x1418 or a split past 0x40, and what the calls refuse.
+//! Refuses (before writing) a checkpoint past 0x1418 or a split past 0x40, and what the calls
+//! refuse.
 
 use crate::errors::Refused;
 use crate::physics::step_families::CheckpointInputs;
@@ -28,10 +28,10 @@ pub fn track_checkpoints(
     }?;
     check_tracked(checkpoint, c.car.splits_passed.get())?;
     c.car.checkpoint.set(checkpoint);
-    scene.lights.state.get().line_place.set(checkpoint);
+    scene.line_and_shake_mut().line_place = checkpoint;
     {
         crate::physics::checkpoint_offset::checkpoint_offset(
-            &c.shared.buffers.reads.get().engine_tables,
+            c.shared.buffers.engine_tables(),
             c.course,
             c.vars,
             c.checkpoints,
@@ -52,22 +52,20 @@ pub fn track_checkpoints(
         c.checkpoints,
         c.car.checkpoint.get() as usize,
     )
-    .get()
     .wrapping_sub(1);
     if at_split_end(next.wrapping_add(1), c.car.splits_passed.get()) {
         c.car.reset_checkpoint.set(c.car.checkpoint.get());
     }
     if !split_ahead(
         c.car.splits_passed.get(),
-        physics_store.split_tables().split_colour_count.get(),
+        physics_store.split_tables().split_colour_count,
     ) {
         return Ok(());
     }
-    if !{ crate::physics::passed_split_point::passed_split_point(c, scene) }? {
+    if !{ crate::physics::passed_split_point::passed_split_point(c) }? {
         return Ok(());
     }
-    let split =
-        physics_store.split_tables().checkpoints[1 + c.car.splits_passed.get() as usize].get();
+    let split = physics_store.split_tables().checkpoints[1 + c.car.splits_passed.get() as usize];
     c.car.reset_checkpoint.set(split);
     c.car.checkpoint.set(split);
     c.car

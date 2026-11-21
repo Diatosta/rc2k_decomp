@@ -2,14 +2,12 @@
 //! counts down by 1; at 0 the notice is cleared. `physics::take_notice` sets them.
 //!
 //! Returns the time before (when `notice_shown` is set).
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;
 use rc2k_core::physics::notices::Notice;
 
-pub fn count_down_notice(car: &Car) {
+pub(super) fn count_down_notice(car: &Car) {
     let was = Notice {
         shown: car.notice_shown.get(),
         time: car.notice_time.get(),

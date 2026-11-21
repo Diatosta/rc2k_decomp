@@ -48,6 +48,7 @@ pub const SCREEN: Screen = Screen {
         ]),
         ..Frames::DEFAULT
     },
+    invites: false,
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.leave_question.id(),

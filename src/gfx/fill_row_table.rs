@@ -6,10 +6,10 @@
 
 use crate::errors::BadInput;
 
-pub const ROW_TABLE_ROOM: u32 = 602;
+pub(super) const ROW_TABLE_ROOM: u32 = 602;
 
 /// The address the table holds for a row.
-pub fn row_address(row: u32, gfx: &crate::gfx::owner::Gfx) -> u32 {
+pub(super) fn row_address(row: u32, gfx: &crate::gfx::owner::Gfx) -> u32 {
     match gfx.drawing.row_table.get(row as usize) {
         Some(cell) => cell.get(),
         None => crate::fatal::raise::end(
@@ -19,7 +19,7 @@ pub fn row_address(row: u32, gfx: &crate::gfx::owner::Gfx) -> u32 {
     }
 }
 
-pub fn fill_row_table(
+pub(super) fn fill_row_table(
     first: u32,
     step: u32,
     rows: u32,

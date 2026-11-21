@@ -1,33 +1,31 @@
 //! The blitters' variables (the clip rectangle and the skips of the visible part). The rescaler's
 //! own variables follow (`gfx::rescale_picture::RESCALE`).
 
-use crate::memory::session::PlainDword;
+use std::cell::Cell;
 
 /// The clip rectangle (all four edges inclusive).
-#[derive(rc2k_derive::Cells)]
 pub struct ClipRect {
     /// `Blitter.clip.left`.
-    pub left: PlainDword,
+    pub left: Cell<u32>,
     /// `Blitter.clip.right`.
-    pub right: PlainDword,
+    pub right: Cell<u32>,
     /// `Blitter.clip.top`.
-    pub top: PlainDword,
+    pub top: Cell<u32>,
     /// `Blitter.clip.bottom`.
-    pub bottom: PlainDword,
+    pub bottom: Cell<u32>,
 }
 
-#[derive(rc2k_derive::Cells)]
 pub struct Blitter {
     /// The clip rectangle.
     pub clip: ClipRect,
     /// Pixels clipped off on the left.
-    pub left_skip: PlainDword,
+    pub left_skip: Cell<u32>,
     /// Pixels of each row inside the clip.
-    pub visible_width: PlainDword,
+    pub visible_width: Cell<u32>,
     /// Rows clipped off at the top.
-    pub top_skip: PlainDword,
+    pub top_skip: Cell<u32>,
     /// Visible rows (counted down while drawing).
-    pub rows_left: PlainDword,
+    pub rows_left: Cell<u32>,
 }
 
 impl Blitter {
@@ -35,15 +33,15 @@ impl Blitter {
     pub const fn new() -> Self {
         Blitter {
             clip: ClipRect {
-                left: PlainDword::new(0),
-                right: PlainDword::new(0x31F),
-                top: PlainDword::new(0),
-                bottom: PlainDword::new(0x257),
+                left: Cell::new(0),
+                right: Cell::new(0x31F),
+                top: Cell::new(0),
+                bottom: Cell::new(0x257),
             },
-            left_skip: PlainDword::new(0),
-            visible_width: PlainDword::new(0),
-            top_skip: PlainDword::new(0),
-            rows_left: PlainDword::new(0),
+            left_skip: Cell::new(0),
+            visible_width: Cell::new(0),
+            top_skip: Cell::new(0),
+            rows_left: Cell::new(0),
         }
     }
 }

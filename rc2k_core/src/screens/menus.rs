@@ -5,15 +5,7 @@ use crate::Invalid;
 use crate::screens::screen::{Buffer, Screen};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Work {
-    /// The spaced-out text's font.
-    SpacedFont,
-    /// Where the item's text went (the marker's x and y).
-    MarkerX,
-    MarkerY,
-    /// 1 while the highlighted item is drawn.
-    Highlighted,
-}
+pub enum Work {}
 
 /// A label: x, y, font, string.
 #[derive(Clone, Copy, Debug)]
@@ -32,67 +24,47 @@ pub fn labels<S: Screen>(s: &mut S, labels: &[Label<S::Font>]) -> Result<(), S::
     Ok(())
 }
 
-/// The line buffer's length; the one-character text follows it.
+/// The line buffer's length.
 const LINE_LEN: usize = 0x100;
 
 /// An item's text: one string, or with `spaced` one character at a time 18 pixels apart from
-/// x - 26 through a one-character text, the font kept (`font_value`). The string is read with
-/// its NUL: an empty string's NUL is still drawn, then the loop goes on into what the line
-/// buffer held after it (`after(n)`, n < 0x100; past the buffer, the one-character text).
-/// Refused: a string of 0x100 bytes or more with its NUL.
-#[allow(clippy::too_many_arguments)] // the item's id, fonts, position and spacing
-pub fn item_text<S: Screen<Work = Work>>(
+/// x - 26. An empty spaced text draws nothing. Refused: a string of 0x100 bytes or more with
+/// its NUL.
+pub(crate) fn item_text<S: Screen<Work = Work>>(
     s: &mut S,
     id: u32,
     font: S::Font,
-    font_value: u32,
     x: i32,
     y: i32,
     spaced: bool,
-    after: &dyn Fn(usize) -> u8,
 ) -> Result<(), S::Error> {
     if !spaced {
         s.string(font, id, x, y)?;
         return Ok(());
     }
-    let mut line = s.string_bytes(id);
-    line.push(0);
-    if line.len() > LINE_LEN {
+    let line = s.string_bytes(id);
+    if line.len() >= LINE_LEN {
         return Err(Invalid("a string longer than the line buffer").into());
     }
-    s.keep(Work::SpacedFont, font_value);
-    s.store(Buffer::Line, &line)?;
-    let byte = |n: usize| if n < line.len() { line[n] } else { after(n) };
-    let mut x = x.wrapping_sub(0x1A);
-    let mut place = 0usize;
-    loop {
-        // Cleared before the byte is read: past the buffer the byte is that text's own, so 0.
-        let character = if place < LINE_LEN { byte(place) } else { 0 };
+    let mut at = x.wrapping_sub(0x1A);
+    for &character in &line {
         s.store(Buffer::Cells, &[character, 0, 0, 0])?;
-        s.draw(font, Buffer::Cells, x, y)?;
-        x = x.wrapping_add(0x12);
-        place += 1;
-        let next = match place {
-            n if n < LINE_LEN => byte(n),
-            LINE_LEN => character,
-            _ => 0,
-        };
-        if next == 0 {
-            return Ok(());
-        }
+        s.draw(font, Buffer::Cells, at, y)?;
+        at = at.wrapping_add(0x12);
     }
+    Ok(())
 }
 
 /// What is behind an item's text: nothing, or one of the buttons below.
 pub const NOTHING: u32 = 0xFFFF_FFA9;
-pub const OWN_BUTTON: u32 = 0xFFFF_FFA5;
-pub const RIGHT_BUTTON: u32 = 0xFFFF_FFA7;
-pub const CENTRED_BUTTON: u32 = 0xFFFF_FFA6;
+pub(crate) const OWN_BUTTON: u32 = 0xFFFF_FFA5;
+pub(crate) const RIGHT_BUTTON: u32 = 0xFFFF_FFA7;
+pub(crate) const CENTRED_BUTTON: u32 = 0xFFFF_FFA6;
 /// Also nothing, looked at only when the item is not highlighted; as a highlighted item's sprite
 /// it means nothing at all behind it.
 pub const NOTHING_EITHER: u32 = 0xFFFF_FFAA;
 
-/// What an item's +0x20 holds: a sprite number, or for a button one of the menus' lists of
+/// What an item's sprite field holds: a sprite number, or for a button one of the menus' lists of
 /// five sprite numbers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ItemSprite {
@@ -103,13 +75,13 @@ pub enum ItemSprite {
 /// A menu item (0x5C bytes): the fields the drawing reads.
 #[derive(Clone, Copy, Debug)]
 pub struct Item<F> {
-    /// +0, +4: the sprite's place, and the text's for the button kinds.
+    /// The sprite's place, and the text's for the button kinds.
     pub x: u32,
     pub y: u32,
-    /// +8, +0xC: the text's place otherwise.
+    /// The text's place otherwise.
     pub text_x: u32,
     pub text_y: u32,
-    /// +0x10: highlighted when it is the current item.
+    /// Highlighted when it is the current item.
     pub kind: u32,
     /// The item's text string.
     pub id: u32,
@@ -150,11 +122,9 @@ pub trait MenuScreen: Screen<Work = Work> {
     ) -> Result<Self::Font, Self::Error>;
     /// A sprite list drawn where a sprite number is drawn.
     fn list_sprite(&mut self, list: usize, x: i32, y: i32) -> Result<(), Self::Error>;
-    /// A font as the work variable keeps it (its number).
-    fn font_value(&self, f: Self::Font) -> u32;
 }
 
-/// The sprite an item's +0x20 names, at (`x`, `y`).
+/// The sprite an item's sprite field names, at (`x`, `y`).
 fn draw_sprite<S: MenuScreen>(
     s: &mut S,
     sprite: ItemSprite,
@@ -168,7 +138,7 @@ fn draw_sprite<S: MenuScreen>(
 }
 
 /// The items. `current` is the highlighted item's kind, `since_key` the time since the last key
-/// (0 while the blink is off). `after` as for `item_text`.
+/// (0 while the blink is off).
 ///
 /// Sprites take no palette and text buttons' measuring no x: menu sprites are direct colour and
 /// a measured width does not depend on where measuring starts.
@@ -177,16 +147,10 @@ pub fn items<S: MenuScreen>(
     items: &[Item<S::Font>],
     current: u32,
     since_key: u32,
-    after: &dyn Fn(usize) -> u8,
 ) -> Result<(), S::Error> {
     for (n, it) in items.iter().enumerate() {
         let highlighted = current == it.kind;
-        s.keep(Work::Highlighted, highlighted as u32);
         if !highlighted {
-            if it.behind != NOTHING {
-                s.keep(Work::MarkerX, it.x);
-                s.keep(Work::MarkerY, it.y);
-            }
             match it.behind {
                 NOTHING | NOTHING_EITHER => {}
                 OWN_BUTTON => s.own_button(n)?,
@@ -212,15 +176,12 @@ pub fn items<S: MenuScreen>(
         if it.behind == RIGHT_BUTTON {
             x = x.wrapping_sub(4);
         }
-        s.keep(Work::MarkerX, x);
-        s.keep(Work::MarkerY, y);
         let font = if highlighted {
             s.blended(since_key, it.font, it.pulse_font)?
         } else {
             it.font
         };
-        let value = s.font_value(font);
-        item_text(s, it.id, font, value, x as i32, y as i32, it.spaced, after)?;
+        item_text(s, it.id, font, x as i32, y as i32, it.spaced)?;
     }
     Ok(())
 }
@@ -301,25 +262,13 @@ mod tests {
         .unwrap();
         assert_eq!(s.0, ["7 s30 1 2"]);
         let mut s = Record::default();
-        item_text(&mut s, 1, 7, 9, 100, 50, true, &|_| unreachable!()).unwrap();
-        assert_eq!(s.0, ["keep 9", "7 65 74 50", "7 66 92 50"]);
-        // An empty string: its NUL, then what the buffer held after it until a 0.
+        item_text(&mut s, 1, 7, 100, 50, true).unwrap();
+        assert_eq!(s.0, ["7 65 74 50", "7 66 92 50"]);
+        // An empty string draws nothing.
         let mut s = Record::default();
-        item_text(&mut s, 2, 7, 9, 100, 50, true, &|n| {
-            if n < 3 { b'q' } else { 0 }
-        })
-        .unwrap();
-        assert_eq!(s.0, ["keep 9", "7 0 74 50", "7 113 92 50", "7 113 110 50"]);
-        // A buffer with no 0 after the NUL: on to its end, then the last character again
-        // and the cleared one-character text.
-        let mut s = Record::default();
-        item_text(&mut s, 2, 7, 9, 100, 50, true, &|_| b'q').unwrap();
-        assert_eq!(s.0.len(), 1 + 0x101);
-        assert_eq!(
-            s.0.last().unwrap(),
-            &format!("7 0 {} 50", 74 + 0x12 * 0x100)
-        );
-        assert!(item_text(&mut Record::default(), 3, 7, 9, 0, 0, true, &|_| 0).is_err());
+        item_text(&mut s, 2, 7, 100, 50, true).unwrap();
+        assert!(s.0.is_empty());
+        assert!(item_text(&mut Record::default(), 3, 7, 0, 0, true).is_err());
     }
 
     impl MenuScreen for Record {
@@ -338,9 +287,6 @@ mod tests {
         fn list_sprite(&mut self, list: usize, x: i32, y: i32) -> Result<(), Invalid> {
             self.0.push(format!("list {list} {x:#x} {y:#x}"));
             Ok(())
-        }
-        fn font_value(&self, f: u32) -> u32 {
-            f + 1000
         }
     }
 
@@ -366,7 +312,7 @@ mod tests {
             item(4, CENTRED_BUTTON, ItemSprite::Number(NOTHING_EITHER)),
         ];
         let mut s = Record::default();
-        items(&mut s, &list, 3, 7, &|_| 0).unwrap();
+        items(&mut s, &list, 3, 7).unwrap();
         let keep: Vec<_> =
             s.0.iter()
                 .filter(|l| !l.starts_with("keep"))

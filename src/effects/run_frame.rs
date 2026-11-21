@@ -9,10 +9,10 @@
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::memory::session::PlainFloat;
 use crate::race::owner::Race;
+use core::cell::Cell;
 /// Where the share goes (its factor is `FRAME_K.times`): the draw, the ring, the whole.
-fn shares(effects: &Effects) -> [&PlainFloat; 3] {
+fn shares(effects: &Effects) -> [&Cell<f32>; 3] {
     [
         &effects.setup.frame.draw_share,
         &effects.setup.frame.ring_share,
@@ -28,13 +28,11 @@ const STATES: [(u32, u32); 6] = [
     (1, 3),
 ];
 
-fn rdtsc() -> u32 {
-    crate::platform::arch::rdtsc() as u32
-}
-
-fn share(at: usize, start: u32, effects: &crate::effects::owner::Effects) {
+fn share(at: usize, start: Option<u32>, effects: &crate::effects::owner::Effects) {
+    let Some(took) = crate::effects::cycles::since(start) else {
+        return;
+    };
     let to = shares(effects)[at];
-    let took = rdtsc().wrapping_sub(start) as i32;
     to.set(x87::int_over_int_times(
         took,
         effects.setup.frame.frame_cycles.get(),
@@ -47,9 +45,9 @@ fn share(at: usize, start: u32, effects: &crate::effects::owner::Effects) {
 #[derive(Clone, Copy)]
 pub struct EffectsView<'a> {
     pub fog: &'a crate::scene::fog::Fog,
-    pub view_matrix: &'a [crate::memory::session::PlainFloat; 16],
+    pub view_matrix: crate::scene::matrix::Matrix,
     pub light: u32,
-    pub engine_tables: &'a crate::scene::engine_tables_store::EngineTables,
+    pub engine_tables: crate::math::engine_tables::EngineTablesRef<'a>,
 }
 
 impl<'a> EffectsView<'a> {
@@ -57,8 +55,8 @@ impl<'a> EffectsView<'a> {
     pub fn of(race: &'a Race, view: &'a crate::race::view_scratch::ViewScratch) -> Self {
         Self {
             fog: &view.fog,
-            view_matrix: &view.matrices.view_matrix,
-            light: view.light.view_light.get(),
+            view_matrix: view.matrices.borrow().view_matrix,
+            light: view.light.borrow().view_light,
             engine_tables: race.engine_tables(),
         }
     }
@@ -71,8 +69,8 @@ impl<'a> EffectsView<'a> {
         let front_end = scene.scratch.front_end();
         Self {
             fog: &front_end.fog,
-            view_matrix: &race.frame.matrices.get().view_matrix,
-            light: front_end.light.view_light.get(),
+            view_matrix: race.frame.view_kept.borrow().view_matrix,
+            light: front_end.light.borrow().view_light,
             engine_tables: race.engine_tables(),
         }
     }
@@ -101,16 +99,16 @@ pub fn run_frame(
     {
         swap_mask::swap_mask(&effects.masks, scene, gfx, system, effects)?;
         setup::tick_clock(&race.shared, effects)?;
-        let whole = rdtsc();
+        let whole = crate::effects::cycles::start();
         for (value, state) in STATES {
             set_render_state(part, value, state);
         }
         run_rain::run_rain(buffer, race, weather, scene, effects)?;
         run_snow::run_snow(buffer, race, weather, scene, effects, view)?;
-        let start = rdtsc();
+        let start = crate::effects::cycles::start();
         share(0, start, effects);
         draw_frame::draw_frame(buffer, race, scene, effects)?;
-        let start = rdtsc();
+        let start = crate::effects::cycles::start();
         ring_frame::ring_frame(
             buffer,
             &effects.masks,
@@ -154,7 +152,7 @@ pub struct FrameK {
 }
 
 /// FrameK's first values.
-pub static FRAME_K: FrameK = FrameK {
+pub(super) static FRAME_K: FrameK = FrameK {
     share_k: 100.0_f32,
     times: [100.0, 100.0, 100.0],
 };

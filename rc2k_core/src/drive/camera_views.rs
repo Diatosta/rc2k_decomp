@@ -2,27 +2,27 @@
 //! views 0 .. 6 cycle, 2 and 3 only for cars with their own views (`kind_has_views`) and with one
 //! player; 7 and above are the fixed replay cameras.
 
-/// A car block's view fields (block offsets +0x684 .. +0x69C).
+/// A car block's view fields.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct CameraView {
-    /// +0x684: the view shown.
+    /// The view shown.
     pub view: u32,
-    /// +0x688: the view wanted.
+    /// The view wanted.
     pub wanted: u32,
-    /// +0x690: the step count when it was taken.
+    /// The step count when it was taken.
     pub taken_at: u32,
-    /// +0x694: held (no change).
+    /// Held (no change).
     pub held: u32,
-    /// +0x698: not known; cleared when a view is taken.
+    /// Not known; cleared when a view is taken.
     pub w698: u32,
-    /// +0x69C: the share of the switch to the view made (a float).
+    /// The share of the switch to the view made (a float).
     pub switch_share: f32,
 }
 
 /// The views (0 .. 6); 2 and 3 only for cars that have them.
 pub const VIEWS: u32 = 7;
 /// The cars with an entry in the table of who has views 2 and 3.
-pub const CARS_WITH_ENTRY: u32 = 0x22;
+pub(crate) const CARS_WITH_ENTRY: u32 = 0x22;
 
 impl CameraView {
     /// Takes the wanted view at step count `step` and gives `step` back.
@@ -37,7 +37,7 @@ impl CameraView {
 }
 
 /// The view after `view` for the change-view key. 2 and 3 become 4 when the car (`car()`, the
-/// block's +0x24) has none (past the table or `has_views(car)` false) or with two players
+/// block's car file number) has none (past the table or `has_views(car)` false) or with two players
 /// (`players()`, asked only when it has them); 7 and above wrap to 0.
 pub fn next_view(
     view: u32,
@@ -49,7 +49,7 @@ pub fn next_view(
     if (2..=3).contains(&next) {
         let car = car();
         let has = car < CARS_WITH_ENTRY && has_views(car);
-        if !has || players() == 2 {
+        if !has || players() >= 2 {
             next = 4;
         }
     }

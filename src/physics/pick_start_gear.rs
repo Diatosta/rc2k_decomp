@@ -6,13 +6,13 @@
 //! ((kept - e) x k + e), `physics::wheels_from_revs`, and the change settled (`drive_cut_steps`,
 //! the hold 20, `gear_changed` and `gear_change_pending` 1). None taken: the last tried stays.
 //!
-//! Callers: `physics::manual_gearbox`, `physics::auto_gearbox`. Refuses what the calls refuse; what
-//! was written is put back.
+//! Refuses what the calls refuse; what was written is put back.
 
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87::sub_mul_add;
 use crate::physics::car_store::Car;
+use crate::physics::figures::START_GEAR_SHARE;
 use crate::physics::gear_store::GearFigures;
 use crate::physics::gearbox::*;
 use crate::physics::tables_store::PhysicsTables;
@@ -21,7 +21,7 @@ use rc2k_core::physics::gear_shifts as shifts;
 
 /// The steps on `r`.
 // Core: `rc2k_core::physics::gear_shifts::pick_start` (the engine's sums and compares stay x87).
-pub fn pick_start_gear(
+pub(super) fn pick_start_gear(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
@@ -30,7 +30,7 @@ pub fn pick_start_gear(
     tables.start_gear_figures[2].set(car.engine_speed.get());
     revs_speed(car, tables)?;
     tables.start_gear_figures[1].set(0.0);
-    tables.start_gear_figures[0].set(x87::loaded(&numbers.hundred));
+    tables.start_gear_figures[0].set(x87::loaded(numbers.hundred));
     let taken = shifts::pick_start(|gear| {
         if bit(car, gear)? {
             return Ok::<_, Refused>(false);
@@ -51,10 +51,10 @@ pub fn pick_start_gear(
     car.engine_speed.set(sub_mul_add(
         tables.start_gear_figures[2].get(),
         &car.engine_speed,
-        &tables.start_gear_share,
+        START_GEAR_SHARE,
         &car.engine_speed,
     ));
     wheels(car, tables)?;
-    settle(car, tables);
+    settle(car);
     Ok(())
 }

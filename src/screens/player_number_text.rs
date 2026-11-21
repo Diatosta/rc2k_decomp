@@ -14,7 +14,7 @@ pub fn player_number_text(
     menus: &Menus,
     buffers: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), Refused> {
-    let n: u32 = menus.screens.event.current_player.get();
+    let n: u32 = menus.screens.event.read().current_player;
     let mut text = Vec::new();
     let mut emit = |bytes: &[u8]| text.extend_from_slice(bytes);
     append_string_by_id(so, FIRST_STRING.wrapping_add(n), &mut emit)?;

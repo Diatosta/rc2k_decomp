@@ -95,10 +95,11 @@ impl Figures {
     }
 }
 
+#[cfg(test)]
 /// `memory::move_bytes` inside one buffer: `count` bytes from `from` to `to`, forwards, a dword at
 /// a time (each read before it is written) and then the last bytes one by one. With `to` a little
 /// past `from` the copy repeats what was there. Both ranges must lie in `buf`.
-pub fn move_forward(buf: &mut [u8], from: usize, to: usize, count: usize) {
+pub(crate) fn move_forward(buf: &mut [u8], from: usize, to: usize, count: usize) {
     let (mut f, mut t) = (from, to);
     for _ in 0..count / 4 {
         let dword: [u8; 4] = buf[f..f + 4].try_into().unwrap();

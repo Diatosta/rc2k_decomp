@@ -1,103 +1,132 @@
-//! The installer's pages, from the first entry on: each entry is the page's list and the entries
-//! that follow its answers; a page answered 0 or 1 has its highlight put back to 0; an answer of
-//! no entry (0) or the game quitting ends it. Called by `install::run_installer`.
+//! The installer's flow run: each step shows its page (`install::run_page`) or does its work, and
+//! the answer says which step follows (`rc2k_core::install::flow`). It ends when a step leads
+//! nowhere or the game is quitting.
 
-use crate::errors::Refused;
-use crate::install::page_records::PageEntry;
-use rc2k_core::install::pages;
+use crate::errors::{BadInput, Refused};
+use crate::install::installer::logged;
+use rc2k_core::install::flow::{self, Step, Ways};
+use rc2k_core::install::model::List;
 
-/// The pages from the entry `first` on.
-pub fn run_pages(
+/// Whether the language page has nothing to ask: this version is installed already, or there
+/// is at most one language.
+fn language_is_settled(install: &crate::install::owner::Install) -> bool {
+    rc2k_core::install::pages::language_page_skipped(
+        install.run.same_version.get(),
+        install.names.language_count.get(),
+    )
+}
+
+/// The steps from `first` on.
+pub(super) fn run_pages(
     install: &'static crate::install::owner::Install,
     o: crate::owners::Owners<'static>,
-    first: PageEntry,
+    first: Step,
 ) -> Result<(), Refused> {
-    let system = o.system;
-    let mut entry = first;
-    // The entry before, and the passed-over pages' ways (`pass_over`).
-    let (mut prev, mut passed) = (None, Vec::new());
+    use crate::install as i;
+    use crate::install::folders::{Folders, Native};
+    let ways = Ways {
+        drives: <Native as Folders>::DRIVES,
+    };
+    let mut step = first;
     loop {
-        let list = entry.list(install);
-        if let Some(next) = pass_over(install, entry, prev, &mut passed) {
-            (prev, entry) = (Some(entry), next);
-            continue;
-        }
-        let answer = crate::install::run_page::run_page(install, o, list)?;
-        if pages::resets_highlight(answer) {
-            list.set_highlight(0);
-        }
-        prev = Some(entry);
-        let Some(next) = entry.next(install, pages::next_entry_at(answer)) else {
+        let next = match (step, step.page()) {
+            (Step::Language, _) if language_is_settled(install) => Some(Step::Main),
+            (_, Some(page)) => {
+                let answer = i::run_page::run_page(install, o, page)?;
+                if flow::resets_highlight(answer) {
+                    let list = List::of(page, install.run.drive_count.get());
+                    install.highlights.set(list, 0);
+                }
+                flow::after_page(step, answer, ways)
+                    .map_err(|_| BadInput("an answer the installer's page has no way for"))?
+            }
+            (Step::CopyFiles, None) => flow::after_copy(logged(
+                "install",
+                i::install_files::install_files(install, o),
+            )?),
+            (Step::Uninstall, None) => {
+                logged("uninstall", i::uninstall::uninstall(install, o))?;
+                None
+            }
+            (Step::OpenInstalled, None) => {
+                i::open_installed::open_installed(install)?;
+                None
+            }
+            (Step::Language | Step::Main | Step::Drive | Step::Folder | Step::NoRoom, None)
+            | (Step::Removal { .. }, None) => {
+                return Err(BadInput("an installer page with no list").into());
+            }
+        };
+        let Some(next) = next else {
             return Ok(());
         };
-        entry = next;
-        if system.session.flags.quitting.is_set() {
+        step = next;
+        if o.system.session.flags.quitting.is_set() {
             return Ok(());
         }
     }
 }
 
-/// Whether `list`'s action (+8) is the page `page`.
-fn is_page(install: &'static crate::install::owner::Install, entry: PageEntry, page: u32) -> bool {
-    entry.has_list(install) && entry.list(install).action() == page
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rc2k_core::install::flow::Page;
 
-/// A page passed over: its entry, the entry it was come to from, the one it went on to.
-struct Passed {
-    entry: PageEntry,
-    before: Option<PageEntry>,
-    after: PageEntry,
-}
-
-/// The pages not shown, passed over as if answered:
-/// - the installation-kind page (small / normal / full): always the full installation (media
-///   mode 3); on to its answer 3's entry;
-/// - the drive page on a system without drives (`install::folders`, `DRIVES` false): on
-///   to the entry of its answer that is the folder page.
-///
-/// Come back to from where it went on to, a page goes back to where it was come to from.
-/// None for a page that is shown.
-fn pass_over(
-    install: &'static crate::install::owner::Install,
-    entry: PageEntry,
-    prev: Option<PageEntry>,
-    passed: &mut Vec<Passed>,
-) -> Option<PageEntry> {
-    use crate::install::folders::{Folders, Native};
-    const MODE_PAGE: u32 = 0x41422B;
-    const DRIVE_PAGE: u32 = 0x41425E;
-    const FOLDER_PAGE: u32 = 0x4142F5;
-    const FULL: u32 = 3;
-    let on = if is_page(install, entry, MODE_PAGE) {
-        crate::install::installer::set_media_mode(FULL);
-        entry
-            .next(install, pages::next_entry_at(FULL))
-            .unwrap_or_else(|| {
-                crate::install::installer::refuse(crate::errors::BadInput(
-                    "the installation-kind page with no page to go on to",
-                ))
-            })
-    } else if !<Native as Folders>::DRIVES && is_page(install, entry, DRIVE_PAGE) {
-        (0..entry.answers(install))
-            .filter_map(|answer| entry.next(install, pages::next_entry_at(answer)))
-            .find(|&next| is_page(install, next, FOLDER_PAGE))?
-    } else {
-        return None;
-    };
-    if let Some(p) = passed.iter().find(|p| p.entry == entry)
-        && prev == Some(p.after)
-    {
-        return Some(p.before.unwrap_or_else(|| {
-            crate::install::installer::refuse(crate::errors::BadInput(
-                "a passed page that was come to from no page",
-            ))
-        }));
+    /// Every answer an item of a page can leave it with (an item that links on holds its
+    /// answer; Escape and the folder page's keys give 0 and 1; the removal page makes its 2 a
+    /// 1) is one the flow has a way for, with and without drive letters.
+    #[test]
+    fn every_answer_a_page_can_give_has_a_way() {
+        use rc2k_core::install::model::{Facts, Kind};
+        let facts = Facts {
+            same_version: true,
+            installed: true,
+            update_entry: None,
+            languages: 3,
+            drives: 5,
+            path_problem: 0,
+            folder_most: 0x7C,
+            folder_width: 0x2E9,
+        };
+        let steps = [
+            Step::Language,
+            Step::Main,
+            Step::Drive,
+            Step::Folder,
+            Step::NoRoom,
+            Step::Removal { from_main: true },
+            Step::Removal { from_main: false },
+        ];
+        for step in steps {
+            let page = step.page().unwrap();
+            let def =
+                rc2k_core::install::model::build(List::of(page, facts.drives), &facts).unwrap();
+            let mut answers = vec![0, 1];
+            for item in &def.items {
+                if let Kind::Link {
+                    answer,
+                    action: None,
+                } = item.kind
+                    && answer & 0x80 == 0
+                {
+                    answers.push(u32::from(answer));
+                }
+            }
+            if page == Page::Removal {
+                answers.retain(|&answer| answer != 2);
+            }
+            for drives in [true, false] {
+                if page == Page::Drive && !drives {
+                    continue;
+                }
+                let ways = Ways { drives };
+                for &answer in &answers {
+                    assert!(
+                        flow::after_page(step, answer, ways).is_ok(),
+                        "{step:?} answer {answer} {ways:?}"
+                    );
+                }
+            }
+        }
     }
-    passed.retain(|p| p.entry != entry);
-    passed.push(Passed {
-        entry,
-        before: prev,
-        after: on,
-    });
-    Some(on)
 }

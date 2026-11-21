@@ -1,16 +1,14 @@
 //! The ground's roughness under the work car from two noise maps (`race::sample_noise`): each
-//! sample is scaled into its range (lo + (hi - lo) x it >> 16: `blit_cleared` and `surface_scale`)
+//! sample is scaled into its range (lo + (hi - lo) x it >> 16: `precipitation_range` and `surface_scale`)
 //! and held to 0 ..= 0xFF. The first goes into `surface_noise_a` and `surface_noise_b`; the second
 //! into `surface_noise_second`, and at least `surface_floor` (unsigned), / 256, into
 //! `surface_blend`. Then with `noise_pick` set `surface_noise_a` becomes 0, else `surface_noise_b`.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87::{ext_div2, int_80};
 use crate::race::frame_draw::sample_noise;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::race::prefs_store::StagePrefs;
+use crate::race::prefs_store::StagePrefsRef;
 use rc2k_core::physics::ground::{noise_level, rough_floor};
 
 /// lo + (hi - lo) x sample >> 16, held to 0 ..= 0xFF.
@@ -24,38 +22,35 @@ fn sample(
     shared: &crate::race::owner_shared::RaceShared,
     x: usize,
 ) -> Result<u32, crate::errors::BadInput> {
-    sample_noise(&shared.buffers.reads.get().engine_tables, shared.car(), x)
+    sample_noise(shared.buffers.engine_tables(), shared.car(), x)
 }
 
 // Core: `rc2k_core::physics::ground::{noise_level, rough_floor}` (the share / 256 stays x87).
 pub fn surface_noise(
-    stage_prefs: &StagePrefs,
+    stage_prefs: StagePrefsRef<'_>,
     numbers: &Numbers,
     shared: &RaceShared,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
     {
         let first = scaled(
             sample(shared, 0x50)?,
-            stage_prefs.blit_cleared[0].get(),
-            stage_prefs.blit_cleared[1].get(),
+            stage_prefs.read(|p| p.precipitation_range[0]),
+            stage_prefs.read(|p| p.precipitation_range[1]),
         );
         shared.car().surface_noise_a.set(first);
         shared.car().surface_noise_b.set(first);
         let second = scaled(
             sample(shared, 0x20)?,
-            stage_prefs.surface_scale[0].get(),
-            stage_prefs.surface_scale[1].get(),
+            stage_prefs.read(|p| p.surface_scale[0]),
+            stage_prefs.read(|p| p.surface_scale[1]),
         );
         shared.car().surface_noise_second.set(second);
-        let floor = rough_floor(second, stage_prefs.surface_floor.get());
-        scene.drawing.scene.get().scratch.set(floor);
-        shared.car().surface_blend.set(ext_div2(
-            int_80(floor as i32, false),
-            &numbers.k256,
-            1.0f32,
-        ));
-        if stage_prefs.noise_pick.get() != 0 {
+        let floor = rough_floor(second, stage_prefs.read(|p| p.surface_floor));
+        shared
+            .car()
+            .surface_blend
+            .set(ext_div2(int_80(floor as i32, false), numbers.k256, 1.0f32));
+        if stage_prefs.read(|p| p.noise_pick) != 0 {
             shared.car().surface_noise_a.set(0);
         } else {
             shared.car().surface_noise_b.set(0);

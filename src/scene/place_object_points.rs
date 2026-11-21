@@ -10,9 +10,7 @@
 //! object's `move_by` not 0 the point is first moved towards the one that many bytes further on
 //! in the table, by `move_fraction` of the way, rounded to whole numbers (the moved point and
 //! the fraction are the drawing's own values). A normal goes through the matrix without its
-//! fourth row. One caller, `scene::place_object_points_any`, which takes this way unless the
-//! 3DNow or the SSE switch is set: `place_object_points_sse` is the SSE way; the 3DNow way is
-//! not ported. Refuses an object's number of 0x100 or more, no records, no points' table, no
+//! fourth row. Refuses an object's number of 0x100 or more, no records, no points' table, no
 //! matrix, and normals without points.
 //!
 //! The arithmetic (the moved point, the rotation, the normals) is the x87's, in plain Rust over
@@ -28,7 +26,7 @@ const OBJECTS: u32 = 0x100;
 
 /// The point at `from` moved towards the one `by` bytes on, as whole numbers.
 fn moved(
-    object_points: &crate::scene::object_points::ObjectPoints,
+    object_points: &crate::scene::object_points_store::ObjectPoints,
     from: usize,
     by: u32,
     fraction: f32,
@@ -56,7 +54,7 @@ fn moved_at(fraction: f32, a: [i32; 3], b: [i32; 3]) -> ([i32; 3], u32) {
 }
 
 /// A normal's three floats through the matrix's first three rows, into
-/// the record's +0x10, +0x14, +0x18.
+/// the record's three view floats.
 fn turn(normal: &[u32; 3], matrix: &[f32; 16], record: &mut [u32]) {
     record[4..7].copy_from_slice(&turn_normal(normal.map(f32::from_bits), matrix));
 }
@@ -85,19 +83,19 @@ struct Object {
 }
 
 fn object(
-    lists: &crate::race::course_lists_store::CourseLists,
-    object_slots: &crate::scene::object_slots_store::ObjectTables,
+    lists: crate::race::course_lists_store::CourseListsRef<'_>,
+    object_slots: crate::scene::object_slots_store::SlotShapesRef<'_>,
     cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<Object, BadInput> {
-    let number: u32 = cars.object_number.get();
+    let number: u32 = cars.borrow().object_number;
     if number >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
     let object = Object {
-        first: object_slots.first_point[number as usize].get(),
-        points: object_slots.point_counts[number as usize].get() as i32,
-        normals: object_slots.normal_counts[number as usize].get() as i32,
-        table: lists.object_points.get(),
+        first: object_slots.first_point(number as usize),
+        points: object_slots.point_count(number as usize) as i32,
+        normals: object_slots.normal_count(number as usize) as i32,
+        table: lists.object_points(),
     };
     if object.points <= 0 && object.normals > 0 {
         return Err(BadInput("an object of normals and no points"));
@@ -120,9 +118,9 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     }
     // A copy: nothing the loop writes is the matrix (it is always the object's own,
     // `made_object_matrix`, which is never written here).
-    let matrix: [f32; 16] = std::array::from_fn(|n| ctx.view.matrices.made_object_matrix[n].get());
-    let move_by: u32 = ctx.view.object.move_by.get();
-    let fraction = ctx.view.object.move_fraction.get();
+    let matrix: [f32; 16] = ctx.view.matrices.borrow().made_object_matrix;
+    let move_by: u32 = ctx.view.object.borrow().move_by;
+    let fraction = f32::from_bits(ctx.view.object.borrow().move_fraction);
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
     for _ in 0..object.points {
@@ -144,11 +142,11 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         r[3] = 0;
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {
-            let flat = ctx.reads.stage_prefs.flat_depth.get() != 0;
+            let flat = ctx.reads.stage_prefs.read(|p| p.flat_depth) != 0;
             to_screen(
                 &mut r,
                 &ctx.view.polygon.window,
-                ctx.reads.course_work.flat_depth.get(),
+                ctx.reads.course_work.get().flat_depth,
                 flat,
                 &crate::memory::session::Dword::new(0),
             );
@@ -170,175 +168,5 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     Ok(())
 }
 
-/// A point or normal through three rows of the matrix, plus the fourth when `place`: the
-/// four lanes the SSE way stores at a record's +0x10 (`mulps`, `addps`, in its order).
-fn sse_lanes(p: [f32; 3], m: &[f32; 16], place: bool) -> [u32; 4] {
-    std::array::from_fn(|k| {
-        let sum = p[0] * m[k] + p[1] * m[k + 4] + p[2] * m[k + 8];
-        (if place { sum + m[k + 12] } else { sum }).to_bits()
-    })
-}
-
-/// The SSE way, reached only with the developers' extensions switch (the debug UI's
-/// Switches tab). Not as the x87 way: the matrix is always `made_object_matrix`, the
-/// points are never moved, a record's +0x1C holds the fourth lane until the screen's two are
-/// worked out, and the table's point 0 ends as a normal in record 0x1000.
-pub fn place_object_points_sse(
-    ctx: &crate::race::view_scratch::DrawCtx<'_>,
-) -> Result<(), Refused> {
-    let object = object(
-        ctx.reads.course_lists,
-        ctx.reads.object_slots,
-        &ctx.view.cars,
-    )?;
-    let m: [f32; 16] = std::array::from_fn(|n| ctx.view.matrices.made_object_matrix[n].get());
-    let mut number = object.first;
-    let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
-    for _ in 0..object.points.max(0) {
-        let record = point_records::of_object_point(number);
-        let mut r = point_records::get(ctx.part, record)?;
-        r[0] = number;
-        let point = ctx.reads.stage.object_points.point(from)?;
-        // The whole numbers rounded to floats.
-        let lanes = sse_lanes(point.map(|v| v as i32 as f32), &m, true);
-        r[4..8].copy_from_slice(&lanes);
-        // The screen position.
-        r[3] = 0;
-        r[7] = 0;
-        if f32::from_bits(r[6]) >= NEAR {
-            let flat = ctx.reads.stage_prefs.flat_depth.get() != 0;
-            to_screen(
-                &mut r,
-                &ctx.view.polygon.window,
-                ctx.reads.course_work.flat_depth.get(),
-                flat,
-                &crate::memory::session::Dword::new(0),
-            );
-        }
-        point_records::set(ctx.part, record, r)?;
-        from = from.wrapping_add(12);
-        number = number.wrapping_add(1);
-    }
-    let normal = |from: u32, number: u32| -> Result<(), Refused> {
-        let record = point_records::of_object_point(number);
-        let mut r = point_records::get(ctx.part, record)?;
-        r[0] = number;
-        let n = ctx.reads.stage.object_points.point(from)?;
-        let lanes = sse_lanes(n.map(f32::from_bits), &m, false);
-        r[4..8].copy_from_slice(&lanes);
-        point_records::set(ctx.part, record, r)?;
-        Ok(())
-    };
-    for _ in 0..object.normals.max(0) {
-        normal(from, number)?;
-        from = from.wrapping_add(12);
-        number = number.wrapping_add(1);
-    }
-    normal(object.table, 0)
-}
-
-#[cfg(all(test, any(target_arch = "x86", target_arch = "x86_64")))] // x86's instructions
-mod sse_tests {
-    use super::sse_lanes;
-    #[cfg(target_arch = "x86")]
-    use std::arch::x86::*;
-    #[cfg(target_arch = "x86_64")]
-    use std::arch::x86_64::*;
-
-    /// The lanes as the SSE instructions make them.
-    #[test]
-    fn lanes_match_the_instructions() {
-        let m: [f32; 16] = std::array::from_fn(|n| (n as f32 * 1.37 - 7.1).powi(3));
-        let p = [123_456.0f32, -9_876_543.0, 0.125];
-        let got = sse_lanes(p, &m, true);
-        // SAFETY: SSE is on every x86 the game builds for; the loads are unaligned ones
-        // of the arrays above.
-        let want: [u32; 4] = unsafe {
-            let row = |k: usize| _mm_loadu_ps(m[k..k + 4].as_ptr());
-            let sum = _mm_add_ps(
-                _mm_add_ps(
-                    _mm_add_ps(
-                        _mm_mul_ps(_mm_set1_ps(p[0]), row(0)),
-                        _mm_mul_ps(_mm_set1_ps(p[1]), row(4)),
-                    ),
-                    _mm_mul_ps(_mm_set1_ps(p[2]), row(8)),
-                ),
-                row(12),
-            );
-            std::mem::transmute(sum)
-        };
-        assert_eq!(got, want);
-    }
-}
-
 #[cfg(test)]
-mod reference_vectors {
-    use super::*;
-    use crate::test_support::vectors::{Differential, Kind, differential};
-
-    #[test]
-    fn moved_matches_the_assembly() {
-        // dword 0 the fraction, 1 .. 4 the point, 4 .. 7 the other, 7 .. 10 the whole numbers,
-        // 10 the fraction as stored
-        let test = Differential {
-            name: "scene.place_object_points.moved",
-            cases: 8000,
-            seed: 18,
-            kinds: [Kind::Exact; 11],
-            fill: &|rng, m| {
-                m.fill(0xAAAA_AAAA);
-                m[0] = match rng.below(3) {
-                    0 => rng.unit().to_bits(),
-                    1 => (rng.unit() * 2.0).to_bits(),
-                    _ => rng.fl(),
-                };
-                for d in m.iter_mut().skip(1).take(6) {
-                    *d = if rng.below(2) == 0 {
-                        rng.int()
-                    } else {
-                        rng.small() as u32
-                    };
-                }
-            },
-            plain: &|c| {
-                let whole = |k: usize| [k, k + 1, k + 2].map(|n| c[n].get() as i32);
-                let (out, stored) = moved_at(f32::from_bits(c[0].get()), whole(1), whole(4));
-                for (k, v) in out.into_iter().enumerate() {
-                    c[7 + k].set(v as u32);
-                }
-                c[10].set(stored);
-            },
-        };
-        differential(test);
-    }
-
-    #[test]
-    fn turn_matches_the_assembly() {
-        // dwords 0 .. 3 the normal, 4 .. 19 the matrix, 20 .. 28 the record
-        let test = Differential {
-            name: "scene.place_object_points.turn",
-            cases: 8000,
-            seed: 19,
-            kinds: [Kind::Exact; 28],
-            fill: &|rng, m| {
-                m.fill(0xAAAA_AAAA);
-                let moderate = rng.below(2) == 0;
-                for d in m.iter_mut().take(3) {
-                    *d = if moderate { rng.moderate() } else { rng.fl() };
-                }
-                for d in m.iter_mut().skip(4).take(15) {
-                    *d = if moderate { rng.moderate() } else { rng.fl() };
-                }
-            },
-            plain: &|c| {
-                let f = |k: usize| f32::from_bits(c[k].get());
-                let m: [f32; 16] = std::array::from_fn(|k| f(4 + k));
-                let out = turn_normal([f(0), f(1), f(2)], &m);
-                for (k, v) in out.into_iter().enumerate() {
-                    c[24 + k].set(v);
-                }
-            },
-        };
-        differential(test);
-    }
-}
+mod tests;

@@ -10,11 +10,11 @@
 //! and the three floats as they are. Then the pitch is the pitch x the request's pitch factor as a
 //! whole number, and `sound::play_sound` plays the sound with the volume, the place (3D: the three
 //! floats) and that rate. The x87 arithmetic is plain Rust over `X` (`math/x87_float.rs`), rounding
-//! as the control word says; it is checked in the tests' `reference_vectors`. Eight callers (the
-//! race's sounds). Refuses, without 3D, a sound past the 0x1CD sample records.
+//! as the control word says; it is checked in the tests' `reference_vectors`. Refuses, without 3D,
+//! a sound past the 0x1CD sample records.
 
 use crate::errors::BadInput;
-use crate::scene::x87_mem::{Base, cells, fistp, fld, fstp};
+use crate::math::x87_mem::{Base, cells, fistp, fld, fstp};
 use crate::sound::sets_store::SoundRequest;
 use rc2k_core::sound::placed::{self, MODE_3D};
 
@@ -30,7 +30,7 @@ fn product3_to_int(a: u32, b: u32, c: f32) -> u32 {
 }
 
 /// `a * b` as a whole number.
-pub fn product_to_int(a: u32, b: f32) -> u32 {
+fn product_to_int(a: u32, b: f32) -> u32 {
     let (v, mut out) = ([a, b.to_bits()], [0u32]);
     x87_2(&v[..], cells(&mut out));
     out[0]
@@ -58,52 +58,52 @@ fn angle_and_place(y: f32, x: f32, per_angle: f32, centre: f32) -> (u32, u32) {
     (out[0], out[1])
 }
 
-/// Plays the request's sound at its place around the listener; `mode` is the sound mode.
+/// Plays the request's sound at its place around the listener, in the audio's sound mode.
 /// Outside the 3D modes the place sent on is the pan worked out here.
-pub fn play_placed_sound(
-    request: &SoundRequest,
-    mode: u32,
+pub(super) fn play_placed_sound(
+    request: &mut SoundRequest,
     owner: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), BadInput> {
+    let mode = audio.state.sound_mode.get();
     // The logic is `rc2k_core::sound::placed` (`played`, `sample_of`, `volume`, `place`); the
     // products and the angle are x87-precision.
-    let sound = request.sound.get();
+    let sound = request.sound;
     if !placed::played(sound) {
         return Ok(());
     }
     let (volume_sent, pan, place_b, place_c);
     if mode & MODE_3D == 0 {
         let number = placed::sample_of(sound)?;
-        let factor = crate::audio::store::SAMPLE_CONSTANTS[number as usize].min_distance;
+        let factor = crate::audio::sample_records::SAMPLE_CONSTANTS[number as usize].min_distance;
         let volume = placed::volume(product3_to_int(
-            request.volume.get(),
+            request.volume,
             factor,
-            request.volume_factor.get(),
+            request.volume_factor,
         ));
-        request.volume.set(volume);
-        let clock = owner.race.clock.get();
+        request.volume = volume;
+        let clock = owner.race.clock.get().borrow();
         let (angle, place) = angle_and_place(
-            request.place[2].get(),
-            request.place[0].get(),
-            clock.pan_per_radian.get(),
-            clock.pan_centre.get(),
+            request.place[2],
+            request.place[0],
+            clock.pan_per_radian,
+            clock.pan_centre,
         );
-        request.angle.set(angle);
-        request.pan.set(place);
-        let place = placed::place(place, request.place[0].get(), angle as i32, mode);
+        request.angle = angle;
+        request.pan = place;
+        let place = placed::place(place, request.place[0], angle as i32, mode);
         // Outside 3D `play_sound` sends no place beyond the pan, so the other two values are 0.
         (volume_sent, pan, place_b, place_c) = (volume, place, 0, 0);
     } else {
         (volume_sent, pan, place_b, place_c) = (
-            to_int(request.volume.get()),
-            request.place[0].bits(),
-            request.place[1].bits(),
-            request.place[2].bits(),
+            to_int(request.volume),
+            request.place[0].to_bits(),
+            request.place[1].to_bits(),
+            request.place[2].to_bits(),
         );
     }
-    let rate = product_to_int(request.pitch.get(), request.pitch_factor.get());
-    request.pitch.set(rate);
+    let rate = product_to_int(request.pitch, request.pitch_factor);
+    request.pitch = rate;
     crate::sound::play_sound::play_sound_in(
         audio,
         sound,
@@ -112,15 +112,6 @@ pub fn play_placed_sound(
         [pan, place_b, place_c],
     );
     Ok(())
-}
-
-/// In the game.
-pub fn play_placed_sound_in_game(
-    request: &SoundRequest,
-    sound: &crate::sound::owner::Sound,
-    audio: &crate::audio::owner::Audio,
-) -> Result<(), BadInput> {
-    play_placed_sound(request, audio.state.sound_mode.get(), sound, audio)
 }
 
 // ---- the x87-precision arithmetic ----

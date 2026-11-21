@@ -54,17 +54,17 @@ use crate::errors::{BadInput, Refused};
 use crate::memory::session::PlainDword;
 
 /// Releases the stage's textures (`gfx::release_all_textures`).
-pub fn release_stage_textures(gfx: &crate::gfx::owner::Gfx) {
-    crate::platform::direct3d::release_all_textures(gfx);
+pub(super) fn release_stage_textures(gfx: &crate::gfx::owner::Gfx) {
+    crate::d3d::device::release_all_textures(gfx);
 }
 
 /// Seals the stage time: the first block's time (`stage_time`, held to 0x22550FF unsigned; its
 /// `stop_state` if that is negative) xor-ed and turned right by its low five bits, into the dword.
-pub fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
+pub(super) fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
     let replay = &race.replay;
     // Logic in `rc2k_core::race::seal::seal_time`.
     {
-        let key = replay.seal_key().get();
+        let key = replay.seal_key();
         let sealed = rc2k_core::race::seal::seal_time(
             race.car_blocks().cars[0].stop_state.get(),
             || race.car_blocks().cars[0].stage_time.get(),
@@ -75,8 +75,8 @@ pub fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// Copies the league table: with a source (`RaceState.settings.rivals`), its ten records' dword at
-/// +8 into `names` and their sixteen dwords from +0x10 into column n of the sixteen rows.
+/// Copies the league table: with a source (`RaceState.settings.rivals`), its ten records' name dword
+/// into `names` and their sixteen figure dwords into column n of the sixteen rows.
 pub fn copy_league_table(
     race: &Race,
     tables: &crate::saves::best_times::BestTables,
@@ -104,28 +104,29 @@ pub fn copy_league_table(
         if failed.get() {
             return Err(BadInput("a league record past the summary"));
         }
-        crate::memory::session::write_bits(&course.league().names, l.firsts);
+        let mut league = course.league_mut();
+        league.names = l.firsts;
         for (k, row) in l.rows.iter().enumerate() {
-            crate::memory::session::write_first(&course.league().rows[10 * k..10 * k + 10], row);
+            league.rows[10 * k..10 * k + 10].copy_from_slice(row);
         }
     }
     Ok(())
 }
 
-/// A kind's value for `set_start_states`: the dword at +0x18 of the kind's record (the kind held
+/// A kind's value for `set_start_states`: the start dword of the kind's record (the kind held
 /// to 0x21) when its limit (`CarSpecs.cars[0].engine_top`) is 0x1B58 or less, else 0.
 fn start_value(physics: &Physics, kind: u32) -> u32 {
     use rc2k_core::race::cars::{start_record, start_state_value};
     let record = &physics.car_specs().cars[start_record(kind) as usize];
-    start_state_value(record.engine_top.get(), || record.drive_kind.get())
+    start_state_value(record.engine_top, || record.drive_kind)
 }
 
 /// Whether a kind is one with its flag (`kind_has_views`) set (below 0x22).
 fn flagged(race: &Race, kind: u32) -> bool {
-    kind < 0x22 && race.kind_tables().kind_has_views[kind as usize].get() != 0
+    kind < 0x22 && race.kind_tables().kind_has_views[kind as usize] != 0
 }
 
-/// A block's camera view (the dword at +0x684) of 2 or 3 made 4.
+/// A block's camera view (`camera_view`) of 2 or 3 made 4.
 fn settle_state(view: &PlainDword) {
     if let Some(v) = rc2k_core::race::cars::settled_state(view.get()) {
         view.set(v);
@@ -160,9 +161,9 @@ pub fn set_start_states(
             shared.vars.get().race_car_kinds[0].get()
         };
         let v = start_value(physics, first_kind);
-        frame.panel_and_overlay.get().panel.start_values[0].set(v);
+        frame.panel.borrow_mut().start_values[0] = v;
         let v = start_value(physics, shared.vars.get().race_car_kinds[1].get());
-        frame.panel_and_overlay.get().panel.start_values[1].set(v);
+        frame.panel.borrow_mut().start_values[1] = v;
         if one {
             shared.vars.get().split.set(0u32);
             let block = shared.race_car(chosen as usize)?;
@@ -184,12 +185,12 @@ pub fn set_start_states(
 }
 
 /// Stores the results by `run_kind`: 2 the first block's `time_left` to
-/// `RaceState.results.figure_ffc`, its dword at +0x654 to `RaceState.results.figure_000` and
+/// `RaceState.results.figure_ffc`, its start-place dword to `RaceState.results.figure_000` and
 /// `start_place`, its `stage_time` to `RaceState.results.results[0].time`; 0 the first two blocks'
 /// `stage_time` to `RaceState.results.results[0].time` / `RaceState.results.results[1].time` and
 /// `stage_car_total` x 100 less each, held to 0 .. 300000, to `RaceState.results.results[0].word` /
 /// `RaceState.results.results[1].word`; 1 and 3 the two `stage_time`s; others nothing.
-pub fn store_results_by_mode(race: &Race) {
+pub(super) fn store_results_by_mode(race: &Race) {
     let physics = &race.physics;
     let shared = &race.shared;
     // Logic in `rc2k_core::race::cars::margin`.
@@ -215,13 +216,19 @@ pub fn store_results_by_mode(race: &Race) {
             shared.state.results.results[1]
                 .time
                 .set(race.car_blocks().cars[1].stage_time.get());
-            let total = physics.split_tables().stage_car_total.get();
+            let total = physics.split_tables().stage_car_total;
             shared.state.results.results[0]
                 .word
                 .set(margin(total, race.car_blocks().cars[0].stage_time.get()));
             shared.state.results.results[1]
                 .word
                 .set(margin(total, race.car_blocks().cars[1].stage_time.get()));
+            // The third and fourth players of a larger split screen.
+            for k in 2..(shared.view.get().players.get() as usize).min(4) {
+                let time = race.car_blocks().cars[k].stage_time.get();
+                shared.state.result(k).time.set(time);
+                shared.state.result(k).word.set(margin(total, time));
+            }
         }
         1 | 3 => {
             shared.state.results.results[0]
@@ -230,6 +237,13 @@ pub fn store_results_by_mode(race: &Race) {
             shared.state.results.results[1]
                 .time
                 .set(race.car_blocks().cars[1].stage_time.get());
+            for k in 2..(shared.view.get().players.get() as usize).min(4) {
+                shared
+                    .state
+                    .result(k)
+                    .time
+                    .set(race.car_blocks().cars[k].stage_time.get());
+            }
         }
         _ => {}
     }

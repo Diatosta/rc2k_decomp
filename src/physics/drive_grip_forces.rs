@@ -16,26 +16,28 @@
 //!
 //! The flow, the compares and the integer steps are Rust; each straight x87 run is plain Rust
 //! over `X` in the named helpers below.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
+use crate::math::engine_tables::EngineTablesRef;
 use crate::math::x87;
 use crate::math::x87::mul_status;
-use crate::math::x87_float::X;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
+use crate::math::x87_float::{X, stf};
 use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
+use crate::physics::figures::{
+    GRIP_EASE_STEP, GRIP_FACTOR, GRIP_FRONT_DRIVE, GRIP_REAR_DRIVE, GRIP_SLOW_SPEED,
+    SIDE_GRIP_SHARE,
+};
 use crate::physics::flow::FloatView;
 use crate::physics::flow::{
-    ZERO_BITS as ZERO, abs_below_or_unordered, c3, ease_zero, hold_high, hold_low, hold_low_bits,
-    negate,
+    ZERO_BITS as ZERO, abs_below_or_unordered, c3, ease_zero, hold_high, hold_high_to,
+    hold_low_bits, hold_low_to, negate, negated,
 };
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
-use crate::scene::engine_tables_store::EngineTables;
 
 /// The steer angle's table index (the angle >> 20).
 fn steer_index(car: &Car) -> u32 {
@@ -51,14 +53,16 @@ pub fn drive_grip_forces(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
-    engine_tables: &EngineTables,
+    grip_change: &crate::memory::session::PlainFloat,
+    engine_tables: EngineTablesRef,
     scene: &crate::scene::owner::Scene,
 ) {
-    let drawing = &scene.drawing;
+    // The work value the steps below pass through; each is stored before it is read.
+    let scratch = crate::memory::session::PlainDword::new(0);
     let kind = car.drive_kind.get();
     // The share of `wall_hit_timer` out of 50, from 1, held 0 ..= 1.
-    drawing.scene.get().scratch.set(0x32);
-    lever_share_from_timer(car, tables, numbers, scene);
+    scratch.set(0x32);
+    lever_share_from_timer(car, tables, numbers, &scratch);
     hold_low_bits(&tables.lever_share, ZERO);
     hold_high(&tables.lever_share, &numbers.one);
     car.grip_forces[0].set(0.0);
@@ -67,107 +71,96 @@ pub fn drive_grip_forces(
     }
     // The force is taken a second time over.
     steer_sine_force(car, tables, engine_tables, steer_index(car) as usize);
-    if !c3(&car.local_velocity[2], ZERO) {
+    if !c3(car.local_velocity.bits_at(2), ZERO) {
         // The slip limit, by the drive kind's factor.
         let factor = if kind == 1 {
-            &tables.grip_factor[1]
+            GRIP_FACTOR[1]
         } else {
-            &tables.grip_factor[0]
+            GRIP_FACTOR[0]
         };
         grip_limit_for(car, tables, factor);
-        drawing
-            .scene
-            .get()
-            .scratch
-            .set_float(car.grip_forces[0].get());
+        scratch.set_float(car.grip_forces[0].get());
         // The first grip force held to +-the limit (the value negated in place between).
         hold_high(&car.grip_forces[0], &tables.grip_limit);
         negate(&car.grip_forces[0]);
         hold_high(&car.grip_forces[0], &tables.grip_limit);
         negate(&car.grip_forces[0]);
-        let slow = |v: &PlainFloat| abs_below_or_unordered(v, &tables.grip_slow_speed);
-        if !slow(&car.local_velocity[2]) && slow(&car.drive_speed_a) {
+        let slow = |v: &PlainFloat| abs_below_or_unordered(v, GRIP_SLOW_SPEED);
+        if !abs_below_or_unordered(car.local_velocity.bits_at(2), GRIP_SLOW_SPEED)
+            && slow(&car.drive_speed_a)
+        {
             car.grip_forces[0].set(0.0);
         }
         if car.input_keys.get() & 0x1000 != 0 {
-            if drawing.scene.get().scratch.get() == 0 {
+            if scratch.get() == 0 {
                 car.steering.set(0);
             } else {
-                divide_into_scratch(&car.grip_forces[0], &drawing.scene.get().scratch, scene);
-                hold_high(&drawing.scene.get().scratch, &numbers.one);
-                hold_low_bits(&drawing.scene.get().scratch, ZERO);
-                scale_steering(car, scene);
+                divide_into_scratch(&car.grip_forces[0], scratch.float(), &scratch);
+                hold_high(&scratch, &numbers.one);
+                hold_low_bits(&scratch, ZERO);
+                scale_steering(car, &scratch);
             }
         }
     }
     if car.parts_state.get() == 1 {
         let k = if kind == 1 {
-            &tables.grip_rear_drive[0]
+            GRIP_REAR_DRIVE[0]
         } else {
-            &tables.grip_rear_drive[1]
+            GRIP_REAR_DRIVE[1]
         };
         car.grip_forces[0].set(x87::mul(&car.grip_forces[0], k));
     }
     car.grip_forces[3].set(0.0);
     if kind == 0 {
-        ground_speed_into_scratch(car, scene);
-        hold_high(&drawing.scene.get().scratch, &tables.grip_ramp);
+        ground_speed_into_scratch(car, &scratch);
+        hold_high_to(&scratch, numbers.grip_ramp.get());
         lean_force(
             car,
-            tables,
             numbers,
             engine_tables,
             steer_index(car) as usize,
-            scene,
+            &scratch,
         );
     }
     // The engine braking.
     let braking_word = if kind != 0 {
-        braking_count_geared(car, tables, numbers, scene);
+        braking_count_geared(car, tables, numbers, &scratch);
         ((car.brake.get().wrapping_sub(car.throttle.get()) as i32 >> 1) as u32)
             .wrapping_add(0x80)
-            .wrapping_add(drawing.scene.get().scratch.get())
+            .wrapping_add(scratch.get())
             .wrapping_add(car.handbrake.get())
     } else {
-        braking_count_neutral(car, tables, scene);
+        braking_count_neutral(car, tables, &scratch);
         0x100u32
             .wrapping_sub(car.throttle.get())
-            .wrapping_add(drawing.scene.get().scratch.get())
+            .wrapping_add(scratch.get())
             .wrapping_add(car.handbrake.get())
     };
     tables.grip_drive_word.set(braking_word as i32);
     engine_braking_force(car, tables, numbers);
     if product_below(car.grip_forces[1].bits(), car.grip_forces[0].bits(), ZERO) {
-        car.grip_forces[1].set(x87::mul(&car.grip_forces[1], &tables.side_grip_share));
+        car.grip_forces[1].set(x87::mul(&car.grip_forces[1], SIDE_GRIP_SHARE));
     }
     if car.parts_state.get() == u32::MAX {
         let k = if kind == 1 {
-            &tables.grip_front_drive[0]
+            GRIP_FRONT_DRIVE[0]
         } else {
-            &tables.grip_front_drive[1]
+            GRIP_FRONT_DRIVE[1]
         };
         car.grip_forces[1].set(x87::mul(&car.grip_forces[1], k));
     }
     car.grip_forces[2].set(0.0);
     if kind == 1 {
         abs_speed_into_work(car, scene);
-        hold_high(&drawing.scene.get().work_float_a, &tables.grip_slip_limit);
-        yaw_share_from_limit(tables, scene);
-        drawing
-            .scene
-            .get()
-            .scratch
-            .set(x87::loaded(&car.drive_slip_speed).to_bits());
-        // Held to ±`grip_force_limit`, the limit negated in place between and put back.
-        hold_high(&drawing.scene.get().scratch, &tables.grip_force_limit);
-        negate(&tables.grip_force_limit);
-        hold_low(&drawing.scene.get().scratch, &tables.grip_force_limit);
-        negate(&tables.grip_force_limit);
-        divide_into_scratch(
-            &drawing.scene.get().scratch,
-            &tables.grip_force_limit,
-            scene,
-        );
+        let work_float = crate::memory::session::PlainFloat::new(scene.draw_work().work_float_a);
+        hold_high_to(&work_float, numbers.grip_slip_limit.get());
+        scene.draw_work_mut().work_float_a = work_float.get();
+        yaw_share_from_limit(numbers, scene);
+        scratch.set(x87::loaded(&car.drive_slip_speed).to_bits());
+        // Held to ±`GRIP_FORCE_LIMIT`.
+        hold_high_to(&scratch, numbers.grip_force_limit.get());
+        hold_low_to(&scratch, negated(numbers.grip_force_limit.get()));
+        divide_into_scratch(&scratch, numbers.grip_force_limit.get(), &scratch);
         yaw_force(
             car,
             tables,
@@ -175,6 +168,7 @@ pub fn drive_grip_forces(
             engine_tables,
             steer_index(car) as usize,
             scene,
+            &scratch,
         );
     }
     // The sum, and the yaw twist on the rear wheels.
@@ -184,19 +178,19 @@ pub fn drive_grip_forces(
     if car.all_wheels_off.get() != 0 {
         return;
     }
-    car.eased_yaw_spin.set(x87::loaded(&car.spin[1]));
+    car.eased_yaw_spin.set(x87::loaded(car.spin.bits_at(1)));
     let old = car.eased_yaw_spin.bits();
-    numbers.grip_change.set(x87::sub(old, &car.grip_force_sum));
-    ease_zero(&numbers.grip_change, &tables.grip_ease_step);
-    ease_yaw_twist(car, tables, numbers, old, scene);
+    grip_change.set(x87::sub(old, &car.grip_force_sum));
+    ease_zero(grip_change, GRIP_EASE_STEP);
+    ease_yaw_twist(car, tables, numbers, grip_change, old, &scratch);
 }
 
 // ---- the x87 arithmetic ----
 
 /// One straight x87 run as plain Rust over `X`.
-fn steer_sine_force(car: &Car, tables: &PhysicsTables, engine_tables: &EngineTables, e: usize) {
-    let t0 = engine_tables.sines[e].ld();
-    let t1 = car.local_velocity[2].ld();
+fn steer_sine_force(car: &Car, tables: &PhysicsTables, engine_tables: EngineTablesRef, e: usize) {
+    let t0 = crate::math::x87_float::ld(crate::math::engine_tables::sine(engine_tables, e));
+    let t1 = car.local_velocity.ld(2);
     let t2 = t0 * t1;
     let t3 = tables.spec_grip.ld();
     let t4 = t2 / t3;
@@ -210,10 +204,10 @@ fn lever_share_from_timer(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
-    scene: &crate::scene::owner::Scene,
+    scratch: &crate::memory::session::PlainDword,
 ) {
     let t0 = int(car.wall_hit_timer.get() as i32);
-    let t1 = int(scene.drawing.scene.get().scratch.get() as i32);
+    let t1 = int(scratch.get() as i32);
     let t2 = t0 / t1;
     let t3 = numbers.one.ld();
     let t4 = t2 - t3;
@@ -222,15 +216,15 @@ fn lever_share_from_timer(
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn grip_limit_for(car: &Car, tables: &PhysicsTables, f: &PlainFloat) {
+fn grip_limit_for(car: &Car, tables: &PhysicsTables, f: f32) {
     let t0 = tables.wheel_grips[4].ld();
     let t1 = tables.gravity.ld();
     let t2 = t0 * t1;
-    let t3 = f.ld();
+    let t3 = ld(f);
     let t4 = t2 * t3;
     let t5 = tables.grip_scale.ld();
     let t6 = t4 * t5;
-    let t7 = car.local_velocity[2].ld();
+    let t7 = car.local_velocity.ld(2);
     let t8 = t6 / t7;
     let t9 = t8.abs();
     tables.grip_limit.st(t9);
@@ -239,36 +233,32 @@ fn grip_limit_for(car: &Car, tables: &PhysicsTables, f: &PlainFloat) {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[scratch] = [rc + o0] / [rc + o1]`
-fn divide_into_scratch(
-    o0: &impl FloatView,
-    o1: &impl FloatView,
-    scene: &crate::scene::owner::Scene,
-) {
+fn divide_into_scratch(o0: &impl FloatView, o1: f32, scratch: &crate::memory::session::PlainDword) {
     let t0 = crate::math::x87_float::ld(o0.float());
-    let t1 = crate::math::x87_float::ld(o1.float());
+    let t1 = crate::math::x87_float::ld(o1);
     let t2 = t0 / t1;
-    scene.drawing.scene.get().scratch.st(t2);
+    scratch.st(t2);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [steering] = [scratch] * int [steering]`
-fn scale_steering(car: &Car, scene: &crate::scene::owner::Scene) {
-    let t0 = scene.drawing.scene.get().scratch.ld();
+fn scale_steering(car: &Car, scratch: &crate::memory::session::PlainDword) {
+    let t0 = scratch.ld();
     let t1 = int(car.steering.get() as i32);
     let t2 = t0 * t1;
     car.steering.set(to_int(t2) as u32);
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn ground_speed_into_scratch(car: &Car, scene: &crate::scene::owner::Scene) {
-    let t0 = car.local_velocity[0].ld();
+fn ground_speed_into_scratch(car: &Car, scratch: &crate::memory::session::PlainDword) {
+    let t0 = car.local_velocity.ld(0);
     let t1 = t0 * t0;
-    let t2 = car.local_velocity[2].ld();
+    let t2 = car.local_velocity.ld(2);
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
-    scene.drawing.scene.get().scratch.st(t5);
+    scratch.st(t5);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -276,18 +266,17 @@ fn ground_speed_into_scratch(car: &Car, scene: &crate::scene::owner::Scene) {
 /// A long formula, covered by the tests.
 fn lean_force(
     car: &Car,
-    tables: &PhysicsTables,
     numbers: &Numbers,
-    engine_tables: &EngineTables,
+    engine_tables: EngineTablesRef,
     e: usize,
-    scene: &crate::scene::owner::Scene,
+    scratch: &crate::memory::session::PlainDword,
 ) {
-    let t0 = tables.grip_ramp.ld();
-    let t1 = scene.drawing.scene.get().scratch.ld();
+    let t0 = numbers.grip_ramp.ld();
+    let t1 = scratch.ld();
     let t2 = t0 - t1;
-    let t3 = tables.grip_ramp.ld();
+    let t3 = numbers.grip_ramp.ld();
     let t4 = t2 / t3;
-    let t5 = engine_tables.sines[e].ld();
+    let t5 = crate::math::x87_float::ld(crate::math::engine_tables::sine(engine_tables, e));
     let t6 = t4 * t5;
     let t7 = int(car.handbrake.get() as i32);
     let t8 = t6 * t7;
@@ -295,7 +284,7 @@ fn lean_force(
     let t10 = t8 / t9;
     let t11 = car.drive_speed_a.ld();
     let t12 = t10 * t11;
-    let t13 = tables.grip_ramp_share.ld();
+    let t13 = numbers.grip_ramp_share.ld();
     let t14 = t12 * t13;
     let t15 = int(car.throttle.get() as i32);
     let t16 = t14 * t15;
@@ -309,23 +298,27 @@ fn braking_count_geared(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
-    scene: &crate::scene::owner::Scene,
+    scratch: &crate::memory::session::PlainDword,
 ) {
     let t0 = tables.handling[1].ld();
     let t1 = int(car.brake.get() as i32);
     let t2 = t0 * t1;
     let t3 = numbers.one_and_a_half.ld();
     let t4 = t2 * t3;
-    scene.drawing.scene.get().scratch.set(to_int(t4) as u32);
+    scratch.set(to_int(t4) as u32);
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn braking_count_neutral(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
+fn braking_count_neutral(
+    car: &Car,
+    tables: &PhysicsTables,
+    scratch: &crate::memory::session::PlainDword,
+) {
     let t0 = tables.handling[1].ld();
     let t1 = int(car.brake.get() as i32);
     let t2 = t0 * t1;
     let t3 = t2 + t2;
-    scene.drawing.scene.get().scratch.set(to_int(t3) as u32);
+    scratch.set(to_int(t3) as u32);
 }
 
 /// One straight x87 run as plain Rust over `X`.
@@ -336,7 +329,7 @@ fn engine_braking_force(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t3 = car.side_speed_held.ld();
     let t4 = t2 * t3;
     let t5 = -t4;
-    let t6 = tables.side_force_scale.ld();
+    let t6 = numbers.side_force_scale.ld();
     let t7 = t5 * t6;
     let t8 = tables.side_grip_scale.ld();
     let t9 = t7 * t8;
@@ -345,22 +338,21 @@ fn engine_braking_force(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
 
 /// One straight x87 run as plain Rust over `X`.
 fn abs_speed_into_work(car: &Car, scene: &crate::scene::owner::Scene) {
-    let t0 = car.local_velocity[2].ld();
+    let t0 = car.local_velocity.ld(2);
     let t1 = t0.abs();
-    scene.drawing.scene.get().work_float_a.st(t1);
+    scene.draw_work_mut().work_float_a = stf(t1);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[work_float_a] = ([grip_slip_limit] - [work_float_a]) / [grip_slip_limit]`
-fn yaw_share_from_limit(tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
-    let drawing = &scene.drawing;
-    let t0 = tables.grip_slip_limit.ld();
-    let t1 = drawing.scene.get().work_float_a.ld();
+fn yaw_share_from_limit(numbers: &Numbers, scene: &crate::scene::owner::Scene) {
+    let t0 = numbers.grip_slip_limit.ld();
+    let t1 = ld(scene.draw_work().work_float_a);
     let t2 = t0 - t1;
-    let t3 = tables.grip_slip_limit.ld();
+    let t3 = numbers.grip_slip_limit.ld();
     let t4 = t2 / t3;
-    drawing.scene.get().work_float_a.st(t4);
+    scene.draw_work_mut().work_float_a = stf(t4);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
@@ -370,23 +362,23 @@ fn yaw_force(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
-    engine_tables: &EngineTables,
+    engine_tables: EngineTablesRef,
     e: usize,
     scene: &crate::scene::owner::Scene,
+    scratch: &crate::memory::session::PlainDword,
 ) {
-    let drawing = &scene.drawing;
-    let t0 = engine_tables.sines[e].ld();
+    let t0 = crate::math::x87_float::ld(crate::math::engine_tables::sine(engine_tables, e));
     let t1 = tables.spec_grip.ld();
     let t2 = t0 / t1;
     let t3 = int(car.throttle.get() as i32);
     let t4 = t2 * t3;
     let t5 = numbers.k256.ld();
     let t6 = t4 / t5;
-    let t7 = drawing.scene.get().scratch.ld();
+    let t7 = scratch.ld();
     let t8 = t6 * t7;
-    let t9 = drawing.scene.get().work_float_a.ld();
+    let t9 = ld(scene.draw_work().work_float_a);
     let t10 = t8 * t9;
-    let t11 = tables.grip_slide_scale.ld();
+    let t11 = numbers.grip_slide_scale.ld();
     let t12 = t10 * t11;
     car.grip_forces[2].st(t12);
 }
@@ -408,11 +400,11 @@ fn ease_yaw_twist(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
+    grip_change: &crate::memory::session::PlainFloat,
     o: u32,
-    scene: &crate::scene::owner::Scene,
+    scratch: &crate::memory::session::PlainDword,
 ) {
-    let drawing = &scene.drawing;
-    let t0 = numbers.grip_change.ld();
+    let t0 = grip_change.ld();
     let t1 = car.grip_force_sum.ld();
     let t2 = t0 + t1;
     car.eased_yaw_spin.st(t2);
@@ -420,13 +412,13 @@ fn ease_yaw_twist(
     let t4 = car.eased_yaw_spin.ld();
     let t5 = t3 - t4;
     let t6 = -t5;
-    drawing.scene.get().scratch.st(t6);
-    let t7 = drawing.scene.get().scratch.ld();
-    let t8 = tables.step_time.ld();
+    scratch.st(t6);
+    let t7 = scratch.ld();
+    let t8 = numbers.step_time.ld();
     let t9 = t7 / t8;
     let t10 = numbers.half.ld();
     let t11 = t9 * t10;
-    let t12 = tables.inertia[1].ld();
+    let t12 = numbers.inertia[1].ld();
     let t13 = t11 / t12;
     tables.forces[19].force[0].st(t13);
     let t14 = -t13;
@@ -456,519 +448,4 @@ fn ease_yaw_twist(
 }
 
 #[cfg(test)]
-mod reference_vectors {
-    use super::*;
-    use crate::memory::session::Cell32;
-    use crate::scene::x87_mem::{HostCell, view};
-    use crate::test_support::own::race;
-    use crate::test_support::own::scene;
-    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
-
-    fn blocks() -> Vec<Block> {
-        vec![
-            Block {
-                name: "drive_grip_forces line 39 idx e=0",
-                operands: vec![
-                    Operand::Buffers {
-                        reads: &[(0x223AE4, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Value(0),
-                    Operand::RaceBlock {
-                        reads: &[(0x214BA0, In::F), (0x31A184, In::F)],
-                        writes: &[(0x31A1E8, Out::F)],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    steer_sine_force(
-                        race().shared.car(),
-                        race().shared.physics_tables.get(),
-                        race().engine_tables(),
-                        a[1],
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 39 idx e=1",
-                operands: vec![
-                    Operand::Buffers {
-                        reads: &[(0x223AE8, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Value(1),
-                    Operand::RaceBlock {
-                        reads: &[(0x214BA0, In::F), (0x31A184, In::F)],
-                        writes: &[(0x31A1E8, Out::F)],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    steer_sine_force(
-                        race().shared.car(),
-                        race().shared.physics_tables.get(),
-                        race().engine_tables(),
-                        a[1],
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 39 idx e=4",
-                operands: vec![
-                    Operand::Buffers {
-                        reads: &[(0x223AF4, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Value(4),
-                    Operand::RaceBlock {
-                        reads: &[(0x214BA0, In::F), (0x31A184, In::F)],
-                        writes: &[(0x31A1E8, Out::F)],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    steer_sine_force(
-                        race().shared.car(),
-                        race().shared.physics_tables.get(),
-                        race().engine_tables(),
-                        a[1],
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 54",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[(0x1C5D38, In::F), (0x22400C, In::I), (0x31A1CC, In::I)],
-                    writes: &[(0x214768, Out::F)],
-                }],
-                ulps: 0,
-                plain: |_| {
-                    lever_share_from_timer(
-                        race().shared.car(),
-                        race().shared.physics_tables.get(),
-                        race().course.numbers.get(),
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 74",
-                operands: vec![
-                    Operand::RaceBlock {
-                        reads: &[
-                            (0x213FC8, In::F),
-                            (0x2142A8, In::F),
-                            (0x214B74, In::F),
-                            (0x31A184, In::F),
-                        ],
-                        writes: &[(0x214260, Out::F)],
-                    },
-                    Operand::Buffer {
-                        reads: &[(0, In::F)],
-                        writes: &[],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    grip_limit_for(
-                        race().shared.car(),
-                        race().shared.physics_tables.get(),
-                        view(a[1], 0),
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 98",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[(0x22400C, In::F), (0x31A1E8, In::F)],
-                    writes: &[(0x22400C, Out::F)],
-                }],
-                ulps: 0,
-                plain: |_| {
-                    divide_into_scratch(
-                        &crate::test_support::own::race().shared.car().grip_forces[0],
-                        &scene().drawing.scene.get().scratch,
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 106",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[(0x22400C, In::F), (0x31A61C, In::I)],
-                    writes: &[(0x31A61C, Out::I)],
-                }],
-                ulps: 0,
-                plain: |_| scale_steering(race().shared.car(), crate::test_support::own::scene()),
-            },
-            Block {
-                name: "drive_grip_forces line 122",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[(0x31A17C, In::F), (0x31A184, In::F)],
-                    writes: &[(0x22400C, Out::F)],
-                }],
-                ulps: 0,
-                plain: |_| {
-                    ground_speed_into_scratch(
-                        race().shared.car(),
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 134 idx e=0",
-                operands: vec![
-                    Operand::RaceBlock {
-                        reads: &[
-                            (0x1C5E2C, In::F),
-                            (0x213F34, In::F),
-                            (0x213F38, In::F),
-                            (0x22400C, In::F),
-                            (0x31A190, In::F),
-                            (0x31A610, In::I),
-                            (0x31A618, In::I),
-                        ],
-                        writes: &[(0x31A1F4, Out::F)],
-                    },
-                    Operand::Buffers {
-                        reads: &[(0x223AE4, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Value(0),
-                ],
-                ulps: 0,
-                plain: |a| {
-                    lean_force(
-                        race().shared.car(),
-                        race().shared.physics_tables.get(),
-                        race().course.numbers.get(),
-                        race().engine_tables(),
-                        a[2],
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 134 idx e=1",
-                operands: vec![
-                    Operand::RaceBlock {
-                        reads: &[
-                            (0x1C5E2C, In::F),
-                            (0x213F34, In::F),
-                            (0x213F38, In::F),
-                            (0x22400C, In::F),
-                            (0x31A190, In::F),
-                            (0x31A610, In::I),
-                            (0x31A618, In::I),
-                        ],
-                        writes: &[(0x31A1F4, Out::F)],
-                    },
-                    Operand::Buffers {
-                        reads: &[(0x223AE8, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Value(1),
-                ],
-                ulps: 0,
-                plain: |a| {
-                    lean_force(
-                        race().shared.car(),
-                        race().shared.physics_tables.get(),
-                        race().course.numbers.get(),
-                        race().engine_tables(),
-                        a[2],
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 134 idx e=4",
-                operands: vec![
-                    Operand::RaceBlock {
-                        reads: &[
-                            (0x1C5E2C, In::F),
-                            (0x213F34, In::F),
-                            (0x213F38, In::F),
-                            (0x22400C, In::F),
-                            (0x31A190, In::F),
-                            (0x31A610, In::I),
-                            (0x31A618, In::I),
-                        ],
-                        writes: &[(0x31A1F4, Out::F)],
-                    },
-                    Operand::Buffers {
-                        reads: &[(0x223AF4, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Value(4),
-                ],
-                ulps: 0,
-                plain: |a| {
-                    lean_force(
-                        race().shared.car(),
-                        race().shared.physics_tables.get(),
-                        race().course.numbers.get(),
-                        race().engine_tables(),
-                        a[2],
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 151",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[(0x1C5DB4, In::F), (0x214BF0, In::F), (0x31A614, In::I)],
-                    writes: &[(0x22400C, Out::I)],
-                }],
-                ulps: 0,
-                plain: |_| {
-                    braking_count_geared(
-                        race().shared.car(),
-                        race().shared.physics_tables.get(),
-                        race().course.numbers.get(),
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 163",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[(0x214BF0, In::F), (0x31A614, In::I)],
-                    writes: &[(0x22400C, Out::I)],
-                }],
-                ulps: 0,
-                plain: |_| {
-                    braking_count_neutral(
-                        race().shared.car(),
-                        race().shared.physics_tables.get(),
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 176",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[
-                        (0x1C5E2C, In::F),
-                        (0x213ECC, In::F),
-                        (0x214164, In::I),
-                        (0x214B78, In::F),
-                        (0x31A1A0, In::F),
-                    ],
-                    writes: &[(0x31A1EC, Out::F)],
-                }],
-                ulps: 0,
-                plain: |_| {
-                    engine_braking_force(
-                        race().shared.car(),
-                        race().shared.physics_tables.get(),
-                        race().course.numbers.get(),
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 195",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[(0x31A184, In::F)],
-                    writes: &[(0x22401C, Out::F)],
-                }],
-                ulps: 0,
-                plain: |_| {
-                    abs_speed_into_work(race().shared.car(), crate::test_support::own::scene());
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 202",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[(0x213E7C, In::F), (0x22401C, In::F)],
-                    writes: &[(0x22401C, Out::F)],
-                }],
-                ulps: 0,
-                plain: |_| {
-                    yaw_share_from_limit(
-                        race().shared.physics_tables.get(),
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 215",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[(0x213E80, In::F), (0x22400C, In::F)],
-                    writes: &[(0x22400C, Out::F)],
-                }],
-                ulps: 0,
-                plain: |_| {
-                    divide_into_scratch(
-                        &scene().drawing.scene.get().scratch,
-                        &crate::test_support::own::race()
-                            .shared
-                            .physics_tables
-                            .get()
-                            .grip_force_limit,
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 222 idx e=0",
-                operands: vec![
-                    Operand::Buffers {
-                        reads: &[(0x223AE4, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Value(0),
-                    Operand::RaceBlock {
-                        reads: &[
-                            (0x1C5E2C, In::F),
-                            (0x213E78, In::F),
-                            (0x214BA0, In::F),
-                            (0x22400C, In::F),
-                            (0x22401C, In::F),
-                            (0x31A610, In::I),
-                        ],
-                        writes: &[(0x31A1F0, Out::F)],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    yaw_force(
-                        race().shared.car(),
-                        race().shared.physics_tables.get(),
-                        race().course.numbers.get(),
-                        race().engine_tables(),
-                        a[1],
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 222 idx e=1",
-                operands: vec![
-                    Operand::Buffers {
-                        reads: &[(0x223AE8, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Value(1),
-                    Operand::RaceBlock {
-                        reads: &[
-                            (0x1C5E2C, In::F),
-                            (0x213E78, In::F),
-                            (0x214BA0, In::F),
-                            (0x22400C, In::F),
-                            (0x22401C, In::F),
-                            (0x31A610, In::I),
-                        ],
-                        writes: &[(0x31A1F0, Out::F)],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    yaw_force(
-                        race().shared.car(),
-                        race().shared.physics_tables.get(),
-                        race().course.numbers.get(),
-                        race().engine_tables(),
-                        a[1],
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 222 idx e=4",
-                operands: vec![
-                    Operand::Buffers {
-                        reads: &[(0x223AF4, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Value(4),
-                    Operand::RaceBlock {
-                        reads: &[
-                            (0x1C5E2C, In::F),
-                            (0x213E78, In::F),
-                            (0x214BA0, In::F),
-                            (0x22400C, In::F),
-                            (0x22401C, In::F),
-                            (0x31A610, In::I),
-                        ],
-                        writes: &[(0x31A1F0, Out::F)],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    yaw_force(
-                        race().shared.car(),
-                        race().shared.physics_tables.get(),
-                        race().course.numbers.get(),
-                        race().engine_tables(),
-                        a[1],
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "drive_grip_forces line 235",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[
-                        (0x31A1E8, In::F),
-                        (0x31A1EC, In::F),
-                        (0x31A1F0, In::F),
-                        (0x31A1F4, In::F),
-                    ],
-                    writes: &[(0x31A1DC, Out::F)],
-                }],
-                ulps: 0,
-                plain: |_| sum_grip_forces(race().shared.car()),
-            },
-            Block {
-                name: "drive_grip_forces line 253",
-                operands: vec![
-                    Operand::RaceBlock {
-                        reads: &[
-                            (0x1C5E40, In::F),
-                            (0x1C5E48, In::F),
-                            (0x21388C, In::F),
-                            (0x213FAC, In::F),
-                            (0x2149D0, In::F),
-                            (0x2149E4, In::F),
-                            (0x2149F0, In::F),
-                            (0x214A04, In::F),
-                            (0x22400C, In::F),
-                            (0x31A1D8, In::F),
-                            (0x31A1DC, In::F),
-                            (0x31ACC8, In::F),
-                            (0x31ACD4, In::F),
-                        ],
-                        writes: &[
-                            (0x2149D0, Out::F),
-                            (0x2149E4, Out::F),
-                            (0x2149F0, Out::F),
-                            (0x214A04, Out::F),
-                            (0x22400C, Out::F),
-                            (0x31A1D8, Out::F),
-                        ],
-                    },
-                    Operand::Buffer {
-                        reads: &[(0, In::F)],
-                        writes: &[],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    ease_yaw_twist(
-                        race().shared.car(),
-                        race().shared.physics_tables.get(),
-                        race().course.numbers.get(),
-                        HostCell(a[1]).bits(),
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-        ]
-    }
-
-    #[test]
-    fn x87_blocks_matches_the_assembly() {
-        sparse("physics.drive_grip_forces", &blocks(), 1000, 100);
-    }
-}
+mod tests;

@@ -3,8 +3,6 @@
 //! `weight`, negated, times `quarter` again goes into each record's force, turned into the car's
 //! frame (`physics::turn_by_inverse`); then each record's second vector is set to (-1 / 1, 0, +-1)
 //! by its corner and turned the same way. A reading: the weight on each wheel, the corners' places.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87;
 use crate::math::x87::{compare_full, weight_force};
@@ -13,26 +11,25 @@ use crate::physics::contact_store::ContactWork;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::race::numbers_store::Numbers;
+use std::cell::RefCell;
 
-pub fn set_wheel_weights(
+pub(super) fn set_wheel_weights(
     car: &Car,
     tables: &PhysicsTables,
-    contact: &ContactWork,
+    contact: &RefCell<ContactWork>,
     numbers: &Numbers,
-    scene: &crate::scene::owner::Scene,
 ) {
-    let scratch = &scene.drawing.scene.get().scratch;
     let one = numbers.one.get();
     let high = numbers.five.get();
     let k = numbers.quarter.get();
-    scratch.set(x87::loaded(&contact.wheel_share).to_bits());
-    if compare_full(scratch.get(), one) & 0x100 != 0 {
-        scratch.set(x87::loaded(one).to_bits());
+    let mut share = x87::loaded(contact.borrow().wheel_share).to_bits();
+    if compare_full(share, one) & 0x100 != 0 {
+        share = x87::loaded(one).to_bits();
     }
-    if compare_full(scratch.get(), high) & 0x100 == 0 {
-        scratch.set(x87::loaded(high).to_bits());
+    if compare_full(share, high) & 0x100 == 0 {
+        share = x87::loaded(high).to_bits();
     }
-    let f = weight_force(scratch.get(), one, k, &tables.gravity, &tables.weight);
+    let f = weight_force(share, one, k, &tables.gravity, &tables.weight);
     let wheels = &tables.forces[..4];
     for w in wheels {
         w.force[1].set(f);

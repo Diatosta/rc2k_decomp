@@ -1,6 +1,5 @@
 //! Draws glyphs 0x9C and 0x9D of the sprite table at the two points stored in a stage record
-//! (`Record::markers`: the stage's two ends on the map; first point at +0x44/+0x48, second at
-//! +0x4C/+0x50).
+//! (`Record::markers`: the stage's two ends on the map, each an x and a y).
 
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::owner::Gfx;
@@ -12,7 +11,7 @@ const FIRST_GLYPH: u32 = 0x9C;
 const SECOND_GLYPH: u32 = 0x9D;
 
 pub fn sprite_table(menus: &Menus) -> u32 {
-    menus.screens.loop_flags.sprite_table.get()
+    menus.screens.loop_flags.read().sprite_table
 }
 
 /// The two blitter calls made for `record`.

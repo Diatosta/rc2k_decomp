@@ -8,7 +8,7 @@ use crate::test_support::own::race;
 
 #[derive(rc2k_derive::Cells)]
 pub struct CarBlocks {
-    /// +0x0: the blocks.
+    /// The blocks.
     pub cars: [Car; BLOCK_COUNT],
 }
 
@@ -39,29 +39,16 @@ impl core::ops::Deref for InGroup {
 #[cfg(test)]
 pub static CAR_BLOCKS: InGroup = InGroup;
 
-/// The first block's address in the image's layout.
-const IDA_START: usize = 0x70F3EC;
-/// The distance between two blocks' addresses in the game's memory.
-const IDA_BLOCK_LEN: usize = 0xFE0;
-
-/// A car block by handle: what `car_blocks` and `view_blocks` hold where the block's address
-/// was kept. `BLOCK_TAG | n` for block `n`; 0 stays 0.
+/// A car block by handle, as `car_blocks` and `view_blocks` hold it: `BLOCK_TAG | n` for block
+/// `n`, 0 for none.
 pub const BLOCK_TAG: u32 = 0xCB00_0000;
 /// The blocks.
 pub const BLOCK_COUNT: usize = 8;
 
-/// The handle for a block's address (or 0; anything else fails to compile).
-pub const fn block_ref(ida: u32) -> u32 {
-    if ida == 0 {
-        return 0;
-    }
-    let off = ida as usize - IDA_START;
-    assert!(
-        ida as usize >= IDA_START
-            && off.is_multiple_of(IDA_BLOCK_LEN)
-            && off / IDA_BLOCK_LEN < BLOCK_COUNT
-    );
-    BLOCK_TAG | (off / IDA_BLOCK_LEN) as u32
+/// The handle of block `n` (a number past the blocks fails to compile).
+pub(super) const fn block_handle(n: usize) -> u32 {
+    assert!(n < BLOCK_COUNT);
+    BLOCK_TAG | n as u32
 }
 
 /// The number of the block a handle names, none for 0. A value that is no handle ends the program.
@@ -71,7 +58,7 @@ pub fn block_number(handle: u32) -> Option<usize> {
     }
     match known_block(handle) {
         Some(n) => Some(n),
-        None => crate::fatal::raise::end(
+        None => crate::memory::host_hooks::end(
             "race::blocks_store::block_of",
             crate::errors::BadInput("a car block's handle that names none"),
         ),
@@ -79,7 +66,7 @@ pub fn block_number(handle: u32) -> Option<usize> {
 }
 
 /// The number of the block a handle names; none for 0 or any value that is no handle.
-pub fn known_block(handle: u32) -> Option<usize> {
+pub(super) fn known_block(handle: u32) -> Option<usize> {
     let n = (handle ^ BLOCK_TAG) as usize;
     (n < BLOCK_COUNT).then_some(n)
 }
@@ -97,7 +84,7 @@ impl CarBlocks {
         match known_block(handle) {
             Some(n) => Ok(&self.cars[n]),
             None => {
-                crate::logfile::program_log::log(&format!(
+                crate::memory::host_hooks::log(&format!(
                     "trap: {handle:#x} is no car block's place"
                 ));
                 Err(crate::errors::BadInput("a car block at no car's place"))
@@ -109,11 +96,21 @@ impl CarBlocks {
     pub fn handle_of(&self, car: &Car) -> u32 {
         match self.cars.iter().position(|c| core::ptr::eq(c, car)) {
             Some(n) => BLOCK_TAG | n as u32,
-            None => crate::fatal::raise::end(
+            None => crate::memory::host_hooks::end(
                 "race::blocks_store::handle_of_car",
                 crate::errors::BadInput("a car that is none of the blocks"),
             ),
         }
+    }
+
+    /// The drawing state (`race::car_parts_store`) of the car whose block is `car`; a car that is
+    /// none of the blocks ends the program (as `handle_of`).
+    pub fn parts_of<'p>(
+        &self,
+        parts: &'p crate::race::car_parts_store::CarParts,
+        car: &Car,
+    ) -> &'p crate::race::car_parts_store::CarPartCells {
+        &parts.cars[(self.handle_of(car) ^ BLOCK_TAG) as usize]
     }
 
     /// The block a handle names, none for 0; a value naming no block ends the program (as
@@ -130,7 +127,7 @@ impl CarBlocks {
         }
         Ok(self
             .named(handle)
-            .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e)))
+            .unwrap_or_else(|e| crate::memory::host_hooks::end("physics::Car::at", e)))
     }
 }
 
@@ -142,7 +139,7 @@ mod tests {
     #[test]
     fn blocks_start_as_the_games() {
         assert_eq!(size_of::<CarBlocks>(), BLOCK_COUNT * size_of::<Car>());
-        assert_eq!(block_ref(0x70F3EC + 0xFE0), BLOCK_TAG | 1);
+        assert_eq!(block_handle(1), BLOCK_TAG | 1);
         for n in 0..BLOCK_COUNT {
             assert_eq!(known_block(BLOCK_TAG | n as u32), Some(n));
             assert!(core::ptr::eq(

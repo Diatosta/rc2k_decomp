@@ -9,9 +9,9 @@ use crate::net::store::NetShared;
 use crate::race::owner::Race;
 use rc2k_core::net::record;
 
-const RULE: &std::ffi::CStr = c"------------------------"; // "------------------------"
-const START: &std::ffi::CStr = c"LOADING NETWORK START   "; // "LOADING NETWORK START   "
-const COMPLETE: &std::ffi::CStr = c"LOADING NETWORK COMPLETE"; // "LOADING NETWORK COMPLETE"
+const RULE: &std::ffi::CStr = c"------------------------";
+const START: &std::ffi::CStr = c"LOADING NETWORK START   ";
+const COMPLETE: &std::ffi::CStr = c"LOADING NETWORK COMPLETE";
 const RULE_2: &std::ffi::CStr = c"------------------------";
 /// The counts logged: (the label, the value's variable).
 const COUNTS: [(&std::ffi::CStr, Count); 11] = [
@@ -45,14 +45,19 @@ pub fn set_up_race(
 ) -> Result<(), Refused> {
     // The logic is in `rc2k_core::net::record` (`race_players`, `seat`).
     let players = record::race_players(o.net.race_slot.players())?;
+    // The host's computer drivers take cars after the players': the setting comes with the
+    // host's record, so every machine reaches the same count.
+    let bots = rc2k_core::net::bots::count(crate::net::bots::host_setting(o.net), players);
+    o.net.race_slot.set_bots(bots);
+    let cars = players + bots;
     race.shared
         .view
         .get()
         .local_car
         .set(o.net.race_slot.player());
     for n in 0..players {
-        let record = &vars.player_block(n)?.record;
-        let seat = record::seat(|n| record.head.get(n));
+        let record = vars.player_block(n)?.record.get();
+        let seat = record::seat(|n| record.byte(n));
         let v = race.shared.vars.get();
         v.race_car_kinds[n as usize].set(seat.car);
         v.car_colours[n as usize].set(seat.colours);
@@ -62,10 +67,19 @@ pub fn set_up_race(
             v.direction.set(direction);
         }
     }
+    let kinds = crate::net::bots::kinds(race, o.net, bots)?;
+    let host_kind = race.shared.vars.get().race_car_kinds[0].get();
+    for k in 0..bots {
+        let car = (players + k) as usize;
+        let v = race.shared.vars.get();
+        v.race_car_kinds[car].set(kinds.get(k as usize).copied().unwrap_or(host_kind));
+        v.car_colours[car].set(1);
+        v.start_numbers[car].set(crate::net::bots::number(race, k));
+    }
     race.shared.vars.get().run_kind.set(0);
-    race.shared.view.get().race_cars.set(players);
+    race.shared.view.get().race_cars.set(cars);
     race.shared.view.get().players.set(1);
-    race.shared.switches.get().editor_mode.set(0);
+    race.shared.switches.borrow_mut().editor_mode = 0;
     crate::net::reset_cars::reset_cars(race)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
     crate::race::race_shell::set_start_states(race, &o.net.race_slot)?;
@@ -95,6 +109,9 @@ pub fn set_up_race(
         log_int_nl(value, 1);
     }
     { crate::race::stage_loading::load_stage(race, o) }?;
+    // The stage bar and the map disc show the players' cars only, not the bots' (the load
+    // cleared this).
+    race.frame.panel.borrow_mut().network_cars = players;
     log_bytes(COMPLETE.to_bytes(), true, 1);
     log_bytes(RULE_2.to_bytes(), true, 1);
     Ok(())

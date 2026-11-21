@@ -6,10 +6,11 @@
 //! both set: by the look of it four-wheel drive (a reading, not seen in a race). The exact x87
 //! versions (`*_at`) serve the Rust callers in the gearbox.
 
-use crate::effects::cell_x87::CellX87;
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::memory::plain_floats::PlainFloats;
 use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
@@ -17,14 +18,14 @@ use crate::race::numbers_store::Numbers;
 
 /// The variables: the car's work copy's and the ratio table (gear -1 first).
 #[derive(Clone, Copy)]
-pub struct GearPlaces<'a> {
+pub(super) struct GearPlaces<'a> {
     pub gear: &'a PlainInt,
     pub engine_speed: &'a PlainFloat,
     pub drive_speed: &'a PlainFloat,
     pub drive_speed_b: &'a PlainFloat,
     pub drive_kind: &'a PlainDword,
     pub ratios: &'a [PlainFloat; 9],
-    pub speed: &'a PlainFloat,
+    pub local_velocity: &'a PlainFloats<3>,
 }
 
 impl<'a> GearPlaces<'a> {
@@ -36,7 +37,7 @@ impl<'a> GearPlaces<'a> {
             drive_speed_b: &car.drive_speed_b,
             drive_kind: &car.drive_kind,
             ratios: &tables.gear_ratios,
-            speed: &car.local_velocity[2],
+            local_velocity: &car.local_velocity,
         }
     }
 }
@@ -44,18 +45,15 @@ impl<'a> GearPlaces<'a> {
 /// The gear (None for neutral) and its ratio; refused outside the ratio table (-1 ..= 7).
 fn gear_ratio(p: &GearPlaces<'_>) -> Result<Option<(i32, f32)>, Refused> {
     let gear = p.gear.get();
-    if gear == 0 {
+    let Some(index) = rc2k_core::physics::gearing::ratio_index(gear)? else {
         return Ok(None);
-    }
-    if !(-1..=7).contains(&gear) {
-        return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
-    }
-    Ok(Some((gear, p.ratios[(gear + 1) as usize].get())))
+    };
+    Ok(Some((gear, p.ratios[index].get())))
 }
 
 /// `physics::revs_from_wheels`: in gear, engine speed = the driven speed (with
 /// drive kind 1 the two driven speeds' sum times 0.5) over the gear's ratio.
-pub fn revs_from_wheels_at(numbers: &Numbers, p: &GearPlaces<'_>) -> Result<(), Refused> {
+pub(super) fn revs_from_wheels_at(numbers: &Numbers, p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
@@ -70,7 +68,7 @@ pub fn revs_from_wheels_at(numbers: &Numbers, p: &GearPlaces<'_>) -> Result<(), 
 
 /// `physics::wheels_from_revs`: in gear, driven speed = engine speed times the
 /// gear's ratio; with drive kind 1 the second driven speed the same (reloaded first).
-pub fn wheels_from_revs_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
+pub(super) fn wheels_from_revs_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
@@ -83,10 +81,10 @@ pub fn wheels_from_revs_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
 }
 
 /// `physics::revs_from_speed`: in gear, engine speed = the car speed over the gear's ratio.
-pub fn revs_from_speed_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
+pub(super) fn revs_from_speed_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
-    p.engine_speed.set(x87::div(p.speed.get(), ratio));
+    p.engine_speed.set(x87::div(p.local_velocity.at(2), ratio));
     Ok(())
 }

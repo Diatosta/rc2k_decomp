@@ -40,7 +40,7 @@ impl Randoms {
     /// The next number. On a drawing thread it comes after the runs before its own, so the
     /// numbers follow the list's order.
     pub fn next_random(&self) -> u32 {
-        crate::scene::workers::wait_for_earlier_runs();
+        crate::memory::draw_order::wait_for_earlier_runs();
         self.with_random(rc2k_core::math::random::Random::draw)
     }
 
@@ -57,7 +57,7 @@ impl Randoms {
 
     /// A number for the drawing, after the runs before this thread's.
     pub fn next_drawing(&self) -> u32 {
-        crate::scene::workers::wait_for_earlier_runs();
+        crate::memory::draw_order::wait_for_earlier_runs();
         self.drawing.next()
     }
 

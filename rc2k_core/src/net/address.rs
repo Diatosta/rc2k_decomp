@@ -4,10 +4,11 @@
 //! provider and DirectPlay's calls made on the receiving thread.
 
 /// An element's bytes.
-pub const ELEMENT_LEN: u32 = 0x18;
+pub(crate) const ELEMENT_LEN: u32 = 0x18;
 
+#[cfg(test)]
 /// Where element `count` goes in the table: no limit.
-pub fn element_at(count: u32) -> u32 {
+pub(crate) fn element_at(count: u32) -> u32 {
     count.wrapping_mul(ELEMENT_LEN)
 }
 
@@ -23,17 +24,13 @@ pub fn element(data_type: &[u8; 16], size: u32, data: u32) -> [u8; ELEMENT_LEN a
 /// A connection's service provider, as the address is built for it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Provider {
-    Ipx,
     TcpIp,
     Other,
 }
 
-/// The provider: IPX (`is` asked of `Ipx` first), else TCP/IP (asked of `TcpIp` only
-/// then), else another.
+/// The provider: TCP/IP (`is` asked of `TcpIp`), else another.
 pub fn provider<E>(mut is: impl FnMut(Provider) -> Result<bool, E>) -> Result<Provider, E> {
-    Ok(if is(Provider::Ipx)? {
-        Provider::Ipx
-    } else if is(Provider::TcpIp)? {
+    Ok(if is(Provider::TcpIp)? {
         Provider::TcpIp
     } else {
         Provider::Other
@@ -55,8 +52,8 @@ pub fn has_port(port: u32) -> bool {
     port != 0
 }
 
-/// Whether DirectPlay's calls are made on the receiving thread: for a provider that is neither
-/// IPX nor TCP/IP.
+/// Whether DirectPlay's calls are made on the receiving thread: for a provider that is not
+/// TCP/IP.
 pub fn posts(provider: Provider) -> bool {
     provider == Provider::Other
 }
@@ -81,8 +78,8 @@ mod tests {
             Ok(p == Provider::TcpIp)
         });
         assert_eq!(tcp, Ok(Provider::TcpIp));
-        assert_eq!(asked, [Provider::Ipx, Provider::TcpIp]);
-        assert_eq!(provider(|_| Ok::<_, ()>(true)), Ok(Provider::Ipx));
+        assert_eq!(asked, [Provider::TcpIp]);
+        assert_eq!(provider(|_| Ok::<_, ()>(true)), Ok(Provider::TcpIp));
         assert_eq!(provider(|_| Ok::<_, ()>(false)), Ok(Provider::Other));
         assert!(posts(Provider::Other) && !posts(Provider::TcpIp));
         assert_eq!(host_address_size(9), 10);

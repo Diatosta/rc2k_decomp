@@ -14,14 +14,14 @@ const ENUM_FLAGS: u32 = 0x91;
 const CONNECTING: u32 = 0x8877_015E; // DPERR_CONNECTING
 
 /// The session description made ready: zeroed, its size.
-pub fn zeroed_description(link: &Link) -> Result<(), Refused> {
+pub(super) fn zeroed_description(link: &Link) -> Result<(), Refused> {
     link.session_desc().clear();
     link.session_desc().size.set(0x50);
     Ok(())
 }
 
 /// `EnumSessions` as the receiving thread calls it when it is posted.
-pub fn enum_sessions(net: &Net, lines: &NetTexts) -> u32 {
+pub(super) fn enum_sessions(net: &Net, lines: &NetTexts) -> u32 {
     let link = &net.link;
     let application = crate::net::dp_objects::desc(link.session_desc(), b"").application;
     crate::net::dp_objects::enum_sessions(
@@ -34,13 +34,13 @@ pub fn enum_sessions(net: &Net, lines: &NetTexts) -> u32 {
 }
 
 /// The enumeration as the receiving thread calls it when it is posted.
-pub fn posted_enum_sessions(net: &Net, lines: &NetTexts) -> u32 {
+fn posted_enum_sessions(net: &Net, lines: &NetTexts) -> u32 {
     enum_sessions(net, lines)
 }
 
 /// The piece `code` made: posted to the receiving thread (`net::post_call`) while `posting`
 /// is 1, else called here.
-pub fn posted_or_called(
+pub(super) fn posted_or_called(
     o: crate::owners::Owners<'static>,
     lines: &NetTexts,
     code: crate::net::post_call::PostedCall,

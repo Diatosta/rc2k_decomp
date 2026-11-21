@@ -1,47 +1,45 @@
 //! One frame of the service area (the callback `screens::run_frame` is given): the picture copied
 //! to the back surface, the boxes drawn in a scene (`screens::draw_service_boxes`), then the text
-//! and icons (`screens::draw_service_area`) and the frame shown. A failing lock, scene begin or
-//! show is reported by the carry of the flags returned. Callers: the frame callbacks of
-//! `service::apply_repairs` and its kind.
+//! and icons (`screens::draw_service_area`) and the frame shown. A failing lock or show ends the
+//! frame where it is.
 
-use crate::errors::CarryZeroFlags;
 use crate::errors::Refused;
+use crate::gfx::with_locked_surface::with_locked_surface;
 use crate::owners::Owners;
-use crate::platform::{lock_surface, show_frame_now, unlock_surface};
+use crate::shell::frame::show_frame_now;
 
-/// The flags it leaves: the lock's carry; on a frame not shown (quitting) the zero flag is
-/// clear, on the way through it is set.
-pub fn service_area_frame(o: Owners<'static>) -> Result<CarryZeroFlags, Refused> {
+pub fn service_area_frame(o: Owners<'static>) -> Result<(), Refused> {
     use crate::screens::{draw_service_area, draw_service_boxes};
-    const FAILED: CarryZeroFlags = CarryZeroFlags {
-        carry: true,
-        zero: false,
-    };
-    if lock_surface(o.gfx, o.system) < 1 {
-        return Ok(FAILED);
-    }
-    crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
-        &mut crate::gfx::copy_picture_to_surface::GameSurface(o.gfx, o.system),
+    let copied = with_locked_surface(
+        crate::gfx::with_locked_surface::lock(o.gfx, o.system),
+        || {
+            Ok(
+                crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
+                    &mut crate::gfx::copy_picture_to_surface::GameSurface(o.gfx, o.system),
+                )?,
+            )
+        },
     )?;
-    unlock_surface(o.gfx);
+    if copied.is_none() {
+        return Ok(());
+    }
     crate::scene::begin_scene::begin_scene(o.race, &o.gfx.d3d, o.scene.scratch.game_scratch());
     draw_service_boxes::draw_service_boxes(o)?;
     crate::scene::end_scene::end_scene(&o.gfx.d3d);
-    if lock_surface(o.gfx, o.system) < 1 {
-        return Ok(FAILED);
-    }
-    draw_service_area::draw_service_area(
-        o,
-        o.gfx,
-        o.race,
-        &mut crate::text::draw_text::GameCanvas::new(o.gfx),
+    let drawn = with_locked_surface(
+        crate::gfx::with_locked_surface::lock(o.gfx, o.system),
+        || {
+            draw_service_area::draw_service_area(
+                o,
+                o.gfx,
+                o.race,
+                &mut crate::text::draw_text::GameCanvas::new(o.gfx),
+            )
+        },
     )?;
-    unlock_surface(o.gfx);
-    if !show_frame_now(o) {
-        return Ok(FAILED);
+    if drawn.is_none() {
+        return Ok(());
     }
-    Ok(CarryZeroFlags {
-        carry: false,
-        zero: true,
-    })
+    show_frame_now(o);
+    Ok(())
 }

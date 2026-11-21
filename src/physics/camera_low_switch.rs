@@ -5,7 +5,7 @@
 //! = 1, `camera_switch_share` = 0, `camera_switch_length` = 10, `camera_switch_clock` = the step
 //! clock.
 //!
-//! Caller: `physics::update_camera`. Refuses what `count_ground_probe` refuses.
+//! Refuses what `count_ground_probe` refuses.
 
 use crate::errors::Refused;
 use crate::physics::camera_ground::probe_at;
@@ -14,12 +14,9 @@ use crate::physics::step_families::CameraGroundInputs;
 use rc2k_core::physics::camera_ground::{is_low, low_switch, low_switch_looks, over};
 
 // Core: `rc2k_core::physics::camera_ground::{low_switch_looks, is_low, low_switch}`.
-pub fn camera_low_switch(
-    c: &CameraGroundInputs<'_>,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub(super) fn camera_low_switch(c: &CameraGroundInputs<'_>) -> Result<(), Refused> {
     if !low_switch_looks(
-        c0(&c.car.crash_matrix[5], ZERO),
+        c0(c.car.crash_matrix.at(5), ZERO),
         c.car.camera_switch_active.get(),
         c.car.camera_view.get(),
     ) {
@@ -27,16 +24,15 @@ pub fn camera_low_switch(
     }
     if !probe_at(
         c,
-        c.car.camera_position[0].get(),
-        c.car.camera_position[2].get(),
+        c.car.camera_position.bits_at(0),
+        c.car.camera_position.bits_at(2),
         &c.car.camera_ground_faces[0],
-        scene,
     )? {
         return Ok(());
     }
     if !is_low(over(
-        c.car.camera_position[1].get(),
-        c.ground.ground_height.get(),
+        c.car.camera_position.bits_at(1),
+        c.search.borrow().height,
     )) {
         return Ok(());
     }
@@ -44,8 +40,8 @@ pub fn camera_low_switch(
     c.car.camera_view_return.set(s.before);
     c.car.camera_blend_view.set(s.mode);
     c.car.camera_switch_active.set(s.switching);
-    c.car.camera_switch_share.set_bits(s.w674);
-    c.car.camera_switch_length.set(s.w670);
+    c.car.camera_switch_share.set_bits(s.switch_share);
+    c.car.camera_switch_length.set(s.switch_length);
     c.car.camera_switch_clock.set(s.clock);
     Ok(())
 }

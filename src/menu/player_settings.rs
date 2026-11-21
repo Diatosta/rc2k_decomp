@@ -4,7 +4,7 @@ use crate::menu::player::Player;
 
 /// The current player's record, or a refusal.
 pub fn current(menus: &Menus) -> Result<crate::menu::standings::PlayerCell<'_>, Refused> {
-    let index: u32 = menus.screens.event.current_player.get();
+    let index: u32 = menus.screens.event.read().current_player;
     crate::menu::player::player(menus, index).ok_or_else(|| BadInput("no current player").into())
 }
 

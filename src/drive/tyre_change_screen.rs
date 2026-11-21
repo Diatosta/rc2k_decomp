@@ -1,4 +1,4 @@
-//! The tyre-change screen while a tyre change is under way (the first block's +0x26C not 0 or
+//! The tyre-change screen while a tyre change is under way (the first block's `tyre_change_state` not 0 or
 //! -1): `drive::tyre_screen` for the mode `split`, car 0.
 
 use crate::errors::Refused;

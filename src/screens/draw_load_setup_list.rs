@@ -13,7 +13,7 @@ pub fn draw_load_setup_list(
 ) -> Result<(), Refused> {
     let menus = o.menus;
     // The logic is in `rc2k_core::screens::slot_lists::setup_page`.
-    let page: u32 = menus.tables.pages.setup_slot_page.get();
+    let page: u32 = menus.tables.pages.read().setup_slot_page;
     rc2k_core::screens::slot_lists::setup_page(
         &mut crate::screens::game_screen::SlotScreen::new(canvas, o),
         rc2k_core::screens::slot_lists::LOAD_SETUP_TITLE,

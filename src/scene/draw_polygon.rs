@@ -2,10 +2,10 @@
 //! material.
 //!
 //! The polygon is `polygon_vertex_count` entries of the work table (0x44 bytes each), picked
-//! through the entry list. An entry: +4 the projected vertex (its +0xC x, +0x1C y, +0x18
-//! depth), +8 and +0x10 two pairs of texture coordinates, +0x18 the vertex's light as a colour,
-//! +0x20 a byte (fog or alpha by the pass) and +0x21 another, +0x24 and +0x2C two pairs of
-//! colour and specular that this function fills.
+//! through the entry list. An entry: `record` the projected vertex (its screen x and y
+//! and depth), `u`, `v` and `u2`, `v2` two pairs of texture coordinates, `light` the vertex's
+//! light as a colour, `fog` and `amount` two bytes (fog or alpha by the pass), and then two
+//! pairs of colour and specular that this function fills.
 //!
 //! What it does, in order:
 //! 1. While the sun's `on_screen` switch is set and the polygon has three vertices or more,
@@ -15,16 +15,16 @@
 //! 3. With `view_mirrored` set: the list's entries after the first are reversed, and after 4
 //!    every x is mirrored.
 //! 4. The positions into the vertex buffer: x and y plus an offset, the depth times a factor,
-//!    and 1/w as 0.01 / that, or with SSE `rcpss` of the depth times 65536.
+//!    and 1/w as 0.01 / that.
 //! 5. With `faded` set: a first pass in a colour faded from `fade_from` towards 0x10 by each
-//!    entry's byte +0x20 (`gfx::fade_colour`), with texture 0xC0.
+//!    entry's `fog` byte (`gfx::fade_colour`), with texture 0xC0.
 //! 6. The pass or two of the polygon mode (0, 2 .. 6, 8, 9, 0xA; anything else draws nothing):
 //!    the entries' colours (`Shade`), which texture and coordinates, five or six render
 //!    states, `scene::submit_polygon`. `passes` has the table. Modes 3, 4 and 5 fall back to 2,
 //!    and to 8, 9 and 0xA, when one of the two material switches is 0; mode 3 first lets
-//!    `clear_a_switch` clear a switch by the entries' bytes +0x21.
+//!    `clear_a_switch` clear a switch by the entries' `amount` bytes.
 //!
-//! The x87 and `rcpss` are used with the processor's own rounding. Refuses a polygon of no
+//! The x87's arithmetic is used with its own rounding. Refuses a polygon of no
 //! vertices or of more than 256, a list entry past the work table and an entry without its
 //! vertex.
 
@@ -38,7 +38,6 @@ use crate::scene::submit_polygon::{self, submit_polygon};
 
 // ---- game data ----
 
-pub const ENTRY_LEN: usize = 0x44;
 pub const ENTRIES: u32 = 0x80;
 pub const MOST: u32 = 0x100;
 const FADE_TEXTURE: u32 = 0xC0;
@@ -48,16 +47,17 @@ const FADE_TEXTURE: u32 = 0xC0;
 /// How the entries' colours are filled before a mode's passes.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Shade {
-    /// +0x24 the material's colour, +0x28 nothing.
+    /// The first colour the material's colour, the first specular nothing.
     Plain,
-    /// +0x24 the material's colour with its alpha, +0x28 nothing.
+    /// The first colour the material's colour with its alpha, the first specular nothing.
     WithAlpha,
-    /// +0x24 the light times the colour, +0x28 the byte +0x20 as the specular's alpha.
+    /// The first colour the light times the colour, the first specular the `fog` byte as its alpha.
     Lit,
-    /// `Lit`, and +0x2C a grey of the two bytes' product, +0x30 opaque black.
+    /// `Lit`, and the second colour a grey of the two bytes' product, the second specular opaque
+    /// black.
     LitAndGrey,
-    /// `Lit`, and +0x2C the first colour with the byte +0x21 as its alpha, +0x30 as
-    /// +0x28 (`true`) or opaque black.
+    /// `Lit`, and the second colour the first colour with the `amount` byte as its alpha, the
+    /// second specular as the first (`true`) or opaque black.
     LitAndSecond(bool),
 }
 
@@ -204,15 +204,19 @@ fn entries(
 
 /// The sun's hit test.
 fn hit_test(
-    part: &crate::scene::workers::PartScratch,
-    quad: &[crate::memory::session::PlainDword; 32],
-    sun: &crate::scene::polygon_work::ViewSun,
+    part: &crate::scene::scratch_store::PartScratch,
+    quad: &crate::scene::polygon_work_store::QuadSlot,
+    sun: &crate::scene::polygon_work_store::ViewSun,
     entries: &[Listed],
 ) {
-    if sun.on_screen.get() == 0 {
+    let (on_screen, hit) = {
+        let sun = sun.borrow();
+        (sun.on_screen, sun.hit)
+    };
+    if on_screen == 0 {
         return;
     }
-    let point = crate::memory::session::read_bits(&sun.hit).map(|v| v as i32);
+    let point = hit.map(|v| v as i32);
     if entries.len() < 3 {
         return;
     }
@@ -236,39 +240,36 @@ fn hit_test(
             return;
         }
     }
-    sun.on_screen.set(0);
+    sun.borrow_mut().on_screen = 0;
 }
 
 /// The positions into the vertex buffer, mirrored for a mirrored view.
 fn place(
-    part: &crate::scene::workers::PartScratch,
-    quad: &[crate::memory::session::PlainDword; 32],
-    reads: crate::scene::workers::DrawReads<'_>,
+    part: &crate::scene::scratch_store::PartScratch,
+    quad: &crate::scene::polygon_work_store::QuadSlot,
     entries: &[Listed],
     mirrored: bool,
     window: &crate::scene::view_window::ViewWindow,
 ) {
-    x87_float::at_rounding!(|r| place_with(r, part, quad, reads, entries, mirrored, window));
+    x87_float::at_rounding!(|r| place_with(r, part, quad, entries, mirrored, window));
 }
 
 /// `place` at the rounding `r`.
 fn place_with<R: x87_float::Rounds>(
     r: R,
-    part: &crate::scene::workers::PartScratch,
-    quad: &[crate::memory::session::PlainDword; 32],
-    reads: crate::scene::workers::DrawReads<'_>,
+    part: &crate::scene::scratch_store::PartScratch,
+    quad: &crate::scene::polygon_work_store::QuadSlot,
     entries: &[Listed],
     mirrored: bool,
     window: &crate::scene::view_window::ViewWindow,
 ) {
     let buffer = &part.vertices;
     let (x_offset, y_offset) = (
-        window.view_offset_float[0].get(),
-        window.view_offset_float[1].get(),
+        window.borrow().view_offset_float[0],
+        window.borrow().view_offset_float[1],
     );
-    let depth_factor = window.one_over_farthest.get();
-    let sse = reads.draw_switches.use_sse.is_set();
-    let mirror_at = window.view_centre[0].get();
+    let depth_factor = window.borrow().one_over_farthest;
+    let mirror_at = window.borrow().view_centre[0];
     for (n, &(_, entry)) in entries.iter().enumerate() {
         let vertex = entry.record.get();
         let out = out(buffer, n);
@@ -277,11 +278,11 @@ fn place_with<R: x87_float::Rounds>(
         let depth = x87::mul_with(r, field(0x18), depth_factor);
         out.y.set(x87::add_with(r, field(0x1C), y_offset));
         out.z.set(depth);
-        out.rhw.set(if sse {
-            x87::rcpss_times(field(0x18), reads.numbers.k65536.get())
-        } else {
-            x87::reciprocal_times_with(r, depth, reads.panel_and_overlay.overlay.w_factor.get())
-        });
+        out.rhw.set(x87::reciprocal_times_with(
+            r,
+            depth,
+            crate::race::overlay_store::W_FACTOR,
+        ));
         if mirrored && entries.len() > 2 {
             x = x87::mirrored_with(r, x, mirror_at, x_offset);
         }
@@ -307,60 +308,64 @@ fn copy_set(buffer: &PolygonVertices, entries: &[Listed], set: Set) {
 /// `scene::choose_texture` with `scene::look_up_texture`: the texture filter's state, and the
 /// polygon's texture from the number in `texture_page`.
 fn choose_texture(
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     outside: &mut dyn Outside,
     reads: crate::scene::workers::DrawReads<'_>,
 ) {
-    let smooth = poly.smooth.get() == 1;
+    let smooth = poly.scalars.borrow().smooth == 1;
     outside.state(3, if smooth { 3 } else { 1 });
-    let number: u32 = poly.texture_page.get();
-    let loaded: u32 = reads.texture_places.totals[2].get();
+    let number: u32 = poly.scalars.borrow().texture_page;
+    let loaded: u32 = reads.place_slots.video_textures();
     let texture = match number {
         u32::MAX => None,
         0x8000_0000.. => {
             let number = number & 0x7FFF_FFFF;
-            (number < 0xFA0).then(|| reads.texture_places.place_slot[number as usize].get())
+            if number < 0xFA0 {
+                reads.place_slots.place_slot(number as usize)
+            } else {
+                None
+            }
         }
-        _ => (number < 0x400).then(|| reads.kind_textures.kind_first_slots[number as usize].get()),
+        _ => (number < 0x400).then(|| reads.kind_textures.first_slot(number as usize)),
     };
     let texture = texture.filter(|&texture: &u32| texture < loaded);
-    poly.polygon_texture.set(texture.unwrap_or(NO_TEXTURE));
+    poly.scalars.borrow_mut().polygon_texture = texture.unwrap_or(NO_TEXTURE);
 }
 
-/// Clears a switch by what the entries' bytes +0x21 hold.
+/// Clears a switch by what the entries' `amount` bytes hold.
 fn clear_a_switch(
-    tables: &crate::scene::polygon_store::PolygonTables,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    tables: crate::scene::polygon_store::PolygonTablesRef,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     face: &crate::race::face_work::FaceWork,
     entries: &[Listed],
 ) -> Result<(), BadInput> {
-    if poly.polygon_sides[0].get() == 0 || poly.polygon_sides[1].get() == 0 {
+    if poly.scalars.borrow().polygon_sides[0] == 0 || poly.scalars.borrow().polygon_sides[1] == 0 {
         return Ok(());
     }
     let bytes = entries.iter().map(|&(_, entry)| entry.amount.get());
     let (all, any) = bytes.fold((0xFFu8, 0u8), |(all, any), b| (all & b, any | b));
     if all == 0xFF {
-        let info = tables
-            .texture_infos
-            .get(face.texture_b.get() as usize)
+        let texture_b = face.borrow().texture_b as usize;
+        let word = tables
+            .read(|t| t.texture_infos.get(texture_b).map(|info| info.words[0xB]))
             .ok_or(BadInput("a texture past the records"))?;
-        // the record's byte +0x2E
-        if info.words[0xB].get().to_le_bytes()[2] == 0 {
-            poly.polygon_sides[0].set(0u32);
+        // the third byte of the record's word 0xB
+        if word.to_le_bytes()[2] == 0 {
+            poly.scalars.borrow_mut().polygon_sides[0] = 0u32;
         }
     } else if any == 0 {
-        poly.polygon_sides[1].set(0u32);
+        poly.scalars.borrow_mut().polygon_sides[1] = 0u32;
     }
     Ok(())
 }
 
 fn shade(
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     draw: &crate::scene::draw_store::SceneDraw,
     entries: &[Listed],
     how: Shade,
 ) {
-    let colour: u32 = poly.polygon_colour.get();
+    let colour: u32 = poly.scalars.borrow().polygon_colour;
     for &(_, entry) in entries {
         let (fog, other) = (entry.fog.get() as u32, entry.amount.get() as u32);
         let put = |offset: usize, value: u32| entry.set_word(offset, value);
@@ -371,7 +376,7 @@ fn shade(
                 continue;
             }
             Shade::WithAlpha => {
-                put(0x24, draw.polygon_alpha.get() << 24 | colour);
+                put(0x24, draw.polygon_alpha << 24 | colour);
                 put(0x28, 0);
                 continue;
             }
@@ -395,14 +400,14 @@ fn shade(
 }
 
 pub fn draw_polygon(
-    poly: &crate::scene::polygon_work::PolygonWork,
-    part: &crate::scene::workers::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
     face: &crate::race::face_work::FaceWork,
     outside: &mut dyn Outside,
     reads: crate::scene::workers::DrawReads<'_>,
     screen: &crate::memory::session::Screen,
 ) -> Result<(), BadInput> {
-    let count: u32 = poly.polygon_vertex_count.get();
+    let count: u32 = poly.scalars.borrow().polygon_vertex_count;
     if count == 0 || count > MOST {
         return Err(BadInput("a polygon of no vertices, or of too many"));
     }
@@ -414,14 +419,14 @@ pub fn draw_polygon(
     }
     let mut entries = entries(&part.polygon, count)?;
     // Nothing has been written up to here.
-    hit_test(part, &poly.quad_vertices, &poly.sun, &entries);
+    hit_test(part, &poly.quads, &poly.sun, &entries);
     let kept: [u32; 3] = [
-        poly.polygon_sides[0].get(),
-        poly.polygon_sides[1].get(),
-        face.polygon_mode.get(),
+        poly.scalars.borrow().polygon_sides[0],
+        poly.scalars.borrow().polygon_sides[1],
+        face.borrow().polygon_mode,
     ];
-    crate::memory::session::write_bits(&poly.polygon_kept, kept);
-    let mirrored = poly.view_mirrored.get() != 0;
+    poly.scalars.borrow_mut().polygon_kept = kept;
+    let mirrored = poly.scalars.borrow().view_mirrored != 0;
     if mirrored && count > 2 {
         // The list's entries after the first, turned round.
         entries[1..].reverse();
@@ -429,20 +434,16 @@ pub fn draw_polygon(
             crate::scene::polygon::list_cell(&part.polygon, n).set(number);
         }
     }
-    place(
-        part,
-        &poly.quad_vertices,
-        reads,
-        &entries,
-        mirrored,
-        &poly.window,
-    );
+    place(part, &poly.quads, &entries, mirrored, &poly.window);
 
-    if face.faded.get() != 0 {
-        let (mode, texture): (u32, u32) = (face.polygon_mode.get(), poly.texture_page.get());
+    if face.borrow().faded != 0 {
+        let (mode, texture): (u32, u32) = (
+            face.borrow().polygon_mode,
+            poly.scalars.borrow().texture_page,
+        );
         // The faded first pass: each vertex fades by its own fog byte.
-        let (from, alpha): (u32, u32) = (poly.fade_from.get(), face.fade_alpha.get());
-        let uv = crate::memory::session::read_bits(&reads.vars.fade_uv);
+        let (from, alpha): (u32, u32) = (poly.scalars.borrow().fade_from, face.borrow().fade_alpha);
+        let uv = crate::race::vars_store::FADE_UV;
         for (n, &(_, entry)) in entries.iter().enumerate() {
             let out = out(buffer, n);
             let by = entry.fog.get() as u32;
@@ -452,8 +453,8 @@ pub fn draw_polygon(
             out.u.set(f32::from_bits(uv[0]));
             out.v.set(f32::from_bits(uv[1]));
         }
-        poly.texture_page.set(FADE_TEXTURE);
-        face.polygon_mode.set(7u32);
+        poly.scalars.borrow_mut().texture_page = FADE_TEXTURE;
+        face.borrow_mut().polygon_mode = 7u32;
         choose_texture(poly, outside, reads);
         for (state, value) in [(0x15, 4), (0x13, 5), (0x14, 6), (0x1B, 1), (0x1C, 0)] {
             outside.state(state, value);
@@ -462,43 +463,46 @@ pub fn draw_polygon(
             poly,
             buffer,
             outside,
-            reads.object_tables.d3d_drawing_on.get() != 0,
+            reads.object_tables.d3d_drawing_on() != 0,
             screen,
         );
-        poly.texture_page.set(texture);
-        face.polygon_mode.set(mode);
+        poly.scalars.borrow_mut().texture_page = texture;
+        face.borrow_mut().polygon_mode = mode;
     }
 
     // The mode, with its fallbacks.
-    let mut mode: u32 = face.polygon_mode.get();
-    if mode == 3 && reads.draw_switches.clears_switch.get() != 0 {
-        clear_a_switch(&reads.buffers.polygon_tables, poly, face, &entries)?;
+    let mut mode: u32 = face.borrow().polygon_mode;
+    if mode == 3 && reads.draw_switches.clears_switch != 0 {
+        clear_a_switch(reads.polygon_tables, poly, face, &entries)?;
     }
     if matches!(mode, 3..=5) {
-        let fallback = if poly.polygon_sides[1].get() == 0 {
+        let fallback = if poly.scalars.borrow().polygon_sides[1] == 0 {
             Some(2)
-        } else if poly.polygon_sides[0].get() == 0 {
+        } else if poly.scalars.borrow().polygon_sides[0] == 0 {
             Some([8, 9, 0xA][mode as usize - 3])
         } else {
             None
         };
         if let Some(fallback) = fallback {
             mode = fallback;
-            face.polygon_mode.set(mode);
+            face.borrow_mut().polygon_mode = mode;
         }
     }
     if let Some((how, passes)) = passes(mode) {
-        shade(poly, reads.scene_draw, &entries, how);
+        shade(poly, &reads.scene_draw, &entries, how);
         for pass in passes {
-            let (texture, smooth) = match pass.set {
-                Set::A => (&poly.polygon_textures[0], &poly.plain_first),
-                Set::B => (&poly.polygon_textures[1], &poly.plain_second),
-            };
-            poly.texture_page.set(texture.get());
-            poly.smooth.set(smooth.get());
+            {
+                let mut scalars = poly.scalars.borrow_mut();
+                let (texture, smooth) = match pass.set {
+                    Set::A => (scalars.polygon_textures[0], scalars.plain_first),
+                    Set::B => (scalars.polygon_textures[1], scalars.plain_second),
+                };
+                scalars.texture_page = texture;
+                scalars.smooth = smooth;
+            }
             copy_set(buffer, &entries, pass.set);
             if let Some(as_mode) = pass.as_mode {
-                face.polygon_mode.set(as_mode);
+                face.borrow_mut().polygon_mode = as_mode;
             }
             if pass.no_depth {
                 outside.state(0x0E, 0);
@@ -511,11 +515,11 @@ pub fn draw_polygon(
                 poly,
                 buffer,
                 outside,
-                reads.object_tables.d3d_drawing_on.get() != 0,
+                reads.object_tables.d3d_drawing_on() != 0,
                 screen,
             );
             if pass.as_mode.is_some() {
-                face.polygon_mode.set(mode);
+                face.borrow_mut().polygon_mode = mode;
             }
             if pass.no_depth {
                 outside.state(0x0E, 1);
@@ -526,15 +530,15 @@ pub fn draw_polygon(
         }
     }
     // The switches and the mode as they were.
-    poly.polygon_sides[0].set(kept[0]);
-    poly.polygon_sides[1].set(kept[1]);
-    face.polygon_mode.set(kept[2]);
+    poly.scalars.borrow_mut().polygon_sides[0] = kept[0];
+    poly.scalars.borrow_mut().polygon_sides[1] = kept[1];
+    face.borrow_mut().polygon_mode = kept[2];
     Ok(())
 }
 
 /// The game's Direct3D layer and log, for drawing part `.0` and its view `.1`.
 pub struct Game<'a>(
-    pub &'a crate::scene::workers::PartScratch,
+    pub &'a crate::scene::scratch_store::PartScratch,
     pub &'a crate::race::view_scratch::ViewScratch,
 );
 
@@ -545,14 +549,11 @@ impl submit_polygon::Outside for Game<'_> {
     fn set_texture(&mut self, texture: u32) {
         submit_polygon::Game(self.0, self.1).set_texture(texture);
     }
-    fn draw_fan(&mut self, vertices: &[crate::d3d::Vertex]) -> u32 {
-        submit_polygon::Game(self.0, self.1).draw_fan(vertices)
+    fn draw_fan(&mut self, vertices: &[crate::d3d::Vertex]) {
+        submit_polygon::Game(self.0, self.1).draw_fan(vertices);
     }
     fn bad_vertex(&mut self, buffer: &PolygonVertices, screen: &crate::memory::session::Screen) {
         submit_polygon::Game(self.0, self.1).bad_vertex(buffer, screen);
-    }
-    fn not_drawn(&mut self, result: u32) {
-        submit_polygon::Game(self.0, self.1).not_drawn(result);
     }
 }
 
@@ -566,7 +567,7 @@ impl Outside for Game<'_> {
 /// callers.
 pub fn draw_polygon_in_game(
     view: &crate::race::view_scratch::ViewScratch,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     reads: crate::scene::workers::DrawReads<'_>,
     screen: &crate::memory::session::Screen,
 ) -> Result<(), BadInput> {

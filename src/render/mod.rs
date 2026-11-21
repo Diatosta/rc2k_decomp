@@ -1,51 +1,48 @@
-//! The renderer's boundary: the frame's 3D as commands the game's Direct3D layer (`platform::direct3d`)
+//! The renderer's boundary: the frame's 3D as commands the game's Direct3D layer (`d3d::device`)
 //! notes, and a `Backend` that draws them. Everything the backends must agree on is here; each
 //! one's own way of drawing is in its file.
 
 #![allow(unsafe_code)]
 
-pub mod background;
-pub mod batches;
-pub mod canvas_rows;
-pub mod choice;
-pub mod dump;
-#[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
-pub mod gl_batching;
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-pub mod gles;
-// Built for tests on every machine; only the handheld's GL thread uses it.
-pub mod gpu_cut;
-#[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
-#[cfg_attr(not(target_arch = "aarch64"), allow(dead_code))]
-pub mod gpu_time;
+pub(crate) mod backend;
+pub(crate) mod background;
+mod batches;
+mod canvas_rows;
+pub(crate) mod choice;
+pub(crate) mod dev;
+#[cfg_attr(handheld, path = "frame_end_panel.rs")]
+mod frame_end;
+mod gl_batching;
+pub(crate) mod gles;
+pub(crate) mod wash;
 // The handheld has no Vulkan: its GPU is reached through `gles`, by the same name here.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-pub use gles as gpu;
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-pub mod gpu;
-pub mod rasteriser;
+#[cfg(handheld)]
+pub(crate) use gles as gpu;
+#[cfg(not(handheld))]
+pub(crate) mod gpu;
+pub(crate) mod rasteriser;
 #[cfg(target_arch = "aarch64")]
-pub mod rasteriser_neon;
-pub mod seethru;
-pub mod software;
+mod rasteriser_neon;
+mod small_frame;
+mod software;
 
-use crate::race::owner_course::Course;
+pub use self::frame_end::*;
 use std::collections::HashSet;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
 
 /// Direct3D's render states a command carries.
 pub const STATES: usize = 0x40;
 
 /// A map keyed by texture ids: the ids are two small integers, which the std hasher's SipHash
 /// costs far more to hash than the lookup is worth (one per run of fans in a flush).
-pub type TextureMap<V> =
+type TextureMap<V> =
     std::collections::HashMap<TextureId, V, std::hash::BuildHasherDefault<TextureIdHasher>>;
 
 /// Hashes a `TextureId`'s two integers by folding each into the state with a multiply (the Fx
 /// hash); it is for keys of that kind only.
 #[derive(Default)]
-pub struct TextureIdHasher(u64);
+struct TextureIdHasher(u64);
 
 impl std::hash::Hasher for TextureIdHasher {
     fn finish(&self) -> u64 {
@@ -64,7 +61,7 @@ impl std::hash::Hasher for TextureIdHasher {
     }
 }
 
-/// A texture level of the Direct3D layer (`platform::direct3d`): the number of its surface and a
+/// A texture level of the Direct3D layer (`d3d::device`): the number of its surface and a
 /// serial no other level, past or present, has. A level let go and made again under the same
 /// surface number is another id, so what a cache holds under the old one is never taken for it.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -76,7 +73,7 @@ pub struct TextureId {
 /// A texture's first level as noted: which it is and how it is laid out.
 #[derive(Clone, Copy)]
 pub struct TextureNote {
-    /// The level, whose `len` bytes `platform::direct3d::level_bytes` hands out.
+    /// The level, whose `len` bytes `d3d::device::level_bytes` hands out.
     pub pixels: TextureId,
     pub len: usize,
     pub width: usize,
@@ -139,7 +136,7 @@ impl CommandList {
     }
 
     /// An empty list with room for as many commands, vertices and textures as `like` holds.
-    pub fn with_room_of(like: &CommandList) -> Self {
+    fn with_room_of(like: &CommandList) -> Self {
         Self {
             commands: Vec::with_capacity(like.commands.capacity()),
             vertices: Vec::with_capacity(like.vertices.capacity()),
@@ -149,7 +146,6 @@ impl CommandList {
 
     /// The textures the fans read, each once, in the order they are first read (for the
     /// handheld's GL, which brings them up).
-    #[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
     pub fn textures(&self) -> &[TextureNote] {
         &self.textures
     }
@@ -218,7 +214,7 @@ impl CommandList {
     }
 
     /// A fan's vertices (`span` one of this list's fans').
-    pub fn fan_vertices(&self, span: VertexSpan) -> &[crate::render::rasteriser::Vertex] {
+    fn fan_vertices(&self, span: VertexSpan) -> &[crate::render::rasteriser::Vertex] {
         &self.vertices[span.range()]
     }
 
@@ -318,6 +314,55 @@ pub trait Backend: Send {
     fn draw(&mut self, target: &Target, commands: CommandList);
 }
 
+/// The race's 3D drawn at this percent of the screen's size (`rc2k_core::gfx::render_scale`).
+static RENDER_SCALE: AtomicU32 = AtomicU32::new(rc2k_core::gfx::render_scale::DEFAULT);
+
+/// The percent of the screen's size the race's 3D is drawn at.
+pub fn render_scale() -> u32 {
+    RENDER_SCALE.load(Relaxed)
+}
+
+/// Sets the 3D's share (the options' load, the graphics page).
+pub fn set_render_scale(percent: u32) {
+    RENDER_SCALE.store(rc2k_core::gfx::render_scale::nearest(percent), Relaxed);
+}
+
+/// The share one choice on (`up`) or back.
+pub fn step_render_scale(up: bool) {
+    set_render_scale(rc2k_core::gfx::render_scale::step(render_scale(), up));
+}
+
+/// The percent the flush being drawn draws its 3D at: the chosen share in a race, the whole
+/// screen elsewhere (a menu's 3D is drawn larger when the window shows the frame larger, see
+/// `menu_high_percent`).
+static FLUSH_SCALE: AtomicU32 = AtomicU32::new(100);
+
+/// The percent of the screen's size the 3D of the flush being drawn takes.
+fn flush_scale() -> u32 {
+    FLUSH_SCALE.load(Relaxed)
+}
+
+/// Whether the flush being drawn is a race's.
+static FLUSH_RACING: AtomicBool = AtomicBool::new(false);
+
+/// The percent of the menus' frame the window shows it at (the frame's place in the window,
+/// times the 3D's share), set by the platform when it is above 100; 0 when the frame is shown
+/// at its own size or less.
+static MENU_HIGH: AtomicU32 = AtomicU32::new(0);
+
+/// Sets the size the window shows a menu's frame at (`menu_high_percent`).
+pub fn set_menu_high(percent: u32) {
+    MENU_HIGH.store(percent, Relaxed);
+}
+
+/// The percent of the frame's size the 3D of the menu flush being drawn is drawn at, when that
+/// is more than the frame's own size: the menus' models then keep the window's sharpness while
+/// the 2D stays the frame's pixels enlarged.
+fn menu_high_percent() -> Option<u32> {
+    let percent = MENU_HIGH.load(Relaxed);
+    (percent > 100 && !FLUSH_RACING.load(Relaxed)).then_some(percent)
+}
+
 /// Whether the GPU holds the frame: the 3D of a race or of a menu on the GPU backend.
 static GPU_HOLDS_FRAME: AtomicBool = AtomicBool::new(false);
 
@@ -331,9 +376,11 @@ static GPU_DREW_THIS_FRAME: AtomicBool = AtomicBool::new(false);
 /// the GPU as a race's does: its 2D before and after the 3D is the canvas's written pixels, put
 /// over the target at each flush.
 pub fn draw(screen: (usize, usize), racing: bool, target: &Target, commands: CommandList) {
+    FLUSH_SCALE.store(if racing { render_scale() } else { 100 }, Relaxed);
+    FLUSH_RACING.store(racing, Relaxed);
     if target.bits == 32 {
-        let mut gpu = gpu::GPU.lock().unwrap();
-        if let Some(gpu) = gpu.as_mut() {
+        let mut running = backend::lock();
+        if let Some(gpu) = running.as_mut().and_then(backend::Running::drawing) {
             // On the first one, the picture so far goes over as written pixels: the canvas is
             // whole.
             if !GPU_HOLDS_FRAME.swap(true, Relaxed) {
@@ -341,14 +388,17 @@ pub fn draw(screen: (usize, usize), racing: bool, target: &Target, commands: Com
                 target.note_all_rows_written();
             }
             GPU_DREW_THIS_FRAME.store(true, Relaxed);
-            Backend::draw(gpu, target, commands);
+            gpu.draw(target, commands);
             return;
         }
     }
+    let Some(commands) = frame_end::draw_on_gl(target, commands) else {
+        return;
+    };
     give_frame_back(target);
     // Whatever was noted for a GPU is on the canvas before the rasteriser draws.
     crate::gfx::draw2d::quads::before_canvas_write();
-    software::Software { screen, racing }.draw(target, commands);
+    software::Software { screen }.draw(target, commands);
 }
 
 /// Whether the GPU holds the frame now (the canvas is then only what the game wrote since the
@@ -359,98 +409,38 @@ pub fn frame_on_gpu() -> bool {
 
 /// The GPU's picture back in the canvas, if it holds the frame and something wants the true one.
 pub fn bring_back(target: &Target) {
-    if GPU_HOLDS_FRAME.load(Relaxed)
-        && let Some(gpu) = gpu::GPU.lock().unwrap().as_mut()
-    {
-        // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
-        // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
-        // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
-        let canvas = unsafe { target.bytes() };
-        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-        gpu.bring_back(target, canvas);
-        #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-        {
-            let rows = canvas_rows::written_rows(target, canvas);
-            if let Err(why) = gpu.bring_back(Some(rows), canvas) {
-                crate::logfile::program_log::log(&format!(
-                    "render: the frame did not come back: {why}"
-                ));
-            }
-        }
-        // The picture written in place, unnoted.
-        target.note_all_rows_written();
+    if !GPU_HOLDS_FRAME.load(Relaxed) {
+        return;
     }
+    let began = std::time::Instant::now();
+    bring_back_now(target);
+    READ_BACKS.fetch_add(1, Relaxed);
+    READ_BACK_MICROS.fetch_add(began.elapsed().as_micros() as u64, Relaxed);
 }
 
-/// Whether the frame ending now stays on the GPU: a race's always, a menu's when it drew 3D or
+/// The frames of a video being rendered, read back from the GPU one frame behind the game: the
+/// frame just drawn is queued to come back, and the one queued the frame before is collected
+/// (the GPU has had a whole frame of the game's time to finish it).
+pub struct VideoRead {
+    /// The picture queued by the last call (`None` the first time, or after a call that did not
+    /// take the pipelined path).
+    pub previous: Option<Vec<u8>>,
+    /// Whether this frame is queued; if not the caller brings it back as `bring_back` does.
+    pub started: bool,
+}
+
+/// Whether the frame ending now stays on the GPU: a race's always (`racing`), a menu's when it drew 3D or
 /// kept its background on the GPU (`background`). Starts the next frame's count.
-fn frame_stays_on_gpu(course: &Course) -> bool {
+fn frame_stays_on_gpu(racing: bool) -> bool {
     let drew = GPU_DREW_THIS_FRAME.swap(false, Relaxed);
     let kept_background = background::recorded_this_frame();
-    drew || kept_background || course.numbers.get().in_race.is_set()
+    drew || kept_background || racing
 }
 
 /// The frame back for good: the rasteriser draws from here.
 fn give_frame_back(target: &Target) {
     bring_back(target);
     GPU_HOLDS_FRAME.store(false, Relaxed);
-}
-
-/// The frame's end, before it is shown. The GPU's colour target when that is what to show, the
-/// canvas's written pixels over it, with the number of its set of targets (`Gpu::colour_texture`).
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-pub fn finish_frame(
-    course: &Course,
-    target: &Target,
-) -> Option<(*mut sdl3_sys::everything::SDL_GPUTexture, u64)> {
-    if !GPU_HOLDS_FRAME.load(Relaxed) {
-        return None;
-    }
-    if !frame_stays_on_gpu(course) {
-        give_frame_back(target);
-        return None;
-    }
-    let mut gpu = gpu::GPU.lock().unwrap();
-    let gpu = gpu.as_mut()?;
-    // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
-    // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
-    // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
-    let canvas = unsafe { target.bytes() };
-    let rows = canvas_rows::written_rows(target, canvas);
-    if let Err(why) = gpu.finish_frame(Some(rows), canvas) {
-        crate::logfile::program_log::log(&format!("render: the frame did not finish: {why}"));
-    }
-    Some(gpu.colour_texture())
-}
-
-/// The frame on the panel, by the GPU when it is running: the target during a race, else
-/// the canvas's picture, which `with_frame` hands over (taken only after the GPU's writes to the
-/// canvas here, so that no slice of it is held across them). False: it is not running.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-pub fn show_on_panel(
-    course: &Course,
-    target: &Target,
-    with_frame: impl FnOnce(&mut dyn FnMut(&[u8])),
-    width: usize,
-    height: usize,
-) -> bool {
-    gpu::start_if_wanted();
-    if GPU_HOLDS_FRAME.load(Relaxed) && !frame_stays_on_gpu(course) {
-        give_frame_back(target);
-    }
-    let mut gpu = gpu::GPU.lock().unwrap();
-    let Some(gpu) = gpu.as_mut() else {
-        return false;
-    };
-    if GPU_HOLDS_FRAME.load(Relaxed) {
-        // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
-        // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
-        // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
-        gpu.finish_and_show(target, unsafe { target.bytes() });
-    } else {
-        with_frame(&mut |frame| gpu.show_picture(frame, width, height));
-    }
-    true
 }
 
 // ---- textures' changes ----
@@ -487,22 +477,43 @@ pub(crate) fn gpu_started() {
     GPU_STARTED.store(true, Relaxed);
 }
 
-/// A GPU backend that had started is given up (the screen's targets could not be made): its
-/// texture changes are no longer kept.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-pub(crate) fn gpu_stopped() {
-    GPU_STARTED.store(false, Relaxed);
-    crate::gfx::draw2d::quads::gpu_changed();
-    background::clear();
-    *CHANGED_TEXTURES.lock().unwrap() = None;
-}
-
 /// Whether a GPU backend is running: what started, not what was asked for.
 pub fn gpu_running() -> bool {
     GPU_STARTED.load(Relaxed)
 }
 
+/// The renderer that draws the 3D now, as a wish names it: OpenGL, the GPU API (on the handheld
+/// its GL ES), or the software rasteriser.
+pub fn running_wish() -> choice::Wish {
+    if gl_running() {
+        choice::Wish::Gl
+    } else if gpu_running() {
+        choice::Wish::GpuFirst
+    } else {
+        choice::Wish::Software
+    }
+}
+
+/// Whether the software renderer keeps smaller levels of textures (`software`): only then are
+/// the textures' changes kept for it (they tell it which levels are stale).
+static LEVELS_KEPT: AtomicBool = AtomicBool::new(false);
+
+static LEVEL_CHANGES: Mutex<Vec<TextureId>> = Mutex::new(Vec::new());
+
+/// From now on the textures' changes are kept for the software renderer's smaller levels.
+pub(crate) fn keep_level_changes() {
+    LEVELS_KEPT.store(true, Relaxed);
+}
+
+/// The textures written or gone since the last call (when `keep_level_changes` was called).
+pub(crate) fn take_level_changes() -> Vec<TextureId> {
+    std::mem::take(&mut *LEVEL_CHANGES.lock().unwrap())
+}
+
 fn note_texture_change(pixels: TextureId, gone: bool) {
+    if LEVELS_KEPT.load(Relaxed) {
+        LEVEL_CHANGES.lock().unwrap().push(pixels);
+    }
     if GPU_STARTED.load(Relaxed) {
         CHANGED_TEXTURES
             .lock()
@@ -530,14 +541,14 @@ pub(crate) fn take_changed_textures() -> TextureChanges {
 /// ends the program.
 pub(crate) fn noted_bytes<'a>(note: &TextureNote) -> &'a [u8] {
     // SAFETY: `level_bytes`' promise. The noted fans are drawn (the rasteriser's tiles, the
-    // GPU's uploads, the dumps) only inside `platform::direct3d::flush`'s drawing, on the game's thread
+    // GPU's uploads, the dumps) only inside `d3d::device::flush`'s drawing, on the game's thread
     // with its drawing threads joined before it returns, and the slices are dropped with that
     // drawing (`'a` does not bind them: the callers' discipline). Every write to a level's
     // pixels and every letting go of one flushes the noted drawing that reads it first
     // (`lock_surface`, `hold_texture`, `copy_screen_to_system_texture`, `allocate_textures_now`
     // before `make_texture` replaces a level, `release_all_textures`), so neither meets a
     // slice that is still drawn from.
-    unsafe { crate::platform::direct3d::level_bytes(note.pixels) }.unwrap_or_else(|| {
+    unsafe { crate::d3d::device::level_bytes(note.pixels) }.unwrap_or_else(|| {
         crate::fatal::raise::end(
             "a texture's pixels",
             crate::errors::BadInput("a noted texture's level is gone"),
@@ -547,7 +558,12 @@ pub(crate) fn noted_bytes<'a>(note: &TextureNote) -> &'a [u8] {
 
 /// A texture's pixels as bytes of 0xAARRGGBB, its rows without gaps.
 pub(crate) fn texture_as_bgra(note: &TextureNote) -> Vec<u8> {
-    let pixels = noted_bytes(note);
+    pixels_as_bgra(noted_bytes(note), note)
+}
+
+/// `pixels`, laid out as `note` says, as bytes of 0xAARRGGBB, its rows without gaps. A pixel
+/// past the end of `pixels` counts as zero bits.
+fn pixels_as_bgra(pixels: &[u8], note: &TextureNote) -> Vec<u8> {
     let mut out = Vec::with_capacity(note.width * note.height * 4);
     // How a pixel's raw bits become 0xAARRGGBB (`rasteriser::to_argb`), worked out once.
     enum Convert {
@@ -575,19 +591,39 @@ pub(crate) fn texture_as_bgra(note: &TextureNote) -> Vec<u8> {
         Convert::Masks
     };
     for y in 0..note.height {
-        for x in 0..note.width {
-            let at = y * note.pitch + x * note.bytes;
-            let mut raw = [0u8; 4];
-            if let Some(from) = pixels.get(at..at + note.bytes) {
-                raw[..note.bytes].copy_from_slice(from);
+        let start = y * note.pitch;
+        // A whole row inside the pixels, in one of the two usual layouts: converted as a run.
+        let row = pixels.get(start..start + note.width * note.bytes);
+        match (row, &convert) {
+            (Some(row), Convert::Table(table)) => {
+                for pixel in row.as_chunks::<2>().0 {
+                    let argb = table[u16::from_le_bytes(*pixel) as usize & 0xFFFF];
+                    out.extend_from_slice(&argb.to_le_bytes());
+                }
             }
-            let pixel = u32::from_le_bytes(raw);
-            let argb = match &convert {
-                Convert::Table(table) => table[pixel as usize & 0xFFFF],
-                Convert::Same { alpha } => pixel | alpha,
-                Convert::Masks => crate::render::rasteriser::to_argb(pixel, &m),
-            };
-            out.extend(argb.to_le_bytes());
+            (Some(row), Convert::Same { alpha }) => {
+                for pixel in row.as_chunks::<4>().0 {
+                    let argb = u32::from_le_bytes(*pixel) | alpha;
+                    out.extend_from_slice(&argb.to_le_bytes());
+                }
+            }
+            // Any other layout, or a row that runs past the pixels: pixel by pixel.
+            _ => {
+                for x in 0..note.width {
+                    let at = start + x * note.bytes;
+                    let mut raw = [0u8; 4];
+                    if let Some(from) = pixels.get(at..at + note.bytes) {
+                        raw[..note.bytes].copy_from_slice(from);
+                    }
+                    let pixel = u32::from_le_bytes(raw);
+                    let argb = match &convert {
+                        Convert::Table(table) => table[pixel as usize & 0xFFFF],
+                        Convert::Same { alpha } => pixel | alpha,
+                        Convert::Masks => crate::render::rasteriser::to_argb(pixel, &m),
+                    };
+                    out.extend_from_slice(&argb.to_le_bytes());
+                }
+            }
         }
     }
     out
@@ -596,7 +632,7 @@ pub(crate) fn texture_as_bgra(note: &TextureNote) -> Vec<u8> {
 impl Target {
     /// `f` on the screen's rows: for the backends, which draw while the game's code waits for
     /// the call (nothing else writes the canvas meanwhile).
-    pub fn with_canvas<R>(&self, f: impl FnOnce(&mut [u8]) -> R) -> R {
+    fn with_canvas<R>(&self, f: impl FnOnce(&mut [u8]) -> R) -> R {
         // SAFETY: `bytes`' promise: the backends call this on the game's thread, which waits for
         // the call, and `f` (their drawing) takes no other slice of the canvas; the slice lives
         // through `f` only, while the screen keeps its pixels.
@@ -643,43 +679,29 @@ impl Target {
         unsafe { std::slice::from_raw_parts_mut(held.as_mut_ptr(), len) }
     }
 
-    /// The screen's pixels for the rasteriser, rows `pitch / (bits / 8)` pixels apart: its
-    /// bytes (`bytes`) as 16- or 32-bit pixels. A screen not aligned to its pixels, or whose
-    /// pitch is not whole pixels, ends the program.
+    /// The screen's pixels for the rasteriser, rows `pitch / 4` pixels apart: its bytes
+    /// (`bytes`) as 32-bit pixels. A target that is not 32 bits a pixel, not aligned to its
+    /// pixels, or whose pitch is not whole pixels, ends the program.
     ///
     /// # Safety
     /// As `bytes`.
-    pub unsafe fn pixels<'a>(&self) -> crate::render::rasteriser::Pixels<'a> {
+    pub unsafe fn pixels<'a>(&self) -> &'a mut [u32] {
         let size = (self.bits / 8) as usize;
         // SAFETY: the caller's promise.
         let bytes = unsafe { self.bytes() };
         let at = bytes.as_mut_ptr();
         assert!(
-            (size == 2 || size == 4)
-                && (at as usize).is_multiple_of(size)
-                && self.pitch.is_multiple_of(size),
+            size == 4 && (at as usize).is_multiple_of(size) && self.pitch.is_multiple_of(size),
             "the screen's pixels not whole aligned pixels"
         );
         let len = bytes.len() / size;
         // SAFETY: the same bytes (borrowed for 'a with them), aligned and whole pixels (checked
         // above); every bit pattern is a pixel.
-        unsafe {
-            if size == 2 {
-                crate::render::rasteriser::Pixels::Bits16(std::slice::from_raw_parts_mut(
-                    at.cast(),
-                    len,
-                ))
-            } else {
-                crate::render::rasteriser::Pixels::Bits32(std::slice::from_raw_parts_mut(
-                    at.cast(),
-                    len,
-                ))
-            }
-        }
+        unsafe { std::slice::from_raw_parts_mut(at.cast(), len) }
     }
 }
 
-/// For the standalone's timing line (`platform::show`): fans drawn and the microseconds
+/// For the timing line (`platform::show`): fans drawn and the microseconds
 /// spent drawing them (at the flushes).
 pub static FANS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static RASTER_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -695,6 +717,8 @@ pub static PIXELS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::
 /// The GPU's frames read back into the canvas, and the textures (and their bytes) sent up to
 /// it (for `platform::report_timing`): the costs that vary along a stage on the handheld.
 pub static READ_BACKS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// The time the game's thread spent in those read-backs, in microseconds.
+pub static READ_BACK_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static UPLOADS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static UPLOAD_BYTES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 /// The bytes of the canvas and of the retained background sent up to the PC's GPU backend.
@@ -707,6 +731,11 @@ pub static BACKGROUND_UPLOAD_BYTES: std::sync::atomic::AtomicU64 =
 /// The GPU's draw calls (a run of triangles drawn alike each): what the handheld's driver
 /// spends its time on.
 pub static GPU_DRAWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// Of them, the draws by a scene program with no alpha test (`Batch::discard_free`), and
+/// the times the GL thread went from one of its scene programs to another within a flush.
+pub static GPU_FREE_DRAWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static GPU_PROGRAM_SWITCHES: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
 /// The GL thread's time at its jobs, and the game's waiting to hand it one (its queue full),
 /// in microseconds: which of the two the frame waits for.
 pub static GL_BUSY_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -812,7 +841,7 @@ mod tests {
     }
 
     /// A scene noted in one list and the same scene noted by parts and joined in their order
-    /// (`platform::direct3d::put_noted`) read back as the scene, and give the same batches, plain and
+    /// (`d3d::device::put_noted`) read back as the scene, and give the same batches, plain and
     /// with second passes joined: the fans' vertices in their list draw what each fan's own did.
     #[test]
     fn a_scene_noted_whole_or_by_parts_reads_back_and_batches_the_same() {
@@ -911,7 +940,7 @@ mod tests {
                     (state >> 24) as u8
                 })
                 .collect();
-            let id = crate::platform::direct3d::test_level(raw.clone());
+            let id = crate::d3d::device::test_level(raw.clone());
             let note = super::TextureNote {
                 pixels: id,
                 len: raw.len(),
@@ -931,6 +960,60 @@ mod tests {
                     want.to_le_bytes(),
                     "{bytes} {masks:x?} {n}"
                 );
+            }
+        }
+    }
+
+    /// Rows with a gap after them are read at the pitch, and pixels past the end of the bytes
+    /// (a last row cut short) count as zero bits, in every layout.
+    #[test]
+    fn texture_conversion_follows_the_pitch_and_a_short_end() {
+        let layouts: [(usize, [u32; 4]); 4] = [
+            (2, [0x001F, 0x07E0, 0xF800, 0]),
+            (4, [0xFF, 0xFF00, 0xFF_0000, 0xFF00_0000]),
+            (4, [0xFF, 0xFF00, 0xFF_0000, 0]),
+            (4, [0xFF, 0xFF00, 0xFF_0000, 0x8000_0000]),
+        ];
+        for (bytes, masks) in layouts {
+            let (width, height) = (5usize, 4usize);
+            let pitch = width * bytes + 6;
+            let mut state = 0x9E37_79B9u32;
+            // The last row lacks its last pixel and a byte of the one before.
+            let raw: Vec<u8> = (0..pitch * (height - 1) + (width - 1) * bytes - 1)
+                .map(|_| {
+                    state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                    (state >> 24) as u8
+                })
+                .collect();
+            let note = super::TextureNote {
+                pixels: TextureId {
+                    surface: 0,
+                    serial: 0,
+                },
+                len: raw.len(),
+                width,
+                height,
+                pitch,
+                bytes,
+                masks,
+            };
+            let got = super::pixels_as_bgra(&raw, &note);
+            assert_eq!(got.len(), width * height * 4);
+            for y in 0..height {
+                for x in 0..width {
+                    let at = y * pitch + x * bytes;
+                    let mut word = [0u8; 4];
+                    if let Some(from) = raw.get(at..at + bytes) {
+                        word[..bytes].copy_from_slice(from);
+                    }
+                    let want = crate::render::rasteriser::to_argb(u32::from_le_bytes(word), &masks);
+                    let n = y * width + x;
+                    assert_eq!(
+                        got[n * 4..n * 4 + 4],
+                        want.to_le_bytes(),
+                        "{bytes} {masks:x?} {x} {y}"
+                    );
+                }
             }
         }
     }
@@ -956,18 +1039,15 @@ mod tests {
 
     #[test]
     fn a_level_made_again_under_a_surface_is_another_id() {
-        let first = crate::platform::direct3d::test_level(vec![1; 4]);
+        let first = crate::d3d::device::test_level(vec![1; 4]);
         let second = TextureId {
             serial: first.serial.wrapping_add(1_000_000),
             ..first
         };
         // SAFETY: nothing writes the test level.
         unsafe {
-            assert_eq!(
-                crate::platform::direct3d::level_bytes(first),
-                Some(&[1u8; 4][..])
-            );
-            assert_eq!(crate::platform::direct3d::level_bytes(second), None);
+            assert_eq!(crate::d3d::device::level_bytes(first), Some(&[1u8; 4][..]));
+            assert_eq!(crate::d3d::device::level_bytes(second), None);
         }
     }
 }

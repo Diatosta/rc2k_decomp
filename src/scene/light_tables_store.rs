@@ -1,46 +1,79 @@
 //! The lighting tables: the colours the lights pick from (the light table, two lamp tables, the car
-//! light table, a third lamp table), the view window's mode and the words around it
-//! (`scene::owner::Scene::light_tables`). Plain cells: a drawing store (`session::DrawShared`),
-//! written on the game's thread between frames and read by the drawing parts through their
-//! `scene::workers::DrawReads`.
+//! light table) (`scene::owner::Scene::light_tables`). A plain record (`session::DrawPlain`),
+//! written on the game's thread between frames and read there and, as a copy made when a drawing
+//! scope opens, by the drawing parts through their `scene::workers::DrawReads`.
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::{PlainBytes, PlainDword, PlainWord};
+use crate::memory::session::{DrawPlain, PlainRead};
 
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+/// The four tables of 256 colours.
+#[derive(Clone)]
 pub struct LightTables {
     /// 256 colours (`scene::vertex_light`, `physics::car_lighting`, `race::course_faces`).
-    pub light_table: [PlainDword; 256],
+    pub light_table: [u32; 256],
     /// Lamp A's 256 colours.
-    pub lamp_table_a: [PlainDword; 256],
+    pub lamp_table_a: [u32; 256],
     /// Lamp B's 256 colours.
-    pub lamp_table_b: [PlainDword; 256],
+    pub lamp_table_b: [u32; 256],
     /// 256 colours (`scene::add_car_light`, `race::frame_draw`).
-    pub car_light_table: [PlainDword; 256],
-    /// A third lamp table of 256 colours (`scene::fill_light_tables`).
-    pub lamp_table_c: [PlainDword; 256],
-    /// 14 bytes between the lamp tables and `view_mode`; nothing reads or writes them (a gap,
-    /// probably padding).
-    pub unknown_400: PlainBytes<0xE>,
-    /// The view window's mode (`scene::choose_view_window`, `scene::full_view_window`).
-    pub view_mode: PlainWord,
-    /// 24 dwords after `view_mode`; nothing reads or writes them (a gap).
-    pub unknown_410: [PlainDword; 24],
+    pub car_light_table: [u32; 256],
 }
 
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
-
 impl LightTables {
-    /// The store with its first values (every field not named here starts at zero).
+    /// The store with its first values (every colour 0).
     pub const fn new() -> Self {
         Self {
-            unknown_410: {
-                let mut a: [PlainDword; 24] = ZeroCells::ZERO;
-                a[0] = PlainDword::new(0xC0000);
-                a
-            },
-            ..ZeroCells::ZERO
+            light_table: [0; 256],
+            lamp_table_a: [0; 256],
+            lamp_table_b: [0; 256],
+            car_light_table: [0; 256],
         }
+    }
+}
+
+/// The tables as one reader finds them: the game's thread's own (read through the store when used),
+/// or a drawing part's copy.
+#[derive(Clone, Copy)]
+pub enum LightTablesRef<'a> {
+    Store(&'a DrawPlain<LightTables>),
+    Copy(&'a LightTables),
+}
+
+impl LightTablesRef<'_> {
+    /// Entry `index` of the light table.
+    pub fn light(self, index: usize) -> u32 {
+        match self {
+            Self::Store(store) => store.borrow().light_table[index],
+            Self::Copy(tables) => tables.light_table[index],
+        }
+    }
+
+    /// Entry `index` of lamp A's table.
+    pub fn lamp_a(self, index: usize) -> u32 {
+        match self {
+            Self::Store(store) => store.borrow().lamp_table_a[index],
+            Self::Copy(tables) => tables.lamp_table_a[index],
+        }
+    }
+
+    /// Entry `index` of lamp B's table.
+    pub fn lamp_b(self, index: usize) -> u32 {
+        match self {
+            Self::Store(store) => store.borrow().lamp_table_b[index],
+            Self::Copy(tables) => tables.lamp_table_b[index],
+        }
+    }
+
+    /// Entry `index` of the car light table.
+    pub fn car_light(self, index: usize) -> u32 {
+        match self {
+            Self::Store(store) => store.borrow().car_light_table[index],
+            Self::Copy(tables) => tables.car_light_table[index],
+        }
+    }
+}
+
+impl<'a> From<&'a PlainRead<LightTables>> for LightTablesRef<'a> {
+    fn from(copy: &'a PlainRead<LightTables>) -> Self {
+        Self::Copy(copy)
     }
 }

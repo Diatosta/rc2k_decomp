@@ -2,22 +2,21 @@
 //! all 0, and cheat bit 16 clear: `set_flag` on `StageSounds.once[2]`, then `go_stand_timer` = 1,
 //! `notice_id` 0xC7, `notice_time_b` 0x32 and `notice_time` -1.
 //!
-//! Caller: `physics::race_timers`. Refuses what `set_flag` refuses.
+//! Refuses what `set_flag` refuses.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
 use crate::physics::car_store::Car;
 use crate::physics::listed_car_flags::set_flag;
-use crate::race::frame_store::FrameWork;
+use crate::race::frame_store::FrameWorkStore;
 use crate::race::work_store::RaceWork;
 use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
 
-pub fn start_go_notice(
-    frame_work: &FrameWork,
+pub(super) fn start_go_notice(
+    frame_work: &FrameWorkStore,
     work: &RaceWork,
     car: &Car,
     sound: &crate::sound::owner::Sound,
-    menus: &Menus,
+    cheats: u32,
 ) -> Result<(), Refused> {
     let c = car;
     let facts = GoFacts {
@@ -25,12 +24,16 @@ pub fn start_go_notice(
         countdown: c.time_left.get(),
         gone: c.go_stand_timer.get(),
         finished: c.finish_flag.get(),
-        cheats: menus.play.cheats.cheats.get(),
+        cheats,
     };
     if !facts.go_due() {
         return Ok(());
     }
-    set_flag(frame_work, work, &sound.race.stage.get().once[2])?;
+    set_flag(
+        frame_work,
+        work,
+        &mut sound.race.stage.get().borrow_mut().once[2],
+    )?;
     c.go_stand_timer.set(1);
     c.notice_id.set(GO_NOTICE);
     c.notice_time_b.set(0x32);

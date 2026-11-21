@@ -1,9 +1,8 @@
 //! Where the time goes: the frames' counts and timings in the log, and on Windows the main
 //! thread and the rasteriser's sampled (with `RC2K_PROFILE` set).
 
-use crate::logfile::program_log::log;
-use crate::platform::SHOWN;
-use crate::system::owner::System;
+#[cfg(windows)]
+use crate::program_log::log;
 use std::sync::atomic::Ordering;
 
 // ---- where the time goes: the main thread and the rasteriser's sampled every millisecond ----
@@ -19,9 +18,84 @@ pub static SHOW_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::Atomic
 /// Since the last report: the longest time between two frames shown and the frames that
 /// took over 50 ms (stutters), in microseconds and a count; the longest time between two
 /// race sound turns (`sound::race_turn`), in microseconds.
-static LONGEST_FRAME: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-static SLOW_FRAMES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-static LONGEST_TURN_GAP: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static LONGEST_FRAME: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static SLOW_FRAMES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static LONGEST_TURN_GAP: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// The GPU path's waits, in microseconds, for the phones' log line (`phone_line`): the most
+/// and the total of the time in the window renderer's present (where SDL waits for the
+/// swapchain), in the frame's finish and in a readback of the frame (`render::bring_back`),
+/// and in each flush of the 3D (recording and submitting a command buffer); and the longest
+/// show of one frame. Written by the game's thread only.
+#[cfg_attr(
+    handheld,
+    allow(
+        dead_code,
+        reason = "noted by the GPU renderer and the present, not on the handheld"
+    )
+)]
+pub static PRESENT_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+#[cfg_attr(
+    handheld,
+    allow(
+        dead_code,
+        reason = "noted by the GPU renderer and the present, not on the handheld"
+    )
+)]
+pub static PRESENT_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+#[cfg_attr(
+    handheld,
+    allow(
+        dead_code,
+        reason = "noted by the GPU renderer and the present, not on the handheld"
+    )
+)]
+pub static FINISH_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+#[cfg_attr(
+    handheld,
+    allow(
+        dead_code,
+        reason = "noted by the GPU renderer and the present, not on the handheld"
+    )
+)]
+pub static FINISH_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static READ_BACK_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static READ_BACK_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+#[cfg_attr(
+    handheld,
+    allow(
+        dead_code,
+        reason = "noted by the GPU renderer and the present, not on the handheld"
+    )
+)]
+pub static FLUSH_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+#[cfg_attr(
+    handheld,
+    allow(
+        dead_code,
+        reason = "noted by the GPU renderer and the present, not on the handheld"
+    )
+)]
+pub static FLUSH_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+#[cfg_attr(
+    handheld,
+    allow(
+        dead_code,
+        reason = "noted by the GPU renderer and the present, not on the handheld"
+    )
+)]
+pub static FLUSH_RUNS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static SHOW_MAX: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// A span of `micros` noted in a total and a most.
+pub fn note_span(
+    total: &std::sync::atomic::AtomicU64,
+    most: &std::sync::atomic::AtomicU64,
+    micros: u64,
+) {
+    total.fetch_add(micros, Ordering::Relaxed);
+    most.fetch_max(micros, Ordering::Relaxed);
+}
 
 /// The microseconds since `last` was noted, `last` now.
 fn since(last: &std::sync::Mutex<Option<std::time::Instant>>) -> Option<u64> {
@@ -76,7 +150,7 @@ pub fn start_sampler() {}
 
 /// No samples off Windows.
 #[cfg(not(windows))]
-fn hot_places() -> String {
+pub fn hot_places() -> String {
     String::new()
 }
 
@@ -129,7 +203,7 @@ pub fn start_sampler() {
 /// The samples since the last report, as a line of the hottest places: the program's
 /// (`rc2k+offset`, for `llvm-symbolizer`) or a DLL's.
 #[cfg(windows)]
-fn hot_places() -> String {
+pub fn hot_places() -> String {
     let Some(samples) = SAMPLES
         .lock()
         .ok()
@@ -174,156 +248,4 @@ fn hot_places() -> String {
         line += &format!(" {} {:.1}%,", name(at), n as f64 * 100.0 / total as f64);
     }
     line
-}
-
-/// Every five seconds a line on where the time went: the frames shown, the fans drawn and
-/// the time in the rasteriser, the calls of functions that are not ported (each a fault).
-pub fn report_timing(system: &System) {
-    use std::sync::Mutex;
-    use std::sync::atomic::Ordering::Relaxed;
-    use std::time::Instant;
-    /// When, and the counts then.
-    type Mark = (Instant, u64, u64, u64, u64, u64);
-    static LAST: Mutex<Option<Mark>> = Mutex::new(None);
-    let now = Instant::now();
-    let (frames, fans, micros, flushes, pixels) = (
-        SHOWN.load(Ordering::SeqCst) as u64,
-        crate::render::FANS.load(Relaxed),
-        crate::render::RASTER_MICROS.load(Relaxed),
-        crate::render::FLUSHES.load(Relaxed),
-        crate::render::PIXELS.load(Relaxed),
-    );
-    // The screen's places, for the pixels a frame in screens.
-    let screen = (system.session.screen.get().width.get().max(1)
-        * system.session.screen.get().height.get().max(1)) as f64;
-    let Ok(mut last) = LAST.lock() else {
-        return;
-    };
-    match *last {
-        Some((at, f0, n0, m0, l0, p0)) if now.duration_since(at).as_secs() >= 5 => {
-            let seconds = now.duration_since(at).as_secs_f64();
-            log(&format!(
-                "platform: the last {seconds:.1} s: {} frames ({:.1} a second), {} fans in {} flushes, {:.1} screens of pixels a frame ({:.0} ms in the rasteriser, {:.0}%); the longest frame {:.1} ms, {} over 50 ms; the longest gap between sound turns {:.1} ms",
-                frames - f0,
-                (frames - f0) as f64 / seconds,
-                fans - n0,
-                flushes - l0,
-                (pixels - p0) as f64 / (frames - f0).max(1) as f64 / screen,
-                (micros - m0) as f64 / 1000.0,
-                (micros - m0) as f64 / 10000.0 / seconds,
-                LONGEST_FRAME.swap(0, Relaxed) as f64 / 1000.0,
-                SLOW_FRAMES.swap(0, Relaxed),
-                LONGEST_TURN_GAP.swap(0, Relaxed) as f64 / 1000.0,
-            ));
-            *last = Some((now, frames, fans, micros, flushes, pixels));
-            log(&format!(
-                "platform: so far {} frames read back from the GPU, {} textures sent up ({} KB), the canvas {} KB and the retained background {} KB; {} GPU draws; the GL thread busy {} ms (batching {} ms, showing {} ms), the game waiting for it {} ms",
-                crate::render::READ_BACKS.load(Relaxed),
-                crate::render::UPLOADS.load(Relaxed),
-                crate::render::UPLOAD_BYTES.load(Relaxed) / 1024,
-                crate::render::CANVAS_UPLOAD_BYTES.load(Relaxed) / 1024,
-                crate::render::BACKGROUND_UPLOAD_BYTES.load(Relaxed) / 1024,
-                crate::render::GPU_DRAWS.load(Relaxed),
-                crate::render::GL_BUSY_MICROS.load(Relaxed) / 1000,
-                crate::render::GL_BATCHING_MICROS.load(Relaxed) / 1000,
-                crate::render::GL_SHOW_MICROS.load(Relaxed) / 1000,
-                crate::render::GL_WAIT_MICROS.load(Relaxed) / 1000,
-            ));
-            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-            {
-                use crate::render::gpu_time as g;
-                let frames = g::FRAMES.swap(0, Relaxed);
-                let (issue, wait) = (
-                    g::ISSUE_MICROS.swap(0, Relaxed),
-                    g::WAIT_MICROS.swap(0, Relaxed),
-                );
-                let longest = g::LONGEST_WAIT_MICROS.swap(0, Relaxed);
-                if frames > 0 {
-                    log(&format!(
-                        "platform: GPU time (RC2K_GPU_TIME): {frames} frames waited for in the last 5 s: {:.2} ms to issue a frame's draws, then {:.2} ms (longest {:.2} ms) for the GPU to finish them",
-                        issue as f64 / 1000.0 / frames as f64,
-                        wait as f64 / 1000.0 / frames as f64,
-                        longest as f64 / 1000.0,
-                    ));
-                }
-            }
-            {
-                use crate::gfx::draw2d::quads;
-                log(&format!(
-                    "platform: so far {} solid quads, {} of {} GPU flushes sent canvas rows; {} glyph quads drawn, {} drawn on the canvas after being noted, {} left to the canvas (not in the atlas {}, no palette {}, atlas full {}), {} KB sent to the atlas, the atlas cleared {} times",
-                    quads::SOLIDS.load(Relaxed),
-                    crate::render::CANVAS_UPLOADS.load(Relaxed),
-                    crate::render::GPU_FLUSHES.load(Relaxed),
-                    quads::QUADS.load(Relaxed),
-                    quads::DEMOTED.load(Relaxed),
-                    quads::REFUSED.load(Relaxed),
-                    quads::REFUSED_BY[0].load(Relaxed),
-                    quads::REFUSED_BY[1].load(Relaxed),
-                    quads::REFUSED_BY[2].load(Relaxed),
-                    quads::ATLAS_BYTES.load(Relaxed) / 1024,
-                    quads::ATLAS_CLEARS.load(Relaxed),
-                ));
-            }
-            // The handheld's: where the time goes, and the samples so far.
-            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-            {
-                use crate::debug::timing;
-                static WAS: std::sync::Mutex<([u64; timing::STAGES], [u64; timing::STAGES], u32)> =
-                    std::sync::Mutex::new(([0; timing::STAGES], [0; timing::STAGES], 0));
-                let (nanos, runs) = timing::counts();
-                let ticks = timing::ticks();
-                if let Ok(mut was) = WAS.lock() {
-                    let ms = |n: usize| (nanos[n] - was.0[n]) / 1_000_000;
-                    let times = |n: usize| runs[n] - was.1[n];
-                    log(&format!(
-                        "handheld: input {} ms / {}, physics {} ms / {} (ticks {}), scene {} ms / {} (course faces {} ms, depth entries {} ms, mirror {} ms, effects {} ms), sound tick {} ms / {}, audio {} ms / {}",
-                        ms(0),
-                        times(0),
-                        ms(1),
-                        times(1),
-                        ticks - was.2,
-                        ms(2),
-                        times(2),
-                        ms(5),
-                        ms(6),
-                        ms(7),
-                        ms(8),
-                        ms(3),
-                        times(3),
-                        ms(4),
-                        times(4)
-                    ));
-                    *was = (nanos, runs, ticks);
-                }
-                crate::platform::handheld::write_profile();
-            }
-            {
-                use crate::render::{PARALLEL_MICROS, TILE_MICROS};
-                static LAST_P: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-                static LAST_T: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-                static LAST_S: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-                let (p, t) = (PARALLEL_MICROS.load(Relaxed), TILE_MICROS.load(Relaxed));
-                let (dp, dt) = (p - LAST_P.swap(p, Relaxed), t - LAST_T.swap(t, Relaxed));
-                static LAST_N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-                let sh = SHOW_MICROS.load(Relaxed);
-                let ds = sh - LAST_S.swap(sh, Relaxed);
-                let no = crate::platform::direct3d::NOTE_MICROS.load(Relaxed);
-                let dn = no - LAST_N.swap(no, Relaxed);
-                log(&format!(
-                    "platform: the rasteriser's parallel part {:.0} ms, the threads in its tiles {:.0} ms ({:.1} threads busy on average); showing the frames {:.0} ms; noting the fans {:.0} ms",
-                    dp as f64 / 1000.0,
-                    dt as f64 / 1000.0,
-                    dt as f64 / dp.max(1) as f64,
-                    ds as f64 / 1000.0,
-                    dn as f64 / 1000.0
-                ));
-            }
-            let hot = hot_places();
-            if !hot.is_empty() {
-                log(&hot);
-            }
-        }
-        Some(_) => {}
-        None => *last = Some((now, frames, fans, micros, flushes, pixels)),
-    }
 }

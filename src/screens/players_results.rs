@@ -1,11 +1,8 @@
 //! The players' stage results pages, with the points column (`draw_players_results_points`) and
 //! without (`draw_players_results`). Both draw the same columns, one row per player in the order
-//! of `results.order`; the differences are the `Layout`. Kept: the page with points draws four
-//! rows for two players, tests the first row's time with a less-than (the others with equality)
-//! and puts the third row's time at 0x1B2.
+//! of `results.order`, one per player; the differences are the `Layout`.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::results_store::Results;
@@ -14,12 +11,12 @@ use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::players_results::{Layout, WITH_POINTS, WITHOUT_POINTS};
 
-fn rows(menus: &Menus, layout: &Layout) -> usize {
-    rc2k_core::screens::players_results::rows(layout, menus.screens.event.player_count.get())
+fn rows(menus: &Menus) -> usize {
+    rc2k_core::screens::players_results::rows(menus.screens.event.read().player_count)
 }
 
 fn offset(results: &Results, row: usize) -> u32 {
-    results.order[row].get()
+    results.read().order[row]
 }
 
 /// The row's player record, refused for an offset past the four or a missing record or name.
@@ -40,8 +37,8 @@ fn player<'a>(
 }
 
 /// The row's points: the sum of its player's figures.
-fn points_at(results: &Results, row: usize) -> Result<&PlainDword, Refused> {
-    Ok(&results.player(offset(results, row) as usize / 4)?.sum)
+fn points_at(results: &Results, row: usize) -> Result<u32, Refused> {
+    Ok(results.player(offset(results, row) as usize / 4)?.sum)
 }
 
 /// The section's first record and the stage's (by `EventState.stage.group` and
@@ -51,12 +48,12 @@ fn records(
     stages: &crate::records::stages_store::StageTables,
 ) -> Result<(RecordTable, RecordRef), BadInput> {
     let base = stages.group_event_table(
-        screens.event.stage.group.get(),
-        screens.event.stage.sub.get(),
+        screens.event.read().stage.group,
+        screens.event.read().stage.sub,
     )?;
     Ok((
         base,
-        crate::records::stages_store::row(stages, base, screens.event.stage.number.get())?,
+        crate::records::stages_store::row(stages, base, screens.event.read().stage.number)?,
     ))
 }
 
@@ -77,7 +74,7 @@ fn prepare<'a>(
     layout: &Layout,
     stages: &crate::records::stages_store::StageTables,
 ) -> Result<Prepared<'a>, Refused> {
-    let n = rows(menus, layout);
+    let n = rows(menus);
     let players = (0..n)
         .map(|row| player(menus, results, row))
         .collect::<Result<Vec<_>, _>>()?;
@@ -146,7 +143,7 @@ pub fn draw_players_results(
                 time: p.get().time,
                 speed,
                 points: if layout.points {
-                    points_at(results, row)?.get()
+                    points_at(results, row)?
                 } else {
                     0
                 },
@@ -157,7 +154,6 @@ pub fn draw_players_results(
             stage,
             units_set: crate::strings::units::units(o.strings) != 0,
             show_hours: crate::strings::append_time::show_hours(o.strings),
-            extra_glyph: menus.screens.draw_work.button_y.get(),
         };
         players_results(
             &mut crate::screens::game_screen::GameScreen::<

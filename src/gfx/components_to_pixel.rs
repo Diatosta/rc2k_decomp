@@ -17,7 +17,7 @@ pub use rc2k_core::gfx::pixels::pack as packed;
 pub fn components_to_pixel(format: &PixelFormat, components: u32, gfx: &Gfx) -> u32 {
     let (pixel, scratch) = packed(format, components);
     if let Some(scratch) = scratch {
-        gfx.pixel.formats.scratch.write(&scratch);
+        gfx.pixel.formats.scratch.set(scratch);
     }
     pixel
 }

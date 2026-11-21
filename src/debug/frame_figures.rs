@@ -19,7 +19,7 @@ pub struct Figures {
     pub light_turned: [AtomicU32; 3],
 }
 
-pub static FIGURES: Figures = Figures {
+pub(super) static FIGURES: Figures = Figures {
     polygons: AtomicU32::new(0),
     ground_searches: AtomicU32::new(0),
     ground_found: AtomicU32::new(0),
@@ -31,7 +31,7 @@ static LAST: Mutex<Option<(u64, u32, u32)>> = Mutex::new(None);
 
 /// The last frame's counts (the running counters' differences since the last UI frame).
 pub fn take() {
-    let fans = crate::platform::frame_counters()[3];
+    let fans = crate::shell::frame::frame_counters()[3];
     let (searches, found) = crate::debug::timing::ground_searches();
     let mut last = LAST
         .lock()
@@ -52,19 +52,21 @@ pub fn take() {
 
 /// The first view's scene has been drawn (on the game's thread): its first flare turned by
 /// its view matrix, as `race::add_flare` turned it (a pure reckoning: nothing is written).
-pub fn note_first_view(scene: &crate::scene::owner::Scene) {
+pub(super) fn note_first_view(scene: &crate::scene::owner::Scene) {
     let view = scene.scratch.main_view(0);
-    if view.lamps.flare_count.get() == 0 {
+    let lamps = view.lamps.borrow();
+    if lamps.flare_count == 0 {
         return;
     }
     let place = [
-        view.lamps.flare_place_x[0].get(),
-        view.lamps.flares.place_y[0].get(),
-        view.lamps.flares.place_z[0].get(),
+        lamps.flare_place_x[0],
+        lamps.flare_place_y[0],
+        lamps.flare_place_z[0],
     ];
+    drop(lamps);
     let turned = crate::math::x87::rotate_rounding_z(
         place.map(|v| v as i32),
-        &crate::memory::session::read_bits(&view.matrices.view_matrix),
+        &view.matrices.borrow().view_matrix.map(f32::to_bits),
     );
     for (figure, value) in FIGURES.light_turned.iter().zip(turned) {
         figure.store(value, Relaxed);

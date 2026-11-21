@@ -1,13 +1,13 @@
 //! `scene::set_object_file_names`: the paths of a kind of object's two files. Takes the kind
 //! (which folder); `ObjectWork.loading_kind` = the kind (the number).
 //!
-//! By the kind: under 0x190 `files\a\obj????.ro3` and `.lwo`, under 0x258 `files\b\`, under
-//! 0x320 `files\g\frnt\`, else `files\s\extr\`. Four pointers are set: the `.ro3` path
+//! By the kind: under 0x190 `files\a\obj????.ro3` and `.lwo`, under 0x258 `files\b\`, under 0x320
+//! `files\g\frnt\`, else `files\s\extr\`. Four pointers are set: the `.ro3` path
 //! (`ObjectFileNumbers.object_ro3_path`) and where its number is
-//! (`ObjectFileNumbers.object_ro3_number`), the `.lwo` path
-//! (`ObjectFileNumbers.object_lwo_path`) and its number (`ObjectFileNumbers.object_lwo_number`).
-//! The number's four decimal digits are written over the `????` of both (the thousands digit as
-//! one byte: anything above 9999 gives another character). One caller, `scene::load_object`.
+//! (`ObjectFileNumbers.object_ro3_number`), the `.lwo` path (`ObjectFileNumbers.object_lwo_path`)
+//! and its number (`ObjectFileNumbers.object_lwo_number`). The number's four decimal digits are
+//! written over the `????` of both (the thousands digit as one byte: anything above 9999 gives
+//! another character).
 
 use crate::memory::session::TextPlace;
 use crate::scene::file_numbers_store::texts;
@@ -32,21 +32,17 @@ pub fn set_object_file_names(
     {
         let (ro3, lwo, number) = FOLDERS[folder(folder_kind)];
         let (ro3_number, lwo_number) = ((ro3 + number) as u32, (lwo + number) as u32);
-        scene.file_numbers().object_ro3_number.set(ro3_number);
-        scene.file_numbers().object_ro3_path.set(ro3 as u32);
-        scene.file_numbers().object_lwo_path.set(lwo as u32);
-        scene.file_numbers().object_lwo_number.set(lwo_number);
-        let digits = number_digits(scene.object_work().loading_kind.get());
-        scene.file_numbers().text_at(ro3 + number).write_text_at(
-            0,
-            &digits,
-            "the object's file number",
-        )?;
-        scene.file_numbers().text_at(lwo + number).write_text_at(
-            0,
-            &digits,
-            "the object's file number",
-        )?;
+        scene.file_numbers_mut().object_ro3_number = ro3_number;
+        scene.file_numbers_mut().object_ro3_path = ro3 as u32;
+        scene.file_numbers_mut().object_lwo_path = lwo as u32;
+        scene.file_numbers_mut().object_lwo_number = lwo_number;
+        let digits = number_digits(scene.object_work().loading_kind);
+        scene
+            .path_text(ro3 + number)
+            .write_text_at(0, &digits, "the object's file number")?;
+        scene
+            .path_text(lwo + number)
+            .write_text_at(0, &digits, "the object's file number")?;
         Ok(())
     }
 }

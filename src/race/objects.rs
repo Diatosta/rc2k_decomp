@@ -4,7 +4,6 @@
 //! compared unsigned), turned to floats (/ 65536) into the car's block, two points put in at 4.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::Dword;
 use crate::race::owner::Race;
 
 const LIFT: u32 = 0x5_0000;
@@ -12,10 +11,10 @@ const MOST_SORTED: u32 = 0x3D;
 const MOST_CONVERTED: u32 = 0x40;
 
 /// A car's entry of one of the two kind tables (the car held to 0 .. 0x21).
-pub fn car_table(table: &[Dword; 34], car: u32) -> u32 {
+pub fn car_table(table: &[u32; 34], car: u32) -> u32 {
     // Logic in `rc2k_core::race::cars::table_entry`.
     let n = rc2k_core::race::cars::table_entry(car);
-    table[n].get()
+    table[n]
 }
 
 /// One of the four sorts: the key's offset in the point, and whether the order is downwards.
@@ -25,26 +24,26 @@ pub struct Sort {
     pub down: bool,
 }
 
-pub const BY_Y: Sort = Sort {
+const BY_Y: Sort = Sort {
     key: 4,
     down: false,
 };
-pub const BY_Z: Sort = Sort {
+const BY_Z: Sort = Sort {
     key: 8,
     down: false,
 };
-pub const BY_X_DOWN: Sort = Sort { key: 0, down: true };
+const BY_X_DOWN: Sort = Sort { key: 0, down: true };
 
 /// The sorts (by y, by z, and two by x downwards): the points from `first` to `last` (both
 /// included), step by step. Refuses (before anything) what `sorting::sort_records` refuses.
-pub fn sort_points(
-    object_points: &crate::scene::object_points::ObjectPoints,
+fn sort_points(
+    object_points: &crate::scene::object_points_store::ObjectPoints,
     s: Sort,
     first: u32,
     last: u32,
 ) -> Result<(), Refused> {
     // Logic in `rc2k_core::race::quick_sort::quick_sort`, on the points' places
-    // (`scene::object_points`).
+    // (`scene::object_points_store`).
     use rc2k_core::race::quick_sort::{Order, quick_sort};
     let order = if s.down { Order::Down } else { Order::Up };
     if first >= last {
@@ -83,7 +82,7 @@ pub fn set_up_car_points(
 ) -> Result<(), Refused> {
     let slot = 11 + slot as usize;
     {
-        let count = scene.objects.slots.get().point_counts[slot].get();
+        let count = scene.objects.slots.borrow().point_counts[slot];
         if count != 0 {
             if count > MOST_CONVERTED {
                 return Err(BadInput("more than 0x40 collision points").into());
@@ -93,12 +92,12 @@ pub fn set_up_car_points(
                     BadInput("one collision point: the original returns through edi").into(),
                 );
             }
-            let first = scene.objects.slots.get().first_point[slot].get();
+            let first = scene.objects.slots.borrow().first_point[slot];
             let points = first
                 .wrapping_mul(12)
-                .wrapping_add(race.course.lists.get().object_points.get());
+                .wrapping_add(race.course.lists.borrow().object_points);
             let held = (count as i32).clamp(0, MOST_SORTED as i32) as u32;
-            race.physics.contact.get().car_point_count.set(held);
+            race.physics.contact().borrow_mut().car_point_count = held;
             for n in 0..held {
                 let y = points + n * 12 + 4;
                 let lifted = race.course.stage.object_points.word(y)?.wrapping_add(LIFT);
@@ -113,7 +112,7 @@ pub fn set_up_car_points(
                 (BY_X_DOWN, 0, 2),
                 (BY_X_DOWN, 2, 2),
             ] {
-                race.physics.contact.get().car_point_count.set(n);
+                race.physics.contact().borrow_mut().car_point_count = n;
                 if n >= 2 {
                     let first = points + start * 12;
                     sort_points(
@@ -124,7 +123,7 @@ pub fn set_up_car_points(
                     )?;
                 }
             }
-            race.physics.contact.get().car_point_count.set(held);
+            race.physics.contact().borrow_mut().car_point_count = held;
             for n in 0..held {
                 let y = points + n * 12 + 4;
                 let lifted = race.course.stage.object_points.word(y)?.wrapping_sub(LIFT);
@@ -134,7 +133,7 @@ pub fn set_up_car_points(
                     .write(y, &lifted.to_le_bytes())?;
             }
             // Logic in `rc2k_core::race::cars::{point_float, open_two_points}`.
-            let scale = race.course.numbers.get().k65536.get();
+            let scale = race.course.numbers.k65536.get();
             let car = race.shared.race_car(car_number)?;
             let lists = [&car.probe_point_x, &car.probe_point_y, &car.probe_point_z];
             for n in 0..count {
@@ -142,36 +141,37 @@ pub fn set_up_car_points(
                 for (k, list) in lists.into_iter().enumerate() {
                     // Each value goes through `scratch`.
                     let c = race.course.stage.object_points.word(p + 4 * k as u32)?;
-                    scene.drawing.scene.get().scratch.set(c);
+                    scene.draw_work_mut().scratch = c;
                     list[n as usize].set(rc2k_core::race::cars::point_float(c, scale));
                 }
             }
-            race.physics.contact.get().car_point_count.set(count);
+            race.physics.contact().borrow_mut().car_point_count = count;
             let mut points = lists.map(crate::memory::session::read_bits);
             rc2k_core::race::cars::open_two_points(&mut points);
             for (l, p) in lists.into_iter().zip(points) {
                 crate::memory::session::write_bits(l, p);
             }
-            race.physics.contact.get().car_point_count.set(count + 2);
+            race.physics.contact().borrow_mut().car_point_count = count + 2;
         }
         log(c"carnum", false);
         log_number(race.shared.race_car(car_number)?.car_kind.get(), false);
         log(c"numcollpts", false);
-        log_number(race.physics.contact.get().car_point_count.get(), true);
+        let point_count = race.physics.contact().borrow().car_point_count;
+        log_number(point_count, true);
         race.shared
             .race_car(car_number)?
             .probe_count
-            .set(race.physics.contact.get().car_point_count.get());
+            .set(point_count);
     }
     Ok(())
 }
 
 /// Sets the object kinds: `scene::clear_slot_kinds`, the eight fixed kinds, slots 1 .. 0x3F of
 /// `slot_kinds` from `slot_kind_defaults`, slot 64 = `kept_kind`; with cars, each car's three
-/// kinds (its `known_kind`, `kind_11_table` and `kind_10_table` of its block's +0x24) at slots
+/// kinds (its `known_kind`, `kind_11_table` and `kind_10_table`, taken from its block's kind record) at slots
 /// 0x50 + 0x14 * n, +11, +10; then loads the objects and sets up each car's points. Refuses more
 /// than the eight cars' blocks.
-pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
     // Logic in `rc2k_core::race::stage_objects::{FIXED_KINDS, DEFAULT_SLOTS, CAR_KINDS, car_slot,
     // check_object_cars}` (each car's slots one step on from the first's).
@@ -180,19 +180,21 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
         check_object_cars,
     };
     crate::scene::clear_slot_kinds::clear_slot_kinds(scene);
-    crate::memory::session::write_bits(&course.stage_prefs.get().fixed_kinds, FIXED_KINDS);
+    course.stage_prefs.borrow_mut().fixed_kinds = FIXED_KINDS;
     for n in DEFAULT_SLOTS {
         // Slots 56 .. 62 take `fixed_kinds`, just set above: the defaults table runs on into it (a
         // slip kept as is).
-        let n_defaults = course.stage_prefs.get().slot_kind_defaults.len();
-        let default = match course.stage_prefs.get().slot_kind_defaults.get(n as usize) {
-            Some(cell) => cell.get(),
-            None => course.stage_prefs.get().fixed_kinds[n as usize - n_defaults].get(),
+        let default = {
+            let prefs = course.stage_prefs.borrow();
+            match prefs.slot_kind_defaults.get(n as usize) {
+                Some(&kind) => kind,
+                None => prefs.fixed_kinds[n as usize - prefs.slot_kind_defaults.len()],
+            }
         };
-        scene.objects.tables.get().slot_kinds[n as usize].set(default);
+        scene.texture_levels_mut().slot_kinds[n as usize] = default;
     }
 
-    scene.objects.tables.get().slot_kinds[64].set(race.shared.switches.get().kept_kind.get());
+    scene.texture_levels_mut().slot_kinds[64] = race.shared.switches.borrow().kept_kind;
     let cars: u32 = race.shared.view.get().race_cars.get();
     if cars == 0 {
         return Ok(());
@@ -207,7 +209,7 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
                 CarKind::Table11 => car_table(&race.kind_tables().kind_11_table, car),
                 CarKind::Table10 => car_table(&race.kind_tables().kind_10_table, car),
             };
-            scene.objects.tables.get().slot_kinds[(slots + slot) as usize].set(k);
+            scene.texture_levels_mut().slot_kinds[(slots + slot) as usize] = k;
         }
         slots += CAR_SLOT_STEP;
     }
@@ -223,16 +225,19 @@ pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
 /// Logs "LOAD OBJECTS - START" between two lines of dashes, runs `set_object_kinds`, then logs
 /// "total points", "total polys" and "facemem used" with their numbers, "LOAD OBJECTS - FINIS"
 /// and the dashes.
-pub fn reload_objects(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub(super) fn reload_objects(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     log(c"-------------------------------------", true);
     log(c"LOAD OBJECTS - START", true);
     set_object_kinds(race, scene)?;
     log(c"total points", false);
-    log_number(scene.objects.tables.get().point_count.get(), false);
+    log_number(scene.objects.tables.borrow().point_count, false);
     log(c"total polys", false);
-    log_number(scene.objects.tables.get().face_count.get(), false);
+    log_number(scene.texture_levels().face_count, false);
     log(c"facemem used", false);
-    log_number(scene.object_work().face_cursor.get(), true);
+    log_number(scene.object_work().face_cursor, true);
     log(c"LOAD OBJECTS - FINIS", true);
     log(c"-------------------------------------", true);
     Ok(())

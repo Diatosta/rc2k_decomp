@@ -2,8 +2,7 @@
 //! count, the places and the cameras are restored from the undo tables (`race::keep_undo`'s), the
 //! undo is emptied and the marks are reset (`race::reset_marks`).
 //!
-//! Called by `race::viewer_action` (actions 0x13 and 0x20). Refuses what `reset_marks` refuses
-//! (everything is put back).
+//! Refuses what `reset_marks` refuses (everything is put back).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

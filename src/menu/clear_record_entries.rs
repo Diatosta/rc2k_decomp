@@ -1,5 +1,5 @@
 //! `menu::clear_record_entries`: the current record's event (the stage best times,
-//! 0x618 an event, by the record's +0x3C) has its ten entries' (0x9C apart) +0x40 0.
+//! 0x618 an event, by the record's `event_slot`) has its ten entries' `mark` set to 0.
 //!
 //! Refuses a record past the table or
 //! no events table, before anything.

@@ -14,7 +14,7 @@ pub fn first_starts(last: u32) -> [(u32, u32); 2] {
 
 /// A value held below `hi` and, with `lo_zero`, at 0 or above; both by the sign of the
 /// difference.
-pub fn hold_signs(v: u32, lo_zero: bool, hi: u32) -> u32 {
+pub(crate) fn hold_signs(v: u32, lo_zero: bool, hi: u32) -> u32 {
     let mut v = v;
     if lo_zero && (v as i32) < 0 {
         v = 0;
@@ -46,7 +46,7 @@ pub fn passed(d: u32, pass: u32) -> bool {
 }
 
 /// Whether a kept car is ahead of the lead: its checkpoint past the lead's, or the same
-/// with the tie-break (+0x624, asked only then) past `CarBlocks.cars[0].checkpoint_offset[1]`.
+/// with the tie-break (asked only then) past `CarBlocks.cars[0].checkpoint_offset[1]`.
 pub fn ahead_of_lead(lead: u32, checkpoint: u32, lead_tie: u32, tie: impl FnOnce() -> u32) -> bool {
     let d = lead.wrapping_sub(checkpoint);
     (d as i32) < 0 || (d == 0 && (lead_tie.wrapping_sub(tie()) as i32) < 0)
@@ -65,9 +65,9 @@ pub fn wanted_gap(sum: u32, other: u32, back: u32) -> u32 {
 }
 
 /// The eased gap's scale.
-pub const EASE_SCALE: u32 = 0x14A;
+pub(crate) const EASE_SCALE: u32 = 0x14A;
 /// How far the eased gap may be before it jumps.
-pub const EASE_JUMP: u32 = 1000;
+pub(crate) const EASE_JUMP: u32 = 1000;
 
 /// The first pass: (the distance made positive; the eased gap when it jumps to the
 /// wanted one, which the distance then holds).

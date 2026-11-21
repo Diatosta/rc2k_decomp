@@ -8,13 +8,14 @@ pub fn by_key(t: impl IntoIterator<Item = Entry>, key: u32) -> Option<usize> {
     t.into_iter().position(|e| e[0] == key)
 }
 
+#[cfg(test)]
 /// The first entry whose second dword is `value`.
-pub fn by_value(t: impl IntoIterator<Item = Entry>, value: u32) -> Option<usize> {
+pub(crate) fn by_value(t: impl IntoIterator<Item = Entry>, value: u32) -> Option<usize> {
     t.into_iter().position(|e| e[1] == value)
 }
 
 /// The first entry whose first dword has any of `bits`.
-pub fn with_any_bit(t: impl IntoIterator<Item = Entry>, bits: u32) -> Option<usize> {
+pub(crate) fn with_any_bit(t: impl IntoIterator<Item = Entry>, bits: u32) -> Option<usize> {
     t.into_iter().position(|e| e[0] & bits != 0)
 }
 

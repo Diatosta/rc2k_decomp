@@ -1,8 +1,8 @@
 //! DirectInput's `EnumEffects` callback: each of the
-//! device record's six effects (from +0x3C, 0xA4 bytes) whose kind (+4) is the found
-//! effect's type (`DIEFFECTINFOA` +0x14, its low byte) takes it, unless it already has
-//! one (+0xC 1) that is the GUID it wants (+8 points at it): +0xC 1, +0x20 .. +0x28 the
-//! info's type, static and dynamic parameters, +0x10 its GUID. So each effect ends with
+//! device record's six effects whose `kind` is the found
+//! effect's type (`DIEFFECTINFOA`'s `eff_type`, its low byte) takes it, unless it already has
+//! one (`found` 1) that is the GUID it wants (`wanted` points at it): `found` 1, `eff_type`,
+//! `static_params` and `dynamic_params` the info's, `guid` its GUID. So each effect ends with
 //! its wanted GUID when the device has it, else with the last of its type listed. Always
 //! goes on (returns 1).
 
@@ -14,7 +14,7 @@ use crate::input::types::{DiEffectInfo, InputDevice};
 /// device record the effects are listed for.
 pub fn callback(guids: &InputGuids, info: &DiEffectInfo, record: &InputDevice) -> u32 {
     match effect_found(guids, info, record) {
-        Ok(eax) => eax,
+        Ok(go_on) => go_on,
         Err(e) => {
             crate::input::devices::refused_here("input::effect_found", e);
             0
@@ -22,7 +22,7 @@ pub fn callback(guids: &InputGuids, info: &DiEffectInfo, record: &InputDevice) -
     }
 }
 
-pub fn effect_found(
+pub(super) fn effect_found(
     guids: &InputGuids,
     info: &DiEffectInfo,
     record: &InputDevice,

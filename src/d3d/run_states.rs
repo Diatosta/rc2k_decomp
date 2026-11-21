@@ -12,7 +12,7 @@ use std::cell::Cell;
 use std::sync::Arc;
 
 use crate::render::{Command, STATES};
-use crate::scene::workers::PartScratch;
+use crate::scene::scratch_store::PartScratch;
 
 type States = [u32; STATES];
 
@@ -26,7 +26,7 @@ pub struct RunStates {
     left: crate::d3d::render_cache::Cache,
 }
 
-/// A drawing part's run under way (`scene::workers::PartScratch::run`): where it first set each
+/// A drawing part's run under way (`scene::scratch_store::PartScratch::run`): where it first set each
 /// state. Only a part other than the first has one; only the thread drawing it reaches it
 /// (plain cells, `memory::part_cell::PartCell`).
 pub struct OwnRun {
@@ -58,7 +58,7 @@ impl Default for OwnRun {
 pub fn begin_run(part: &PartScratch, start: &crate::d3d::render_cache::Cache) {
     crate::d3d::render_cache::begin(part, start);
     let run = &part.run;
-    run.base.set(crate::platform::direct3d::noted_len(part));
+    run.base.set(crate::d3d::device::noted_len(part));
     for f in &run.first_set {
         f.set(usize::MAX);
     }
@@ -86,20 +86,20 @@ pub fn end_run(part: &PartScratch) -> RunStates {
 
 /// `state` set (whatever its value, and whether it changed or not) in `part`'s run, if one is
 /// under way.
-pub fn note_set(part: &PartScratch, state: usize) {
+pub(super) fn note_set(part: &PartScratch, state: usize) {
     let run = &part.run;
     if run.on.get() && state < STATES && run.first_set[state].get() == usize::MAX {
         run.first_set[state]
-            .set(crate::platform::direct3d::noted_len(part).saturating_sub(run.base.get()));
+            .set(crate::d3d::device::noted_len(part).saturating_sub(run.base.get()));
     }
 }
 
 /// The texture set in `part`'s run, if one is under way (as `note_set`).
-pub fn note_texture_set(part: &PartScratch) {
+pub(super) fn note_texture_set(part: &PartScratch) {
     let run = &part.run;
     if run.on.get() && run.texture_set.get() == usize::MAX {
         run.texture_set
-            .set(crate::platform::direct3d::noted_len(part).saturating_sub(run.base.get()));
+            .set(crate::d3d::device::noted_len(part).saturating_sub(run.base.get()));
     }
 }
 

@@ -11,8 +11,6 @@
 //! (`race::close_viewed_replay`) and carry is set.
 //!
 //! Takes the replay (`race::replay_path`'s number).
-//!
-//! Callers: `race::replay_viewer`, `race::viewer_action` (action 0x14), `race::save_last_replay`.
 
 use crate::errors::Refused;
 use crate::files::handle;
@@ -21,12 +19,30 @@ use crate::race::replay_path::replay_path;
 
 use rc2k_core::race::viewer_flow::{HEADER_LEN, INDEX_LEN};
 
-/// Whether it failed. `slot` the replay.
+/// How opening a replay went.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Opened {
+    /// The replay is open.
+    Yes,
+    /// There is no such replay (an empty slot, or no race recorded yet): nothing to say.
+    Missing,
+    /// The file exists but cannot be used.
+    Damaged,
+}
+
+impl Opened {
+    /// Whether the replay did not open.
+    pub fn failed(self) -> bool {
+        self != Opened::Yes
+    }
+}
+
+/// How `slot`'s replay opened.
 pub fn open_viewed_replay(
     race: &Race,
     system: &crate::system::owner::System,
     slot: u32,
-) -> Result<bool, Refused> {
+) -> Result<Opened, Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
     // Logic in `rc2k_core::race::viewer_flow::{last_race_missing, copied_first, read_good,
@@ -35,22 +51,32 @@ pub fn open_viewed_replay(
         Blocks, CAMERA_DWORDS, CAR_HEADER_LEN, copied_first, index_blocks, last_race_missing,
         opened_marks, read_good, version_good,
     };
-    let failed = || -> Result<bool, Refused> {
+    let failed = || -> Result<Opened, Refused> {
         crate::race::close_viewed_replay::close_viewed_replay(race)?;
-        Ok(true)
+        Ok(Opened::Damaged)
+    };
+    let missing = || -> Result<Opened, Refused> {
+        crate::race::close_viewed_replay::close_viewed_replay(race)?;
+        Ok(Opened::Missing)
     };
     let found = replay_path(race, slot)?;
-    let mut path = found.path;
+    let mut path = crate::race::replay_path::file_to_load(slot, found.path);
     if last_race_missing(
         found.last_race,
-        || shared.replay_file().replay_closed.get(), /* dword_5BEC84: a replay was recorded */
+        || shared.replay_file().replay_closed.get(), /* a replay was recorded */
     ) {
-        return failed();
+        return missing();
     }
     if copied_first(found.number) {
+        // No file in the slot: nothing was saved there.
+        match handle::open_by_mode(&path, 0)? {
+            Some(file) => {
+                handle::close(file);
+            }
+            None => return missing(),
+        }
         // A saved replay is copied over the last race's first.
         let copied = crate::files::copy_file::copy_file(
-            system,
             &path,
             &crate::race::replay_path::last_race(replay),
         )?;
@@ -60,7 +86,11 @@ pub fn open_viewed_replay(
         path = crate::race::replay_path::last_race(replay);
     }
     let Some(file) = handle::open_by_mode(&path, 0)? else {
-        return failed();
+        return if copied_first(found.number) {
+            failed()
+        } else {
+            missing()
+        };
     };
     shared.replay_file().replay_handle.set(file);
     shared.replay_file().replay_open.set(true);
@@ -82,28 +112,64 @@ pub fn open_viewed_replay(
     {
         return failed();
     }
-    // The index is the file's last 0x3850 bytes.
+    // The blocks of a replay with the extra tape hold it after their frame.
+    race.viewer_buffers().extra_tape.set(
+        rc2k_core::race::replay::read_version(shared.replays().header.get_u32(8)) == Some(true),
+    );
+    // A replay of the own format has its cars after the header and a tail to each block.
+    let own = shared.replays().header.get_u32(8) == rc2k_core::race::replay_v2::VERSION;
+    race.viewer_buffers().v2.set(own);
+    {
+        let mut v2 = replay.v2().lock();
+        v2.ext = None;
+        v2.tail = rc2k_core::race::replay_v2::Tail::new();
+    }
+    if own {
+        let len = shared
+            .replays()
+            .header
+            .get_u32(rc2k_core::race::replay_v2::EXT_LEN_AT) as usize;
+        let mut bytes = vec![0u8; len.min(0x1_0000)];
+        let (n, ok) = handle::read_slice(shared.replay_file().replay_handle.get(), &mut bytes);
+        let extension = (ok && len <= 0x1_0000 && n as usize == len)
+            .then(|| rc2k_core::race::replay_v2::Extension::parse(&bytes))
+            .flatten();
+        let Some(extension) = extension else {
+            return failed();
+        };
+        replay.v2().lock().ext = Some(extension);
+    }
+    // The index is the file's last bytes: 0x3850 bytes in the old format, larger in the own one.
+    let (index_len, most) = if own {
+        (
+            rc2k_core::race::replay_v2::OWN_INDEX_LEN as u32,
+            rc2k_core::race::replay_v2::MOST_BLOCKS,
+        )
+    } else {
+        (INDEX_LEN, rc2k_core::race::replay::MOST_BLOCKS)
+    };
     let at = {
         handle::seek(
             shared.replay_file().replay_handle.get(),
-            INDEX_LEN.wrapping_neg() as i32,
+            index_len.wrapping_neg() as i32,
             2,
         )
     };
+    shared.replay_file().index.clear();
     if at.is_none()
         || !good(
-            handle::read_cells(
-                shared.replay_file().replay_handle.get(),
-                shared.replay_file().index.dwords(),
-            ),
-            INDEX_LEN,
+            shared
+                .replay_file()
+                .index
+                .read_from(shared.replay_file().replay_handle.get(), index_len as usize),
+            index_len,
             &|| race.shared.replay_file().index.magic.get(),
             false,
         )
     {
         return failed();
     }
-    match index_blocks(shared.replay_file().index.block_count.get()) {
+    match index_blocks(shared.replay_file().index.block_count.get(), most) {
         Blocks::Bad => return failed(),
         Blocks::Held(n) => shared.replay_file().index.block_count.set(n),
         Blocks::Kept => {}
@@ -140,39 +206,18 @@ pub fn open_viewed_replay(
             .read_at(0x30, CAR_HEADER_LEN, "the replay header's stage")?;
     put_header_stage(race, &stage);
     crate::race::replay_patches::apply_replay_patches(race)?;
-    Ok(false)
+    Ok(Opened::Yes)
 }
 
 /// The cars' header (`CAR_HEADER_LEN` bytes) into the replay work's fields from `header_stage` on:
 /// the header's settings, the sealed part, the patch switches and the unread rest, a dword each
 /// with no gap, up to the camera wishes.
 fn put_header_stage(race: &Race, header: &[u8]) {
-    let w = race.replay_work();
-    let singles = [
-        &w.header_stage,
-        &w.header_mode,
-        &w.header_players,
-        &w.header_cars,
-        &w.header_kind_0,
-        &w.header_kind_1,
-        &w.header_kind_2,
-        &w.header_kind_3,
-        &w.header_one_player,
-        &w.header_codriver_sex_0,
-        &w.header_codriver_sex_1,
-        &w.header_start_place,
-        &w.header_arcade_cars,
-        &w.header_seed,
-        &w.header_game_over_0,
-        &w.header_game_over_1,
-    ];
-    let cells = singles
-        .into_iter()
-        .chain(&w.sealed_header)
-        .chain(std::iter::once(&w.patches_in_header))
-        .chain(&w.header_patches)
-        .chain(&w.unknown_7d0);
-    for (dword, bytes) in cells.zip(header.as_chunks::<4>().0) {
-        dword.set(u32::from_le_bytes(*bytes));
-    }
+    race.replay_work_mut().set_header_words(
+        header
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|bytes| u32::from_le_bytes(*bytes)),
+    );
 }

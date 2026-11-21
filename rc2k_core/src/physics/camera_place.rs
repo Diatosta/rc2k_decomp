@@ -4,14 +4,17 @@
 //! Floats: the turn is `math::vector::rotate_point` in `f64`; at extended precision a whole
 //! number may land one off at a rounding edge.
 
+#[cfg(test)]
 use crate::math::geometry::fistp64;
+#[cfg(test)]
 use crate::math::vector::rotate_point;
 
 /// The view mode whose figures come from the second record.
 pub const SECOND_RECORD_MODE: u32 = 2;
 
+#[cfg(test)]
 /// The offset (whole numbers, `scale` = 65536 a unit) turned by the car's matrix, made whole.
-pub fn turned_offset(m: &[f32; 15], offset: [i32; 3], scale: f32) -> [i32; 3] {
+pub(crate) fn turned_offset(m: &[f32; 15], offset: [i32; 3], scale: f32) -> [i32; 3] {
     let k = scale as f64;
     rotate_point(m, offset.map(|v| v as f64 / k)).map(|v| fistp64(v * k))
 }

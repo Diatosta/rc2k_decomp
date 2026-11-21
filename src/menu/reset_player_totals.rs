@@ -1,5 +1,5 @@
-//! `menu::reset_player_totals`: the counted players' (`event.player_count`) +0x8C and
-//! +0x88 3600000.
+//! `menu::reset_player_totals`: the counted players' (`event.player_count`) `total` and
+//! `time` set to 3600000.
 //!
 //! Refuses a player count of 0 or past 4 or a missing player, before
 //! anything.

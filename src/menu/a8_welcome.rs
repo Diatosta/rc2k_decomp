@@ -4,7 +4,7 @@
 //! (`input::take_key`). Escape asks about leaving (`menu::confirm_leaving`); a no starts over.
 //! Then one more key is taken and dropped.
 //!
-//! Caller: `menu::run_a8_championship` (event mode 0x13). The calls go through `event_flow::Call`.
+//! The calls go through `event_flow::Call`.
 
 use crate::errors::Refused;
 use crate::menu::flow_game::Game;

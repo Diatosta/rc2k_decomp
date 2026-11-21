@@ -8,9 +8,9 @@ pub const OWN: u32 = 0xFFFF_FF91;
 /// No one-off sound waiting (-2).
 pub const NONE: u32 = 0xFFFF_FFFE;
 /// The most cues a queue holds.
-pub const MOST_CUES: u32 = 16;
+pub(crate) const MOST_CUES: u32 = 16;
 /// The most sounds a cue holds.
-pub const MOST_SOUNDS: u32 = 6;
+pub(crate) const MOST_SOUNDS: u32 = 6;
 
 /// A spoken cue (0x20 bytes in the game's layout).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -21,7 +21,7 @@ pub struct Cue {
     pub sounds: [u32; 6],
 }
 
-/// A car's queue of spoken cues (the sound object's +0x298, 0x210 bytes;
+/// A car's queue of spoken cues (the sound object's queue of 0x210 bytes;
 /// `physics::queue_sound_cue` fills it).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CueQueue {
@@ -174,7 +174,7 @@ pub struct TimedSlot {
 }
 
 /// The sound that starts even while playing.
-pub const ALWAYS_STARTS: u32 = 0xE9;
+pub(crate) const ALWAYS_STARTS: u32 = 0xE9;
 
 /// What a slot's turn did.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -267,7 +267,7 @@ pub fn from_int(v: i32) -> u32 {
     (v as f32).to_bits()
 }
 
-/// A car's voice marks by its car's +0x25C (`kind`) and its place `n`: (whether it
+/// A car's voice marks by its car's kind (`kind`) and its place `n`: (whether it
 /// sounds, and its voice when set: 0, or !n for a computer's car).
 pub fn voice_mark(n: u32, kind: u32) -> (u32, Option<u32>) {
     match kind {

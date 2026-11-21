@@ -2,10 +2,8 @@
 //! the same byte of the next blocks (8 bytes on each) while they held the old one, for the blocks
 //! after the one shown (`index.block_count` - `replay_block` less one at most).
 //!
-//! Called by `race::viewer_action` (the camera byte actions), with the
-//! block shown not the last. The count is not checked: a count of 0 or less is limited only by
-//! the bytes met. Refuses, before anything is written, a walk that would pass the 0x708 blocks of
-//! the table.
+//! The count is not checked: a count of 0 or less is limited only by the bytes met. Refuses, before
+//! anything is written, a walk that would pass the 0x708 blocks of the table.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
@@ -17,7 +15,7 @@ pub fn spread_camera(race: &Race, byte: CameraByte, old: u8) -> Result<(), Refus
     let replay = &race.replay;
     // The camera bytes of the following blocks, 8 bytes apart (a stride over bytes).
     let at = |n: u32| byte.blocks_on(n);
-    let dl = byte.read(race, "a replay camera byte")?;
+    let new_camera = byte.read(race, "a replay camera byte")?;
     let count = race
         .shared
         .replay_file()
@@ -32,7 +30,7 @@ pub fn spread_camera(race: &Race, byte: CameraByte, old: u8) -> Result<(), Refus
     })?;
     trap.finish()?;
     for n in 1..=s.taken {
-        at(n).write(race, dl, "a replay camera byte")?;
+        at(n).write(race, new_camera, "a replay camera byte")?;
     }
     Ok(())
 }

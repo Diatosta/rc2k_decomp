@@ -3,7 +3,6 @@
 //! cross per option.
 
 use crate::errors::Refused;
-use crate::memory::session::PlainDword;
 use crate::text::draw_text::Canvas;
 
 /// (id, x, y, font) of the page's lines.
@@ -16,16 +15,16 @@ pub fn draw_options_checklist(
     {
         // The fault flags end with their field's -1: `menu::inspection_faults` writes only
         // the thirteen before it, each 0 or 1.
-        let faults = &menus.lists.inspection_faults;
+        let faults = menus.lists.read().inspection_faults;
         let end = faults
             .iter()
-            .position(|f| f.get() == u32::MAX)
+            .position(|f| *f == u32::MAX)
             .ok_or(crate::errors::BadInput("the fault flags without their end"))?;
-        let ticks: Vec<u32> = faults[..end].iter().map(PlainDword::get).collect();
+        let ticks: Vec<u32> = faults[..end].to_vec();
         rc2k_core::screens::settings_pages::options_checklist(
             &mut crate::screens::game_screen::SettingsScreen::new(canvas, o),
-            menus.screens.event.current_player.get(),
-            menus.screens.state.driver_stats.score.get() as i32,
+            menus.screens.event.read().current_player,
+            menus.screens.state.read().driver_stats.score as i32,
             &ticks,
         )
     }

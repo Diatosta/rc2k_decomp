@@ -1,15 +1,15 @@
 //! The 1999 byte layout of the work car record, for the tests whose subject is where a field sat
-//! in the original (`(field, offset, length)`; places no code read are not in it). The record
-//! itself keeps no layout: the offsets of the original's code, the replay file's and the recorded
+//! in the 1999 game (`(field, offset, length)`; places no code read are not in it). The record
+//! itself keeps no layout: the offsets of the 1999 code, the replay file's and the recorded
 //! vectors' are mapped to fields here, and nowhere else.
 
 use crate::physics::car_store::Car;
 use crate::test_support::paths::{bytes, first_addr, get_u32, set_bytes, set_u32};
 
 /// The size of the 1999 record.
-pub const SIZE_1999: usize = 0xFE0;
+pub(super) const SIZE_1999: usize = 0xFE0;
 
-const FIELDS: [(&str, usize, usize); 263] = [
+const FIELDS: [(&str, usize, usize); 253] = [
     ("frame_head", 0x0, 8),
     ("step_clock", 0x8, 4),
     ("noise_word", 0xc, 4),
@@ -26,7 +26,7 @@ const FIELDS: [(&str, usize, usize); 263] = [
     ("gearbox_kind", 0x38, 4),
     ("steering_sensitivity", 0x3c, 4),
     ("drive_kind", 0x40, 4),
-    ("unused_44", 0x44, 4),
+    ("reserved_44", 0x44, 4),
     ("part_woken", 0x48, 24),
     ("ground_bump_scale", 0x60, 4),
     ("impact_octant_marks", 0x64, 32),
@@ -70,7 +70,7 @@ const FIELDS: [(&str, usize, usize); 263] = [
     ("eased_yaw_spin", 0x200, 4),
     ("grip_force_sum", 0x204, 4),
     ("steer_trim", 0x208, 4),
-    ("unused_20c", 0x20c, 4),
+    ("reserved_20c", 0x20c, 4),
     ("grip_forces", 0x210, 16),
     ("option_bits", 0x220, 4),
     ("contact_point", 0x224, 12),
@@ -191,9 +191,7 @@ const FIELDS: [(&str, usize, usize); 263] = [
     ("camera_zoom", 0x6c8, 4),
     ("kept_focus_point", 0x6cc, 36),
     ("camera_mode_is_2_or_3", 0x6f0, 4),
-    ("state_bits", 0x6fc, 4),
     ("part_wake_counts", 0x700, 24),
-    ("shown_engine_speed", 0x718, 4),
     ("notice_id", 0x71c, 4),
     ("notice_counter", 0x720, 4),
     ("notice_last", 0x724, 4),
@@ -201,10 +199,6 @@ const FIELDS: [(&str, usize, usize); 263] = [
     ("notice_time", 0x72c, 4),
     ("notice_time_b", 0x730, 4),
     ("kept_view_place", 0x734, 12),
-    ("part_matrices", 0x740, 256),
-    ("body_matrix", 0x840, 64),
-    ("place_matrix", 0x880, 64),
-    ("whole_matrix", 0x8c0, 64),
     ("surface_noise_a", 0x900, 4),
     ("surface_noise_b", 0x904, 4),
     ("surface_noise_second", 0x908, 4),
@@ -234,10 +228,6 @@ const FIELDS: [(&str, usize, usize); 263] = [
     ("shown_steering", 0xaac, 4),
     ("engine_sound_speed_int", 0xab0, 4),
     ("marks_on", 0xab4, 4),
-    ("mode_on", 0xab8, 4),
-    ("marks_count", 0xabc, 4),
-    ("part_switches", 0xac0, 17),
-    ("_pad_part_switches", 0xad1, 3),
     ("map_corner", 0xad4, 8),
     ("map_redrawn", 0xadc, 4),
     ("map_place", 0xae0, 8),
@@ -275,10 +265,24 @@ const FIELDS: [(&str, usize, usize); 263] = [
     ("kept_brake_word", 0xfdc, 4),
 ];
 
+/// Where each field of `FIELDS` starts inside a `Car` (its address less the car's own), found by
+/// path once: every car keeps its fields in the same places.
+fn field_places() -> &'static [usize; FIELDS.len()] {
+    static PLACES: std::sync::OnceLock<[usize; FIELDS.len()]> = std::sync::OnceLock::new();
+    PLACES.get_or_init(|| {
+        let car = Car::new();
+        let base = std::ptr::from_ref(&car).addr();
+        FIELDS.map(|(name, _, _)| {
+            first_addr(&car, &format!(".{name}")).expect("a field of the car") - base
+        })
+    })
+}
+
 /// The 1999 offset of the byte at address `addr` of `car`, which lies in one of its fields.
 pub fn offset_1999(car: &Car, addr: usize) -> usize {
-    for (name, start, len) in FIELDS {
-        let first = first_addr(car, &format!(".{name}")).expect("a field of the car");
+    let base = std::ptr::from_ref(car).addr();
+    for ((_, start, len), place) in FIELDS.iter().zip(field_places()) {
+        let first = base + place;
         if (first..first + len).contains(&addr) {
             return start + addr - first;
         }
@@ -314,15 +318,25 @@ pub fn store_1999(car: &Car, offset: usize, value: u32) {
     assert!(set_u32(car, &cell_path(offset), value));
 }
 
+/// Whether each dword of the 1999 record (by its offset / 4) lies in a field of `FIELDS`.
+fn covered_offsets() -> &'static [bool; SIZE_1999 / 4] {
+    static COVERED: std::sync::OnceLock<[bool; SIZE_1999 / 4]> = std::sync::OnceLock::new();
+    COVERED.get_or_init(|| {
+        let mut covered = [false; SIZE_1999 / 4];
+        for (_, start, len) in FIELDS {
+            for offset in (start..start + len).step_by(4) {
+                covered[offset / 4] = true;
+            }
+        }
+        covered
+    })
+}
+
 /// The 1999 offset of cell `n` of the table `cells` of `car`, running on past the table's end
 /// into what followed it, as the record's fields do now: the places no code read (not in
 /// `FIELDS`) are stepped over, as the closed-up record has no bytes there.
 fn run_on(car: &Car, cells: &[impl crate::memory::session::Cell32], n: usize) -> usize {
-    let covered = |offset: usize| {
-        FIELDS
-            .iter()
-            .any(|&(_, start, len)| (start..start + len).contains(&offset))
-    };
+    let covered = |offset: usize| covered_offsets()[offset / 4];
     let mut offset = offset_1999(car, cells.as_ptr().addr());
     for _ in 0..n {
         offset += 4;
@@ -333,14 +347,9 @@ fn run_on(car: &Car, cells: &[impl crate::memory::session::Cell32], n: usize) ->
     offset
 }
 
-/// Cell `n` of the table `cells` of `car` as the 1999 layout reads it, running on past the
+/// Sets cell `n` of the table `cells` of `car` as the 1999 layout writes it, running on past the
 /// table's end into the fields that follow it (`run_on`).
-pub fn read_on_1999<C: crate::memory::session::Cell32>(car: &Car, cells: &[C], n: usize) -> u32 {
-    load_1999(car, run_on(car, cells, n))
-}
-
-/// `read_on_1999`'s write.
-pub fn write_on_1999<C: crate::memory::session::Cell32>(
+pub(super) fn write_on_1999<C: crate::memory::session::Cell32>(
     car: &Car,
     cells: &[C],
     n: usize,
@@ -385,7 +394,7 @@ mod tests {
             }
         }
         let missing: usize = covered.iter().filter(|&&b| !b).count();
-        assert_eq!(missing, 64 + 4 + 8 + 8);
+        assert_eq!(missing, 64 + 4 + 8 + 8 + 4 + 480);
         let flat = crate::test_support::paths::field_bytes(&Car::new(), "").len();
         assert_eq!(flat, SIZE_1999 - missing);
     }

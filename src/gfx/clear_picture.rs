@@ -5,7 +5,7 @@ use crate::errors::BadInput;
 use crate::gfx::owner::Pictures;
 use crate::gfx::picture::{PICTURE_DWORDS, has_picture, with_picture};
 
-pub fn clear_picture(pictures: &Pictures) -> Result<(), BadInput> {
+pub(super) fn clear_picture(pictures: &Pictures) -> Result<(), BadInput> {
     if !has_picture(pictures) {
         return Err(BadInput("no picture buffer"));
     }

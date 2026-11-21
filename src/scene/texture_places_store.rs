@@ -1,224 +1,160 @@
 //! The texture places: which texture each slot shows, the pictures wanted and loaded, the counters,
-//! the car icon sheets and the shapes' marks. Follows the kind texture tables
-//! (`scene::kind_texture_store`); the matrices follow (`race::matrices_store`).
+//! the car icon sheets and the shapes' marks. `TexturePlaces` is plain fields only the game's thread
+//! reaches (`scene::owner::Scene::texture_places`); the part the drawing parts read, `PlaceSlots`,
+//! is a plain record lent to them as a copy.
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::PlainDword;
+use crate::memory::session::{DrawPlain, PlainRead};
 
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
-pub struct TexturePlaces {
-    /// The texture of each slot (`scene::try_allocate_textures`).
-    pub texture_of: [PlainDword; 1024],
+/// What the drawing parts read of the places: each place's slot, and how many textures the
+/// video memory holds. A plain record (`session::DrawPlain`) written between frames
+/// (`scene::map_texture_places`, `scene::count_texture_needs`), read there and, as a copy made when
+/// a drawing scope opens, by the parts through their reads (`scene::workers::DrawReads`).
+#[derive(Clone)]
+pub struct PlaceSlots {
     /// Each place's slot (`scene::look_up_texture`, `scene::map_texture_places`,
     /// `scene::draw_polygon`, `race::frame_draw`). [1999] is the windscreen drops' texture
     /// (`effects::windscreen_drops_setup`).
-    pub place_slot: [PlainDword; 4000],
+    pub place_slot: [u32; 4000],
+    /// The textures in video memory (`scene::count_texture_needs`; `scene::look_up_texture`,
+    /// `scene::draw_polygon`, `scene::load_slot_textures`).
+    pub video_textures: u32,
+}
+
+impl PlaceSlots {
+    /// The store with its first values (everything starts at zero).
+    pub const fn new() -> Self {
+        Self {
+            place_slot: [0; 4000],
+            video_textures: 0,
+        }
+    }
+}
+
+/// The places' slots as one reader finds them: the game's thread's own (read through the store when
+/// used), or a drawing part's copy.
+#[derive(Clone, Copy)]
+pub enum PlaceSlotsRef<'a> {
+    Store(&'a DrawPlain<PlaceSlots>),
+    Copy(&'a PlaceSlots),
+}
+
+impl PlaceSlotsRef<'_> {
+    /// Place `place`'s slot; a place past the table is `None`.
+    pub fn place_slot(self, place: usize) -> Option<u32> {
+        match self {
+            Self::Store(store) => store.borrow().place_slot.get(place).copied(),
+            Self::Copy(slots) => slots.place_slot.get(place).copied(),
+        }
+    }
+
+    /// How many textures the video memory holds.
+    pub fn video_textures(self) -> u32 {
+        match self {
+            Self::Store(store) => store.borrow().video_textures,
+            Self::Copy(slots) => slots.video_textures,
+        }
+    }
+}
+
+impl<'a> From<&'a PlainRead<PlaceSlots>> for PlaceSlotsRef<'a> {
+    fn from(copy: &'a PlainRead<PlaceSlots>) -> Self {
+        Self::Copy(copy)
+    }
+}
+
+/// The places' other tables: plain fields, reached by the game's thread alone.
+#[derive(Clone)]
+pub struct TexturePlaces {
+    /// The texture of each slot (`scene::try_allocate_textures`).
+    pub texture_of: [u32; 1024],
     /// The picture number of each kind (the code reaches [0x87], [0x258] ..)
     /// (`race::set_all_plates`, `scene::reload_system_textures`,
     /// `scene::set_up_front_end_scene`).
-    pub kind_pictures: [PlainDword; 1024],
+    pub kind_pictures: [u32; 1024],
     /// The picture each texture should hold (`scene::load_changed_texture_picture`,
     /// `scene::reset_texture_places`, `scene::textures`).
-    pub wanted_pictures: [PlainDword; 1024],
+    pub wanted_pictures: [u32; 1024],
     /// The picture each holds (same users).
-    pub loaded_pictures: [PlainDword; 1024],
+    pub loaded_pictures: [u32; 1024],
     /// The texture each slot should show (`scene::clear_slot_textures`, `scene::textures`,
     /// `race::draw_race_scene`).
-    pub slot_wanted: [PlainDword; 1024],
+    pub slot_wanted: [u32; 1024],
     /// The texture each slot shows (`scene::forget_slot_texture`, `scene::textures`).
-    pub slot_loaded: [PlainDword; 1024],
-    /// Video k, system k, video textures, system textures (`scene::count_texture_needs`); [2]
-    /// and [3] are read alone (`scene::look_up_texture`, `scene::draw_polygon`,
-    /// `scene::reload_system_textures`).
-    pub totals: [PlainDword; 4],
+    pub slot_loaded: [u32; 1024],
+    /// What the video memory and the system memory hold, in kilobytes, and the system
+    /// memory's textures (`scene::count_texture_needs`; the video memory's textures are
+    /// `PlaceSlots::video_textures`).
+    pub video_kilobytes: u32,
+    pub system_kilobytes: u32,
+    pub system_textures: u32,
     /// What a kind's slots take (`scene::texture_levels`, `scene::reset_texture_tables`).
-    pub kind_slot_bytes: PlainDword,
+    pub kind_slot_bytes: u32,
     /// 0x100 counters (`scene::build_texture_catalogue`).
-    pub counters: [PlainDword; 256],
+    pub counters: [u32; 256],
     /// The texture steps' flags (`scene::texture_steps`, `scene::build_texture_catalogue`).
-    pub step_flags: [PlainDword; 8],
+    pub step_flags: [u32; 8],
     /// The car icons' sheet x (`scene::load_hud_car_icons`).
-    pub car_icon_sheet_x: [PlainDword; 36],
+    pub car_icon_sheet_x: [u32; 36],
     /// The sheet y (`scene::load_hud_car_icons`).
-    pub car_icon_sheet_y: [PlainDword; 36],
+    pub car_icon_sheet_y: [u32; 36],
     /// The objects' texture lists, a count then the textures (`scene::list_object_textures`).
-    pub object_texture_records: [PlainDword; 1024],
+    pub object_texture_records: [u32; 1024],
     /// The shape's faces taken (`scene::add_object_shape`).
-    pub face_marks: [PlainDword; 4096],
+    pub face_marks: [u32; 4096],
     /// The points' marks (`scene::add_object_shape`).
-    pub point_marks: [PlainDword; 4096],
-    /// The normals' marks (`scene::add_object_shape`); three dwords more follow.
-    pub normal_marks: [PlainDword; 4096],
-    /// Three dwords past the normals' marks; nothing reads or writes them (an overrun space for
-    /// the marks table, probably padding).
-    pub unknown_173d4: [PlainDword; 3],
+    pub point_marks: [u32; 4096],
+    /// The normals' marks (`scene::add_object_shape`).
+    pub normal_marks: [u32; 4096],
 }
 
-/// A table of the places, by name: the field a slot or counter number indexes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PlacesTable {
-    TextureOf,
-    PlaceSlot,
-    KindPictures,
-    WantedPictures,
-    LoadedPictures,
-    SlotWanted,
-    SlotLoaded,
-    Totals,
-    KindSlotBytes,
-    Counters,
-    StepFlags,
-    CarIconSheetX,
-    CarIconSheetY,
-    ObjectTextureRecords,
-    FaceMarks,
-    PointMarks,
-    NormalMarks,
-    Unknown173d4,
-}
-
-impl PlacesTable {
-    /// Every table, in the order of the places.
-    pub const ALL: [PlacesTable; 18] = [
-        PlacesTable::TextureOf,
-        PlacesTable::PlaceSlot,
-        PlacesTable::KindPictures,
-        PlacesTable::WantedPictures,
-        PlacesTable::LoadedPictures,
-        PlacesTable::SlotWanted,
-        PlacesTable::SlotLoaded,
-        PlacesTable::Totals,
-        PlacesTable::KindSlotBytes,
-        PlacesTable::Counters,
-        PlacesTable::StepFlags,
-        PlacesTable::CarIconSheetX,
-        PlacesTable::CarIconSheetY,
-        PlacesTable::ObjectTextureRecords,
-        PlacesTable::FaceMarks,
-        PlacesTable::PointMarks,
-        PlacesTable::NormalMarks,
-        PlacesTable::Unknown173d4,
-    ];
-
-    /// The table's dwords.
-    fn cells(self, places: &TexturePlaces) -> &[PlainDword] {
-        match self {
-            PlacesTable::TextureOf => &places.texture_of,
-            PlacesTable::PlaceSlot => &places.place_slot,
-            PlacesTable::KindPictures => &places.kind_pictures,
-            PlacesTable::WantedPictures => &places.wanted_pictures,
-            PlacesTable::LoadedPictures => &places.loaded_pictures,
-            PlacesTable::SlotWanted => &places.slot_wanted,
-            PlacesTable::SlotLoaded => &places.slot_loaded,
-            PlacesTable::Totals => &places.totals,
-            PlacesTable::KindSlotBytes => core::slice::from_ref(&places.kind_slot_bytes),
-            PlacesTable::Counters => &places.counters,
-            PlacesTable::StepFlags => &places.step_flags,
-            PlacesTable::CarIconSheetX => &places.car_icon_sheet_x,
-            PlacesTable::CarIconSheetY => &places.car_icon_sheet_y,
-            PlacesTable::ObjectTextureRecords => &places.object_texture_records,
-            PlacesTable::FaceMarks => &places.face_marks,
-            PlacesTable::PointMarks => &places.point_marks,
-            PlacesTable::NormalMarks => &places.normal_marks,
-            PlacesTable::Unknown173d4 => &places.unknown_173d4,
-        }
+/// The sheet x of each car icon.
+const CAR_ICON_SHEET_X: [u32; 36] = {
+    let mut a = [0; 36];
+    let mut n = 0;
+    while n < 36 {
+        a[n] = match n % 3 {
+            1 => 0x52,
+            2 => 0xA4,
+            _ => 0,
+        };
+        n += 1;
     }
-}
+    a
+};
 
-/// The cell `index` entries on from the table `table`. The game does not bound these indices (slot
-/// and counter numbers from its data): a number past the table reads on into the next fields of the
-/// places in their order; past the places it is refused.
-pub fn cell_at(
-    places: &TexturePlaces,
-    table: PlacesTable,
-    index: u32,
-) -> Result<&PlainDword, crate::errors::BadInput> {
-    // Every field is a run of dwords, in the order of `ALL`: a number past the table's end
-    // counts on into the next tables.
-    let mut left = index as usize;
-    for next in PlacesTable::ALL
-        .into_iter()
-        .skip_while(|&candidate| candidate != table)
-    {
-        let cells = next.cells(places);
-        if let Some(cell) = cells.get(left) {
-            return Ok(cell);
-        }
-        left -= cells.len();
+/// The sheet y of each car icon: rows of three icons, 0x2A apart, twice (two sheets of six rows).
+const CAR_ICON_SHEET_Y: [u32; 36] = {
+    let mut a = [0; 36];
+    let mut n = 0;
+    while n < 36 {
+        a[n] = ((n % 18) / 3) as u32 * 0x2A;
+        n += 1;
     }
-    Err(crate::errors::BadInput("a cell past the texture places"))
-}
-
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
+    a
+};
 
 impl TexturePlaces {
     /// The store with its first values (every field not named here starts at zero).
     pub const fn new() -> Self {
         Self {
-            car_icon_sheet_x: {
-                let mut a: [PlainDword; 36] = ZeroCells::ZERO;
-                a[1] = PlainDword::new(0x52);
-                a[2] = PlainDword::new(0xA4);
-                a[4] = PlainDword::new(0x52);
-                a[5] = PlainDword::new(0xA4);
-                a[7] = PlainDword::new(0x52);
-                a[8] = PlainDword::new(0xA4);
-                a[10] = PlainDword::new(0x52);
-                a[11] = PlainDword::new(0xA4);
-                a[13] = PlainDword::new(0x52);
-                a[14] = PlainDword::new(0xA4);
-                a[16] = PlainDword::new(0x52);
-                a[17] = PlainDword::new(0xA4);
-                a[19] = PlainDword::new(0x52);
-                a[20] = PlainDword::new(0xA4);
-                a[22] = PlainDword::new(0x52);
-                a[23] = PlainDword::new(0xA4);
-                a[25] = PlainDword::new(0x52);
-                a[26] = PlainDword::new(0xA4);
-                a[28] = PlainDword::new(0x52);
-                a[29] = PlainDword::new(0xA4);
-                a[31] = PlainDword::new(0x52);
-                a[32] = PlainDword::new(0xA4);
-                a[34] = PlainDword::new(0x52);
-                a[35] = PlainDword::new(0xA4);
-                a
-            },
-            car_icon_sheet_y: {
-                let mut a: [PlainDword; 36] = ZeroCells::ZERO;
-                a[3] = PlainDword::new(0x2A);
-                a[4] = PlainDword::new(0x2A);
-                a[5] = PlainDword::new(0x2A);
-                a[6] = PlainDword::new(0x54);
-                a[7] = PlainDword::new(0x54);
-                a[8] = PlainDword::new(0x54);
-                a[9] = PlainDword::new(0x7E);
-                a[10] = PlainDword::new(0x7E);
-                a[11] = PlainDword::new(0x7E);
-                a[12] = PlainDword::new(0xA8);
-                a[13] = PlainDword::new(0xA8);
-                a[14] = PlainDword::new(0xA8);
-                a[15] = PlainDword::new(0xD2);
-                a[16] = PlainDword::new(0xD2);
-                a[17] = PlainDword::new(0xD2);
-                a[21] = PlainDword::new(0x2A);
-                a[22] = PlainDword::new(0x2A);
-                a[23] = PlainDword::new(0x2A);
-                a[24] = PlainDword::new(0x54);
-                a[25] = PlainDword::new(0x54);
-                a[26] = PlainDword::new(0x54);
-                a[27] = PlainDword::new(0x7E);
-                a[28] = PlainDword::new(0x7E);
-                a[29] = PlainDword::new(0x7E);
-                a[30] = PlainDword::new(0xA8);
-                a[31] = PlainDword::new(0xA8);
-                a[32] = PlainDword::new(0xA8);
-                a[33] = PlainDword::new(0xD2);
-                a[34] = PlainDword::new(0xD2);
-                a[35] = PlainDword::new(0xD2);
-                a
-            },
-            ..ZeroCells::ZERO
+            texture_of: [0; 1024],
+            kind_pictures: [0; 1024],
+            wanted_pictures: [0; 1024],
+            loaded_pictures: [0; 1024],
+            slot_wanted: [0; 1024],
+            slot_loaded: [0; 1024],
+            video_kilobytes: 0,
+            system_kilobytes: 0,
+            system_textures: 0,
+            kind_slot_bytes: 0,
+            counters: [0; 256],
+            step_flags: [0; 8],
+            car_icon_sheet_x: CAR_ICON_SHEET_X,
+            car_icon_sheet_y: CAR_ICON_SHEET_Y,
+            object_texture_records: [0; 1024],
+            face_marks: [0; 4096],
+            point_marks: [0; 4096],
+            normal_marks: [0; 4096],
         }
     }
 }
@@ -227,39 +163,20 @@ impl TexturePlaces {
 mod tests {
     use super::*;
 
-    /// Every table resolves, entry by entry, to the dwords it names.
+    /// The icon sheet's first values: the columns 0, 0x52, 0xA4 and the rows 0x2A apart.
     #[test]
-    fn tables_resolve_to_their_fields() {
+    fn the_icon_sheet_starts_as_the_game_has_it() {
         let places = TexturePlaces::new();
-        for table in PlacesTable::ALL {
-            let cells = table.cells(&places);
-            for n in [0, cells.len() - 1] {
-                let found = cell_at(&places, table, n as u32).unwrap();
-                assert!(core::ptr::eq(found, &raw const cells[n]), "{table:?} {n}");
-            }
-        }
-    }
-
-    /// A number past a table's end reads on into the following tables, to the places' end.
-    #[test]
-    fn numbers_run_on_through_the_tables() {
-        let places = TexturePlaces::new();
-        let all: Vec<&PlainDword> = PlacesTable::ALL
-            .into_iter()
-            .flat_map(|table| table.cells(&places))
-            .collect();
-        for (start, table) in PlacesTable::ALL.into_iter().enumerate() {
-            let before: usize = PlacesTable::ALL[..start]
-                .iter()
-                .map(|t| t.cells(&places).len())
-                .sum();
-            for n in [0, 5000, 30_000, 40_000] {
-                let found = cell_at(&places, table, n);
-                match all.get(before + n as usize) {
-                    Some(cell) => assert!(core::ptr::eq(found.unwrap(), *cell)),
-                    None => assert!(found.is_err()),
-                }
-            }
-        }
+        assert_eq!(
+            &places.car_icon_sheet_x[..6],
+            &[0, 0x52, 0xA4, 0, 0x52, 0xA4]
+        );
+        assert_eq!(places.car_icon_sheet_x[35], 0xA4);
+        assert_eq!(places.car_icon_sheet_y[2], 0);
+        assert_eq!(places.car_icon_sheet_y[3], 0x2A);
+        assert_eq!(places.car_icon_sheet_y[17], 0xD2);
+        assert_eq!(places.car_icon_sheet_y[18], 0);
+        assert_eq!(places.car_icon_sheet_y[21], 0x2A);
+        assert_eq!(places.car_icon_sheet_y[35], 0xD2);
     }
 }

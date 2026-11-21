@@ -3,60 +3,57 @@
 //! into `view_b_shares`; the heading into `view_b_heading`; the next two halved (arithmetic shift)
 //! unless the mode before (`camera_blend_view`) is 1, 2 or 3, into `view_b_pitch` and
 //! `view_b_roll`.
-//!
-//! Caller: `physics::update_camera`.
 
-use crate::effects::cell_x87::CellX87;
-use crate::math::x87_float::ld;
+use crate::math::x87_float::{ld, stf};
 use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
 use crate::race::view_vars_store::ViewRecord;
 
 /// The exact version, for `physics::update_camera`: `s` the view's record.
 pub fn take_second_view(
-    camera: &CameraWork,
+    camera: &mut CameraWork,
     car: &Car,
     s: &ViewRecord,
     scene: &crate::scene::owner::Scene,
 ) {
-    x87_1(camera, s.offset_bits(), scene);
+    camera.view_b_offset = x87_1(s.offset_bits(), scene);
     crate::physics::take_first_view::take_figures(
         s,
         [
-            &camera.view_b_turn,
-            &camera.view_b_point,
-            &camera.view_b_shares,
+            &mut camera.view_b_turn,
+            &mut camera.view_b_point,
+            &mut camera.view_b_shares,
         ],
-        [&camera.view_b_aux, &camera.view_b_aux_2],
+        [&mut camera.view_b_aux, &mut camera.view_b_aux_2],
     );
-    camera.view_b_heading.set(car.car_heading.get());
-    let (mut eax, mut ebx) = (car.car_pitch.get(), car.car_roll.get());
-    if !matches!(car.camera_blend_view.get(), 1..=3) {
-        eax = ((eax as i32) >> 1) as u32;
-        ebx = ((ebx as i32) >> 1) as u32;
-    }
-    camera.view_b_pitch.set(eax as i32);
-    camera.view_b_roll.set(ebx as i32);
+    camera.view_b_heading = car.car_heading.get();
+    let [pitch, roll] = rc2k_core::physics::camera_view::view_turns(
+        [car.car_pitch.get(), car.car_roll.get()],
+        !matches!(car.camera_blend_view.get(), 1..=3),
+    );
+    camera.view_b_pitch = pitch as i32;
+    camera.view_b_roll = roll as i32;
 }
 
 // ---- the x87 arithmetic ----
 
 /// (`[s + 4]` .. `[s + 0xC]` the record's offset, passed by value) `[view_b_offset] = [s + 4] +
 /// [camera_shake_x]`
-fn x87_1(camera: &CameraWork, offset: [u32; 3], scene: &crate::scene::owner::Scene) {
-    let lights = &scene.lights;
+fn x87_1(offset: [u32; 3], scene: &crate::scene::owner::Scene) -> [f32; 3] {
+    let shake = *scene.line_and_shake();
     let t0 = ld(offset[0]);
-    let t1 = lights.state.get().camera_shake_x.ld();
+    let t1 = ld(shake.camera_shake_x);
     let t2 = t0 + t1;
-    camera.view_b_offset[0].st(t2);
+    let o0 = stf(t2);
     let t3 = ld(offset[1]);
-    let t4 = lights.state.get().camera_shake_y.ld();
+    let t4 = ld(shake.camera_shake_y);
     let t5 = t3 + t4;
-    camera.view_b_offset[1].st(t5);
+    let o1 = stf(t5);
     let t6 = ld(offset[2]);
-    let t7 = lights.state.get().camera_shake_z.ld();
+    let t7 = ld(shake.camera_shake_z);
     let t8 = t6 + t7;
-    camera.view_b_offset[2].st(t8);
+    let o2 = stf(t8);
+    [o0, o1, o2]
 }
 
 #[cfg(test)]
@@ -80,9 +77,8 @@ mod reference_vectors {
             ],
             ulps: 0,
             plain: |a| {
-                x87_1(
-                    race().physics.camera(),
-                    [4, 8, 0xC].map(|o| crate::scene::x87_mem::Base::dword(a[0], o)),
+                race().physics.camera_mut().view_b_offset = x87_1(
+                    [4, 8, 0xC].map(|o| crate::math::x87_mem::Base::dword(a[0], o)),
                     crate::test_support::own::scene(),
                 );
             },

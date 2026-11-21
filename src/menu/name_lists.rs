@@ -6,7 +6,6 @@
 
 use crate::errors::BadInput;
 use crate::memory::place::BytePlace;
-use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
 use crate::race::owner::Race;
 use crate::saves::owner::Saves;
@@ -22,11 +21,10 @@ const REPLAYS_PER_PAGE: u32 = 20;
 fn highlighted(
     menus: &Menus,
     names: &'static dyn crate::memory::place::Run,
-    page: &PlainDword,
+    page: u32,
     per_page: u32,
 ) -> Result<BytePlace, BadInput> {
     let index = page
-        .get()
         .wrapping_mul(per_page)
         .wrapping_add(menu_item(menus))
         .wrapping_sub(1);
@@ -37,11 +35,11 @@ fn highlighted(
 }
 
 /// The name of the highlighted saved game.
-pub fn savegame_name(menus: &Menus, saves: &'static Saves) -> Result<BytePlace, BadInput> {
+pub(super) fn savegame_name(menus: &Menus, saves: &'static Saves) -> Result<BytePlace, BadInput> {
     highlighted(
         menus,
         &saves.save_games.names,
-        &menus.tables.pages.save_page,
+        menus.tables.pages.read().save_page,
         SAVEGAMES_PER_PAGE,
     )
 }
@@ -51,7 +49,7 @@ pub fn replay_name(menus: &Menus, race: &'static Race) -> Result<BytePlace, BadI
     highlighted(
         menus,
         &race.shared.replays().names,
-        &menus.tables.pages.replay_page,
+        menus.tables.pages.read().replay_page,
         REPLAYS_PER_PAGE,
     )
 }

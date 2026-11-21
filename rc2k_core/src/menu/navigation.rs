@@ -1,6 +1,6 @@
 //! Moving the highlight about a menu: each item names its neighbours by number; a link of 0x6F is
 //! none, 0xFFFFFC1A "ask the item" (its callback for that direction runs instead). The two vertical
-//! moves go on along the same link until an item that can be chosen (its +0x48 0xFFFFFC1B); the two
+//! moves go on along the same link until an item that can be chosen (its state 0xFFFFFC1B); the two
 //! horizontal ones take one step and may first turn a counter.
 
 use crate::Invalid;
@@ -9,7 +9,7 @@ pub const NO_LINK: u32 = 0x6F;
 pub const ASK_ITEM: u32 = 0xFFFF_FC1A;
 pub const CAN_BE_CHOSEN: u32 = 0xFFFF_FC1B;
 /// No menu has more items; a walk past it is refused.
-pub const STEP_LIMIT: u32 = 256;
+pub(crate) const STEP_LIMIT: u32 = 256;
 
 /// The counter left and right turn while it is on (`Carousel::count` its count,
 /// `Carousel::front` the value, `Carousel::direction` the way,
@@ -107,7 +107,7 @@ pub fn link(v: u32) -> Link {
 }
 
 /// A vertical move's end: from `next` on, along each item's link (`item` gives an item's
-/// link and its +0x48) until one that can be chosen. Refused: what `item` refuses, no such
+/// link and its state) until one that can be chosen. Refused: what `item` refuses, no such
 /// item within `STEP_LIMIT`.
 pub fn walk(
     mut next: u32,

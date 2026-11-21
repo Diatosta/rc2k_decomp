@@ -8,19 +8,14 @@
 //! automatic box's held inputs?).
 //!
 //! Returns the joined input when they were joined.
-//!
-//! Callers: race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
-//! `drive::replay_step` (each calls `physics::car_physics_step` or `drive::steer_inputs` next).
 
-use crate::memory::session::DwordLike;
 use crate::physics::car_store::Car;
-use crate::physics::tables_store::PhysicsTables;
 use crate::race::vars_store::RaceVars;
 use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 
-/// The rules change what they change; only the words that differ are written back.
+/// The rules on the car's inputs and gear.
 // Core: `rc2k_core::physics::gearbox::GearInputs::apply_rules`.
-pub fn gear_input_rules(car: &Car, tables: &PhysicsTables, vars: &RaceVars) {
+pub fn gear_input_rules(car: &Car, inputs: &mut GearInputs, vars: &RaceVars) {
     let state = GearCar {
         state: car.tyre_change_state.get(),
         box_mode: car.gearbox_kind.get(),
@@ -32,31 +27,9 @@ pub fn gear_input_rules(car: &Car, tables: &PhysicsTables, vars: &RaceVars) {
             car.finish_flag.get(),
         ],
     };
-    let before = GearInputs {
-        w90: tables.input_steer.get(),
-        first: tables.input_throttle.get(),
-        second: tables.input_brake.get(),
-        hold: tables.input_handbrake.get(),
-        wa0: tables.input_gear_up.get(),
-        wa4: tables.input_gear_down.get(),
-        joined: tables.input_gear_wanted.get(),
-    };
-    let gear_before = car.gear.get();
-    let (mut inputs, mut gear) = (before, gear_before);
+    let mut gear = car.gear.get();
     inputs.apply_rules(&mut gear, &state);
-    let changes: [(&dyn DwordLike, u32, u32); 7] = [
-        (&tables.input_steer, inputs.w90, before.w90),
-        (&tables.input_throttle, inputs.first, before.first),
-        (&tables.input_brake, inputs.second, before.second),
-        (&tables.input_handbrake, inputs.hold, before.hold),
-        (&tables.input_gear_up, inputs.wa0, before.wa0),
-        (&tables.input_gear_down, inputs.wa4, before.wa4),
-        (&tables.input_gear_wanted, inputs.joined, before.joined),
-    ];
-    for (cell, now, was) in changes {
-        crate::physics::cells::set_changed(cell, was, now);
-    }
-    if gear != gear_before {
+    if gear != car.gear.get() {
         car.gear.set(gear);
     }
 }

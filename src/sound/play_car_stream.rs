@@ -2,13 +2,13 @@
 //!
 //! The car (as `menu::load_car_background` finds it, 0x21 counting as 0x17): `CarStream.on` is 1,
 //! `CarStream.stream` is `MenuLists.car_streams[0][car]`, `CarStream.place` is 0, and
-//! `sound::start_stream` is called with the name and the volume `MenuOptions.speech_level`. Five
+//! `sound::start_stream` is called with the name and the volume `MenuOptions.menu_voices_volume`. Five
 //! call sites, next to `load_car_background`'s. Refuses what the record's lookup refuses.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::PlainDword;
 use crate::menu::load_car_background::shown_car;
 use crate::menu::owner::Menus;
+use crate::sound::store::CarStream;
 
 // ---- game data ----
 
@@ -18,13 +18,14 @@ use crate::menu::owner::Menus;
 /// 0x17), so cars 0x18 .. 0x20 read `stage_speeches[0 .. 8]`; anything further is refused.
 fn car_stream(lists: &crate::menu::lists_store::MenuLists, car: u32) -> Result<u32, BadInput> {
     let car = car as usize;
-    let streams = &lists.car_streams;
+    let tables = lists.read();
+    let streams = &tables.car_streams;
     match streams.get(car) {
-        Some(stream) => Ok(stream.get()),
-        None => lists
+        Some(stream) => Ok(*stream),
+        None => tables
             .stage_speeches
             .get(car - streams.len())
-            .map(PlainDword::get)
+            .copied()
             .ok_or(BadInput("a car's stream past the stage speeches")),
     }
 }
@@ -42,21 +43,21 @@ pub fn play_car_stream(
     let s = rc2k_core::sound::set_up::car_stream(
         car_stream(&menus.lists, car)?,
         |list| {
-            crate::menu::texts_store::speech_entry(&menus.texts, names, list, 0).unwrap_or_else(
-                |e| {
-                    failed.set(Some(e));
-                    0
-                },
-            )
+            crate::menu::texts_store::speech_entry(names, list, 0).unwrap_or_else(|e| {
+                failed.set(Some(e));
+                0
+            })
         },
-        menus.options.snapshot().speech_level,
+        menus.options.snapshot().menu_voices_volume,
     );
     if let Some(e) = failed.take() {
         return Err(e.into());
     }
-    sound.race.car_stream.get().on.set(s.on);
-    sound.race.car_stream.get().stream.set(s.list);
-    sound.race.car_stream.get().place.set(s.place);
+    *sound.race.car_stream.get().borrow_mut() = CarStream {
+        on: s.on,
+        stream: s.list,
+        place: s.place,
+    };
     start(s.first, s.volume);
     Ok(())
 }

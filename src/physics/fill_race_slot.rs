@@ -6,8 +6,7 @@
 //! `part_fling` plus the car's motion (+2.0 for y) as its speed; and the car's spin. A reading: a
 //! part breaking off, flying with the car's motion.
 //!
-//! Caller: `physics::fill_slot_on_bit`. Refuses (before anything) a part past 0xFF, or no slot
-//! to take.
+//! Refuses (before anything) a part past 0xFF, or no slot to take.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::{ext_to_int, int_80, int_mul_add};
@@ -39,42 +38,42 @@ pub fn fill_race_slot(
     slot.part.set(part);
     let i = |t: usize| {
         int_80(
-            scene.objects.slots.get().part_extents[t][part as usize].get() as i32,
+            scene.loaded_slots().part_extents[t][part as usize] as i32,
             false,
         )
     };
     let out = rotate_point(&car.crash_matrix, [i(0), i(1), i(2)]);
     for (k, e) in out.iter().enumerate() {
         let n = ext_to_int(*e) as u32;
-        scene.object_work().object_position[k].set(n);
-        slot.place[k].set(n.wrapping_add(car.position[k].get()));
+        scene.object_work_mut().object_position[k] = n;
+        slot.place[k].set(n.wrapping_add(car.position.bits_at(k)));
     }
     slot.car_word.set(car.probe_point_face[4].get());
     slot.age.set(car.step_clock.get());
-    for k in 0..16 {
-        slot.matrix[k].set(car.crash_matrix[k].get());
+    for (to, value) in slot.matrix.iter().zip(car.crash_matrix.get()) {
+        to.set(value);
     }
     let k = &work.part_fling;
     slot.motion[0].set(int_mul_add(
-        scene.object_work().object_position[0].get() as i32,
+        scene.object_work().object_position[0] as i32,
         k,
-        &car.velocity[0],
+        car.velocity.bits_at(0),
         None,
     ));
     slot.motion[1].set(int_mul_add(
-        scene.object_work().object_position[1].get() as i32,
+        scene.object_work().object_position[1] as i32,
         k,
-        &car.velocity[1],
+        car.velocity.bits_at(1),
         Some(numbers.two.bits()),
     ));
     slot.motion[2].set(int_mul_add(
-        scene.object_work().object_position[2].get() as i32,
+        scene.object_work().object_position[2] as i32,
         k,
-        &car.velocity[2],
+        car.velocity.bits_at(2),
         None,
     ));
-    for k in 0..3 {
-        slot.spin[k].set(car.spin[k].get());
+    for (k, spin) in slot.spin.iter().enumerate() {
+        spin.set(car.spin.at(k));
     }
     Ok(())
 }

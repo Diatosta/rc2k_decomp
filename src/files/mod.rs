@@ -1,62 +1,38 @@
-pub mod close_stream;
-pub mod copy_file;
-pub mod directories;
-pub mod drive_free_space_kb;
-pub mod drive_type;
-pub mod file_exists;
-pub mod file_size;
-pub mod handle;
-pub mod is_cd_drive;
-pub mod numbered_path;
-pub mod open_stream;
-pub mod read_file;
-pub mod read_first_match;
-pub mod read_level_file;
-pub mod read_packed_file;
-pub mod read_stream_block;
-pub mod read_stream_byte;
-pub mod read_whole_file;
-pub mod resolve_path;
-pub mod scratch;
-pub mod search;
-pub mod stream;
-pub mod swap_missing_extension;
-pub mod write_file;
+//! Reading and writing files. The game names its files as a 1999 Windows program does, with
+//! backslashes and without regard to case; this module turns such a name into a real path on the
+//! system it runs on (`resolve_path`) and offers the ways the game reads a file: whole, packed
+//! (`read_packed_file`), or through a small buffered stream.
 
-pub mod write_stream_block;
-pub mod write_stream_byte;
+pub(crate) mod close_stream;
+pub(crate) mod copy_file;
+pub(crate) mod directories;
+pub(crate) mod drive_free_space_kb;
+pub(crate) mod drive_type;
+pub(crate) mod file_exists;
+pub(crate) mod file_size;
+pub(crate) mod handle;
+pub(crate) mod instance;
+pub(crate) mod numbered_path;
+pub(crate) mod open_stream;
+pub(crate) mod read_file;
+pub(crate) mod read_first_match;
+pub(crate) mod read_level_file;
+mod read_packed_file;
+pub(crate) mod read_stream_block;
+pub(crate) mod read_stream_byte;
+pub(crate) mod read_whole_file;
+#[cfg(unix)]
+pub(crate) mod redirect;
+pub(crate) mod resolve_path;
+pub(crate) mod scratch;
+pub(crate) mod search;
+pub(crate) mod stream;
+pub(crate) mod swap_missing_extension;
+pub(crate) mod write_file;
 
-/// Windows-1252's characters for 0x80 .. 0x9F (the rest of the code page is Latin-1).
-const CP1252_HIGH: [char; 32] = [
-    '€', '\u{81}', '‚', 'ƒ', '„', '…', '†', '‡', 'ˆ', '‰', 'Š', '‹', 'Œ', '\u{8D}', 'Ž', '\u{8F}',
-    '\u{90}', '‘', '’', '“', '”', '•', '–', '—', '˜', '™', 'š', '›', 'œ', '\u{9D}', 'ž', 'Ÿ',
-];
+pub(crate) mod write_stream_block;
 
-/// The game's bytes as text, read the way the Win32 `A` functions read them (the ANSI code
-/// page, Windows-1252).
-pub fn ansi_text(bytes: &[u8]) -> String {
-    bytes
-        .iter()
-        .map(|&b| match b {
-            0x80..=0x9F => CP1252_HIGH[(b - 0x80) as usize],
-            _ => b as char,
-        })
-        .collect()
-}
-
-/// Text as the game's bytes (Windows-1252, `ansi_text`'s inverse); a character the code
-/// page lacks becomes `?`, as Windows' conversion writes it.
-pub fn ansi_bytes(text: &str) -> Vec<u8> {
-    text.chars()
-        .map(|c| match c as u32 {
-            0..=0x7F | 0xA0..=0xFF => c as u8,
-            _ => CP1252_HIGH
-                .iter()
-                .position(|&h| h == c)
-                .map_or(b'?', |n| 0x80 + n as u8),
-        })
-        .collect()
-}
+pub use rc2k_core::files::ansi::{ansi_bytes, ansi_text};
 
 /// The text in `bytes` up to its NUL (not included); a text with no NUL in them is refused.
 pub fn cstring_in(bytes: &[u8]) -> Result<Vec<u8>, crate::errors::BadInput> {
@@ -68,28 +44,24 @@ pub fn cstring_in(bytes: &[u8]) -> Result<Vec<u8>, crate::errors::BadInput> {
     }
 }
 
-/// The text at byte `offset` of the store, read within its next `len` bytes.
-pub fn cstring_from(
-    store: &dyn crate::memory::cells::Store,
-    offset: usize,
-    len: usize,
-) -> Result<Vec<u8>, crate::errors::BadInput> {
-    let mut bytes = vec![0u8; len];
-    store.load(offset, &mut bytes)?;
-    cstring_in(&bytes)
-}
-
-pub fn cstring(
-    at: &dyn crate::memory::cells::Store,
-    _what: &str,
-) -> Result<Vec<u8>, crate::errors::BadInput> {
-    cstring_from(at, 0, at.size())
-}
-
 /// A path in the game's bytes (no NUL) as a `PathBuf`: the one place a game path becomes the
-/// system's.
-#[cfg(windows)]
+/// system's. A numbered instance (`--instance`) finds its `var` and `savedata` folders under
+/// `instances/<n>/` (`instance::path`).
 pub fn host_path(path: &[u8]) -> std::path::PathBuf {
+    match instance::path(path) {
+        Some(own) => host_path_of(&own),
+        None => host_path_of(path),
+    }
+}
+
+/// `host_path` for a path the instance does not redirect (the folder's own).
+pub fn shared_host_path(path: &[u8]) -> std::path::PathBuf {
+    host_path_of(path)
+}
+
+/// A path in the game's bytes as the system's, as read on Windows.
+#[cfg(windows)]
+fn host_path_of(path: &[u8]) -> std::path::PathBuf {
     std::path::PathBuf::from(ansi_text(path))
 }
 
@@ -99,9 +71,9 @@ pub fn host_path(path: &[u8]) -> std::path::PathBuf {
 /// game's files are named in any case); a name that is not there (a file to be made) is
 /// kept as written.
 #[cfg(unix)]
-pub fn host_path(path: &[u8]) -> std::path::PathBuf {
-    use std::path::{Path, PathBuf};
-    let text = ansi_text(path).replace('\\', "/");
+fn host_path_of(path: &[u8]) -> std::path::PathBuf {
+    use std::path::PathBuf;
+    let text = redirect::apply(ansi_text(path).replace('\\', "/"));
     let bytes = text.as_bytes();
     let text = if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
         format!("/{}", text[2..].trim_start_matches('/'))
@@ -113,26 +85,24 @@ pub fn host_path(path: &[u8]) -> std::path::PathBuf {
     } else {
         PathBuf::new()
     };
-    let found_in = |folder: &Path, name: &str| -> Option<std::ffi::OsString> {
-        let folder = if folder.as_os_str().is_empty() {
-            Path::new(".")
-        } else {
-            folder
-        };
-        std::fs::read_dir(folder).ok()?.flatten().find_map(|e| {
-            let n = e.file_name();
-            n.to_str()
-                .is_some_and(|n| n.to_lowercase() == name.to_lowercase())
-                .then_some(n)
-        })
-    };
     for name in text.split('/').filter(|n| !n.is_empty()) {
+        if name == "." || name == ".." {
+            at = at.join(name);
+            continue;
+        }
+        // A name the folder's listing already holds is taken from it: one lookup for every
+        // later file of the folder (a listing and a stat each cost far more than the lookup on
+        // the browser's file storage).
+        if let Some(real) = folder_names::known(&at, name) {
+            at = at.join(real);
+            continue;
+        }
         let exact = at.join(name);
-        if name == "." || name == ".." || exact.symlink_metadata().is_ok() {
+        if exact.symlink_metadata().is_ok() {
             at = exact;
             continue;
         }
-        at = match found_in(&at, name) {
+        at = match folder_names::found_in(&at, name) {
             Some(real) => at.join(real),
             None => exact,
         };
@@ -143,19 +113,61 @@ pub fn host_path(path: &[u8]) -> std::path::PathBuf {
     at
 }
 
-#[cfg(test)]
-mod ansi_tests {
-    #[test]
-    fn ansi_text_is_windows_1252() {
-        assert_eq!(
-            super::ansi_text(b"files\\b\\tx1822.pcx"),
-            "files\\b\\tx1822.pcx"
-        );
-        assert_eq!(super::ansi_text(&[0x80, 0xE7, 0xE3, 0x9C]), "€çãœ");
-        assert_eq!(super::ansi_bytes("€çãœ"), [0x80, 0xE7, 0xE3, 0x9C]);
-        assert_eq!(super::ansi_bytes("a\u{3B1}"), b"a?");
+/// The names of the folders the game's paths went through, as they are written on the disk, for
+/// finding a name without regard to its case. A folder is listed when a name is not found as
+/// written, and the names of its listing are found without touching the disk again. A name
+/// made after the listing is not in it: it is found as written, or, in another case, by
+/// listing the folder again.
+#[cfg(unix)]
+mod folder_names {
+    use std::collections::HashMap;
+    use std::ffi::OsString;
+    use std::path::{Path, PathBuf};
+    use std::sync::Mutex;
+
+    /// Each listed folder: its names by their lower-case spelling.
+    static LISTED: Mutex<Option<HashMap<PathBuf, HashMap<String, OsString>>>> = Mutex::new(None);
+
+    fn listed()
+    -> std::sync::MutexGuard<'static, Option<HashMap<PathBuf, HashMap<String, OsString>>>> {
+        LISTED
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
+    /// The name in `folder` that is `name` in any case, if the folder was listed and holds it.
+    pub fn known(folder: &Path, name: &str) -> Option<OsString> {
+        listed()
+            .as_ref()?
+            .get(folder)?
+            .get(&name.to_lowercase())
+            .cloned()
+    }
+
+    /// The name in `folder` that is `name` in any case, the folder listed again for it.
+    pub fn found_in(folder: &Path, name: &str) -> Option<OsString> {
+        let list = if folder.as_os_str().is_empty() {
+            Path::new(".")
+        } else {
+            folder
+        };
+        let mut names = HashMap::new();
+        for entry in std::fs::read_dir(list).ok()?.flatten() {
+            let n = entry.file_name();
+            if let Some(text) = n.to_str() {
+                names.entry(text.to_lowercase()).or_insert(n);
+            }
+        }
+        let found = names.get(&name.to_lowercase()).cloned();
+        listed()
+            .get_or_insert_default()
+            .insert(folder.to_path_buf(), names);
+        found
+    }
+}
+
+#[cfg(test)]
+mod ansi_tests {
     #[cfg(unix)]
     #[test]
     fn host_paths_are_found_without_regard_to_case() {
@@ -170,6 +182,16 @@ mod ansi_tests {
         assert_eq!(
             super::host_path(&game("files\\new.txt")),
             dir.join("Files/new.txt")
+        );
+        // Made after the folder was listed, then asked for in another case.
+        std::fs::write(dir.join("Files/B/Late.PCX"), b"x").unwrap();
+        assert_eq!(
+            super::host_path(&game("files\\b\\late.pcx")),
+            dir.join("Files/B/Late.PCX")
+        );
+        assert_eq!(
+            super::host_path(&game("files\\b\\tx1822.pcx")),
+            dir.join("Files/B/TX1822.PCX")
         );
         assert_eq!(
             super::host_path(b"c:\\tmp"),

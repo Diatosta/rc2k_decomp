@@ -6,14 +6,14 @@
 use crate::errors::BadInput;
 use crate::files::read_file::{ReadResult, read_file_into};
 use crate::files::resolve_path::resolve;
+use crate::files::scratch::Scratch;
 use crate::files::state::set_last_file_path;
-use crate::system::owner::System;
 
 /// None if nothing matched, else what the reading of the file found came to: `pattern`
 /// (without its NUL) read into `into` (what the file does not reach over kept, as the
 /// game's buffer). Refuses what `resolve_path` and `read_file` refuse.
-pub fn first_match_read(
-    system: &System,
+fn first_match_read(
+    scratch: &Scratch,
     pattern: &[u8],
     into: &mut [u8],
     offset: u32,
@@ -24,11 +24,7 @@ pub fn first_match_read(
     let read = if found {
         let name = crate::files::search::found_name();
         let joined = rc2k_core::files::io::match_path(pattern, &name);
-        system
-            .work()
-            .files
-            .buffer
-            .write_at(0, &joined, "the scratch buffer")?;
+        scratch.buffer.write_at(0, &joined, "the scratch buffer")?;
         Some(read_file_into(
             &joined[..joined.iter().position(|&b| b == 0).unwrap_or(joined.len())],
             into,
@@ -43,11 +39,11 @@ pub fn first_match_read(
 
 /// The bytes read, or None if nothing matched or the reading failed.
 pub fn read_first_match(
-    system: &System,
+    scratch: &Scratch,
     pattern: &[u8],
     into: &mut [u8],
     offset: u32,
 ) -> Result<Option<u32>, BadInput> {
-    let read = first_match_read(system, pattern, into, offset)?;
+    let read = first_match_read(scratch, pattern, into, offset)?;
     Ok(read.filter(|read| read.ok).and_then(|read| read.bytes_read))
 }

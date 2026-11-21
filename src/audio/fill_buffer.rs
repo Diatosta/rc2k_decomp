@@ -1,32 +1,21 @@
 //! Copies a voice's sample data into its buffer: only for a voice with a buffer of its own (none
 //! shared). The buffer is locked, the data copied into the locked parts and unlocked; a failing
-//! lock or unlock fails, and a lost buffer sets the lost flag. Refuses A3D.
+//! lock or unlock fails.
 
-use crate::audio::buffer_settings::a3d;
 use crate::audio::own::AudioOwn;
 use crate::audio::voices::*;
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 
 /// Fills the voice's buffer. True when it worked.
 pub fn fill_buffer(state: &AudioOwn, v: &Voice) -> Result<bool, Refused> {
     use crate::platform::sound as ds;
-    if a3d(state) {
-        return Err(BadInput("A3D (the chunk at 0x40CDE8)").into());
-    }
-    use rc2k_core::audio::buffers::{fill_copies, fills, lost as lost_memory};
+    use rc2k_core::audio::buffers::{fill_copies, fills};
     if !fills(v) {
         return Ok(true);
     }
     {
-        let failed = |r: i32| {
-            if lost_memory(r) {
-                state.sound_buffer_lost.set(1);
-            }
-            false
-        };
-        let locked = match ds::lock(v.buffer, 0, v.length, 0) {
-            Ok(parts) => parts,
-            Err(r) => return Ok(failed(r)),
+        let Ok(locked) = ds::lock(v.buffer, 0, v.length, 0) else {
+            return Ok(false);
         };
         for (cell, part) in state.locked_parts.iter().zip(locked) {
             cell.set(part);
@@ -52,7 +41,7 @@ pub fn fill_buffer(state: &AudioOwn, v: &Voice) -> Result<bool, Refused> {
         .map_err(|_| crate::errors::BadInput("a locked part that is not the buffer's"))?;
         let r = ds::unlock(v.buffer, locked);
         if r != 0 {
-            return Ok(failed(r));
+            return Ok(false);
         }
     }
     Ok(true)

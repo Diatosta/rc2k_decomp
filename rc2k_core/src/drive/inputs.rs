@@ -46,7 +46,7 @@ pub fn device_words(readings: Option<[u32; 4]>) -> [u32; 4] {
     readings.unwrap_or([0; 4])
 }
 
-/// With a replay on, which way the words go between the car's block (+0xFD0 ..) and the
+/// With a replay on, which way the words go between the car's block and the
 /// words.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ReplayWords {

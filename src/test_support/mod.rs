@@ -1,17 +1,24 @@
 //! What the tests share to put the game's state back, by store name and field path rather
 //! than by address: `state` (a snapshot of every store).
 
-pub mod frozen;
-pub mod own;
-pub mod paths;
-pub mod race_places;
-pub mod race_vectors;
+pub(crate) mod frozen;
+pub(crate) mod own;
+pub(crate) mod paths;
+pub(crate) mod race_places;
+pub(crate) mod race_vectors;
 mod registry;
-pub mod state;
-pub mod vectors;
+pub(crate) mod state;
+pub(crate) mod vectors;
 
-/// The lock every test holds that writes the game's statics (and restores them), or reads
-/// their first values: tests run in parallel threads.
+/// The lock of the tests that write the process-wide statics (`logfile`, `files`, `memory`,
+/// `fatal`, `workers`' parts and the like: the stores the registry lists whose names do not begin
+/// with `owners.`) or that read their first values: tests run in parallel threads.
+///
+/// A test whose state is only the test thread's own owners (`own::owners()`, `Owners::the()`, the
+/// registry's `owners.*` stores, the race block's places the vectors name, the control word of the
+/// x87) takes no lock: each thread has its own copy, and a lock there made every vector test wait
+/// for the others. Hold the lock only around what touches a process-wide static, and never hold it
+/// while waiting for another thread.
 pub fn test_lock() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
     LOCK.lock()

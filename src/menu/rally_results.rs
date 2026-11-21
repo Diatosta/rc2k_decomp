@@ -17,7 +17,7 @@ pub fn rally_results(
     entry: &Entry,
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
-    screens.state.menus.which_title.set(true);
+    screens.state.write().menus.which_title = true;
     crate::menu::standings_a_from_all::standings_a_from_all(
         crate::strings::append_string_by_id::StringOwners::of(entry.owners),
         cars,
@@ -25,7 +25,7 @@ pub fn rally_results(
         play,
         tables,
     )?;
-    if !rc2k_core::menu::results_pages::class_pages_only(play.champ_view.event_mode.get()) {
+    if !rc2k_core::menu::results_pages::class_pages_only(play.champ_view.read().event_mode) {
         crate::menu::sort_standings_by_total::sort_standings_by_total(screens, play, tables)?;
         clear_standings(Which::A, tables)?;
         number_all(screens, play, Which::A, tables)?;
@@ -39,6 +39,6 @@ pub fn rally_results(
             screens, play, pages, entry, tables,
         )?;
     }
-    screens.state.menus.which_title.set(false);
+    screens.state.write().menus.which_title = false;
     Ok(())
 }

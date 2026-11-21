@@ -17,9 +17,9 @@ pub fn cue_cars(first: u32, second: impl FnOnce() -> u32, one_player: u32) -> Ve
 }
 
 /// No car (-1).
-pub const NO_CAR: u32 = u32::MAX;
+pub(crate) const NO_CAR: u32 = u32::MAX;
 /// A float's +infinity: the starting distance.
-pub const FAR: u32 = 0x7F80_0000;
+pub(crate) const FAR: u32 = 0x7F80_0000;
 /// The marks the two computer cars' objects carry (+0) while their sounds are made: the nearest -2,
 /// the next -1.
 pub const NEAREST_MARK: u32 = 0xFFFF_FFFE;

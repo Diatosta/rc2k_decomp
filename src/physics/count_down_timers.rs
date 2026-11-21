@@ -4,8 +4,6 @@
 //! 1 .. 4 of `parts_present` all set, or in gear; kept in other modes); `tyre_change_state` goes
 //! up by one unless 0, -1 or 1; `top_speed` is raised to `engine_speed_scaled` (the highest so
 //! far). Readings, all.
-//!
-//! Callers: `physics::car_physics_step`, `physics::test_drive_run`.
 
 use crate::physics::car_store::Car;
 use crate::race::vars_store::RaceVars;
@@ -13,7 +11,7 @@ use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 
 /// One compare and copy of floats: the same at any precision.
 // Core: `rc2k_core::physics::motion::count_down`.
-pub fn count_down_timers(car: &Car, vars: &RaceVars) {
+pub(super) fn count_down_timers(car: &Car, vars: &RaceVars) {
     let mut c = StepCounters {
         first: [car.light_hold_steps.get(), car.value_jump_steps.get()],
         standing: car.stopped_steps.get(),

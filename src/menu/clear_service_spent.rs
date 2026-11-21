@@ -1,4 +1,4 @@
-//! `menu::clear_service_spent`: the four players' +0x288 set to 0.
+//! `menu::clear_service_spent`: the four players' `service_spent` set to 0.
 //!
 //! Refuses a missing player, before anything.
 

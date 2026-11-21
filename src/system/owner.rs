@@ -3,15 +3,15 @@
 
 use crate::files::scratch::Scratch as FileScratch;
 use crate::logfile::numeric::SCRATCH_LEN;
+use crate::memory::plain_buffer::PlainBuffer;
 use crate::memory::session::{
-    Clocks, DrawShared, GameThread, HostShared, KeyClock, Machine, PlainBytes, Screen,
-    WindowLoopState, WindowShared,
+    Clocks, DrawShared, GameThread, HostShared, KeyClock, Machine, Screen, WindowLoopState,
+    WindowShared,
 };
 use crate::records::stages_store::StageTables;
 use crate::system::keep_start_time::KEPT_LEN;
 use crate::system::load_game_data::RunCount;
 use crate::system::read_command_line::CommandLine;
-use crate::system::set_error_mode::ErrorMode;
 use crate::system::start_texts::StartTexts;
 
 /// The screen's figures and what other threads read of the window, the machine and the clocks.
@@ -25,9 +25,9 @@ pub struct Session {
     pub host: HostShared,
     /// The key thread's count of turns.
     pub key_clock: KeyClock,
-    /// The clock override of the replay viewer's picture saving (`system::tick_count`): the
+    /// The clock override of the replay viewer's picture saving (`clock::tick_count`): the
     /// input and audio threads read the clock too.
-    pub picture_clock: crate::system::tick_count::PictureClock,
+    pub picture_clock: crate::clock::tick_count::PictureClock,
 }
 
 impl Session {
@@ -37,18 +37,17 @@ impl Session {
             flags: WindowShared::new(),
             host: HostShared::new(),
             key_clock: KeyClock::new(),
-            picture_clock: crate::system::tick_count::PictureClock::new(),
+            picture_clock: crate::clock::tick_count::PictureClock::new(),
         }
     }
 }
 
-/// What the start-up keeps: the start's moment, the run count, the error mode, the texts and
+/// What the start-up keeps: the start's moment, the run count, the texts and
 /// the command line.
 pub struct Start {
     /// The nine bytes of the start's moment (`keep_start_time`).
-    pub kept: PlainBytes<KEPT_LEN>,
+    pub kept: PlainBuffer<KEPT_LEN>,
     pub run_count: RunCount,
-    pub error_mode: ErrorMode,
     pub texts: StartTexts,
     pub command_line: CommandLine,
 }
@@ -56,9 +55,8 @@ pub struct Start {
 impl Start {
     pub const fn new() -> Self {
         Start {
-            kept: PlainBytes::new([0; KEPT_LEN]),
+            kept: PlainBuffer::new([0; KEPT_LEN]),
             run_count: RunCount::new(),
-            error_mode: ErrorMode::new(),
             texts: StartTexts::new(),
             command_line: CommandLine::new(),
         }
@@ -69,14 +67,14 @@ impl Start {
 pub struct Work {
     pub files: FileScratch,
     /// Where a number's text is made.
-    pub numbers: PlainBytes<SCRATCH_LEN>,
+    pub numbers: PlainBuffer<SCRATCH_LEN>,
 }
 
 impl Work {
     pub const fn new() -> Self {
         Work {
             files: FileScratch::new(),
-            numbers: PlainBytes::new([0; SCRATCH_LEN]),
+            numbers: PlainBuffer::new([0; SCRATCH_LEN]),
         }
     }
 }
@@ -96,7 +94,7 @@ impl Records {
 /// What only the game's thread reaches: the start-up's keeps, the scratch areas, the
 /// record tables, the main loop's state, the machine's facts and the menus' clocks (the
 /// audio, key and network threads and the drawing parts touch none).
-pub struct SystemMain {
+struct SystemMain {
     pub start: Start,
     pub work: Work,
     pub records: Records,

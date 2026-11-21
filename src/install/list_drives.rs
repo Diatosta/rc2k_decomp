@@ -1,33 +1,34 @@
 //! The drives that can be installed to found and their menu built: each letter from `first_drive`
-//! to 'z' that is not a CD-ROM or a RAM disk and whose free space can be read is recorded, then
-//! a text (letter, space, free space as KB, MB or GB) is built in `drive_rows` for 'a' to 'y'
-//! (drive Z is found but never listed, a slip kept as is; at most 24 drives are listed), and the drive menu list that fits the
-//! count is put into the drive page's entry. Called by `install::run_installer`.
+//! to 'z' that is not a CD-ROM or a RAM disk and whose free space can be read is recorded, then a
+//! text (letter, space, free space as KB, MB or GB) is built in `drive_rows` for 'a' to 'y' (drive
+//! Z is found but never listed, a slip kept as is; at most 24 drives are listed), and the drive
+//! count is kept (the drive page's items are made from it).
 
-use crate::install::installer::wb;
-use crate::install::page_links::{ListId, PageLink};
-use rc2k_core::install::drives::{self, DriveMenu};
+use crate::install::vars::DriveFound;
+use rc2k_core::install::drives;
 
-/// The drive page's entry in the pages' table.
-const DRIVE_ENTRY: usize = 25;
-
-pub fn list_drives(
+pub(super) fn list_drives(
     install: &'static crate::install::owner::Install,
     o: crate::owners::Owners<'static>,
 ) {
     // Per letter from 'a', a pair of dwords: how often it was found and its free space.
     let drives = &install.run.drives;
+    let found_at = |letter: u8| &drives[(letter - b'a') as usize];
     let mut letter = u32::from(install.flags.first_drive.get());
     loop {
         let kind = crate::files::drive_type::drive_type(letter as u8);
         if drives::offered(kind)
-            && let Some(free) =
-                crate::files::drive_free_space_kb::drive_free_space_kb(o.system, letter)
+            && let Some(free) = crate::files::drive_free_space_kb::drive_free_space_kb(
+                &o.system.work().files,
+                letter,
+            )
         {
-            // The first letter is 'a' or 'c', the last 'z': inside the 26 pairs.
-            let slot = 2 * (letter - b'a' as u32) as usize;
-            drives[slot].set(drives[slot].get().wrapping_add(1));
-            drives[slot + 1].set(free);
+            // The first letter is 'a' or 'c', the last 'z': inside the 26 drives.
+            let drive = found_at(letter as u8);
+            drive.set(DriveFound {
+                found: drive.get().found.wrapping_add(1),
+                free_kb: free,
+            });
         }
         letter = letter.wrapping_add(1);
         if letter > b'z' as u32 {
@@ -35,21 +36,21 @@ pub fn list_drives(
         }
     }
     install.run.drive_count.set(0);
-    let mut ebx = crate::memory::place::BytePlace::from(&install.drive_rows.drive_rows);
+    let rows = &install.drive_rows;
+    let mut next_row = 0usize;
     // 'a' .. 'y': the loop's bound leaves 'z' out (the game's slip, section 16)
     let found: Vec<u8> = drives::LISTED
-        .filter(|letter| drives[2 * (letter - b'a') as usize].get() != 0)
+        .filter(|&letter| found_at(letter).get().found != 0)
         .collect();
     // At most what the largest menu holds: with 25 drives the last, y, is not listed.
     for &letter in drives::kept(&found) {
-        let slot = 2 * (letter - b'a') as usize;
         install
             .run
             .drive_count
             .set(install.run.drive_count.get() + 1);
-        let row = ebx;
-        wb(row, letter);
-        let free = drives::free(drives[slot + 1].get());
+        let row = next_row;
+        rows.set(row, letter);
+        let free = drives::free(found_at(letter).get().free_kb);
         let mut unit = Vec::new();
         crate::menu::event_flow::refuse_here(
             crate::strings::append_string_by_id::append_string_by_id(
@@ -63,17 +64,8 @@ pub fn list_drives(
         );
         // the letter, a skipped byte, then the rest
         for (n, &b) in drives::text(free, &unit).iter().enumerate() {
-            wb(row.add(2 + n as u32), b);
+            rows.set(row + 2 + n, b);
         }
-        ebx = row.add(0x10);
+        next_row = row + 0x10;
     }
-    let count = install.run.drive_count.get();
-    let list = match drives::menu(count) {
-        DriveMenu::Eight => ListId::Drives8,
-        DriveMenu::Sixteen => ListId::Drives16,
-        DriveMenu::More => ListId::DrivesMore,
-    };
-    // The drive page's entry links to the menu (`page_links::PageLink`).
-    install.pages.page_table[DRIVE_ENTRY].set(PageLink::list(list).raw());
-    crate::memory::list_handle::ListMenu::installer(install, list).set_count(drives::items(count));
 }

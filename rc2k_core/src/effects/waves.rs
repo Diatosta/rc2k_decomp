@@ -9,25 +9,6 @@ use crate::scene::trig::sine;
 pub const LEVELS: usize = 0x11;
 pub const SINES: usize = 0x140;
 
-/// Whether the tables are to be made, by the mark's value: 0 not yet (`ToMake`), `made` made
-/// before, anything else `Elsewhere` (a value not worked out).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Mark {
-    ToMake,
-    Made,
-    Elsewhere,
-}
-
-pub fn mark(value: u32, made: u32) -> Mark {
-    if value == made {
-        Mark::Made
-    } else if value == 0 {
-        Mark::ToMake
-    } else {
-        Mark::Elsewhere
-    }
-}
-
 /// A level as a float: `n / scale - less` in `f64`, stored as `f32`.
 pub fn level(n: i32, scale: f32, less: f32) -> f32 {
     (n as f64 / scale as f64 - less as f64) as f32
@@ -50,9 +31,6 @@ mod tests {
 
     #[test]
     fn waves() {
-        assert_eq!(mark(5, 5), Mark::Made);
-        assert_eq!(mark(0, 5), Mark::ToMake);
-        assert_eq!(mark(7, 5), Mark::Elsewhere);
         assert_eq!(level(512, 256.0, 1.0), 1.0);
         assert_eq!(level(-256, 256.0, 1.0), -2.0);
         let s = sines(std::f32::consts::FRAC_PI_2);

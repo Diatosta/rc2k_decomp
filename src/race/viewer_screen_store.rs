@@ -3,108 +3,109 @@
 //! switches kept, the frame-picture recording state (three unaligned dwords), the NET and display
 //! text strings (left as unknown bytes), the view marks' state and the listener place and turn.
 
-use crate::memory::cells::ZeroCells;
+use crate::memory::first_cells::{plain_dwords, plain_dwords_of_text};
 use crate::memory::session::{PlainDword, PlainFloat};
-use crate::race::first_cells::{plain_dwords, plain_dwords_of_text};
 #[cfg(test)]
 use crate::test_support::own::race;
 
+/// The panel's plain cells, only the game's thread reaches them. `#[repr(C)]` in the panel's
+/// order: reads that run on from one field into the next (`camera_name`, `rectangle_at`) count
+/// dwords across the fields as the block lays them out.
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
 pub struct ViewerPanelBlock {
-    /// +0x0: 16-bit text ids of the camera names, read and written by `race::draw_viewer_panel`
+    /// 16-bit text ids of the camera names, read and written by `menu::replay_viewer::panel`
     /// and the camera actions; reached through `camera_name`, not by this field.
     pub camera_name_ids: [PlainDword; 24],
-    /// +0x60: rectangle (0,0,800,32) of the viewer
-    /// bar's frame (`race::viewer_frame`).
+    /// Rectangle (0,0,800,32) of the viewer
+    /// bar's frame (`menu::replay_viewer::frame`).
     pub bar_frame_rect: [PlainDword; 4],
-    /// +0x70: first button rectangle
-    /// (`race::viewer_frame`).
+    /// First button rectangle
+    /// (`menu::replay_viewer::frame`).
     pub button_rect_a: [PlainDword; 4],
-    /// +0x80: second button rectangle
-    /// (`race::viewer_frame`).
+    /// Second button rectangle
+    /// (`menu::replay_viewer::frame`).
     pub button_rect_b: [PlainDword; 4],
-    /// +0x90: third button rectangle
-    /// (`race::viewer_frame`).
+    /// Third button rectangle
+    /// (`menu::replay_viewer::frame`).
     pub button_rect_c: [PlainDword; 4],
-    /// +0xa0: fourth button rectangle
-    /// (`race::viewer_frame`).
+    /// Fourth button rectangle
+    /// (`menu::replay_viewer::frame`).
     pub button_rect_d: [PlainDword; 4],
-    /// +0xb0: the bar's rectangle (x, y, w at +8, h)
-    /// (`race::viewer_frame`).
+    /// The bar's rectangle (x, y, w at +8, h)
+    /// (`menu::replay_viewer::frame`).
     pub bar_rect: [PlainDword; 4],
-    /// +0xc0: a mark's rectangle, x written each frame
-    /// (`race::viewer_frame`).
+    /// A mark's rectangle, x written each frame
+    /// (`menu::replay_viewer::frame`).
     pub mark_rect: [PlainDword; 4],
-    /// +0xd0: the place marker's rectangle, x written
-    /// each frame (`race::viewer_frame`).
+    /// The place marker's rectangle, x written
+    /// each frame (`menu::replay_viewer::frame`).
     pub place_rect: [PlainDword; 4],
-    /// +0xe0: the item quad's place, zero at the start
-    /// (`race::draw_viewer_item`).
+    /// The item quad's place, zero at the start
+    /// (`menu::replay_viewer::item`).
     pub item_place: [PlainDword; 4],
-    /// +0xf0: the quad's screen rectangle, scratch,
-    /// zero at the start (`race::draw_viewer_panel`, `drive::tyre_screen_parts`).
+    /// The quad's screen rectangle, scratch,
+    /// zero at the start (`menu::replay_viewer::panel`, `drive::tyre_screen_parts`).
     pub screen_rect: [PlainDword; 4],
-    /// +0x100: the quad's texture rectangle,
-    /// scratch, zero at the start (`race::draw_viewer_panel`, `drive::tyre_screen_parts`,
+    /// The quad's texture rectangle,
+    /// scratch, zero at the start (`menu::replay_viewer::panel`, `drive::tyre_screen_parts`,
     /// `race::draw_tyre_change`).
     pub texture_rect: [PlainDword; 4],
-    /// +0x110: texture rectangles the viewer list's items point to; never read by name.
+    /// Texture rectangles the viewer list's items point to; never read by name.
     pub viewer_item_rects_a: [PlainDword; 40],
-    /// +0x1b0: texture rectangle (249,0,7,29)
-    /// of a mark (`race::viewer_frame`).
+    /// Texture rectangle (249,0,7,29)
+    /// of a mark (`menu::replay_viewer::frame`).
     pub mark_picture_rect: [PlainDword; 4],
-    /// +0x1c0: a rectangle the viewer list points to; never read by name.
+    /// A rectangle the viewer list points to; never read by name.
     pub viewer_item_rect_b: [PlainDword; 4],
-    /// +0x1d0: texture rectangle (48,48,48,48)
-    /// of the place marker (`race::viewer_frame`).
+    /// Texture rectangle (48,48,48,48)
+    /// of the place marker (`menu::replay_viewer::frame`).
     pub place_picture_rect: [PlainDword; 4],
-    /// +0x1e0: texture rectangles the viewer list's items point to; never read by name.
+    /// Texture rectangles the viewer list's items point to; never read by name.
     pub viewer_item_rects_c: [PlainDword; 76],
-    /// +0x310: texture rectangle
-    /// (0,240,16,16) of a button end (`race::viewer_frame`).
+    /// Texture rectangle
+    /// (0,240,16,16) of a button end (`menu::replay_viewer::frame`).
     pub button_picture_rect: [PlainDword; 4],
-    /// +0x320: texture rectangle (15,240,241,16)
-    /// of a button body (`race::viewer_frame`).
+    /// Texture rectangle (15,240,241,16)
+    /// of a button body (`menu::replay_viewer::frame`).
     pub button_body_rect: [PlainDword; 4],
-    /// +0x330: the bar frame's texture rectangle (1,241,14,14), 20 bytes: plus 0.5f as its fifth
-    /// dword (`race::viewer_frame`).
+    /// The bar frame's texture rectangle (1,241,14,14), 20 bytes: plus 0.5f as its fifth
+    /// dword (`menu::replay_viewer::frame`).
     pub frame_picture_rect: [PlainDword; 5],
-    /// +0x344: the constant 1.0 (`race::tyre_change_gauge`).
+    /// The constant 1.0 (`race::tyre_change_gauge`).
     pub one: PlainFloat,
-    /// +0x348: the texel scale, 1/256 (`drive::tyre_quad`, `drive::tyre_turned_quad`).
+    /// The texel scale, 1/256 (`drive::tyre_quad`, `drive::tyre_turned_quad`).
     pub texel_scale: PlainFloat,
-    /// +0x34c: 0.00125 = 1/800, what the screen's width is multiplied by to scale the tyre quad's
+    /// 0.00125 = 1/800, what the screen's width is multiplied by to scale the tyre quad's
     /// x (`drive::tyre_quad`, `drive::tyre_turned_quad`).
     pub reciprocal_width_800: PlainFloat,
-    /// +0x350: 0.00167 = 1/600, what the screen's height is multiplied by to scale the tyre
+    /// 0.00167 = 1/600, what the screen's height is multiplied by to scale the tyre
     /// quad's y (`drive::tyre_quad`, `drive::tyre_turned_quad`).
     pub reciprocal_height_600: PlainFloat,
-    /// +0x354: two names of texture rectangles; a camera byte 2 or 3 picks one
-    /// (`race::draw_viewer_item`).
+    /// Two names of texture rectangles; a camera byte 2 or 3 picks one
+    /// (`menu::replay_viewer::item`).
     pub switch_pictures_a: [PlainDword; 2],
-    /// +0x35c: four names of texture rectangles, by camera byte 5 (`race::draw_viewer_item`).
+    /// Four names of texture rectangles, by camera byte 5 (`menu::replay_viewer::item`).
     pub switch_pictures_b: [PlainDword; 4],
-    /// +0x36c: three names of texture rectangles, by camera byte 4 (`race::draw_viewer_item`).
+    /// Three names of texture rectangles, by camera byte 4 (`menu::replay_viewer::item`).
     pub switch_pictures_c: [PlainDword; 3],
-    /// +0x378: whether the replay's physics patches are in force (`race::replay_patches`).
+    /// Whether the replay's physics patches are in force (`race::replay_patches`).
     pub patches_in_force: PlainDword,
-    /// +0x37c: the 13 patch switches kept while a replay's are in force (`race::replay_patches`).
+    /// The 13 patch switches kept while a replay's are in force (`race::replay_patches`).
     pub kept_patch_switches: [PlainDword; 13],
-    /// +0x3b0: the frames are saved as pictures (`race::viewer`, `race::replay_screenshot`).
+    /// The frames are saved as pictures (`race::viewer`, `race::replay_screenshot`).
     pub replay_recording: PlainDword,
-    /// +0x3b4: the picture clock, moved to `system::tick_count::PICTURE_CLOCK.clock`; the bytes
+    /// The picture clock, moved to `clock::tick_count::PICTURE_CLOCK.clock`; the bytes
     /// stay, unused.
     pub picture_clock_unused: PlainDword,
-    /// +0x3b8: whether the pictures have started, moved to
-    /// `system::tick_count::PICTURE_CLOCK.started`; the bytes stay, unused.
+    /// Whether the pictures have started, moved to
+    /// `clock::tick_count::PICTURE_CLOCK.started`; the bytes stay, unused.
     pub pictures_started_unused: PlainDword,
-    /// +0x3bc: the pictures' folder: the text rpl and a NUL (`race::start_frame_pictures`).
+    /// The pictures' folder: the text rpl and a NUL (`race::start_frame_pictures`).
     pub picture_folder: PlainDword,
-    /// +0x3c0: the 15-byte picture name rpl\000000.pcx, taken in place; the last 3 bytes
+    /// The 15-byte picture name rpl\000000.png, taken in place; the last 3 bytes
     /// are not a whole dword (`race::replay_screenshot`).
     pub picture_name: [PlainDword; 3],
-    /// +0x3cc: the untyped tail: the viewer's texts and unaligned values, reached through `text`
+    /// The untyped tail: the viewer's texts and unaligned values, reached through `text`
     /// and the unaligned readers below.
     pub untyped_tail: [PlainDword; 167],
 }
@@ -157,7 +158,14 @@ impl ViewerPanelBlock {
             picture_folder: PlainDword::new(0x6C7072),
             picture_name: plain_dwords_of_text::<3>(b"rpl\\000000.p"),
             untyped_tail: plain_dwords_of_text::<167>(TAIL_TEXT),
-            ..ZeroCells::ZERO
+            item_place: [const { PlainDword::new(0) }; 4],
+            screen_rect: [const { PlainDword::new(0) }; 4],
+            texture_rect: [const { PlainDword::new(0) }; 4],
+            patches_in_force: PlainDword::new(0),
+            kept_patch_switches: [const { PlainDword::new(0) }; 13],
+            replay_recording: PlainDword::new(0),
+            picture_clock_unused: PlainDword::new(0),
+            pictures_started_unused: PlainDword::new(0),
         }
     }
 }
@@ -177,31 +185,27 @@ impl core::ops::Deref for InGroup {
 #[cfg(test)]
 pub static VIEWER_PANEL: InGroup = InGroup;
 
-/// The image address of the first byte of `untyped_tail`: the untyped tail with the viewer's texts
-/// and its unaligned values.
-const TAIL: usize = 0x5C2CE8;
-
 /// The tail's first bytes at the start: the last bytes of the picture name, the viewer's
 /// settings (`wrreplayenable`, `wrreplayrate`, the picture time), and the texts the network code
 /// logs (`texts`), zero-padded to the tail's length.
-const TAIL_TEXT: &[u8] = b"cx\0\x01\0\0\0d\0\0\0\n\0\0\0Finding 3d hardware\0 dd:\0=\0:\x003d:\0primary card\0secondary card\0VID: Mode for game=\0VID: Mode for main=\0VID: Open ddraw\0VID: Close ddraw\0Getting available video modes\0SVM:\0SVM: OK\0SVM: FAIL\0SDM:\0 SDM return=\0SVM: Release video screens\0SVM: Release all textures\0OpenWindow\0NET: Starting link\0NET: Stopping link\0NET: Lets rally\0NET: Create dplay\0NET: Destroy dplay\0NET: Find connections\0NET: Found\0NET: Init connection index\0NET: Init\0NET: Destroy connection\0NET: DPCA\0NET: Find sessions\0NET: Host\0NET: Open\0NET: Host complete\0NET: Join session\0NET: Join complete\0NET: Disable new players\0NET: Lobby launch detected\0NET: Create dplobby\0NET: Create player";
+const TAIL_TEXT: &[u8] = b"ng\0\x01\0\0\0d\0\0\0\n\0\0\0Finding 3d hardware\0 dd:\0=\0:\x003d:\0primary card\0secondary card\0VID: Mode for game=\0VID: Mode for main=\0VID: Open ddraw\0VID: Close ddraw\0Getting available video modes\0SVM:\0SVM: OK\0SVM: FAIL\0SDM:\0 SDM return=\0SVM: Release video screens\0SVM: Release all textures\0OpenWindow\0NET: Starting link\0NET: Stopping link\0NET: Lets rally\0NET: Create dplay\0NET: Destroy dplay\0NET: Find connections\0NET: Found\0NET: Init connection index\0NET: Init\0NET: Destroy connection\0NET: DPCA\0NET: Find sessions\0NET: Host\0NET: Open\0NET: Host complete\0NET: Join session\0NET: Join complete\0NET: Disable new players\0NET: Lobby launch detected\0NET: Create dplobby\0NET: Create player";
 
 /// The network code's log texts (`texts`): the viewer panel's tail holds them from the start and
-/// nothing writes there (the viewer's three settings stand before them, `tail_write` takes only
-/// those addresses), so the code reads them from the start values rather than from the panel. Plain
-/// data: the network's receiving thread reads them beside the game thread.
+/// nothing writes there (the viewer's three settings stand before them), so the code reads them
+/// from the start values rather than from the panel. Plain data: the network's receiving thread
+/// reads them beside the game thread.
 pub struct NetTexts(&'static [u8]);
 
 /// The network's log texts as they start.
 pub static NET_TEXTS: NetTexts = NetTexts(TAIL_TEXT);
 
 impl NetTexts {
-    /// The text of `texts` that starts at the image address `ida` in the untyped tail, up to its
-    /// NUL (or the tail's end).
-    pub fn text(&self, ida: usize) -> Vec<u8> {
-        assert!((TAIL..TAIL + 4 * 167).contains(&ida));
+    /// The text of `texts` that starts at byte `at` of the untyped tail, up to its NUL (or the
+    /// tail's end).
+    pub fn text(&self, at: usize) -> Vec<u8> {
+        assert!(at < 4 * 167);
         self.0
-            .get(ida - TAIL..)
+            .get(at..)
             .unwrap_or_default()
             .iter()
             .copied()
@@ -210,84 +214,86 @@ impl NetTexts {
     }
 }
 
-/// The texts in `untyped_tail`, by image address (for `NetTexts::text`).
+/// The texts in `untyped_tail`, by their first byte's place in it (for `NetTexts::text`).
 pub mod texts {
     /// "NET: Starting link"
-    pub const NET_STARTING_LINK: usize = 0x5C2E04;
+    pub const NET_STARTING_LINK: usize = 0x11C;
     /// "NET: Stopping link"
-    pub const NET_STOPPING_LINK: usize = 0x5C2E17;
+    pub const NET_STOPPING_LINK: usize = 0x12F;
     /// "NET: Lets rally"
-    pub const NET_LETS_RALLY: usize = 0x5C2E2A;
+    pub const NET_LETS_RALLY: usize = 0x142;
     /// "NET: Create dplay"
-    pub const NET_CREATE_DPLAY: usize = 0x5C2E3A;
+    pub const NET_CREATE_DPLAY: usize = 0x152;
     /// "NET: Destroy dplay"
-    pub const NET_DESTROY_DPLAY: usize = 0x5C2E4C;
+    pub const NET_DESTROY_DPLAY: usize = 0x164;
     /// "NET: Find connections"
-    pub const NET_FIND_CONNECTIONS: usize = 0x5C2E5F;
+    pub const NET_FIND_CONNECTIONS: usize = 0x177;
     /// "NET: Found"
-    pub const NET_FOUND: usize = 0x5C2E75;
+    pub const NET_FOUND: usize = 0x18D;
     /// "NET: Init connection index"
-    pub const NET_INIT_CONNECTION_INDEX: usize = 0x5C2E80;
+    pub const NET_INIT_CONNECTION_INDEX: usize = 0x198;
     /// "NET: Init"
-    pub const NET_INIT: usize = 0x5C2E9B;
+    pub const NET_INIT: usize = 0x1B3;
     /// "NET: Destroy connection"
-    pub const NET_DESTROY_CONNECTION: usize = 0x5C2EA5;
+    pub const NET_DESTROY_CONNECTION: usize = 0x1BD;
     /// "NET: DPCA"
-    pub const NET_DPCA: usize = 0x5C2EBD;
+    pub const NET_DPCA: usize = 0x1D5;
     /// "NET: Find sessions"
-    pub const NET_FIND_SESSIONS: usize = 0x5C2EC7;
+    pub const NET_FIND_SESSIONS: usize = 0x1DF;
     /// "NET: Host"
-    pub const NET_HOST: usize = 0x5C2EDA;
+    pub const NET_HOST: usize = 0x1F2;
     /// "NET: Open"
-    pub const NET_OPEN: usize = 0x5C2EE4;
+    pub const NET_OPEN: usize = 0x1FC;
     /// "NET: Host complete"
-    pub const NET_HOST_COMPLETE: usize = 0x5C2EEE;
+    pub const NET_HOST_COMPLETE: usize = 0x206;
     /// "NET: Join session"
-    pub const NET_JOIN_SESSION: usize = 0x5C2F01;
+    pub const NET_JOIN_SESSION: usize = 0x219;
     /// "NET: Join complete"
-    pub const NET_JOIN_COMPLETE: usize = 0x5C2F13;
+    pub const NET_JOIN_COMPLETE: usize = 0x22B;
     /// "NET: Disable new players"
-    pub const NET_DISABLE_NEW_PLAYERS: usize = 0x5C2F26;
+    pub const NET_DISABLE_NEW_PLAYERS: usize = 0x23E;
     /// "NET: Create dplobby"
-    pub const NET_CREATE_DLOBBY: usize = 0x5C2F5A;
+    pub const NET_CREATE_DLOBBY: usize = 0x272;
     /// "NET: Create player"
-    pub const NET_CREATE_PLAYER: usize = 0x5C2F6E;
+    pub const NET_CREATE_PLAYER: usize = 0x286;
 }
 
 impl ViewerPanelBlock {
     /// Whether the developer's keys work in the viewer (1): an unaligned dword in the tail.
     pub fn developer_keys(&self) -> u32 {
-        self.tail_read(0x5C2CEB)
+        self.tail_read(DEVELOPER_KEYS_AT)
     }
 
     /// Sets the developer's keys flag (the `wrreplayenable` setting writes it).
     pub fn set_developer_keys(&self, value: u32) {
-        self.tail_write(0x5C2CEB, value);
+        self.tail_write(DEVELOPER_KEYS_AT, value);
     }
 
     /// Pictures a second, 1 .. 100: an unaligned dword in the tail.
     pub fn picture_rate(&self) -> u32 {
-        self.tail_read(0x5C2CEF)
+        self.tail_read(PICTURE_RATE_AT)
     }
 
     pub fn set_picture_rate(&self, value: u32) {
-        self.tail_write(0x5C2CEF, value);
+        self.tail_write(PICTURE_RATE_AT, value);
     }
 
     /// Ms a picture: an unaligned dword in the tail.
     pub fn picture_time(&self) -> u32 {
-        self.tail_read(0x5C2CF3)
+        self.tail_read(PICTURE_TIME_AT)
     }
 
-    pub fn set_picture_time(&self, value: u32) {
-        self.tail_write(0x5C2CF3, value);
+    pub(super) fn set_picture_time(&self, value: u32) {
+        self.tail_write(PICTURE_TIME_AT, value);
     }
 
     /// The text id of camera `camera` (47 of them; a number past them reads on in the block).
     pub fn camera_name(&self, camera: usize) -> u16 {
         // The names are the block's first bytes.
-        crate::memory::cells::load_value::<u16>(self, 2 * camera)
-            .unwrap_or_else(|e| crate::fatal::raise::end("a camera's name", e))
+        let mut name = [0; 2];
+        self.load_walked(2 * camera, &mut name)
+            .unwrap_or_else(|e| crate::memory::host_hooks::end("a camera's name", e));
+        u16::from_le_bytes(name)
     }
 
     /// The rectangle of the picture `n` in switch table `table` (0 `switch_pictures_a`, 1
@@ -330,13 +336,99 @@ impl ViewerPanelBlock {
                 "a switch picture's name off the panel",
             ));
         }
-        crate::memory::cells::load_value(self, ida - START)
+        self.rectangle_at(ida - START)
     }
 
-    /// The dword at the image address `ida` in the tail: unaligned, so made of the two cells it
-    /// spans.
-    fn tail_read(&self, ida: usize) -> u32 {
-        let (n, shift) = Self::tail_cells(ida);
+    /// The rectangle (four dwords) at byte `offset` of the panel.
+    pub fn rectangle_at(&self, offset: usize) -> Result<[u32; 4], crate::errors::BadInput> {
+        let mut bytes = [0; 16];
+        self.load_walked(offset, &mut bytes)?;
+        Ok(std::array::from_fn(|k| {
+            u32::from_le_bytes(bytes.as_chunks::<4>().0[k])
+        }))
+    }
+
+    /// Dword `n` of the block, counted over the fields in order (the floats as their bits);
+    /// `None` past the block's last one.
+    fn word(&self, n: usize) -> Option<u32> {
+        let mut n = n;
+        macro_rules! fields {
+            ($($field:expr),* $(,)?) => {$(
+                let field = &$field;
+                if n < field.len() {
+                    return Some(field[n].get());
+                }
+                n -= field.len();
+            )*};
+        }
+        fields!(
+            self.camera_name_ids,
+            self.bar_frame_rect,
+            self.button_rect_a,
+            self.button_rect_b,
+            self.button_rect_c,
+            self.button_rect_d,
+            self.bar_rect,
+            self.mark_rect,
+            self.place_rect,
+            self.item_place,
+            self.screen_rect,
+            self.texture_rect,
+            self.viewer_item_rects_a,
+            self.mark_picture_rect,
+            self.viewer_item_rect_b,
+            self.place_picture_rect,
+            self.viewer_item_rects_c,
+            self.button_picture_rect,
+            self.button_body_rect,
+            self.frame_picture_rect,
+        );
+        let floats = [
+            &self.one,
+            &self.texel_scale,
+            &self.reciprocal_width_800,
+            &self.reciprocal_height_600,
+        ];
+        if n < floats.len() {
+            return Some(floats[n].bits());
+        }
+        n -= floats.len();
+        fields!(
+            self.switch_pictures_a,
+            self.switch_pictures_b,
+            self.switch_pictures_c,
+            std::slice::from_ref(&self.patches_in_force),
+            self.kept_patch_switches,
+            std::slice::from_ref(&self.replay_recording),
+            std::slice::from_ref(&self.picture_clock_unused),
+            std::slice::from_ref(&self.pictures_started_unused),
+            std::slice::from_ref(&self.picture_folder),
+            self.picture_name,
+            self.untyped_tail,
+        );
+        let _ = n;
+        None
+    }
+
+    /// `to.len()` bytes from byte `offset` of the block, reaching on from one field into the
+    /// next. A read past the block's end is refused.
+    fn load_walked(&self, offset: usize, to: &mut [u8]) -> Result<(), crate::errors::BadInput> {
+        let end = offset
+            .checked_add(to.len())
+            .filter(|&end| end <= size_of::<Self>())
+            .ok_or(crate::errors::BadInput("past the end of a record"))?;
+        for (k, byte) in to.iter_mut().enumerate() {
+            let at = offset + k;
+            debug_assert!(at < end);
+            let word = self.word(at / 4).expect("inside the block");
+            *byte = word.to_le_bytes()[at % 4];
+        }
+        Ok(())
+    }
+
+    /// The dword at byte `at` of the tail: unaligned, so made of the two cells it spans.
+    fn tail_read(&self, at: usize) -> u32 {
+        let (n, shift) = Self::tail_cells(at);
         let low = self.untyped_tail[n].get();
         match shift {
             0 => low,
@@ -345,8 +437,8 @@ impl ViewerPanelBlock {
     }
 
     /// `tail_read`'s write: the bytes of the two cells it spans that the dword covers.
-    fn tail_write(&self, ida: usize, value: u32) {
-        let (n, shift) = Self::tail_cells(ida);
+    fn tail_write(&self, at: usize, value: u32) {
+        let (n, shift) = Self::tail_cells(at);
         if shift == 0 {
             self.untyped_tail[n].set(value);
             return;
@@ -356,12 +448,17 @@ impl ViewerPanelBlock {
         high.set(high.get() & (u32::MAX << shift) | value >> (32 - shift));
     }
 
-    /// The tail's cell holding the image address `ida` and the dword's bit shift in it.
-    fn tail_cells(ida: usize) -> (usize, u32) {
-        assert!((TAIL..TAIL + 4 * 166).contains(&ida));
-        ((ida - TAIL) / 4, 8 * ((ida - TAIL) % 4) as u32)
+    /// The tail's cell holding byte `at` and the dword's bit shift in it.
+    fn tail_cells(at: usize) -> (usize, u32) {
+        assert!(at < 4 * 166);
+        (at / 4, 8 * (at % 4) as u32)
     }
 }
+
+/// Where the viewer's three settings stand in the tail (bytes from its start, unaligned).
+const DEVELOPER_KEYS_AT: usize = 3;
+const PICTURE_RATE_AT: usize = 7;
+const PICTURE_TIME_AT: usize = 11;
 
 /// The image address of the panel's first byte.
 pub const START: usize = 0x5C291C;
@@ -383,10 +480,7 @@ mod tests {
             .iter()
             .map(crate::memory::session::PlainDword::get)
             .collect();
-        for (k, ida) in [TAIL, TAIL + 3, TAIL + 7, TAIL + 11]
-            .into_iter()
-            .enumerate()
-        {
+        for (k, at) in [0, 3, 7, 11].into_iter().enumerate() {
             for (n, c) in v.untyped_tail.iter().enumerate() {
                 c.set(0xA5A5_0000 | n as u32);
             }
@@ -397,16 +491,64 @@ mod tests {
             };
             let before = tail_bytes();
             let value = 0x1122_3344 + k as u32;
-            v.tail_write(ida, value);
+            v.tail_write(at, value);
             let after = tail_bytes();
             let mut want = before.clone();
-            want[ida - TAIL..ida - TAIL + 4].copy_from_slice(&value.to_le_bytes());
-            assert_eq!(after, want, "{ida:#x}");
-            assert_eq!(v.tail_read(ida), value);
+            want[at..at + 4].copy_from_slice(&value.to_le_bytes());
+            assert_eq!(after, want, "{at}");
+            assert_eq!(v.tail_read(at), value);
         }
         for (c, k) in v.untyped_tail.iter().zip(kept) {
             c.set(k);
         }
+    }
+
+    /// The dword walk counts the fields as the block lays them out, floats as their bits, and
+    /// ends with the block.
+    #[test]
+    fn the_walk_over_the_fields_matches_the_layout() {
+        use std::mem::offset_of;
+        let v = &*VIEWER_PANEL;
+        assert!(v.word(size_of::<ViewerPanelBlock>() / 4 - 1).is_some());
+        assert_eq!(v.word(size_of::<ViewerPanelBlock>() / 4), None);
+        let at = |offset: usize| v.word(offset / 4).unwrap();
+        assert_eq!(
+            at(offset_of!(ViewerPanelBlock, camera_name_ids)),
+            v.camera_name_ids[0].get()
+        );
+        assert_eq!(
+            at(offset_of!(ViewerPanelBlock, bar_rect) + 8),
+            v.bar_rect[2].get()
+        );
+        assert_eq!(
+            at(offset_of!(ViewerPanelBlock, frame_picture_rect) + 16),
+            v.frame_picture_rect[4].get()
+        );
+        assert_eq!(at(offset_of!(ViewerPanelBlock, one)), v.one.bits());
+        assert_eq!(
+            at(offset_of!(ViewerPanelBlock, reciprocal_height_600)),
+            v.reciprocal_height_600.bits()
+        );
+        assert_eq!(
+            at(offset_of!(ViewerPanelBlock, switch_pictures_c) + 8),
+            v.switch_pictures_c[2].get()
+        );
+        assert_eq!(
+            at(offset_of!(ViewerPanelBlock, kept_patch_switches) + 48),
+            v.kept_patch_switches[12].get()
+        );
+        assert_eq!(
+            at(offset_of!(ViewerPanelBlock, picture_name) + 8),
+            v.picture_name[2].get()
+        );
+        assert_eq!(
+            at(offset_of!(ViewerPanelBlock, untyped_tail) + 4 * 166),
+            v.untyped_tail[166].get()
+        );
+        assert_eq!(v.camera_name(0), v.camera_name_ids[0].get() as u16);
+        assert_eq!(v.camera_name(1), (v.camera_name_ids[0].get() >> 16) as u16);
+        assert!(v.rectangle_at(size_of::<ViewerPanelBlock>() - 15).is_err());
+        assert!(v.rectangle_at(size_of::<ViewerPanelBlock>() - 16).is_ok());
     }
 
     #[test]

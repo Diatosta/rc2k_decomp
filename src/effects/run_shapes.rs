@@ -1,21 +1,21 @@
 //! `effects::run_shapes`: the mask shapes' frame: `effects::pick_shapes`,
 //! `effects::turn_all_shapes`; then when the scene clock reaches the picks' `next`, the next time
 //! (the clock plus a random's low byte) and whether the shapes move (`moving`: another random,
-//! turned right 16, plus the clock, `and` the `masks` entry the settings' +0x2748 picks, not 0);
-//! while they move, the shape `index` from a running count (`count` plus the frame's ticks by one
-//! rate, or by another when the settings' +0x274C is 1 and the index >> 3 is not 0), its bits 16 ..
-//! 23, and `pick_shapes` again.
+//! turned right 16, plus the clock, `and` the `masks` entry the settings' `mask_number` picks,
+//! not 0); while they move, the shape `index` from a running count (`count` plus the frame's
+//! ticks by one rate, or by another when the settings' `mask_rate_switch` is 1 and the index >> 3
+//! is not 0), its bits 16 .. 23, and `pick_shapes` again.
 //!
 //! Works on the effects settings.
 //!
-//! Refuses null settings, a +0x2748 of 9 or more when it is read (`masks` holds 9), and its steps'
+//! Refuses null settings, a `mask_number` of 9 or more when it is read (`masks` holds 9), and its steps'
 //! refusals; on a refusal nothing stays written (all it may write is put back).
 
-use crate::effects::emitters::next_c5;
+use crate::effects::emitters::next_c5_plain;
 use crate::effects::mask_store::Masks;
 use crate::effects::pick_shapes::pick_shapes;
 use crate::effects::shape_points::turn_all_shapes;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::race::owner_shared::RaceShared;
 
@@ -33,43 +33,40 @@ pub fn run_shapes(
     {
         pick_shapes(masks, drops)?;
         turn_all_shapes(masks, drops, effects)?;
-        let clock: u32 = shared.physics_tables.get().scene_clock.get();
-        if clock as i32 >= drops.picks.next.get() as i32 {
-            let r = next_c5(&setup.mask_constants.time_random);
-            drops
-                .picks
-                .next
-                .set((r & 0xFF).wrapping_add(shared.physics_tables.get().scene_clock.get()));
+        let clock: u32 = shared.run().scene_clock;
+        if clock as i32 >= drops.picks.borrow().next as i32 {
+            let r = next_c5_plain(&mut setup.mask_constants.borrow_mut().time_random);
+            drops.picks.borrow_mut().next = (r & 0xFF).wrapping_add(shared.run().scene_clock);
             let mask = marks.mask_number.get();
             if mask >= MASK_COUNT {
-                return Err(BadInput("a mask number past dword_844E34's 9").into());
+                return Err(BadInput("a mask number past the masks' 9").into());
             }
-            let moving = next_c5(&setup.mask_constants.move_random)
+            let moving = next_c5_plain(&mut setup.mask_constants.borrow_mut().move_random)
                 .rotate_right(16)
                 .wrapping_add(clock)
-                & drops.picks.masks[mask as usize].get();
-            drops.picks.moving.set(1);
+                & drops.picks.borrow().masks[mask as usize];
+            drops.picks.borrow_mut().moving = 1;
             if moving == 0 {
-                drops.picks.moving.set(0);
+                drops.picks.borrow_mut().moving = 0;
                 return Ok(());
             }
         }
-        if drops.picks.moving.get() == 0 {
+        if drops.picks.borrow().moving == 0 {
             return Ok(());
         }
         let rate = if marks.mask_rate_switch.get() == 1 {
-            (drops.picks.index.get() >> 3 != 0).then_some(&setup.mask_constants.rates[0])
+            (drops.picks.borrow().index >> 3 != 0).then_some(setup.mask_constants.borrow().rates[0])
         } else {
-            Some(&setup.mask_constants.rates[1])
+            Some(setup.mask_constants.borrow().rates[1])
         };
         if let Some(rate) = rate {
             let count = x87::int_times_plus_int_to_int(
-                setup.clock.frame_ticks.get() as i32,
+                setup.clock.borrow().frame_ticks as i32,
                 rate,
-                masks.vars.count.get() as i32,
+                masks.vars.borrow().count as i32,
             );
-            masks.vars.count.set(count as u32);
-            drops.picks.index.set((count as u32 >> 16) & 0xFF);
+            masks.vars.borrow_mut().count = count as u32;
+            drops.picks.borrow_mut().index = (count as u32 >> 16) & 0xFF;
         }
         pick_shapes(masks, drops)?;
     }

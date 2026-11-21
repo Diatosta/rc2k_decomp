@@ -1,35 +1,52 @@
 //! The course kinds' first and last records, indexed by kind (`physics::ground`,
-//! `race::course_data`, `physics::find_course_record`). The course store follows
+//! `race::course_data`, `physics::find_course_record`). A plain record (`session::DrawPlain`):
+//! written on the game's thread when a stage's records are grouped, read there and, as a copy
+//! made when a drawing scope opens, by the drawing parts. The course store follows
 //! (`race::course_store`).
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::PlainDword;
+use crate::memory::session::{DrawPlain, PlainRead};
 
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+/// The kinds' first and last records.
+#[derive(Clone)]
 pub struct KindRecords {
-    /// Unused; only dead code touched it.
-    pub unused_0: [PlainDword; 9],
     /// Each kind's first record.
-    pub first_records: [PlainDword; 256],
+    pub first_records: [u32; 256],
     /// Each kind's last record.
-    pub last_records: [PlainDword; 259],
+    pub last_records: [u32; 259],
 }
 
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
-
-/// The piece (a field of `race::owner::Race::course`), with its first values.
 impl KindRecords {
     pub const fn new() -> Self {
         Self {
-            unused_0: {
-                let mut a: [PlainDword; 9] = ZeroCells::ZERO;
-                a[1] = PlainDword::new(0xFFFFA000);
-                a[2] = PlainDword::new(0x11000);
-                a[3] = PlainDword::new(0xFFFFC000);
-                a
-            },
-            ..ZeroCells::ZERO
+            first_records: [0; 256],
+            last_records: [0; 259],
         }
+    }
+}
+
+/// The records as one reader finds them: the game's thread's own (read through the store when
+/// used), or a drawing part's copy.
+#[derive(Clone, Copy)]
+pub enum KindRecordsRef<'a> {
+    Store(&'a DrawPlain<KindRecords>),
+    Copy(&'a KindRecords),
+}
+
+impl KindRecordsRef<'_> {
+    /// Kind `kind`'s first and last record (a first of -1: none).
+    pub fn first_and_last(self, kind: usize) -> (u32, u32) {
+        match self {
+            Self::Store(store) => {
+                let records = store.borrow();
+                (records.first_records[kind], records.last_records[kind])
+            }
+            Self::Copy(records) => (records.first_records[kind], records.last_records[kind]),
+        }
+    }
+}
+
+impl<'a> From<&'a PlainRead<KindRecords>> for KindRecordsRef<'a> {
+    fn from(copy: &'a PlainRead<KindRecords>) -> Self {
+        Self::Copy(copy)
     }
 }

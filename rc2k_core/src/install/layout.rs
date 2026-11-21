@@ -1,22 +1,42 @@
 //! A page's pieces placed in their boxes, and the drawing lists of the installer's frames. A piece
-//! (0x30 bytes): +0 its item's kind and marks, +1 its own kind (bit 0 a label, bit 1 a choice;
-//! else bit 2 at the left, bit 3 at the right, else centred), +8 x, +0xC y, +0x10 width, +0x14
-//! height. A box: x, y, width, height. Compares are signed.
+//! holds its item's kind and marks, its own kind (bit 0 a label, bit 1 a choice; else bit 2 at the
+//! left, bit 3 at the right, else centred), its string, the item it was made from, and its place
+//! and size. A box: x, y, width, height. Compares are signed.
 
 use crate::Invalid;
 
-/// A piece's bytes in the page's table.
-pub const PIECE: u32 = 0x30;
-
-/// What placing reads of a piece and changes (x and y).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Piece {
+/// One piece of a page. `I` names the item the piece was made from (`None` until it is set);
+/// placing reads the marks, the kind and the size and changes x and y.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Piece<I> {
+    /// The item's kind and marks.
     pub marks: u8,
+    /// The piece's own kind.
     pub kind: u8,
+    /// The piece's string (a string id).
+    pub text: u16,
+    /// The item the piece was made from, or the title.
+    pub item: Option<I>,
     pub x: u32,
     pub y: u32,
     pub width: u32,
     pub height: u32,
+}
+
+impl<I> Default for Piece<I> {
+    /// A piece of nothing: no item, no place, no size.
+    fn default() -> Self {
+        Self {
+            marks: 0,
+            kind: 0,
+            text: 0,
+            item: None,
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+        }
+    }
 }
 
 /// A box of a page: `{x, y, width, height}`.
@@ -56,7 +76,11 @@ const GAP: u32 = 10;
 /// rest centred, at the left or at the right edge; then the whole centred across and down in the
 /// box (by an even number of pixels down in the title's box) and moved to its place. Refused: no
 /// pieces.
-pub fn place_row(pieces: &mut [Piece], area: Area, title: bool) -> Result<Placed, Invalid> {
+pub fn place_row<I: Copy>(
+    pieces: &mut [Piece<I>],
+    area: Area,
+    title: bool,
+) -> Result<Placed, Invalid> {
     if pieces.is_empty() {
         return Err(Invalid("a box of no pieces"));
     }
@@ -94,7 +118,7 @@ pub fn place_row(pieces: &mut [Piece], area: Area, title: bool) -> Result<Placed
 }
 
 /// The widest label's width; a choice after a choice goes right of its end (and the gap).
-fn widest_label_and_push_choices(pieces: &mut [Piece]) -> u32 {
+fn widest_label_and_push_choices<I>(pieces: &mut [Piece<I>]) -> u32 {
     let mut widest = 0u32;
     for k in 0..pieces.len() {
         let kind = pieces[k].kind;
@@ -117,7 +141,7 @@ fn widest_label_and_push_choices(pieces: &mut [Piece]) -> u32 {
 /// line: later pieces move down by the line's height (and back left by the new line's first
 /// choice's x, which choices after a plain piece do not follow), and those of the line just ended
 /// move down to its bottom.
-fn wrap_lines(pieces: &mut [Piece], limit: u32) {
+fn wrap_lines<I: Copy>(pieces: &mut [Piece<I>], limit: u32) {
     let mut line_start = 0usize;
     let mut line_height = pieces[0].height;
     for k in 1..pieces.len() {
@@ -151,7 +175,7 @@ fn wrap_lines(pieces: &mut [Piece], limit: u32) {
 
 /// Each piece's place across: labels at the label column's end, choices after it and the gap,
 /// the rest centred, at the left or at the right edge. The right-most end of the choices.
-fn place_across(pieces: &mut [Piece], width: u32, labels: u32) -> u32 {
+fn place_across<I>(pieces: &mut [Piece<I>], width: u32, labels: u32) -> u32 {
     let mut right_edge = 0u32;
     for p in pieces.iter_mut() {
         if p.kind & LABEL != 0 {
@@ -195,7 +219,7 @@ pub fn rows(count: u32, box_of: impl Fn(u32) -> u32) -> Result<Vec<(u32, u32, u3
 
 /// A drawing list's record's bytes: dx, dy and two dwords (a font and a string, or a
 /// glyph and a palette).
-pub const LIST_RECORD: u32 = 0x10;
+pub(crate) const LIST_RECORD: u32 = 0x10;
 
 /// A drawing list of `count` records: each record's offset in the table and the number of
 /// records left while it is drawn (this one counted), in order. Refused: a count of 0.
@@ -226,7 +250,7 @@ mod tests {
         assert_eq!(list_place(5, u32::MAX, 10, 2), (15, 1));
     }
 
-    fn piece(kind: u8, width: u32, height: u32) -> Piece {
+    fn piece(kind: u8, width: u32, height: u32) -> Piece<()> {
         Piece {
             kind,
             width,
@@ -258,7 +282,7 @@ mod tests {
         );
         assert_eq!((pieces[0].x, pieces[1].x, pieces[2].x), (150, 160, 220));
         assert_eq!((pieces[0].y, pieces[1].y, pieces[2].y), (64, 64, 64));
-        assert!(place_row(&mut [], area, false).is_err());
+        assert!(place_row::<()>(&mut [], area, false).is_err());
     }
 
     #[test]

@@ -6,17 +6,15 @@ use crate::race::owner_frame::Frame;
 use crate::scene::owner::Scene;
 
 pub fn set_batch_texture(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     frame: &Frame,
     scene: &Scene,
 ) -> Result<(), Refused> {
-    let n = rc2k_core::hud::batch::texture_slot(
-        frame.panel_and_overlay.get().panel.shown_texture.get(),
-    )?;
+    let n = rc2k_core::hud::batch::texture_slot(frame.panel.borrow().shown_texture)?;
     crate::scene::set_texture::set_texture(
         part,
         scene,
-        scene.textures.kinds.get().kind_first_slots[n].get(),
+        scene.textures.kinds.borrow().kind_first_slots[n],
     );
     Ok(())
 }

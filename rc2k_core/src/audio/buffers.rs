@@ -3,26 +3,10 @@
 
 use super::voices::Voice;
 
-/// `DSERR_BUFFERLOST`: a failed call of a buffer whose memory went.
-pub const BUFFER_LOST: i32 = 0x8878_0096u32 as i32;
-
-/// Whether a buffer call's result says its memory was lost.
-pub fn lost(result: i32) -> bool {
-    result == BUFFER_LOST
-}
-
-/// `GetStatus`' bit: the buffer's memory was lost.
-pub const STATUS_LOST: u32 = 2;
-
-/// `audio::restore_buffer`: `Restore` only for a buffer whose status says lost.
-pub fn needs_restore(status: u32) -> bool {
-    status & STATUS_LOST != 0
-}
-
 /// A voice's kind that loops.
-pub const KIND_LOOPING: u32 = 1;
+pub(crate) const KIND_LOOPING: u32 = 1;
 /// `Play`'s flag: over and over.
-pub const PLAY_LOOPING: u32 = 1;
+pub(crate) const PLAY_LOOPING: u32 = 1;
 
 /// `audio::play_buffer`'s flags: looping for a voice of the looping kind.
 pub fn play_flags(v: &Voice) -> u32 {
@@ -34,7 +18,7 @@ pub fn play_flags(v: &Voice) -> u32 {
 }
 
 /// A voice's state while it sounds.
-pub const SOUNDING: u32 = 2;
+pub(crate) const SOUNDING: u32 = 2;
 
 /// `audio::set_buffer_place`: deferred (1) while the voice sounds, else at once (0).
 pub fn place_deferral(v: &Voice) -> u32 {
@@ -90,8 +74,6 @@ mod tests {
         );
         v.source = 3;
         assert!(!fills(&v) && !keeps_sample(&v));
-        assert!(lost(BUFFER_LOST) && !lost(1));
-        assert!(needs_restore(3) && !needs_restore(1));
         assert_eq!(fill_copies(100, [7, 10, 0, 5]), ((100, 7, 10), None));
         assert_eq!(
             fill_copies(100, [7, 10, 9, 5]),

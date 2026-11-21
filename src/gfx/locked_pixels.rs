@@ -9,7 +9,7 @@
 
 use crate::errors::BadInput;
 use crate::memory::cells::Plain;
-use crate::memory::pool::PoolBytes;
+use crate::platform::pool::PoolBytes;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, Weak};
 
@@ -34,7 +34,7 @@ pub fn register(handle: u32, bytes: &Arc<PoolBytes>) {
 }
 
 /// The registrations so far.
-pub fn registrations() -> u64 {
+fn registrations() -> u64 {
     REGISTRATIONS.load(std::sync::atomic::Ordering::Acquire)
 }
 
@@ -120,13 +120,13 @@ impl Place {
     /// The bytes, when `len` from this place lie inside what is reachable.
     fn check(&self, at: u32, len: usize, what: &str) -> Result<&PoolBytes, BadInput> {
         let Some(bytes) = &self.bytes else {
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "pixels: {what}: {len} bytes of surface pixels that are not there"
             ));
             return Err(BadInput("a locked surface with no pixels"));
         };
         if u64::from(at) + len as u64 > u64::from(self.end) {
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "pixels: {what}: {len} bytes at offset {:#x}, past the {:#x} reachable",
                 at, self.end
             ));
@@ -160,7 +160,7 @@ impl Place {
     }
 
     /// `bytes` written `n` bytes on, ending the program on a refusal.
-    pub fn must_write_bytes_at(&self, n: u32, bytes: &[u8], what: &str) {
+    pub(super) fn must_write_bytes_at(&self, n: u32, bytes: &[u8], what: &str) {
         let at = self.at.wrapping_add(n);
         if let Err(e) = self
             .check(at, bytes.len(), what)

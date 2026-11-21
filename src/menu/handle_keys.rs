@@ -7,15 +7,13 @@
 //! - none or 0x38: `Pressed::Nothing`;
 //! - Escape (1): `loop_flags.leave_screen`, `draw_work.escape_pressed` and
 //!   `captions.left_by_key` set; `Pressed::Escape`;
-//! - Enter (0x1C): the Enter menu sound, the last-key time set to the clock, the
-//!   enter-skips-name-entry flag set when bits 8 .. 15 of the caller's value are 4, the Enter
+//! - Enter (0x1C): the Enter menu sound, the last-key time set to the clock, the Enter
 //!   click played; `Pressed::Enter`;
 //! - any other: the last-key time set, then the four `move_highlight_*` (0x66, 0x6B, 0x69,
 //!   0x68), a screenshot (0x52), `loop_flags.toggle` flipped (0x20), 60 added to the service
 //!   time budget when bit 14 of the cheat bits is set (0x14); `Pressed::Nothing`.
 //!
-//! 89 callers: every screen loop. Refuses, on a yes/no screen, a missing keyboard layout
-//! (before the key is taken).
+//! Refuses, on a yes/no screen, a missing keyboard layout (before the key is taken).
 
 use crate::errors::{BadInput, Refused};
 use crate::input::key_to_char::has_layout;
@@ -25,40 +23,40 @@ use crate::menu::navigation::{Direction, move_highlight};
 use crate::owners::Owners;
 use rc2k_core::menu::keys::Pressed;
 
-/// `eax` is the caller's value (the screen loops pass the elapsed time); bits 8 .. 15 are read
-/// on Enter.
-pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
+/// `elapsed` is the time since the screen's set-up; its low byte is replaced by the key for the
+/// yes / no screen.
+pub fn handle_keys(o: Owners<'static>, elapsed: u32) -> Result<Pressed, Refused> {
     use rc2k_core::menu::keys::{self, Action, Move};
     let menus = o.menus;
     let nothing = Pressed::Nothing;
-    if keys::keys_off(menus.screens.state.service_ui.box_shown.is_set(), || {
+    if keys::keys_off(menus.screens.state.read().service_ui.box_shown, || {
         menus.screens.controls.learning.get()
     }) {
         return Ok(nothing);
     }
-    if menus.screens.flow.asking.is_set() && !has_layout(o.input) {
+    if menus.screens.flow.read().asking && !has_layout(o.input) {
         return Err(BadInput("no keyboard layout").into());
     }
     menus.screens.entry.set_sound(keys::MenuSound::None);
-    menus.screens.loop_flags.leave_screen.set(false);
+    menus.screens.loop_flags.write().leave_screen = false;
     let key = take_key(o.input);
     if key == 0 {
         return Ok(nothing);
     }
-    let eax = eax & !0xFF | key as u32;
+    let key_over_elapsed = elapsed & !0xFF | key as u32;
     handle_yes_no(
         crate::strings::append_string_by_id::StringOwners::of(o),
         o.input,
         menus,
-        eax,
+        key_over_elapsed,
     )?;
-    let action = keys::action(key, || menus.play.cheats.cheats.get());
+    let action = keys::action(key, || menus.play.cheats.read().cheats);
     match action {
         Action::Ignored => return Ok(nothing),
         Action::Escape => {
-            menus.screens.loop_flags.leave_screen.set(true);
-            menus.screens.draw_work.escape_pressed.set(true);
-            menus.tables.captions.left_by_key.set(true);
+            menus.screens.loop_flags.write().leave_screen = true;
+            menus.screens.draw_work.write().escape_pressed = true;
+            menus.tables.captions.write().left_by_key = true;
             return Ok(Pressed::Escape);
         }
         _ => {}
@@ -66,22 +64,17 @@ pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
     let clock: u32 = o.system.clocks().frame.get();
     if action == Action::Enter {
         menus.screens.entry.set_sound(keys::MenuSound::Enter);
-        menus.play.champ_view.key_clock.last_key_time.set(clock);
-        menus
-            .screens
-            .flow
-            .enter_skips_name_entry
-            .set(keys::enter_skips_name_entry(eax));
-        crate::sound::play_menu_sound::play_menu_sound_in_game(
+        menus.play.champ_view.write().key_clock.last_key_time = clock;
+        crate::sound::play_menu_sound::play_menu_sound(
             o.sound,
             o.audio,
             o.menus,
-            o.system,
+            &o.system.session.picture_clock,
             keys::ENTER_CLICK,
         );
         return Ok(Pressed::Enter);
     }
-    menus.play.champ_view.key_clock.last_key_time.set(clock);
+    menus.play.champ_view.write().key_clock.last_key_time = clock;
     let direction = match action {
         Action::Move(Move::Up) => Direction::Up,
         Action::Move(Move::Down) => Direction::Down,
@@ -92,20 +85,18 @@ pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
             return Ok(nothing);
         }
         Action::Toggle => {
-            let toggle = &menus.screens.loop_flags.toggle;
-            toggle.set(!toggle.is_set());
+            let mut flags = menus.screens.loop_flags.write();
+            flags.toggle = !flags.toggle;
             return Ok(nothing);
         }
         Action::AddTime => {
-            menus.screens.event.service.minutes.set(
-                menus
-                    .screens
-                    .event
-                    .service
-                    .minutes
-                    .get()
-                    .wrapping_add(keys::ADDED_TIME),
-            );
+            menus.screens.event.write().service.minutes = menus
+                .screens
+                .event
+                .read()
+                .service
+                .minutes
+                .wrapping_add(keys::ADDED_TIME);
             return Ok(nothing);
         }
         _ => return Ok(nothing),

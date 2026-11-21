@@ -1,18 +1,18 @@
-//! `effects::burst_particles`: up to 0x100 entries of the effects' ring started at the
-//! place of the record (+0xC .. +0x14), each in a random direction on a sphere of a random
-//! radius: a burst flag is set; the radius (the effects' random's low word times a
-//! constant, plus a base, times a scale) is kept, and so are a kind ((its low 3 bits) times
-//! 0x400) and ((its bit 16) + 8); then each entry taken from the ring's first free one (its
-//! +0, while the used count is not 0xFFF): +8 the first kept value, +0x48 the second, the
-//! place, a direction by two angles of the next random (the sine and cosine tables) times
-//! the radius at +0x28 .. +0x34, +0x38 0x10000, +0x3C 0xFF000000, +0x44 3000 and +0x40 the
-//! life factor / 3000.
+//! `effects::burst_particles`: up to 0x100 entries of the effects' ring started at the place of the
+//! record (its three place coordinates), each in a random direction on a sphere of a random radius:
+//! a burst flag is set; the radius (the effects' random's low word times a constant, plus a base,
+//! times a scale) is kept, and so are a kind ((its low 3 bits) times 0x400) and ((its bit 16) + 8);
+//! then each entry taken from the ring's first free one (its link to the next, while the used count
+//! is not 0xFFF): the kind the first kept value, the colours' place the second, the place, the
+//! motion a direction by two angles of the next random (the sine and cosine tables) times the
+//! radius with the lift 0, the size 0x10000, the colour 0xFF000000, the life 3000 and the colour's
+//! step the life factor / 3000.
 //!
 //! Refuses a null record or ring (when an entry is to be taken), before anything.
 
-use crate::effects::blocks::{particle, set_particle};
+use crate::effects::blocks::{read_particle, update_particle};
+use crate::effects::particles_store::Particles;
 use crate::effects::ring_store::Ring;
-use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
@@ -25,12 +25,17 @@ const LIFE: u32 = 0xBB8;
 /// The marks' random: times 0x9D plus 0x47.
 fn next_seed(effects: &crate::effects::owner::Effects) -> u32 {
     let setup = &effects.setup;
-    let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
-    setup.work.seed.set(s);
+    let s = setup
+        .work
+        .borrow()
+        .seed
+        .wrapping_mul(0x9D)
+        .wrapping_add(0x47);
+    setup.work.borrow_mut().seed = s;
     s
 }
 
-/// The entries the burst takes, from the ring's first free one along +0.
+/// The entries the burst takes, from the ring's first free one along the links to the next.
 fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused> {
     Ok({
         let used: u32 = ring.pool.used.get();
@@ -45,7 +50,7 @@ fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused
             if e == 0 {
                 break;
             }
-            e = particle(particles, e, 0)?;
+            e = read_particle(particles, e)?.before;
             out.push(e);
         }
         out
@@ -53,8 +58,8 @@ fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused
 }
 
 /// `record` is the particle it bursts from.
-pub fn burst_particles(
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+pub(super) fn burst_particles(
+    engine_tables: crate::math::engine_tables::EngineTablesRef,
     particles: &Particles,
     ring: &Ring,
     record: u32,
@@ -70,59 +75,55 @@ pub fn burst_particles(
                 return Err(BadInput("a null ring entry").into());
             }
         }
-        sound.race.stage.get().random[1].set(1);
+        sound.race.stage.get().borrow_mut().random[1] = 1;
         let s = next_seed(effects);
         let r = s & 0xFFFF;
-        let m = effects.frame.draw_work.uv_k.get();
-        let [c, k] = effects
-            .kinds
-            .particle_tuning
-            .burst_scale
-            .each_ref()
-            .map(crate::memory::session::PlainFloat::get);
+        let m = effects.frame.draw_work.borrow().uv_k;
+        let [c, k] = effects.kinds.particle_tuning.burst_scale;
         let radius = bh::stf((bh::int(r as i32) * bh::ld(m) + bh::ld(c)) * bh::ld(k));
         ring.pool.burst_radius.set(radius);
         ring.pool.kind.set((s & 7) * 0x400);
         ring.pool.nine.set((s.rotate_right(16) & 1) + 8);
-        let sine =
-            |n: u32| crate::scene::engine_tables_store::sine(engine_tables, n as usize).get();
-        let cosine =
-            |n: u32| crate::scene::engine_tables_store::cosine(engine_tables, n as usize).get();
+        let sine = |n: u32| crate::math::engine_tables::sine(engine_tables, n as usize);
+        let cosine = |n: u32| crate::math::engine_tables::cosine(engine_tables, n as usize);
         for _ in 0..ENTRIES {
             let used: u32 = ring.pool.used.get();
             if used == FULL {
                 continue;
             }
-            let e: u32 = particle(particles, ring.pool.free.get(), 0)?;
+            let e: u32 = read_particle(particles, ring.pool.free.get())?.before;
             ring.pool.free.set(e);
             ring.pool.used.set(used.wrapping_add(1));
-            let put = |o: u32, v: u32| set_particle(particles, e, o, v);
-            put(8, ring.pool.nine.get())?;
-            put(0x48, ring.pool.kind.get())?;
-            for o in [0xC, 0x10, 0x14] {
-                put(o, x87::loaded(particle(particles, record, o)?).to_bits())?;
+            let (kind, colours_place) = (ring.pool.nine.get(), ring.pool.kind.get());
+            update_particle(particles, e, |p| {
+                p.kind = kind;
+                p.colours_place = colours_place;
+            })?;
+            for axis in 0..3 {
+                let from = x87::loaded(read_particle(particles, record)?.place(axis)).to_bits();
+                update_particle(particles, e, |p| p.set_place(axis, from))?;
             }
             let s = next_seed(effects);
             let a = s.rotate_right(16) & 0xFFF;
             let b = s & 0xFFF;
             let radius = ring.pool.burst_radius.get();
-            put(0x34, x87::mul(sine(a), radius).to_bits())?;
-            put(
-                0x28,
-                x87::zero_times_plus_times(cosine(a), cosine(b), sine(b), radius, false).to_bits(),
-            )?;
-            put(
-                0x2C,
-                x87::zero_times_plus_times(cosine(a), sine(b), cosine(b), radius, true).to_bits(),
-            )?;
-            put(0x30, 0)?;
-            put(0x38, 0x1_0000)?;
-            put(0x3C, 0xFF00_0000)?;
-            put(0x44, LIFE)?;
-            put(
-                0x40,
-                x87::over_int(&effects.kinds.particle_tuning.burst_life, LIFE as i32).to_bits(),
-            )?;
+            let motion_z = x87::mul(sine(a), radius).to_bits();
+            let motion_x =
+                x87::zero_times_plus_times(cosine(a), cosine(b), sine(b), radius, false).to_bits();
+            let motion_y =
+                x87::zero_times_plus_times(cosine(a), sine(b), cosine(b), radius, true).to_bits();
+            let colour_step =
+                x87::over_int(effects.kinds.particle_tuning.burst_life, LIFE as i32).to_bits();
+            update_particle(particles, e, |p| {
+                p.motion_z = motion_z;
+                p.motion_x = motion_x;
+                p.motion_y = motion_y;
+                p.lift = 0;
+                p.size = 0x1_0000;
+                p.colour = 0xFF00_0000;
+                p.life = LIFE;
+                p.colour_step = colour_step;
+            })?;
         }
     }
     Ok(())

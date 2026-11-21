@@ -16,7 +16,7 @@ pub struct Collected {
 /// The face's `points` points (signed; `point(k)` asked for each looked at) added to
 /// `ids[..count]` unless there already, while fewer than `ids.len()`; `added(slot, k)`
 /// for each new one after its id is in.
-pub fn add_points(
+pub(crate) fn add_points(
     count: &mut u32,
     ids: &mut [u32],
     points: u32,

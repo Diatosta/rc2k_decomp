@@ -5,6 +5,6 @@ use crate::errors::Refused;
 use crate::input::owner::Input;
 
 /// Both devices' effects stopped.
-pub fn end_effects(input: &Input) -> Result<(), Refused> {
+pub(super) fn end_effects(input: &Input) -> Result<(), Refused> {
     crate::input::stop_effects::stop_effects(input)
 }

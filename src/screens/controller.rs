@@ -1,38 +1,17 @@
-//! The controller page's axis learning: while `controls.learning` is 1 (for at most 3 s from
+//! The controller page's axis learning: while `controls.learning` is 1 (for at most 5 s from
 //! the learning start time), the control being learnt takes the axis or the direction the player
-//! moves, into the player's binding table.
+//! moves, into the player's profile for the controller.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::owner::Input;
 use crate::menu::owner::Menus;
-use crate::screens::controls_store::ControlsScreen;
 
-/// From the controller's four values (x, y, z and the buttons): the button (its number + 1,
-/// when exactly one is down), and each of left (x below 0), right (x above 0), y and z shifted
-/// into its history (`ControlsScreen.history[0]` ..: a 1 for "under 0x80"); a direction held
-/// over 0x1D of the last 32 polls while the others were not (its history empty) gives 0x400 /
-/// 0x800 / 0x100 / 0x200 with the button, else 0, returned.
-pub fn classify_controller(controls: &ControlsScreen, z: u32, buttons: u32, x: u32, y: u32) -> u32 {
-    // The logic is in `rc2k_core::input::devices::classify`.
-    let (history, found) = rc2k_core::input::devices::classify(
-        buttons,
-        x,
-        y,
-        z,
-        std::array::from_fn(|n| controls.history[n].get()),
-    );
-    for (cell, v) in controls.history.iter().zip(history) {
-        cell.set(v);
-    }
-    found
-}
-
-/// With 3 s gone the learning stops (`ControlsScreen.learned` -1). The chosen item's prompt
-/// (string 0x3BE) is drawn while `DrawWork.blink` is 1. A player of kind 3 learning control 1
-/// or 2: the axis moved (`input::axis_moved` 1) goes into the player's axis fields, the found
-/// code 0x200 or 0x100; else the controller is read and classified. Space stops it with
-/// nothing; anything found goes to the player's binding table. Refuses a player without its
-/// record.
+/// With 5 s gone the learning stops (`ControlsScreen.learned` -1) and the control stays as it
+/// was. The chosen item's prompt (string 0x3BE) is drawn while `DrawWork.blink` is 1. The
+/// first button, hat direction or (for accelerate, brake, left and right) axis that moves
+/// from the controller's rest goes into the player's profile. Space stops it with nothing, and
+/// so does a pad's Back held for a second (let go sooner it is learnt as a button).
+/// Refuses a player without its record.
 pub fn learn_axis(
     o: crate::owners::Owners<'static>,
     input: &Input,
@@ -44,76 +23,151 @@ pub fn learn_axis(
     if controls.learning.get() != 1 {
         return Ok(());
     }
-    let Some(player) = crate::menu::player::player(menus, screens.event.current_player.get())
+    let Some(player) = crate::menu::player::player(menus, screens.event.read().current_player)
     else {
         return Err(crate::errors::BadInput("no current player record").into());
     };
-    // The code the learning found, 0 for none.
-    let mut figure = 0;
-    // The logic is in `rc2k_core::screens::learning` (`timed_out`, `by_axis`, `pedal`,
-    // `CANCEL_KEY`, `binding`).
+    // The logic is in `rc2k_core::screens::learning` (`timed_out`, `CANCEL_KEY`).
     use rc2k_core::screens::learning as l;
-    let since = crate::system::tick_count::tick_count(&o.system.session.picture_clock)
+    let since = crate::clock::tick_count::tick_count(&o.system.session.picture_clock)
         .wrapping_sub(controls.learn_start.get());
     if l::timed_out(since) {
         controls.learned.set(l::TIMED_OUT);
         controls.learning.set(0);
         return Ok(());
     }
-    if screens.draw_work.blink.is_set() {
+    if screens.draw_work.read().blink {
         let item = screens
             .loop_flags
             .menu
             .get()?
-            .item(&menus.tables.menus, screens.loop_flags.item.get())?;
+            .item(&menus.tables.menus, screens.loop_flags.read().item)?;
+        // The prompt names what the row takes.
+        use rc2k_core::input::profile::Row;
+        let prompt = match controls_row(controls) {
+            Some(Row::SteeringAxis) => rc2k_core::strings::own::id::PROMPT_STEERING,
+            Some(Row::AccelerateAxis | Row::BrakeAxis) => rc2k_core::strings::own::id::PROMPT_AXIS,
+            _ => rc2k_core::strings::own::id::PROMPT_BUTTON,
+        };
         crate::text::draw_string_by_id::draw_string_by_id_at(
             crate::strings::append_string_by_id::StringOwners::of(o),
-            0x3BE,
+            prompt,
             crate::gfx::typefaces::fonts::LIST,
             0x1B8,
             item.fixed().alignment_or_text_y,
             &mut crate::text::draw_text::GameCanvas::new(gfx),
         )?;
     }
-    let mut take = true;
+    // Space cancels; else what moved from the controller's rest is learnt into the player's
+    // profile for the controller.
+    if crate::input::take_key::take_key(input) == l::CANCEL_KEY {
+        controls.learning.set(0);
+        return Ok(());
+    }
     let control = controls.learned.get();
-    if l::by_axis(player.get().sensitivity_level, control) {
-        let m = crate::input::axes::axis_moved(1, input)?;
-        if !m.carry {
-            let (byte, found) = l::pedal(control);
-            player.update(|p| p.axis_codes[byte] = m.eax as u8);
-            input.devices.records[0]
-                .axis_code
-                .set(u32::from_le_bytes(player.get().axis_codes));
-            figure = found;
-            controls.learning.set(0);
-            take = false;
-        }
-    } else {
-        let [ecx, edx, eax, ebx] = crate::input::axes::first_device_state(input)?;
-        figure = classify_controller(controls, eax, ebx, ecx, edx);
-    }
-    if take {
-        if crate::input::take_key::take_key(input) == l::CANCEL_KEY {
-            figure = 0;
-            controls.learning.set(0);
-        } else if figure == 0 {
-            return Ok(());
-        }
-    }
-    let Some(slot) = l::binding(controls.learned.get()) else {
+    let Some(row) = rc2k_core::input::profile::Row::of_control(control) else {
         return Err(crate::errors::BadInput("a learned control past the bindings").into());
     };
-    player.update(|p| p.set_binding(slot, figure));
+    let controller = player.get().controller;
+    let Some(now) = crate::input::profiles::first_reading(input) else {
+        return Ok(());
+    };
+    let Some((kind, axes)) = crate::input::profiles::controller_kind(input, controller) else {
+        return Ok(());
+    };
+    let current = screens.event.read().current_player;
+    let mut now = now;
+    let mut found = None;
+    if kind == rc2k_core::input::profile::Kind::Pad {
+        // A pad's Back held for a second cancels, as Space does; let go sooner it is a button
+        // like another to learn. While it is down nothing else is looked at.
+        let ticks = crate::clock::tick_count::tick_count(&o.system.session.picture_clock);
+        match back_hold(input, now.buttons >> BACK_BUTTON & 1 != 0, ticks) {
+            BackHold::Held => return Ok(()),
+            BackHold::Cancelled => {
+                controls.learning.set(0);
+                return Ok(());
+            }
+            BackHold::Tapped if row.takes_axis() => {}
+            BackHold::Tapped => {
+                found = Some(rc2k_core::input::profile::Learned::Digital(
+                    rc2k_core::input::profile::Digital::Button {
+                        button: BACK_BUTTON,
+                    },
+                ));
+            }
+            BackHold::Up => {}
+        }
+        now.buttons &= !(1 << BACK_BUTTON);
+    }
+    let rest = crate::input::profiles::learning_rest(input, &now);
+    let found =
+        found.or_else(|| rc2k_core::input::profile::detect(&now, &rest, axes, row.takes_axis()));
+    if let Some(found) = found {
+        crate::input::profiles::with_profile(input, current, controller, |profile| {
+            rc2k_core::input::profile::learn(profile, row, found);
+        });
+        controls.learning.set(0);
+    }
     Ok(())
 }
 
+/// The row being learnt.
+fn controls_row(
+    controls: &crate::screens::controls_store::ControlsScreen,
+) -> Option<rc2k_core::input::profile::Row> {
+    rc2k_core::input::profile::Row::of_control(controls.learned.get())
+}
+
+/// The pad's Back in the profiles' numbering of a gamepad's buttons.
+const BACK_BUTTON: u8 = 6;
+
+/// How long the pad's Back is held to cancel a learning (ms).
+const BACK_CANCEL_MS: u32 = 1000;
+
+/// What the pad's Back is doing in a learning.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BackHold {
+    Up,
+    Held,
+    Cancelled,
+    Tapped,
+}
+
+/// Follows the pad's Back through a learning: `down` now, at `ticks` (ms). Held for
+/// `BACK_CANCEL_MS` it cancels; let go before that it was a tap.
+fn back_hold(input: &Input, down: bool, ticks: u32) -> BackHold {
+    use std::sync::atomic::Ordering::Relaxed;
+    let since = &input.learn_back_since;
+    let began = since.load(Relaxed);
+    match (down, began) {
+        (false, 0) => BackHold::Up,
+        (false, _) => {
+            since.store(0, Relaxed);
+            BackHold::Tapped
+        }
+        (true, 0) => {
+            since.store(u64::from(ticks) + 1, Relaxed);
+            BackHold::Held
+        }
+        (true, began) => {
+            if ticks.wrapping_sub((began - 1) as u32) >= BACK_CANCEL_MS {
+                since.store(0, Relaxed);
+                BackHold::Cancelled
+            } else {
+                BackHold::Held
+            }
+        }
+    }
+}
+
 /// What the controller page reads: refused before anything.
-pub fn controller_page_refuses<'m>(
+pub(super) fn controller_page_refuses<'m>(
     menus: &'m Menus,
     input: &Input,
 ) -> Result<crate::menu::standings::PlayerCell<'m>, Refused> {
-    let Some(player) = crate::menu::player::player(menus, menus.screens.event.current_player.get())
+    let Some(player) =
+        crate::menu::player::player(menus, menus.screens.event.read().current_player)
     else {
         return Err(crate::errors::BadInput("no current player record").into());
     };
@@ -124,12 +178,10 @@ pub fn controller_page_refuses<'m>(
     Ok(player)
 }
 
-/// The player's controller (none: items 3 to 8 off and string 0x56D), else items 3 to 8 on;
-/// the device's name; the mode; item 4 only for a device that has it, with its strength (a
-/// percent, or string 0x56D); the sensitivity; two sliders (their fills clipped in); and the
-/// stick's place now (a pressed button sprite 9, else 8). The sprites' palette is unused.
-/// Refuses no current player record, or no input device for a player that has one; an x whose
-/// x 100 is 0 is a fatal error.
+/// The player's controller (none: items 3 to 6 off and string 0x56D), else items 3 to 6 on; the
+/// device's name; the shifter switch; item 4 only for a device that has it, with its strength (a
+/// percent, or string 0x56D). Refuses no current player record, or no input device for a player
+/// that has one.
 pub fn draw_controller_page(
     o: crate::owners::Owners<'static>,
     input: &Input,
@@ -138,38 +190,68 @@ pub fn draw_controller_page(
     let menus = o.menus;
     // The logic is in `rc2k_core::screens::controller_page::controller_page`.
     use rc2k_core::screens::controller_page::{Controller, Font, Work, controller_page};
-    {
-        let player = controller_page_refuses(menus, input)?;
-        let p = player.get();
-        let device = p.controller;
-        use crate::screens::game_screen::HeldText;
-        let mut screen =
-            crate::screens::game_screen::GameScreen::<Font, Work, HeldText>::new(canvas, o);
-        if device == 0 {
-            return controller_page(&mut screen, None);
-        }
-        // Device n is the controllers' record n - 1 (0x50 bytes; +0x30 its name, +0x1C 1
-        // with a strength).
-        let Some(entry) = (device as usize)
-            .checked_sub(1)
-            .and_then(|n| input.devices.controllers.get(n))
-        else {
-            return Err(BadInput("a player's device past the controllers").into());
-        };
-        let [stick_x, _, _, buttons] = crate::input::axes::first_device_state(input)?;
-        let c = Controller {
-            // The record's number among the controllers.
-            record: device - 1,
-            name: crate::screens::game_screen::held_field(&entry.name)?,
-            has_strength: entry.force_feedback.get() == 1,
-            mode: p.controller_mode,
-            strength: p.strength,
-            sensitivity: p.sensitivity_level,
-            first: p.end_zone_pct,
-            second: p.centre_dead_zone_pct,
-            stick_x,
-            buttons,
-        };
-        controller_page(&mut screen, Some(&c))
+    let player = controller_page_refuses(menus, input)?;
+    let p = player.get();
+    let device = p.controller;
+    use crate::screens::game_screen::HeldText;
+    let mut screen =
+        crate::screens::game_screen::GameScreen::<Font, Work, HeldText>::new(canvas, o);
+    if device == 0 {
+        return controller_page(&mut screen, None);
+    }
+    // Device n is the controllers' record n - 1.
+    let Some(entry) = (device as usize)
+        .checked_sub(1)
+        .and_then(|n| input.devices.controllers.get(n))
+    else {
+        return Err(BadInput("a player's device past the controllers").into());
+    };
+    let c = Controller {
+        name: crate::screens::game_screen::held_field(&entry.name)?,
+        has_strength: entry.force_feedback.get() == 1,
+        mode: crate::input::profiles::with_profile(
+            input,
+            menus.screens.event.read().current_player,
+            device,
+            |profile| u32::from(profile.shifter),
+        )
+        .unwrap_or(0),
+        strength: p.strength,
+        icons: rc2k_core::strings::own::id::ICON_STYLES
+            + crate::input::profiles::with_profile(
+                input,
+                menus.screens.event.read().current_player,
+                device,
+                |profile| profile.button_icons.place() as u32,
+            )
+            .unwrap_or(0),
+        engine_vibration: crate::input::profiles::with_profile(
+            input,
+            menus.screens.event.read().current_player,
+            device,
+            |profile| profile.engine_vibration,
+        )
+        .unwrap_or(true),
+    };
+    controller_page(&mut screen, Some(&c))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_pad_back_held_a_second_cancels_and_a_tap_is_learnt() {
+        let input = Input::new();
+        assert_eq!(back_hold(&input, false, 100), BackHold::Up);
+        assert_eq!(back_hold(&input, true, 200), BackHold::Held);
+        assert_eq!(back_hold(&input, true, 1199), BackHold::Held);
+        assert_eq!(back_hold(&input, true, 1200), BackHold::Cancelled);
+        // let go after the cancel: nothing more
+        assert_eq!(back_hold(&input, false, 1300), BackHold::Up);
+        // a short press and release
+        assert_eq!(back_hold(&input, true, 2000), BackHold::Held);
+        assert_eq!(back_hold(&input, false, 2300), BackHold::Tapped);
+        assert_eq!(back_hold(&input, false, 2400), BackHold::Up);
     }
 }

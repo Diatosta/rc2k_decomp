@@ -12,11 +12,10 @@
 //! - A lock or unlock that fails is a fatal error (0x80218772, 0x80218773) when `reports.on` is
 //!   1; otherwise it is refused.
 //!
-//! One caller, `gfx::load_picture_to_texture`. The two DirectDraw calls go through `Surfaces`,
-//! which the standalone program can answer with textures of its own. Refuses a texture of 0x140
-//! or more, a record without its format, more than nine levels, a picture that halves to
-//! nothing, and what `ready_picture` refuses; a refusal after the picture was changed leaves it
-//! changed.
+//! The two DirectDraw calls go through `Surfaces`, which the platform answers with
+//! textures of its own. Refuses a texture of 0x140 or more, a record without its format, more than
+//! nine levels, a picture that halves to nothing, and what `ready_picture` refuses; a refusal after
+//! the picture was changed leaves it changed.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::Gfx;
@@ -37,7 +36,7 @@ pub struct GameSurfaces<'a>(pub &'a Gfx);
 impl Surfaces for GameSurfaces<'_> {
     fn lock(&mut self, surface: u32) -> Result<(u32, u32), i32> {
         let card = &self.0.card;
-        match crate::platform::direct3d::lock_surface(surface, &card.upload.description) {
+        match crate::d3d::device::lock_surface(surface, &card.upload.description) {
             0 => Ok((
                 card.upload.description.pixels.get(),
                 card.upload.description.pitch.get(),
@@ -47,7 +46,7 @@ impl Surfaces for GameSurfaces<'_> {
     }
 
     fn unlock(&mut self, surface: u32) -> Result<(), i32> {
-        match crate::platform::direct3d::unlock_surface(surface) {
+        match crate::d3d::device::unlock_surface(surface) {
             0 => Ok(()),
             e => Err(e),
         }
@@ -73,12 +72,13 @@ pub fn upload_texture_picture(
     if pixels == 0 {
         return Ok(());
     }
-    let _timed = crate::race::load_times::scope(crate::race::load_times::Category::TextureConvert);
+    let _timed =
+        crate::logfile::load_times::scope(crate::logfile::load_times::Category::TextureConvert);
     let record = Record::of(texture, gfx)?;
     let levels = uploads::levels(record.get().levels).map_err(BadInput::from)?;
     {
         let _preparing =
-            crate::race::load_times::scope(crate::race::load_times::Category::TexturePrepare);
+            crate::logfile::load_times::scope(crate::logfile::load_times::Category::TexturePrepare);
         ready_picture(&record, pixels, width, height, gfx)?;
     }
     let apart = halvings_apart(
@@ -103,55 +103,62 @@ pub fn upload_texture_picture(
     for level in 0..levels {
         let times = uploads::halvings_before(level, apart);
         if times != 0 {
-            let _halving =
-                crate::race::load_times::scope(crate::race::load_times::Category::TextureHalve);
+            let _halving = crate::logfile::load_times::scope(
+                crate::logfile::load_times::Category::TextureHalve,
+            );
             (width, height) = halve_texture(&gfx.pictures.buffers, pixels, width, height, times)?;
         }
         let surface = record.get().surfaces[level as usize];
         let (target, pitch) = {
-            let _locking =
-                crate::race::load_times::scope(crate::race::load_times::Category::SurfaceLock);
+            let _locking = crate::logfile::load_times::scope(
+                crate::logfile::load_times::Category::SurfaceLock,
+            );
             surfaces
                 .lock(surface)
                 .map_err(|_| direct_draw_failed(0x8021_8772, gfx))?
         };
-        // The level's pixels read once; the surface is the platform's.
-        let picture = crate::gfx::picture::read_bytes(
-            &gfx.pictures.buffers,
-            pixels,
-            0,
-            width as usize * height as usize * 4,
-        )?;
-        if !matches!(bytes, 2 | 4) {
-            return Err(fatal(0x80A1_8775));
-        }
-        let rows = crate::gfx::rows::Rows::new(target, pitch, height);
-        let row_bytes = width as usize * bytes as usize;
-        let mut row = vec![0u8; row_bytes];
-        for (y, components) in (0..height).zip(picture.chunks_exact(width as usize * 4)) {
-            // The row's pixels, `bytes` each, written at once; the bit-by-bit formats leave their
-            // scratch bytes as the row's last pixel did.
-            let kept = rc2k_core::gfx::pixels::pack_row(
-                components,
-                &mut row,
-                width as usize,
-                &format,
-                bytes == 2,
-            )
-            .map_err(BadInput::from)?;
-            if let Some(scratch) = kept {
-                gfx.pixel.formats.scratch.write(&scratch);
+        // The level written in one piece, so that the surface is unlocked whichever way it ends.
+        let written = (|| -> Result<(), Refused> {
+            // The level's pixels read once; the surface is the platform's.
+            let picture = crate::gfx::picture::read_bytes(
+                &gfx.pictures.buffers,
+                pixels,
+                0,
+                width as usize * height as usize * 4,
+            )?;
+            if !matches!(bytes, 2 | 4) {
+                return Err(fatal(0x80A1_8775));
             }
-            #[cfg(feature = "remote")]
-            crate::race::course_hash::note_texture_row(texture, level, y, &row);
-            rows.write(y, 0, &row, "a texture's row")?;
-        }
+            let rows = crate::gfx::rows::Rows::new(target, pitch, height);
+            let row_bytes = width as usize * bytes as usize;
+            let mut row = vec![0u8; row_bytes];
+            for (y, components) in (0..height).zip(picture.chunks_exact(width as usize * 4)) {
+                // The row's pixels, `bytes` each, written at once; the bit-by-bit formats leave their
+                // scratch bytes as the row's last pixel did.
+                let kept = rc2k_core::gfx::pixels::pack_row(
+                    components,
+                    &mut row,
+                    width as usize,
+                    &format,
+                    bytes == 2,
+                )
+                .map_err(BadInput::from)?;
+                if let Some(scratch) = kept {
+                    gfx.pixel.formats.scratch.set(scratch);
+                }
+                crate::remote::texture_row(texture, level, y, &row);
+                rows.write(y, 0, &row, "a texture's row")?;
+            }
+            Ok(())
+        })();
         {
-            let _unlocking =
-                crate::race::load_times::scope(crate::race::load_times::Category::SurfaceUnlock);
-            surfaces
-                .unlock(surface)
-                .map_err(|_| direct_draw_failed(0x8021_8773, gfx))?;
+            let _unlocking = crate::logfile::load_times::scope(
+                crate::logfile::load_times::Category::SurfaceUnlock,
+            );
+            let unlocked = surfaces.unlock(surface);
+            // A level that failed to write reports its own error; the unlock's is of no interest.
+            written?;
+            unlocked.map_err(|_| direct_draw_failed(0x8021_8773, gfx))?;
         }
     }
     Ok(())

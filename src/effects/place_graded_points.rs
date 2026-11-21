@@ -1,14 +1,15 @@
 //! `effects::place_graded_points`: a spline record's first two grades of points placed. For grade
-//! 0: the turns by the record's +0x20, +0x24, +0x28 (`splines::turn_record`), its +0xC points from
-//! its start (+0) turned into the ordered coordinates, bent (`effects::bend_points`), and each
-//! written plus +0xC54 .. through the record's pointer for it (+0x454); for grade 1 the same with
-//! +0x2C for the y turn, its start +4 and count +0x10, and no bend.
+//! 0: the turns by the record's three angles (`splines::turn_record`), its points counted by the
+//! grade-0 count from its start turned into the ordered coordinates, bent (`effects::bend_points`),
+//! and each written plus the centre (`CENTRE ..`) through the record's pointer for it (the
+//! pointers at `IDS`); grade 1 the same with another second angle (for the y turn), its own start
+//! and count, and no bend.
 //!
 //! Refuses (before anything) a negative count (the loop runs on), points past the record's 0x80, a
 //! null pointer among them, an angle with no sine and cosine, and `bend_points`' refusals.
 
 use crate::effects::bend_points::bend_points;
-use crate::effects::paths::Paths;
+use crate::effects::paths_store::Paths;
 use crate::effects::splines::{
     MOST_POINTS, Spline, transform_int_points_from, turn_record, turnable_record, write_point,
 };
@@ -37,17 +38,17 @@ fn refusal(paths: &Paths, s: Spline) -> Result<(), Refused> {
             }
             turnable_record(paths, s, turns)?;
         }
-        if paths.spline_head.switch.get() != paths.spline_kinds.chosen[0].get()
-            && s.get(paths, 0x30)? >= MOST_POINTS
-        {
+        let switch = paths.spline_head.borrow().switch;
+        let chosen = paths.spline_kinds.borrow().chosen[0];
+        if switch != chosen && s.get(paths, 0x30)? >= MOST_POINTS {
             return Err(BadInput("a spline point number of 0x80 or more").into());
         }
     }
     Ok(())
 }
 
-pub fn place_graded_points(
-    object_points: &crate::scene::object_points::ObjectPoints,
+pub(super) fn place_graded_points(
+    object_points: &crate::scene::object_points_store::ObjectPoints,
     paths: &Paths,
     s: Spline,
 ) -> Result<(), Refused> {

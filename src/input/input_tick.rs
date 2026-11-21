@@ -27,12 +27,12 @@ pub fn input_tick(
         return crate::input::device_command::device_command(input, command, sound, system, race);
     }
     let records = records(&input.devices);
-    for record in records {
-        crate::input::read_device::read_device(&input.devices, record)?;
+    for (device, record) in records.iter().enumerate() {
+        crate::input::read_device::read_device(input, device, record)?;
         crate::input::device_effects::device_effects(&input.devices, record)?;
     }
     if input.devices.two_devices_one_player.is_set() {
-        let [first, second] = records;
+        let (first, second) = (&records[0], &records[1]);
         let read = |record: &InputDevice| -> [u32; 4] {
             let [steering, brake, throttle] = record.readings.each_ref().map(Dword::get);
             [steering, brake, throttle, record.bits.get()]
@@ -45,14 +45,4 @@ pub fn input_tick(
         }
     }
     Ok(())
-}
-
-/// For the standalone's input thread.
-pub fn input_tick_in_game(
-    input: &Input,
-    sound: &crate::sound::store::SoundShared,
-    system: &crate::system::owner::System,
-    race: &crate::race::owner::Race,
-) -> Result<(), Refused> {
-    input_tick(input, sound, system, race)
 }

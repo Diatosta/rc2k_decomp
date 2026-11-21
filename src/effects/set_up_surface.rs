@@ -12,7 +12,7 @@ use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::memory::session::PlainBytes;
+use crate::memory::plain_buffer::PlainBuffer;
 
 const MASK_BYTES: u32 = 0x4_0000;
 const PIXELS: u32 = 0x1_0000;
@@ -21,7 +21,7 @@ const CELLS: u32 = 0x40;
 /// `gfx::read_picture_file` at 256 x 256 (the picture's sizes kept round it): whether it
 /// was read.
 fn read(
-    path: &PlainBytes<21>,
+    path: &PlainBuffer<21>,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
@@ -46,17 +46,13 @@ fn unlock_refusing(
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    lock(
-        gfx,
-        scene.textures.kinds.get().kind_first_textures[211].get(),
-        false,
-    )?;
+    lock(gfx, scene.textures.first_textures()[211], false)?;
     Err(BadInput(why).into())
 }
 
 /// `memory::allocate`, `d3d::lock_texture` / `unlock_texture`, `gfx::read_picture_file`,
 /// `gfx::put_surface_pixel`, `scene::forget_slot_texture`, `memory::free_list`.
-pub fn set_up_surface(
+pub(super) fn set_up_surface(
     ring: &Ring,
     masks: &Masks,
     scene: &crate::scene::owner::Scene,
@@ -67,11 +63,7 @@ pub fn set_up_surface(
     let setup = &effects.setup;
     // The mask's copy is Rust's memory, counted on the list.
     let mut mask = crate::memory::owned::counted(&masks.list.list, MASK_BYTES)?;
-    lock(
-        gfx,
-        scene.textures.kinds.get().kind_first_textures[211].get(),
-        true,
-    )?;
+    lock(gfx, scene.textures.first_textures()[211], true)?;
     if gfx.drawing.draw_surface.width.get() < SIDE || gfx.drawing.draw_surface.height.get() < SIDE {
         return unlock_refusing("a surface under 256 x 256", scene, gfx);
     }
@@ -100,42 +92,37 @@ pub fn set_up_surface(
         let alpha = ((mask << 8) & 0xFF00_0000) ^ 0xFF00_0000;
         put_pixel((data & 0xFF_FFFF) | alpha, n & 0xFF, n >> 8, gfx, system)?;
     }
-    lock(
-        gfx,
-        scene.textures.kinds.get().kind_first_textures[211].get(),
-        false,
-    )?;
+    lock(gfx, scene.textures.first_textures()[211], false)?;
     crate::scene::forget_slot_texture::forget_slot_texture(
-        scene.textures.kinds.get().kind_first_slots[211].get(),
+        scene.textures.kinds.borrow().kind_first_slots[211],
         scene,
     )?;
     crate::memory::free_list::free_list(&masks.list.list)?;
 
-    crate::effects::ring_entries::take(ring, &ring.work.list)?;
-    ring.work.block.set(1);
-    ring.work.cursor.set(1);
-    ring.work.count.set(0);
+    crate::effects::ring_entries::take(ring, &ring.work)?;
+    ring.work.borrow_mut().block = 1;
+    ring.work.borrow_mut().cursor = 1;
+    ring.work.borrow_mut().count = 0;
 
     let [eighth, edge, pixel, step]: [f32; 4] = [
-        setup.floats.eighth.get(),
-        setup.floats.surface_edge.get(),
-        setup.floats.surface_pixel.get(),
-        setup.floats.thirty_second.get(),
+        setup.floats.eighth,
+        setup.floats.surface_edge,
+        setup.floats.surface_pixel,
+        setup.floats.thirty_second,
     ];
-    let places = &masks.surface.places;
-    let end = size_of_val(places);
+    let end = masks.surface.borrow().places.len();
     let put = |at: u32, v: u32| {
         if at as usize + 4 > end {
             return Err(BadInput("a write past the surface places"));
         }
-        places.set_u32(at as usize, v);
+        masks.surface.borrow_mut().places.set_u32(at as usize, v);
         Ok(())
     };
     let get = |at: u32| {
         if at as usize + 4 > end {
             return Err(BadInput("a read past the surface places"));
         }
-        Ok(places.get_u32(at as usize))
+        Ok(masks.surface.borrow().places.get_u32(at as usize))
     };
     let cells = 0u32;
     for k in (0..CELLS).rev() {
@@ -182,20 +169,4 @@ pub fn set_up_surface(
         }
     }
     Ok(())
-}
-
-/// The surface masks' memory list and the bytes after it.
-#[derive(rc2k_derive::Cells)]
-pub struct MaskList {
-    /// A `memory::List` (head, total, cursor, remaining)
-    pub list: crate::memory::ListCells,
-}
-
-/// MaskList's first values.
-impl MaskList {
-    pub const fn new() -> Self {
-        MaskList {
-            list: crate::memory::ListCells::empty(),
-        }
-    }
 }

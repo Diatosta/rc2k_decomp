@@ -3,12 +3,12 @@
 //! service is due: the inspection's screen, the fade in, the figures (`menu::driver_stats`),
 //! the repair flags cleared, the service page (`service::service_area_loop`; a yes to leaving
 //! ends it all), the repairs (`service::apply_repairs`), the entry kind; a player now out
-//! (+0xD0 2) gets the faults and the inspection page and is counted in `event_out`, its +0x288
+//! (`entry` 2) gets the faults and the inspection page and is counted in `event_out`, its `service_spent`
 //! takes the money x 100. When every player is out, `event_goes_on` is cleared; `service_due`
 //! is cleared at the end.
 //!
-//! Callers: the event drivers. Refuses a player count of 0 or past 4, a player missing, a
-//! taking-part player's car without its table, before anything.
+//! Refuses a player count of 0 or past 4, a player missing, a taking-part player's car without its
+//! table, before anything.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
@@ -22,43 +22,37 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     // pauses, `goes_on`).
     use rc2k_core::menu::passes;
     let players = counted_players(&menus.screens, &menus.play)?;
-    let due = { menus.screens.event.service.due.get() } == 1;
+    let due = { menus.screens.event.read().service.due } == 1;
     for &p in &players {
         if due && passes::takes_part(p.get().entry) {
             crate::menu::driver_stats::car_table(menus, p)?;
         }
     }
-    menus.screens.state.driver_stats.money.set(0u32);
-    menus
-        .screens
-        .event
-        .service
-        .minutes
-        .set(passes::more_minutes(
-            menus.screens.event.service.minutes.get(),
-        ));
-    menus.screens.event.event_goes_on.set(1u32);
+    menus.screens.state.write().driver_stats.money = 0u32;
+    menus.screens.event.write().service.minutes =
+        passes::more_minutes(menus.screens.event.read().service.minutes);
+    menus.screens.event.write().event_goes_on = 1u32;
     'all: {
         for (n, &p) in players.iter().enumerate() {
-            menus.screens.event.current_player.set(n as u32);
+            menus.screens.event.write().current_player = n as u32;
             let kind = p.get().entry;
-            if !passes::serviced(kind, || menus.screens.event.service.due.get()) {
+            if !passes::serviced(kind, || menus.screens.event.read().service.due) {
                 continue;
             }
             crate::menu::inspection_screen::inspection_screen(entry.owners)?;
-            crate::system::sleep::sleep(passes::SCREEN_PAUSE);
+            crate::system::pause::pause(entry.owners, passes::SCREEN_PAUSE);
             crate::menu::fade_in::fade_in(entry.owners)?;
-            crate::system::sleep::sleep(passes::FADE_PAUSE);
+            crate::system::pause::pause(entry.owners, passes::FADE_PAUSE);
             menus.service.repair_time.set(0);
             crate::menu::driver_stats::driver_stats(menus, screens)?;
-            menus.screens.state.menus.service_flag.set(false);
+            menus.screens.state.write().menus.service_flag = false;
             crate::menu::reset_driver_condition::reset_driver_condition(menus)?;
             crate::service::clear_repair_flags::clear_repair_flags(&menus.service)?;
             for _ in 0..passes::DROPPED_KEYS {
                 crate::input::take_key::take_key(entry.owners.input);
             }
             run_screen(ScreenId::ServiceArea, entry)?;
-            if menus.tables.pages.yes_no_answer.get() == 1 {
+            if menus.tables.pages.read().yes_no_answer == 1 {
                 break 'all;
             }
             crate::service::apply_repairs::apply_repairs_in_game_in(entry.owners)?;
@@ -66,25 +60,22 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             if passes::is_out(p.get().entry) {
                 crate::menu::inspection_faults::inspection_faults(menus)?;
                 run_screen(ScreenId::InspectionArea, entry)?;
-                if menus.tables.pages.yes_no_answer.get() == 1 {
+                if menus.tables.pages.read().yes_no_answer == 1 {
                     break 'all;
                 }
-                menus
-                    .screens
-                    .event
-                    .event_out
-                    .set(menus.screens.event.event_out.get().wrapping_add(1));
+                menus.screens.event.write().event_out =
+                    menus.screens.event.read().event_out.wrapping_add(1);
             }
-            let spent = passes::spent(menus.screens.state.driver_stats.money.get());
+            let spent = passes::spent(menus.screens.state.read().driver_stats.money);
             p.update(|q| q.service_spent = spent);
         }
         if !passes::goes_on(
-            menus.screens.event.event_out.get(),
-            menus.screens.event.player_count.get(),
+            menus.screens.event.read().event_out,
+            menus.screens.event.read().player_count,
         ) {
-            menus.screens.event.event_goes_on.set(0u32);
+            menus.screens.event.write().event_goes_on = 0u32;
         }
     }
-    menus.screens.event.service.due.set(0u32);
+    menus.screens.event.write().service.due = 0u32;
     Ok(())
 }

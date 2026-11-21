@@ -1,14 +1,12 @@
 //! The engine revving free. `physics::engine_torque`; `drive_torque` = `drive_ratio` x
 //! `drive_torque_figure` / gear 0's ratio / 10000 x throttle / 256; the engine speed + it x the
-//! step / the ratio; the drag `scratch` = engine speed x `free_rev_scale` + `free_rev_add`;
+//! step / the ratio; the drag = engine speed x `free_rev_scale` + `free_rev_add`;
 //! then the engine speed is brought toward 0 by the drag (not past it; at 0 or unordered left
 //! alone).
 //!
 //! The x87 run is plain Rust over `X` (`math/x87_float.rs`).
-//!
-//! Callers: `physics::free_rev_in_neutral`, `physics::free_rev_clutch`.
 
-use crate::effects::cell_x87::CellX87;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87_float::int;
 use crate::physics::car_store::Car;
@@ -20,14 +18,8 @@ use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 
 /// The drag and the engine speed's step.
-fn run(
-    numbers: &Numbers,
-    physics_tables: &PhysicsTables,
-    car: &Car,
-    gear: &GearFigures,
-    scene: &crate::scene::owner::Scene,
-) {
-    x87_1(numbers, physics_tables, car, gear, scene);
+fn run(numbers: &Numbers, physics_tables: &PhysicsTables, car: &Car, gear: &GearFigures) -> u32 {
+    x87_1(numbers, physics_tables, car, gear)
 }
 
 /// The exact version, for `physics::free_rev_in_neutral`, `free_rev_clutch` and their callers.
@@ -38,17 +30,13 @@ pub fn free_rev(
     scene: &crate::scene::owner::Scene,
 ) {
     engine_torque(course, shared, scene);
-    run(
-        course.numbers.get(),
+    let drag = run(
+        &course.numbers,
         shared.physics_tables.get(),
         shared.car(),
         gear,
-        scene,
     );
-    let (e, drag) = (
-        shared.car().engine_speed.get(),
-        scene.drawing.scene.get().scratch.get(),
-    );
+    let e = shared.car().engine_speed.get();
     if e == 0.0 || e.is_nan() {
         return;
     }
@@ -69,14 +57,8 @@ pub fn free_rev(
 
 // ---- the x87 arithmetic ----
 
-/// One straight x87 run as plain Rust over `X`.
-fn x87_1(
-    numbers: &Numbers,
-    physics_tables: &PhysicsTables,
-    car: &Car,
-    gear: &GearFigures,
-    scene: &crate::scene::owner::Scene,
-) {
+/// One straight x87 run as plain Rust over `X`; the drag's float bits.
+fn x87_1(numbers: &Numbers, physics_tables: &PhysicsTables, car: &Car, gear: &GearFigures) -> u32 {
     let t0 = physics_tables.drive_ratio.ld();
     let t1 = gear.drive_torque_figure.ld();
     let t2 = t0 * t1;
@@ -90,7 +72,7 @@ fn x87_1(
     let t10 = t8 / t9;
     physics_tables.drive_torque.st(t10);
     let t11 = physics_tables.drive_torque.ld();
-    let t12 = physics_tables.step_time.ld();
+    let t12 = numbers.step_time.ld();
     let t13 = t11 * t12;
     let t14 = physics_tables.gear_ratios[1].ld();
     let t15 = t13 / t14;
@@ -98,11 +80,11 @@ fn x87_1(
     let t17 = t15 + t16;
     car.engine_speed.st(t17);
     let t18 = car.engine_speed.ld();
-    let t19 = physics_tables.free_rev_scale.ld();
+    let t19 = numbers.free_rev_scale.ld();
     let t20 = t18 * t19;
-    let t21 = physics_tables.free_rev_add.ld();
+    let t21 = numbers.free_rev_add.ld();
     let t22 = t20 + t21;
-    scene.drawing.scene.get().scratch.st(t22);
+    crate::math::x87_float::st(t22)
 }
 
 #[cfg(test)]
@@ -132,13 +114,13 @@ mod reference_vectors {
             }],
             ulps: 0,
             plain: |_| {
-                x87_1(
-                    race().course.numbers.get(),
+                let drag = x87_1(
+                    &crate::test_support::race_places::numbers(),
                     race().shared.physics_tables.get(),
                     race().shared.car(),
                     race().gear(),
-                    crate::test_support::own::scene(),
                 );
+                crate::test_support::own::scene().draw_work_mut().scratch = drag;
             },
         }]
     }

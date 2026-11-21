@@ -25,8 +25,8 @@ pub enum Work {
     End,
 }
 
-/// A history entry's row: own flag (+4), nationality (+8), car (+0xC), name (+0x14), the
-/// rounds' points (+0x54 .. +0x68), total (+0x6C), position (+0x70).
+/// A history entry's row: own flag, nationality, car, name, the rounds' points, total and
+/// position.
 #[derive(Clone, Copy, Debug)]
 pub struct Row<T> {
     pub mine: bool,
@@ -40,9 +40,7 @@ pub struct Row<T> {
 
 const ROUNDS_X: [i32; 6] = [0x19A, 0x1D0, 0x206, 0x23C, 0x272, 0x2A8];
 
-pub const HISTORY_ENTRY_LEN: u32 = 0x78;
-
-/// The first history entry, from entry 0 on, whose class (+0x10) and position (+0x70) match
+/// The first history entry, from entry 0 on, whose class and position match
 /// (`fields(n)`); entry 0 is looked at before any end test, the others only if `first(n)` is not
 /// -1. `None`: the end met first (fatal error 0x8070A7FA).
 pub fn find_history(

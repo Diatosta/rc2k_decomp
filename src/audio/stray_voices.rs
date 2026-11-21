@@ -6,8 +6,8 @@
 
 use crate::audio::own::AudioOwn;
 use crate::audio::voices::{VOICES, voice_of};
-use crate::logfile::program_log::log;
 use crate::memory::session::PlainDword;
+use crate::program_log::log;
 use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -42,7 +42,7 @@ pub fn check(state: &AudioOwn) {
     if !TURNS.fetch_add(1, Ordering::Relaxed).is_multiple_of(EVERY) {
         return;
     }
-    if state.use_a3d.get() == 1 || state.sound_mode.get() & 0x1_0000 == 0 {
+    if state.sound_mode.get() & 0x1_0000 == 0 {
         return;
     }
     let (playing, stopping) = (
@@ -58,7 +58,7 @@ pub fn check(state: &AudioOwn) {
         if v.flags & 1 == 0 || v.buffer == 0 || listed.contains(&at) {
             continue;
         }
-        if crate::audio::buffer_play::is_playing(state, &v).is_ok_and(|s| s & 1 != 0) {
+        if crate::audio::buffer_play::is_playing(&v).is_ok_and(|s| s & 1 != 0) {
             strays.push(n);
             let mut logged = LOGGED.lock().unwrap();
             if !logged.contains(&n) {

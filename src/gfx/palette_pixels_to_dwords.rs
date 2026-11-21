@@ -6,7 +6,7 @@ use crate::errors::BadInput;
 use crate::gfx::picture::{read_bytes, write_bytes};
 use crate::gfx::pixels_to_dwords::pixel_count;
 
-pub fn palette_pixels_to_dwords(gfx: &crate::gfx::owner::Gfx) -> Result<(), BadInput> {
+pub(super) fn palette_pixels_to_dwords(gfx: &crate::gfx::owner::Gfx) -> Result<(), BadInput> {
     let pictures = &gfx.pictures;
     let count = pixel_count(gfx)?;
     let mut buffer = read_bytes(

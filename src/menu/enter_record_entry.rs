@@ -1,12 +1,13 @@
 //! `menu::enter_record_entry`: the current player (`event.current_player`) entered as
-//! the current record's event's tenth record entry (its +0x57C): +0x14 the time (+0x88),
-//! +0x1C its +0x90, +8 its +4, +0xC its name pointer (+0x18), +0x10 its +8, +0x4C its
-//! +0xD0, +0x50 the cheats, +0x54 / +0x58 the sealed time (`menu::sealed_player_time` with
-//! the event's number), +4 the player + 1, +0x40 1, +0x20 the name's 0x1F bytes; then moved up
+//! the current record's event's tenth record entry: its `key` the player's `time`, `group` the
+//! player's `class`, `nation` the nationality, `name_id` the name's id, `car` the car number,
+//! `entered` the player's `entry`, `cheats` the cheats, `sealed` the sealed time
+//! (`menu::sealed_player_time` with the event's number), `player` the player + 1, `mark` 1 and
+//! `name` the name's 0x1F bytes; then moved up
 //! (`menu::rank_record_entry`).
 //!
-//! Caller: `menu::record_entries_pass`. Refuses a record past
-//! the table, no events table, a current player past 3 or missing, or no name, before anything.
+//! Refuses a record past the table, no events table, a current player past 3 or missing, or no
+//! name, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
@@ -18,23 +19,23 @@ pub fn enter_record_entry(
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     let event = current_event(&menus.screens, system, tables)?;
-    let n: u32 = menus.screens.event.current_player.get();
+    let n: u32 = menus.screens.event.read().current_player;
     if n >= 4 || player(menus, n).get().name_player().is_none() {
         return Err(BadInput("a current player past 3, missing or without a name").into());
     }
     let p = player(menus, n);
     // The event's place in the table (`current_event`'s).
     let slot = event as u32;
-    let cheats = menus.play.cheats.cheats.get();
+    let cheats = menus.play.cheats.read().cheats;
     let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, race, slot)?;
     // The logic is in `rc2k_core::saves::entries::BestTime::enter`, then `rank_entries`.
     use rc2k_core::menu::bests;
-    let name_at = name_address_of(&p.get())?;
+    let name_id = name_id_of(&p.get())?;
     let best = bests::NewBest {
         key: p.get().time,
         player: n + 1,
         nationality: p.get().nationality,
-        name_at,
+        name_id,
         car: p.get().car_number,
         group: p.get().class,
         name: name_of(&menus.play, &p.get())?,

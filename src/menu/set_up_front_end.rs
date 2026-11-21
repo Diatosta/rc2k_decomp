@@ -9,8 +9,7 @@
 //! - unless the options were loaded: `records::default_stage_records` on each of the thirteen
 //!   record tables.
 //!
-//! One caller, `menu::main_menu_loop`. Refuses what its parts refuse; such a refusal comes with
-//! the work half done. Rust callers run its `entry` (`routes.rs`).
+//! Refuses what its parts refuse; such a refusal comes with the work half done.
 
 use crate::errors::Refused;
 use crate::saves::default_times::to_the_log;
@@ -29,15 +28,12 @@ fn record_tables(system: &System) -> [crate::records::stages_store::RecordTable;
     all
 }
 
-/// The made-up times get a stage and `fit_player_names` an x, neither of which is looked at:
-/// the stage is read only when the checkpoint times are guessed, which
-/// `default_checkpoint_times` does without reading it; the x is where a measuring starts, which
-/// a width does not depend on. The stage passed is 0.
-pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+/// `fit_player_names` gets an x that is not looked at: it is where a measuring starts, which
+/// a width does not depend on.
+pub(super) fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (menus, sound, system, gfx) = (o.menus, o.sound, o.system, o.gfx);
     let (race, saves) = (o.race, o.saves);
     let best_times = &saves.best_times;
-    let stage = 0;
     use crate::saves::{
         allocate_best_times, default_best_scores, default_championship_times,
         default_checkpoint_times, default_class_times, default_stage_times,
@@ -48,14 +44,14 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
     }
     crate::menu::link_player_names::link_player_names(menus)?;
     crate::menu::show_loading_picture::show_loading_picture_in(o)?;
-    crate::gfx::build_menu_sprites::build_menu_sprites_in_game(gfx, system, menus, o.strings)?;
+    crate::gfx::build_menu_sprites::build_menu_sprites(gfx, system, menus, o.strings)?;
     crate::menu::fit_player_names::fit_player_names(menus, o.gfx)?;
     // The two dwords: the music volumes, then the tables' copies.
     sound
         .menu
         .options
         .music_volume
-        .set(menus.options.snapshot().music_level);
+        .set(menus.options.snapshot().menu_music_volume);
     sound
         .menu
         .options
@@ -69,11 +65,7 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
     )?;
     // Every table is typed now (`saves::best_times`): none is copied; the summary's
     // variable says it is there, for the race's rivals.
-    menus
-        .play
-        .champ_view
-        .summary
-        .set(u32::from(saves.best_tables.summary.is_taken()));
+    menus.play.champ_view.write().summary = u32::from(saves.best_tables.summary.is_taken());
     if best_times.loaded.get() != 1 {
         default_best_scores::default_best_scores(
             crate::strings::append_string_by_id::StringOwners::of(o),
@@ -87,7 +79,6 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             race,
             system,
             saves,
-            stage,
             &mut to_the_log,
         )?;
         default_checkpoint_times::default_checkpoint_times(
@@ -96,7 +87,6 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             race,
             &saves.best_tables,
             system,
-            stage,
             &mut to_the_log,
         )?;
         default_class_times::default_class_times(
@@ -111,7 +101,6 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             race,
             &saves.best_tables,
             system,
-            stage,
             &mut to_the_log,
         )?;
         default_stage_times_alt::default_stage_times_alt(
@@ -120,12 +109,11 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             race,
             &saves.best_tables,
             system,
-            stage,
             &mut to_the_log,
         )?;
         best_times.loaded.set(1);
     }
-    if !menus.screens.loop_flags.options_loaded.is_set() {
+    if !menus.screens.loop_flags.read().options_loaded {
         for table in record_tables(system) {
             crate::records::default_stage_records::default_stage_records(
                 crate::strings::append_string_by_id::StringOwners::of(o),

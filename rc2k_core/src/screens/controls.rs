@@ -14,14 +14,14 @@ pub enum Font {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {}
 
-/// A binding (the player's +0x50 + 4 x n): the low byte a button, the next byte a direction, 0
+/// A binding (the player's n-th binding dword): the low byte a button, the next byte a direction, 0
 /// nothing.
 #[derive(Clone, Copy, Debug)]
 pub struct Binding {
     pub binding: u32,
     /// The device kind.
     pub kind: u32,
-    /// The row's axis (+0x3B - n), read for kind 3 on the first two rows.
+    /// The row's axis, read for kind 3 on the first two rows.
     pub axis: u8,
 }
 
@@ -90,23 +90,23 @@ fn draw_cells<S: Screen<Font = Font>>(
     Ok(s.draw(Font::Value, Buffer::Cells, x, y)?.too_wide)
 }
 
-/// The ten bindings at x 0x1B8 from y 0xD5 every 0x1B; the row being learnt is left out. Returns
+/// The bindings at x 0x1B8 from y 0xD5 every 0x1B; the row being learnt is left out. Returns
 /// the last row's `too_wide` (false when it is the one being learnt).
 pub fn control_bindings<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
-    texts: &[Vec<u8>; 10],
+    texts: &[Vec<u8>],
     learning: Option<usize>,
 ) -> Result<bool, S::Error> {
     check_room(texts)?;
-    let mut carry = false;
+    let mut too_wide = false;
     for (n, text) in texts.iter().enumerate() {
         if learning == Some(n) {
-            carry = false;
+            too_wide = false;
             continue;
         }
-        carry = draw_cells(s, text, 0x1B8, 0xD5 + 0x1B * n as i32)?;
+        too_wide = draw_cells(s, text, 0x1B8, 0xD5 + 0x1B * n as i32)?;
     }
-    Ok(carry)
+    Ok(too_wide)
 }
 
 /// The keys' places drawn, in order (place 8 is not).
@@ -122,10 +122,10 @@ pub fn redefined_keys<S: Screen<Font = Font, Work = Work>>(
     blink: bool,
 ) -> Result<bool, S::Error> {
     check_room(names)?;
-    let mut carry = false;
+    let mut too_wide = false;
     for (row, name) in names.iter().enumerate() {
         let y = 0xAF + row as i32 * 0x1D;
-        carry = if redefined == Some(row) {
+        too_wide = if redefined == Some(row) {
             if blink {
                 s.string(Font::Value, 4, 0x1CC, y)?.too_wide
             } else {
@@ -135,5 +135,5 @@ pub fn redefined_keys<S: Screen<Font = Font, Work = Work>>(
             draw_cells(s, name, 0x1CC, y)?
         };
     }
-    Ok(carry)
+    Ok(too_wide)
 }

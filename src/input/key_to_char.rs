@@ -32,23 +32,18 @@ pub fn has_layout(input: &Input) -> bool {
     input.layouts().current() != Current::None
 }
 
-/// The character is the low byte of the result.
-pub fn key_to_char(input: &Input, eax: u32) -> Result<u32, BadInput> {
-    typed(input, eax, false)
-}
-
-/// The same for the name editors and the yes/no question, which in layout mode 2 always use
+/// The character a key types, for the yes/no question, which in layout mode 2 always uses
 /// the keyboard file's first layout and leave the current one as it was.
-pub fn key_to_char_for_text(input: &Input, eax: u32) -> Result<u32, BadInput> {
-    typed(input, eax, true)
+pub(super) fn key_to_char_for_text(input: &Input, key_word: u32) -> Result<u32, BadInput> {
+    typed(input, key_word)
 }
 
-fn typed(input: &Input, eax: u32, for_text: bool) -> Result<u32, BadInput> {
+fn typed(input: &Input, key_word: u32) -> Result<u32, BadInput> {
     let down = |key| down(&input.devices, key);
     use rc2k_core::input::keyboard::{self, Switch};
-    let key = eax as u8;
+    let key = key_word as u8;
     if key & 0x80 != 0 {
-        return Ok(eax & !0xFF);
+        return Ok(key_word & !0xFF);
     }
     let mut layouts = input.layouts();
     let switched = keyboard::switch(
@@ -62,7 +57,7 @@ fn typed(input: &Input, eax: u32, for_text: bool) -> Result<u32, BadInput> {
         Switch::First => Current::File(0),
         Switch::Second => Current::File(1),
     });
-    let own_layout = for_text && layouts.mode() == 2;
+    let own_layout = layouts.mode() == 2;
     let which = match switched {
         Some(layout) => layout,
         None if own_layout => Current::File(0),

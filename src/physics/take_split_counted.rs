@@ -1,21 +1,19 @@
 //! Race mode 2, car 0 only: when a checkpoint is past the splits taken (`splits_recorded` below
-//! `splits_passed`, unsigned): `physics::keep_split_time`, `physics::flag_current_car_listed`,
+//! `splits_passed`, unsigned): `physics::flag_current_car_listed`,
 //! `physics::split_by_mode`, the figure kept per split; before the last split the notice 0xC9
 //! (`notice_time_b` 0x32, `notice_time` 300) and the count-down up by
 //! `SplitTables.stage_numbers[1][split]` x 100; `go_stand_timer` = 0; `splits_recorded` made
 //! `splits_passed`; at `split_colour_count` finished: `finish_flag` = 1, the notice 0xC8
 //! (`notice_time` -1, `notice_time_b` 0).
 //!
-//! Caller: `physics::race_timers`. Refuses (before anything) a split past 0x3F, and what the calls
-//! refuse.
+//! Refuses (before anything) a split past 0x3F, and what the calls refuse.
 use crate::errors::Refused;
 use crate::physics::flag_current_car_listed::flag_current_car_listed;
-use crate::physics::keep_split_time::keep_split_time;
 use crate::physics::split_by_mode::split_by_mode;
 use crate::physics::splits::put_split_time;
-use crate::race::frame_store::FrameWork;
-use crate::race::groups_store::PanelAndOverlay;
+use crate::race::frame_store::FrameWorkStore;
 use crate::race::league_store::League;
+use crate::race::overlay_store::OverlayBlock;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::progress::{
@@ -23,12 +21,12 @@ use rc2k_core::physics::progress::{
 };
 
 // Core: `rc2k_core::physics::progress::{split_due, finished_at}`.
-pub fn take_split_counted(
+pub(super) fn take_split_counted(
     o: crate::owners::Owners<'static>,
     physics: &Physics,
-    league: &League,
-    frame_work: &FrameWork,
-    panel_and_overlay: &PanelAndOverlay,
+    league: &mut League,
+    frame_work: &FrameWorkStore,
+    overlay: &std::cell::RefCell<OverlayBlock>,
     shared: &RaceShared,
     car_blocks: &crate::race::blocks_store::CarBlocks,
 ) -> Result<(), Refused> {
@@ -43,13 +41,12 @@ pub fn take_split_counted(
     )? {
         return Ok(());
     }
-    { keep_split_time(shared.car(), physics.split_tables()) }?;
     { flag_current_car_listed(frame_work, shared.work.get(), sound) }?;
     split_by_mode(
         o,
-        physics.split_tables(),
+        &mut physics.split_tables_mut(),
         league,
-        panel_and_overlay,
+        overlay,
         shared,
         car_blocks,
     )?;
@@ -58,14 +55,13 @@ pub fn take_split_counted(
         shared.car().splits_recorded.get() as usize,
         shared.car().split_gaps[0].get(),
     )?;
-    if shared.car().splits_passed.get() < physics_store.split_tables().split_colour_count.get() {
+    if shared.car().splits_passed.get() < physics_store.split_tables().split_colour_count {
         shared.car().notice_id.set(SPLIT_NOTICE);
         shared.car().notice_time_b.set(0x32);
         shared.car().notice_time.set(300);
         let bonus = split_bonus(
             physics_store.split_tables().stage_numbers
-                [1 + shared.car().splits_recorded.get() as usize]
-                .get(),
+                [1 + shared.car().splits_recorded.get() as usize],
         );
         shared
             .car()
@@ -79,7 +75,7 @@ pub fn take_split_counted(
         .set(shared.car().splits_passed.get());
     if finished_at(
         shared.car().splits_recorded.get(),
-        physics_store.split_tables().split_colour_count.get(),
+        physics_store.split_tables().split_colour_count,
     ) {
         shared.car().finish_flag.set(1);
         shared.car().notice_id.set(FINISH_NOTICE);

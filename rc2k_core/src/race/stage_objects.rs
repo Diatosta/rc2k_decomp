@@ -50,8 +50,9 @@ pub fn check_object_cars(cars: u32) -> Result<(), Invalid> {
 
 // ---- the texture kinds' pictures ----
 
+#[cfg(test)]
 /// The texture kinds' pictures: 0x258 dwords.
-pub const PICTURE_KINDS: usize = 0x258;
+pub(crate) const PICTURE_KINDS: usize = 0x258;
 /// The stage prefs' picture lists copied in: (first kind, dwords).
 pub const PREF_PIECES: [(usize, usize); 3] = [(0, 0x34), (0x40, 0x30), (0x80, 8)];
 /// The kinds whose pictures are fixed: (kind, picture).
@@ -82,7 +83,7 @@ pub const FIXED_PICTURES: [(usize, u32); 23] = [
 ];
 /// The cars' picture kinds start here: eight kinds a car.
 pub const CAR_PICTURE_KINDS: usize = 0x100;
-pub const PICTURES_A_CAR: usize = 8;
+pub(crate) const PICTURES_A_CAR: usize = 8;
 
 /// A car's eight pictures: its kind's picture and the seven after it.
 pub fn car_pictures(first: u32) -> [u32; PICTURES_A_CAR] {
@@ -117,22 +118,6 @@ pub fn course_present<E>(
         }
     }
     Ok(false)
-}
-
-// ---- the lights' data ----
-
-/// The lights' records: 0x22 of 0x134 bytes, each taking 0x90 bytes of data at +0xA4.
-pub const LIGHT_RECORDS: usize = 0x22;
-pub const LIGHT_RECORD: usize = 0x134;
-pub const LIGHT_DATA: usize = 0x90;
-pub const LIGHT_DATA_AT: usize = 0xA4;
-
-/// Lays the data's records into the lights' records.
-pub fn lay_lights(data: &[u8], records: &mut [u8]) {
-    for n in 0..LIGHT_RECORDS {
-        let to = n * LIGHT_RECORD + LIGHT_DATA_AT;
-        records[to..to + LIGHT_DATA].copy_from_slice(&data[n * LIGHT_DATA..(n + 1) * LIGHT_DATA]);
-    }
 }
 
 // ---- the crash matrix ----
@@ -179,13 +164,6 @@ mod tests {
         assert_eq!((found, asked), (Ok(true), vec![0, 1]));
         assert_eq!(course_present(2, |_| Ok::<u32, ()>(0)), Ok(false));
         assert_eq!(course_present(2, |_| Err::<u32, u8>(5)), Err(5));
-        let data: Vec<u8> = (0..LIGHT_RECORDS * LIGHT_DATA).map(|n| n as u8).collect();
-        let mut records = vec![0xAAu8; LIGHT_RECORDS * LIGHT_RECORD];
-        lay_lights(&data, &mut records);
-        assert_eq!(records[0xA3], 0xAA);
-        assert_eq!(records[0xA4], 0);
-        assert_eq!(records[LIGHT_RECORD + 0xA4], LIGHT_DATA as u8);
-        assert_eq!(records[LIGHT_RECORD + 0xA4 + LIGHT_DATA], 0xAA);
         assert_eq!(crash_turns([0x10000, 0x20000, 0x3FFFF]), [2, 1, 3]);
     }
 }

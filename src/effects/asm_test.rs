@@ -1,4 +1,4 @@
-//! The tests of the marks' converted x87 blocks: each block's plain Rust version runs over
+//! The tests of the marks' plain x87 blocks: each block's plain Rust version runs over
 //! random memory, at the default control word and at chop, and every place the recorded
 //! x87 assembly wrote (recorded once on i686, `test_support::vectors`) must hold the same
 //! bits afterwards.
@@ -42,7 +42,7 @@ pub enum Op {
     Float,
 }
 
-pub struct Spec {
+pub(super) struct Spec {
     pub operands: &'static [Op],
     /// The block has `fsin` / `fcos` (libm's, one float ulp off at most).
     pub sincos: bool,
@@ -121,7 +121,7 @@ impl Operand {
 
     /// The `len` bytes at `off`, the ones outside the buffer 0 (a block that reads only part
     /// of it).
-    pub fn bytes_or_zero(self, off: usize, len: usize) -> Vec<u8> {
+    pub(super) fn bytes_or_zero(self, off: usize, len: usize) -> Vec<u8> {
         (0..len)
             .map(|i| {
                 if self.contains(off + i, 1) {
@@ -175,7 +175,7 @@ impl std::ops::Sub<usize> for Operand {
     }
 }
 
-impl crate::scene::x87_mem::Base for Operand {
+impl crate::math::x87_mem::Base for Operand {
     #[track_caller]
     fn dword(self, off: usize) -> u32 {
         u32::from_le_bytes(self.bytes(off))
@@ -235,7 +235,7 @@ impl PartialEq for Buf {
 /// buffer `mk` (the buffer stands for the marks' block): the record's cells are made from the
 /// bytes there, one after another in field order (no gaps in the recorded layout), and put back
 /// afterwards. The buffer must hold the whole record.
-pub fn with_copy<T: crate::memory::cells::Cells, R>(
+pub(super) fn with_copy<T: crate::memory::cells::Cells, R>(
     mk: Operand,
     start: usize,
     f: impl FnOnce(&T) -> R,
@@ -254,14 +254,14 @@ pub fn with_copy<T: crate::memory::cells::Cells, R>(
 
 /// The `N` floats in a row at offset `start` of the marks' block in the test buffer `mk`, for
 /// the plain-float constant tables the vectors read.
-pub fn floats_at<const N: usize>(mk: Operand, start: usize) -> [f32; N] {
+pub(super) fn floats_at<const N: usize>(mk: Operand, start: usize) -> [f32; N] {
     let bytes = mk.read(start.wrapping_sub(START), 4 * N);
     std::array::from_fn(|i| f32::from_le_bytes(bytes[4 * i..4 * i + 4].try_into().unwrap()))
 }
 
 /// Runs `f` on the marks' settings record at the test address `base` (an operand with
 /// `lo: 0, hi: 0x2768`), as `with_copy`.
-pub fn with_settings<R>(
+pub(super) fn with_settings<R>(
     base: Operand,
     f: impl FnOnce(&crate::race::effects_settings_store::EffectsSettings) -> R,
 ) -> R {
@@ -329,7 +329,7 @@ fn fill(buf: &mut [u8], lo: usize, reads: &[(usize, Kind)], r: &mut Rng, sincos:
 }
 
 /// A float the block leaves on the x87 stack, as bits (any NaN the same).
-pub fn canon(x: f64) -> u64 {
+pub(super) fn canon(x: f64) -> u64 {
     if x.is_nan() {
         0x7FF8_0000_0000_0000
     } else {
@@ -407,7 +407,7 @@ fn run_recorded<R: std::fmt::Debug>(
     // (`effects::{adjugate3, pong_ball_hits, run_windscreen_flakes, turns}`): x87 arithmetic
     // over the buffers' bytes and over records laid over them (`asm_layout::with_laid`, a
     // fresh copy filled from the buffer). A new caller whose `plain` reaches a static takes
-    // the lock around its call.
+    // that static's lock around its call (`test_support::locks`).
     let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
     let mut failures = 0;
     for cw in [0x027F, 0x0E7F] {
@@ -516,23 +516,80 @@ fn run_recorded<R: std::fmt::Debug>(
 
 // ---- the sparse vectors: only the listed writes are recorded ----
 
-/// Race-block places the blocks read or write, as the typed cells that hold them (what the
-/// Rust versions read), by the place's offset in the race block.
-fn race_cell(off: usize) -> &'static dyn crate::memory::session::Cell32 {
+/// A race-block place as the test sees it: its four bytes read and written where the Rust
+/// version keeps them.
+struct RacePlace {
+    bits: Box<dyn Fn() -> u32>,
+    set_bits: Box<dyn Fn(u32)>,
+}
+
+/// Race-block places the blocks read or write, as where the Rust versions hold them, by the
+/// place's offset in the race block.
+/// A float of the kept view matrices, `pick`ed from the record, as a place.
+fn kept_place(
+    pick: impl Fn(&mut crate::race::matrices_store::ViewKept) -> &mut f32 + 'static,
+) -> RacePlace {
+    let pick = std::rc::Rc::new(pick);
+    let read = pick.clone();
+    RacePlace {
+        bits: Box::new(move || {
+            let mut kept = *crate::test_support::own::race().frame.view_kept.borrow();
+            read(&mut kept).to_bits()
+        }),
+        set_bits: Box::new(move |bits| {
+            let race = crate::test_support::own::race();
+            let mut kept = race.frame.view_kept.borrow_mut();
+            *pick(&mut kept) = f32::from_bits(bits);
+        }),
+    }
+}
+
+fn race_cell(off: usize) -> RacePlace {
     let w = &crate::owners::Owners::the()
         .scene
         .scratch
         .front_end_polygon()
         .window;
-    let m = &crate::test_support::own::race().frame.matrices.get();
     match off {
-        0x224088 => &w.view_scale,
-        0x22409C => &w.view_centre[0],
-        0x2240A0 => &w.view_centre[1],
-        0x2241C8 => &w.farthest,
-        0x31C814 => &crate::test_support::own::effects().setup.work.fpu_status,
-        0x1EA2CC..0x1EA30C if off.is_multiple_of(4) => &m.view_matrix[(off - 0x1EA2CC) / 4],
-        0x1EA3CC..0x1EA40C if off.is_multiple_of(4) => &m.view_place[(off - 0x1EA3CC) / 4],
+        0x224088 => RacePlace {
+            bits: Box::new(|| w.borrow().view_scale.to_bits()),
+            set_bits: Box::new(|bits| w.borrow_mut().view_scale = f32::from_bits(bits)),
+        },
+        0x22409C => RacePlace {
+            bits: Box::new(|| w.borrow().view_centre[0].to_bits()),
+            set_bits: Box::new(|bits| w.borrow_mut().view_centre[0] = f32::from_bits(bits)),
+        },
+        0x2240A0 => RacePlace {
+            bits: Box::new(|| w.borrow().view_centre[1].to_bits()),
+            set_bits: Box::new(|bits| w.borrow_mut().view_centre[1] = f32::from_bits(bits)),
+        },
+        0x2241C8 => RacePlace {
+            bits: Box::new(|| w.borrow().farthest.to_bits()),
+            set_bits: Box::new(|bits| w.borrow_mut().farthest = f32::from_bits(bits)),
+        },
+        // The status word of the effects' x87 blocks, where the test finds it.
+        0x31C814 => RacePlace {
+            bits: Box::new(|| {
+                crate::test_support::own::effects()
+                    .setup
+                    .work
+                    .borrow()
+                    .fpu_status
+            }),
+            set_bits: Box::new(|bits| {
+                crate::test_support::own::effects()
+                    .setup
+                    .work
+                    .borrow_mut()
+                    .fpu_status = bits;
+            }),
+        },
+        0x1EA2CC..0x1EA30C if off.is_multiple_of(4) => {
+            kept_place(move |k| &mut k.view_matrix[(off - 0x1EA2CC) / 4])
+        }
+        0x1EA3CC..0x1EA40C if off.is_multiple_of(4) => {
+            kept_place(move |k| &mut k.view_place[(off - 0x1EA3CC) / 4])
+        }
         _ => panic!("race block place {off:#X} has no typed cell in the effects tests"),
     }
 }
@@ -540,16 +597,16 @@ fn race_cell(off: usize) -> &'static dyn crate::memory::session::Cell32 {
 fn lay_race_place(off: usize, bytes: &[u8]) {
     let c = race_cell(off);
     match bytes.len() {
-        4 => c.set_bits(u32::from_le_bytes(bytes.try_into().unwrap())),
-        2 => c.set_bits(
-            (c.bits() & 0xFFFF_0000) | u32::from(u16::from_le_bytes(bytes.try_into().unwrap())),
+        4 => (c.set_bits)(u32::from_le_bytes(bytes.try_into().unwrap())),
+        2 => (c.set_bits)(
+            ((c.bits)() & 0xFFFF_0000) | u32::from(u16::from_le_bytes(bytes.try_into().unwrap())),
         ),
         n => panic!("race block place of {n} bytes"),
     }
 }
 
 fn read_race_place(off: usize, len: usize) -> Vec<u8> {
-    let bits = race_cell(off).bits();
+    let bits = (race_cell(off).bits)();
     bits.to_le_bytes()[..len].to_vec()
 }
 
@@ -561,7 +618,7 @@ struct CellsBack(Vec<(usize, u32)>);
 impl Drop for CellsBack {
     fn drop(&mut self) {
         for &(off, bits) in &self.0 {
-            race_cell(off).set_bits(bits);
+            (race_cell(off).set_bits)(bits);
         }
     }
 }
@@ -571,20 +628,17 @@ impl Drop for CellsBack {
 /// listed write (the buffers' and the race block's) and the returned value's printed form.
 /// The inputs are laid into the typed cells of the places (`race_cell`); the bytes outside
 /// the listed writes must be left as they were.
-pub fn recorded_writes<R: std::fmt::Debug>(
+pub(super) fn recorded_writes<R: std::fmt::Debug>(
     name: &str,
     spec: &Spec,
     plain: impl Fn(&[Operand]) -> R,
 ) {
     use crate::test_support::vectors::Recorder;
-    run_writes(Recorder::replay(name), spec, &plain, true);
+    run_writes(Recorder::replay(name), spec, &plain);
 }
 
-/// `recorded_writes` for a block over test buffers only whose `plain` reaches no static: run
-/// without `test_support::test_lock`, as `recorded` (whose reasons hold here). Checked for
-/// each caller (`effects::{pong, scale_axes}`): x87 arithmetic over the buffers' bytes and
-/// over records laid over them (`asm_layout::with_laid`).
-pub fn recorded_buffer_writes<R: std::fmt::Debug>(
+/// `recorded_writes` for a block over test buffers only: its operands are never the race block's.
+pub(super) fn recorded_buffer_writes<R: std::fmt::Debug>(
     name: &str,
     spec: &Spec,
     plain: impl Fn(&[Operand]) -> R,
@@ -597,18 +651,15 @@ pub fn recorded_buffer_writes<R: std::fmt::Debug>(
             .any(|op| matches!(op, Op::RaceBlock { .. })),
         "a block of buffer writes reads only its test buffers"
     );
-    run_writes(Recorder::replay(name), spec, &plain, false);
+    run_writes(Recorder::replay(name), spec, &plain);
 }
 
-/// The lock is taken unless the caller says `plain` reaches no static and no operand is in
-/// the race block (`recorded_buffer_writes`).
+/// No lock: the race block's places are the cells of this thread's own owners.
 fn run_writes<R: std::fmt::Debug>(
     mut file: crate::test_support::vectors::Recorder,
     spec: &Spec,
     plain: &dyn Fn(&[Operand]) -> R,
-    reaches_statics: bool,
 ) {
-    let _guard = reaches_statics.then(crate::test_support::test_lock);
     let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
     let mut failures = 0;
     // The race block places any operand lists: put back when the test ends.
@@ -618,7 +669,7 @@ fn run_writes<R: std::fmt::Debug>(
             places.extend(reads.iter().chain(writes.iter()).map(|&(o, _)| o));
         }
     }
-    let _back = CellsBack(places.iter().map(|&o| (o, race_cell(o).bits())).collect());
+    let _back = CellsBack(places.iter().map(|&o| (o, (race_cell(o).bits)())).collect());
     for cw in [0x027F, 0x0E7F] {
         x87::set_control_word(cw);
         for case in 0..3000 {
@@ -774,7 +825,7 @@ fn run_writes<R: std::fmt::Debug>(
 
 /// The vertex float at byte `off` of the vertices (x, y, z, u or v of a vertex).
 #[cfg(test)]
-pub fn vertex_cell(off: usize) -> &'static crate::memory::session::PlainFloat {
+pub(super) fn vertex_cell(off: usize) -> &'static crate::memory::session::PlainFloat {
     let v = &crate::d3d::vertices_store::VERTICES.vertices[off / 32];
     match off % 32 {
         0x0 => &v.x,
@@ -791,7 +842,7 @@ pub fn vertex_cell(off: usize) -> &'static crate::memory::session::PlainFloat {
 /// on purpose: they are bit-exact whatever the float, where a float moved through the x87
 /// (32-bit builds) would quiet a signalling NaN.
 #[cfg(test)]
-pub fn staged_vertices<R>(at: Operand, offsets: &[usize], f: impl FnOnce() -> R) -> R {
+pub(super) fn staged_vertices<R>(at: Operand, offsets: &[usize], f: impl FnOnce() -> R) -> R {
     let host = |off: usize| (at + off).at(0, 4).cast::<u32>();
     let saved: Vec<u32> = offsets.iter().map(|&o| vertex_cell(o).bits()).collect();
     for &o in offsets {

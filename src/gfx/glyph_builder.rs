@@ -11,7 +11,7 @@ pub use rc2k_core::gfx::glyphs::{
 
 /// A sheet's pixels where the row table leads: the decoded buffer's bytes (`gfx::picture`), the row
 /// table's offsets in them. A read or write past them ends the game.
-pub struct RowTable<'a> {
+pub(super) struct RowTable<'a> {
     pixels: &'a mut [u8],
     gfx: &'a crate::gfx::owner::Gfx,
 }

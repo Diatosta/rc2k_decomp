@@ -5,10 +5,10 @@ use crate::net::owner::Net;
 use crate::net::send_inputs::{Message, send_fields};
 use crate::race::owner::Race;
 
-pub const EXTRA: Message = Message {
+const EXTRA: Message = Message {
     text: c"send x", // "send x"
     kind: rc2k_core::net::race::Kind::Extra,
 };
-pub fn send_extra(race: &Race, net: &Net) -> Result<(), Refused> {
+pub(super) fn send_extra(race: &Race, net: &Net) -> Result<(), Refused> {
     send_fields(race, net, &EXTRA)
 }

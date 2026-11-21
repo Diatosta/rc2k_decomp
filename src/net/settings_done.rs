@@ -4,7 +4,10 @@
 use crate::errors::Refused;
 use crate::net::lobby::zero;
 use crate::race::viewer_screen_store::NetTexts;
-pub fn settings_done(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<(), Refused> {
+pub(super) fn settings_done(
+    o: crate::owners::Owners<'static>,
+    lines: &NetTexts,
+) -> Result<(), Refused> {
     let (net, strings) = (o.net, o.strings);
     let saved = if crate::net::find_connections::find_connections(net, strings, lines)? {
         crate::net::find_saved_connection::find_saved_connection(net)?

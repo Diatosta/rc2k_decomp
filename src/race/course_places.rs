@@ -1,7 +1,7 @@
-//! The stage's course data as one value (`CourseData`: the faces, the records, the scene points
-//! and the course info, with the counter of the faces' first-point changes), held by the course owner
-//! (`Course::stage`). `race::load_level` takes the parts from the course file and the info files, and
-//! the stage's freeing gives them back; both happen on the game thread between frames, while no
+//! The stage's course data as one value (`CourseData`: the faces, the records, the scene points and
+//! the course info, with the counter of the faces' first-point changes), held by the course owner
+//! (`Course::stage`). `race::load_level` takes the parts from the course file and the info files,
+//! and the stage's freeing gives them back; both happen on the game thread between frames, while no
 //! drawing part reads, so the drawing threads always see one stage's data.
 //!
 //! The faces (0x40 bytes each) and records (0x20 bytes each) are reached by number
@@ -11,66 +11,21 @@
 
 use crate::errors::BadInput;
 use crate::memory::shared_table::SharedTable;
+use crate::race::course_places_store::{CourseData, ROOM};
 use crate::race::owner_course::Course;
 use rc2k_core::race::faces::Face;
-use std::sync::atomic::{AtomicU64, Ordering};
-
-/// Each part's room; a course file's room (`rc2k_core::race::loading::FIRST_PART`) is smaller.
-const ROOM: u32 = 0x100_0000;
 
 /// The place of face 0 in the numbering the scene points use for their reads of the face before
 /// point 0 (see `race::scene_points`): the points' places lie `2 * ROOM` after it.
 const PLACES_BASE: u32 = 0xD000_0000;
 
 /// Scene point 0's place: the numbering `race::scene_points` reads points by.
-pub const fn points_base() -> u32 {
+pub(super) const fn points_base() -> u32 {
     PLACES_BASE + 2 * ROOM
 }
 
-/// One stage's course data. A part is taken from the stage's files and given back with the
-/// stage; the tables are shared with the drawing threads (`SharedTable`).
-pub struct CourseData {
-    /// The faces, 0x40 bytes each.
-    pub faces: SharedTable,
-    /// The records, 0x20 bytes each.
-    pub records: SharedTable,
-    /// The scene points (12 bytes each) and the room after them for the points the drawing
-    /// adds.
-    pub points: SharedTable,
-    /// The course info (0x400000 bytes: the texture infos `files\a\textinfo` and
-    /// `files\b\textinfo`, the mark corners `files\m\markinfo` at +0x1C2000), filled by
-    /// `level_init::load_texture_info`.
-    pub info: SharedTable,
-    /// Bumped when a face's first point (+4) or a scene point below the count may have
-    /// changed, or the faces or points were taken or given back: what is worked out from them
-    /// (`race::start_place`'s checkpoint places) is kept until then.
-    first_points_changed: AtomicU64,
-}
-
-impl CourseData {
-    pub const fn new() -> Self {
-        Self {
-            faces: SharedTable::new(ROOM as usize, "no course faces"),
-            records: SharedTable::new(ROOM as usize, "no course records"),
-            points: SharedTable::new(ROOM as usize, "no scene points"),
-            info: SharedTable::new(ROOM as usize, "no course info"),
-            first_points_changed: AtomicU64::new(0),
-        }
-    }
-
-    /// The faces' first points or the scene points have changed.
-    pub fn first_points_changed(&self) {
-        self.first_points_changed.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// How many times the faces' first points or the scene points have changed.
-    pub fn first_points_changes(&self) -> u64 {
-        self.first_points_changed.load(Ordering::Relaxed)
-    }
-}
-
 /// The course info taken (`len` bytes, zeroed).
-pub fn take_info(data: &CourseData, len: u32) -> Result<(), BadInput> {
+pub(super) fn take_info(data: &CourseData, len: u32) -> Result<(), BadInput> {
     if len > ROOM {
         return Err(BadInput("a course info larger than its room"));
     }
@@ -83,7 +38,7 @@ pub fn info_held(data: &CourseData) -> bool {
 }
 
 /// The whole course info set to `bytes` (the same length as the table taken).
-pub fn set_info(data: &CourseData, bytes: &[u8]) -> Result<(), BadInput> {
+pub(super) fn set_info(data: &CourseData, bytes: &[u8]) -> Result<(), BadInput> {
     data.info
         .write(0, bytes)?
         .ok_or(BadInput("an info larger than the course info"))
@@ -97,12 +52,12 @@ pub fn info_bytes(data: &CourseData, offset: u32, len: usize) -> Result<Vec<u8>,
 }
 
 /// How many times the faces' first points or the scene points have changed.
-pub fn first_points_changes(data: &CourseData) -> u64 {
+pub(super) fn first_points_changes(data: &CourseData) -> u64 {
     data.first_points_changes()
 }
 
 /// The faces' first points or the scene points have changed.
-pub fn first_points_changed(data: &CourseData) {
+pub(super) fn first_points_changed(data: &CourseData) {
     data.first_points_changed();
 }
 
@@ -128,7 +83,7 @@ pub fn give_back(data: &CourseData) {
 }
 
 /// `f` given readers of the faces' and the scene points' dwords by byte (`None` past them).
-pub fn with_faces_and_points<R>(
+pub(super) fn with_faces_and_points<R>(
     data: &CourseData,
     f: impl FnOnce(&dyn Fn(usize) -> Option<u32>, &dyn Fn(usize) -> Option<u32>) -> R,
 ) -> Result<R, BadInput> {
@@ -201,7 +156,7 @@ fn table_bytes(table: &Table, at: usize, len: usize) -> Result<Vec<u8>, BadInput
 /// `bytes` written into `table` from `at` (a face's first point noted).
 fn write_table(data: &CourseData, table: &Table, at: usize, bytes: &[u8]) -> Result<(), BadInput> {
     let faces = std::ptr::eq(table, &raw const data.faces);
-    // A face's first point (+4 .. +8) changed is noted.
+    // A change to a face's first point is noted.
     let mut first_point = false;
     table
         .write_noting(at, bytes, |k| {
@@ -294,13 +249,13 @@ pub fn faces_table(course: &Course, count: u32) -> Result<Vec<u8>, BadInput> {
 }
 
 /// Face `n` set to `face`.
-pub fn write_face_number(course: &Course, n: u32, face: Face) -> Result<(), BadInput> {
+pub(super) fn write_face_number(course: &Course, n: u32, face: Face) -> Result<(), BadInput> {
     let data = &course.stage.course;
     write_table(data, &data.faces, face_index(n, 0)?, &face.0)
 }
 
 /// The first `count` records' bytes.
-pub fn records_table(
+pub(super) fn records_table(
     course: crate::race::owner_course::CourseReads<'_>,
     count: u32,
 ) -> Result<Vec<u8>, BadInput> {
@@ -313,7 +268,7 @@ pub fn records_table(
 
 /// Whether the first `count` records are held, refused as `records_table` refuses: their
 /// fields can then be read one at a time (`record_field`) with no copy of the table.
-pub fn records_held(
+pub(super) fn records_held(
     course: crate::race::owner_course::CourseReads<'_>,
     count: u32,
 ) -> Result<(), BadInput> {
@@ -325,7 +280,7 @@ pub fn records_held(
 }
 
 /// The records from record 0 set to `bytes`.
-pub fn write_records_table(course: &Course, bytes: &[u8]) -> Result<(), BadInput> {
+pub(super) fn write_records_table(course: &Course, bytes: &[u8]) -> Result<(), BadInput> {
     let data = &course.stage.course;
     write_table(data, &data.records, record_index(0, 0)?, bytes)
 }

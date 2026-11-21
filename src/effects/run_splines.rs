@@ -1,7 +1,7 @@
 //! `effects::run_splines`: the splines' frame. The splines made stepped by half the frame ticks:
-//! toward 0x80 while the settings' +0x2700 is set (+0x26FC then 0); else up to 0xFF and back to 0
-//! while +0x26FC is set (cleared there); else on away from 0x80 (up when at or above it, to 0 past
-//! 0xFF; down below it, to 0 under 1). Then the wave: `SplineHead.angle` plus (the marks' random's
+//! toward 0x80 while the settings' `spline_handbrake` is set (`spline_gear_changed` then 0); else
+//! up to 0xFF and back to 0 while `spline_gear_changed` is set (cleared there); else on away from
+//! 0x80 (up when at or above it, to 0 past 0xFF; down below it, to 0 under 1). Then the wave: `SplineHead.angle` plus (the marks' random's
 //! low byte less 0x80) / `SplineConstants.wave_k[0]` by `SplineConstants.wave_k[1]`, and
 //! `SplineHead.wave` its sine by `SplineConstants.wave_k[2]`; then `effects::place_spline` for each
 //! of the splines placed, the last first.
@@ -11,7 +11,7 @@
 //! Refuses null settings and more than 8 splines (before anything), and `place_spline`'s refusals
 //! (all it may write is put back first).
 
-use crate::effects::paths::Paths;
+use crate::effects::paths_store::Paths;
 use crate::effects::place_spline::place_spline;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -26,7 +26,7 @@ fn step_made(
 ) -> Result<(), Refused> {
     let marks = effects.settings()?;
     {
-        let mut m = paths.spline_head.made.get() as i32;
+        let mut m = paths.spline_head.borrow().made as i32;
         let h = half as i32;
         if marks.spline_handbrake.get() != 0 {
             marks.spline_gear_changed.set(0);
@@ -60,7 +60,7 @@ fn step_made(
                 }
             }
         }
-        paths.spline_head.made.set(m as u32);
+        paths.spline_head.borrow_mut().made = m as u32;
     }
     Ok(())
 }
@@ -71,28 +71,33 @@ pub fn run_splines(paths: &Paths, effects: &crate::effects::owner::Effects) -> R
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    let places = paths.spline_work.place.get() as i32;
+    let places = paths.spline_work.borrow().place as i32;
     if places > MOST_SPLINES {
         return Err(BadInput("more than 8 splines").into());
     }
     {
-        step_made(effects, paths, setup.clock.frame_ticks.get() >> 1)?;
-        let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
-        setup.work.seed.set(s);
-        let k = paths
-            .spline_constants
-            .wave_k
-            .each_ref()
-            .map(crate::memory::session::PlainFloat::get);
+        step_made(effects, paths, setup.clock.borrow().frame_ticks >> 1)?;
+        let s = setup
+            .work
+            .borrow()
+            .seed
+            .wrapping_mul(0x9D)
+            .wrapping_add(0x47);
+        setup.work.borrow_mut().seed = s;
+        let k = paths.spline_constants.wave_k;
+        let previous = paths.spline_head.borrow().angle;
         let (angle, wave) = x87::angle_and_wave(
-            &paths.spline_head.angle,
+            previous,
             (s & 0xFF).wrapping_sub(0x80) as i32,
             k[0],
             k[1],
             k[2],
         );
-        paths.spline_head.angle.set(angle);
-        paths.spline_head.wave.set(wave);
+        {
+            let mut head = paths.spline_head.borrow_mut();
+            head.angle = angle;
+            head.wave = wave;
+        }
         for n in (0..places.max(0) as u32).rev() {
             place_spline(paths, n, effects)?;
         }

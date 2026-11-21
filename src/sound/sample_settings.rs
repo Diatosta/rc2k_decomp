@@ -4,8 +4,7 @@
 //! Returns the volume and the rate. A sample without a buffer: volume 0, rate 44100. Else a volume
 //! of -0x6F (the sample's own) takes the record's volume, then is held to 0 .. 0x40 (signed); a
 //! rate of -0x6F takes the record's rate, then (so a record's -0x70 chains) -0x70 the buffer's
-//! rate, then is held to 100 .. 200000 (signed). Five callers (the race sounds' turn). Refuses a
-//! sample past the 0x1CD records.
+//! rate, then is held to 100 .. 200000 (signed). Refuses a sample past the 0x1CD records.
 
 use crate::audio::owner::Audio;
 use crate::audio::voices::{SampleRecord, voice_of};
@@ -24,8 +23,8 @@ pub fn record(audio: &Audio, n: u32) -> Result<SampleRecord, BadInput> {
         .ok_or(BadInput("a sample past the 0x1CD records"))
 }
 
-/// The rate as both leaves take it: -0x6F the record's +0x30, then -0x70 the buffer's
-/// +0x24; held to 100 .. 200000.
+/// The rate as both leaves take it: -0x6F the record's rate, then -0x70 the buffer's
+/// rate; held to 100 .. 200000.
 /// The record's and its first voice's figures (`None`: no voice, not loaded).
 pub fn loaded(audio: &Audio, record: &SampleRecord) -> Option<rc2k_core::audio::samples::Loaded> {
     if record.first_voice == 0 {

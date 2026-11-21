@@ -1,7 +1,6 @@
 //! `menu::lower_sensitivity`: the player's controller sensitivity down by one.
 //!
-//! `controller_sensitivity` - 1, held at 0 (signed). An action of the four players' details
-//! pages. The menus and draw lists run its `entry` (`menu::table_calls`).
+//! `controller_sensitivity` - 1, held at 0 (signed). An action of the four players' details pages.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

@@ -12,49 +12,47 @@ const MOST_NAME_ENTRIES: u32 = 0x400;
 pub const NAME_ROOM: usize = 0x20;
 
 /// A driver's record, by number.
-pub struct Driver<'a>(&'a crate::menu::drivers_store::Driver);
+pub struct Driver(crate::menu::drivers_store::Driver);
 
-impl<'a> Driver<'a> {
+impl Driver {
     /// The record of driver `number` among `menus`' drivers.
-    pub fn of(menus: &'a Menus, number: u32) -> Result<Self, BadInput> {
+    pub fn of(menus: &Menus, number: u32) -> Result<Self, BadInput> {
         if number >= DRIVERS {
             return Err(BadInput("a driver past the 180"));
         }
-        Ok(Self(&menus.cars.drivers.drivers[number as usize]))
+        Ok(Self(menus.cars.drivers.read().drivers[number as usize]))
     }
 
-    /// The dword at `offset` of the record.
-    /// +8: the class.
+    /// The class.
     pub fn class(&self) -> u32 {
-        self.0.class.get()
+        self.0.class
     }
 
-    /// +0x14.
+    /// The nationality.
     pub fn nation(&self) -> u32 {
-        self.0.nation.get()
+        self.0.nation
     }
 
-    /// +0x18.
+    /// The car.
     pub fn car(&self) -> u32 {
-        self.0.car.get()
+        self.0.car
     }
 
     /// The id of the string that is the driver's name.
-    pub fn name_id(&self, menus: &Menus) -> Result<u32, BadInput> {
-        let entry = self.0.name_entry.get();
+    pub fn name_id(&self) -> Result<u32, BadInput> {
+        let entry = self.0.name_entry;
         if entry >= MOST_NAME_ENTRIES {
             return Err(BadInput("a driver whose name entry is far past the table"));
         }
-        crate::menu::drivers_store::name_string(&menus.cars, entry)
+        crate::menu::drivers_store::name_string(entry)
     }
 
     /// The name's bytes, without a NUL, as `strings::append_string_by_id` writes them.
     pub fn name(
         &self,
         so: crate::strings::append_string_by_id::StringOwners<'_>,
-        menus: &Menus,
     ) -> Result<(u32, Vec<u8>), BadInput> {
-        let id = self.name_id(menus)?;
+        let id = self.name_id()?;
         let mut name = Vec::new();
         push_string(so, &mut name, id)?;
         if name.len() > NAME_ROOM {

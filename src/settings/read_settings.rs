@@ -1,6 +1,5 @@
-//! Reads `var\ral.cfg` and stores each setting it names in its variable; this file holds the
-//! table of those variables, the key list and parser are `rc2k_core::files::settings`.
-//! Callers: start-up and `system::load_game_data`.
+//! Reads `var\ral.cfg` and stores each setting it names in its variable; this file holds the table
+//! of those variables, the key list and parser are `rc2k_core::files::settings`.
 
 use crate::errors::BadInput;
 use crate::memory::session::DwordLike;
@@ -16,18 +15,35 @@ use crate::strings::same_text::case_table;
 enum Target {
     /// A whole aligned dword of a store (`dword!`).
     Dword(fn(Owners<'static>) -> &'static dyn DwordLike),
+    /// A field of a store of plain values, read and written by functions (`plain!`).
+    Plain {
+        get: fn(Owners<'static>) -> u32,
+        set: fn(Owners<'static>, u32),
+    },
     /// A dword that straddles two cells of its store's untyped tail: the store's own
     /// setter writes the four bytes (`race::viewer_screen_store`'s).
     Unaligned(fn(Owners<'static>, u32)),
-    /// A key that is read and has no variable (the own-heap settings of the 1999 game).
+    /// A key that is read and has no variable: a setting for the 1999 game's machines (its
+    /// own heap, the process's priority, CD audio, the search for 3D cards, the processor's
+    /// extensions).
     Ignored,
 }
 
 impl Target {
+    /// The variable's number now; none for a key that has no variable here.
+    fn get(self, o: Owners<'static>) -> Option<u32> {
+        match self {
+            Target::Dword(cell) => Some(cell(o).get()),
+            Target::Plain { get, .. } => Some(get(o)),
+            Target::Unaligned(_) | Target::Ignored => None,
+        }
+    }
+
     /// The four bytes of the variable set.
     fn set(self, o: Owners<'static>, number: u32) {
         match self {
             Target::Dword(cell) => cell(o).set(number),
+            Target::Plain { set, .. } => set(o, number),
             Target::Unaligned(set) => set(o, number),
             Target::Ignored => {}
         }
@@ -47,6 +63,65 @@ macro_rules! dword {
     };
 }
 
+/// `plain_cell!(o => o.owner.field)`: a plain `Cell<u32>` as a `Target`.
+macro_rules! plain_cell {
+    ($o:ident => $($path:tt)+) => {
+        Target::Plain {
+            get: {
+                fn get($o: Owners<'static>) -> u32 {
+                    $($path)+.get()
+                }
+                get
+            },
+            set: {
+                fn set($o: Owners<'static>, number: u32) {
+                    $($path)+.set(number);
+                }
+                set
+            },
+        }
+    };
+}
+
+/// `plain!(o => o.owner.store, field)`: a field of a store that keeps plain values behind
+/// `read()` / `write()`, as a `Target`.
+macro_rules! plain {
+    ($o:ident => $store:expr; $($field:tt)+) => {
+        Target::Plain {
+            get: {
+                fn get($o: Owners<'static>) -> u32 {
+                    $store.read().$($field)+
+                }
+                get
+            },
+            set: {
+                fn set($o: Owners<'static>, number: u32) {
+                    $store.write().$($field)+ = number;
+                }
+                set
+            },
+        }
+    };
+}
+
+/// `framecounter`: whether the frame rate is shown.
+fn frame_counter_shown(o: Owners<'static>) -> u32 {
+    o.race.frame.counter().show
+}
+
+fn set_frame_counter_shown(o: Owners<'static>, number: u32) {
+    o.race.frame.counter_mut().show = number;
+}
+
+/// `key`: the first dword of the replay seal's key.
+fn seal_key_first(o: Owners<'static>) -> u32 {
+    o.race.replay.seal_work().key[0]
+}
+
+fn set_seal_key_first(o: Owners<'static>, number: u32) {
+    o.race.replay.seal_work_mut().key[0] = number;
+}
+
 /// `wrreplayenable`: `ViewerAndKinds.viewer_panel.untyped_tail[0]` (unaligned, in the viewer panel's tail).
 fn set_developer_keys(o: Owners<'static>, number: u32) {
     o.race.viewer_panel().set_developer_keys(number);
@@ -57,343 +132,222 @@ fn set_picture_rate(o: Owners<'static>, number: u32) {
     o.race.viewer_panel().set_picture_rate(number);
 }
 
-/// "var\ral.cfg" (0x5295CC in the image).
+/// The settings file.
 static PATH: &[u8; 12] = b"var\\ral.cfg\0";
 /// The settings in `rc2k_core::files::settings::SETTINGS` order (`tests::table_matches_the_keys`
-/// checks it): key, address of the variable in the 1999 image, target.
-const ENTRIES: [(&[u8], u32, Target); 77] = [
+/// checks it): key and target.
+const ENTRIES: [(&[u8], Target); 77] = [
     (
         b"notaskswitch",
-        0x518384,
         dword!(o => o.system.window_loop().no_task_switch),
     ),
-    (
-        b"noprichange",
-        0x518388,
-        dword!(o => o.system.window_loop().keep_priority),
-    ),
-    (
-        b"ignoremmx",
-        0x5183AC,
-        dword!(o => o.system.machine().ignore_mmx),
-    ),
-    (
-        b"ignorekatmai",
-        0x5183B4,
-        dword!(o => o.system.machine().ignore_katmai),
-    ),
-    (
-        b"ignoreamdk3d",
-        0x5183BC,
-        dword!(o => o.system.machine().ignore_3dnow),
-    ),
-    (b"altmemenable", 0x4E0584, Target::Ignored),
-    (b"altmemheapsize", 0x4E0588, Target::Ignored),
-    (b"noaudio", 0x4F82B4, dword!(o => o.audio.state.no_audio)),
-    (b"nosound", 0x4F82B4, dword!(o => o.audio.state.no_audio)),
-    (
-        b"nocdaudio",
-        0x518104,
-        dword!(o => o.sound.menu.cd_audio.get().no_cd_audio),
-    ),
-    (b"nomusic", 0x5069BC, dword!(o => o.audio.state.no_music)),
+    (b"noprichange", Target::Ignored),
+    (b"ignoremmx", Target::Ignored),
+    (b"ignorekatmai", Target::Ignored),
+    (b"ignoreamdk3d", Target::Ignored),
+    (b"altmemenable", Target::Ignored),
+    (b"altmemheapsize", Target::Ignored),
+    (b"noaudio", dword!(o => o.audio.state.no_audio)),
+    (b"nosound", dword!(o => o.audio.state.no_audio)),
+    (b"nocdaudio", Target::Ignored),
+    (b"nomusic", dword!(o => o.audio.state.no_music)),
     (
         b"audiobasefreq",
-        0x4F82D4,
         dword!(o => o.audio.state.mix_rate_setting),
     ),
-    (
-        b"ignoreds3d",
-        0x506B42,
-        dword!(o => o.audio.state.no_listener),
-    ),
-    (
-        b"ignoredsv",
-        0x506C50,
-        dword!(o => o.audio.state.ignore_dsv_setting),
-    ),
-    (
-        b"ignoreeax",
-        0x506C6C,
-        dword!(o => o.audio.state.ignore_eax_setting),
-    ),
-    (
-        b"ignorea3d",
-        0x506C5C,
-        dword!(o => o.audio.state.no_a3d_setting),
-    ),
-    (
-        b"wavheapsize",
-        0x5068EC,
-        dword!(o => o.audio.state.sample_buffer_kb),
-    ),
+    (b"ignoreds3d", dword!(o => o.audio.state.no_listener)),
+    (b"ignoredsv", dword!(o => o.audio.state.ignore_dsv_setting)),
+    (b"ignoreeax", dword!(o => o.audio.state.ignore_eax_setting)),
+    (b"ignorea3d", dword!(o => o.audio.state.ignore_a3d_setting)),
+    (b"wavheapsize", dword!(o => o.audio.state.sample_buffer_kb)),
     (
         b"bundleheapsize",
-        0x51B980,
-        dword!(o => o.gfx.fonts.glyph_tables.units),
+        plain_cell!(o => o.gfx.fonts.glyph_tables.units),
     ),
     (
         b"imageheapsize",
-        0x519554,
         dword!(o => o.strings.lexicon.memory.kilobytes),
     ),
     (
         b"gamegfxheapsize",
-        0x5BE894,
-        dword!(o => o.gfx.fonts.game_fonts_memory.units),
+        plain_cell!(o => o.gfx.fonts.game_fonts_memory.units),
     ),
     (
         b"forcedx5",
-        0x5AB958,
-        dword!(o => o.gfx.d3d.cards.get().force_dx5),
+        plain_cell!(o => o.gfx.d3d.cards.get().force_dx5),
     ),
-    (
-        b"forceno3dcard",
-        0x5AB94C,
-        dword!(o => o.gfx.d3d.cards.get().no_search),
-    ),
-    (
-        b"ignoreprimary",
-        0x5AB950,
-        dword!(o => o.gfx.d3d.cards.get().not_primary),
-    ),
-    (
-        b"ignoresecondary",
-        0x5AB954,
-        dword!(o => o.gfx.d3d.cards.get().ignore_secondary),
-    ),
-    (
-        b"agpmode",
-        0x5AB95C,
-        dword!(o => o.gfx.d3d.cards.get().agp_mode),
-    ),
+    (b"forceno3dcard", Target::Ignored),
+    (b"ignoreprimary", Target::Ignored),
+    (b"ignoresecondary", Target::Ignored),
+    (b"agpmode", plain_cell!(o => o.gfx.d3d.cards.get().agp_mode)),
     (
         b"force3dtrans",
-        0x5AB97C,
-        dword!(o => o.gfx.d3d.cards.get().force_trans),
+        plain_cell!(o => o.gfx.d3d.cards.get().force_trans),
     ),
     (
         b"force3dalpha",
-        0x5AB984,
-        dword!(o => o.gfx.d3d.cards.get().force_alpha),
+        plain_cell!(o => o.gfx.d3d.cards.get().force_alpha),
     ),
     (
         b"force3dshadow",
-        0x5AB980,
-        dword!(o => o.gfx.d3d.cards.get().force_shadow),
+        plain_cell!(o => o.gfx.d3d.cards.get().force_shadow),
     ),
     (
         b"force3dfogging",
-        0x5AB988,
-        dword!(o => o.gfx.d3d.cards.get().force_fogging),
+        plain_cell!(o => o.gfx.d3d.cards.get().force_fogging),
     ),
-    (
-        b"textflashmode",
-        0x4F3F74,
-        dword!(o => o.strings.text.blend_mode),
-    ),
+    (b"textflashmode", dword!(o => o.strings.text.blend_mode)),
     (
         b"videomodemain",
-        0x4F4944,
-        dword!(o => o.gfx.display.mode.menu_mode),
+        plain_cell!(o => o.gfx.display.mode.menu_mode),
     ),
     (
         b"videomodegame",
-        0x4F4948,
-        dword!(o => o.gfx.display.mode.race_mode),
+        plain_cell!(o => o.gfx.display.mode.race_mode),
     ),
     (
         b"v3driverfix",
-        0x624238,
-        dword!(o => o.scene.drawing.scene.get().v3_driver_fix),
+        plain_cell!(o => o.scene.drawing.v3_driver_fix.get()),
     ),
-    (b"nopngdecode", 0x51B97C, dword!(o => o.gfx.png.setting)),
-    (
-        b"nojoy",
-        0x4F68DC,
-        dword!(o => o.input.devices.no_joysticks),
-    ),
-    (b"joymode", 0x4F68E0, dword!(o => o.input.devices.joy_mode)),
-    (b"joycode", 0x4F68E4, dword!(o => o.input.devices.joy_code)),
-    (
-        b"joylowerdz",
-        0x4F68E8,
-        dword!(o => o.input.devices.joy_dead_zone),
-    ),
-    (
-        b"joyupperdz",
-        0x4F68EC,
-        dword!(o => o.input.devices.joy_end_zone),
-    ),
+    (b"nopngdecode", dword!(o => o.gfx.png.setting)),
+    (b"nojoy", dword!(o => o.input.devices.no_joysticks)),
+    (b"joymode", dword!(o => o.input.devices.joy_mode)),
+    (b"joycode", dword!(o => o.input.devices.joy_code)),
+    (b"joylowerdz", dword!(o => o.input.devices.joy_dead_zone)),
+    (b"joyupperdz", dword!(o => o.input.devices.joy_end_zone)),
     (
         b"noforcefeedback",
-        0x4F68F4,
         dword!(o => o.input.devices.no_force_feedback),
     ),
-    (b"joyffgain", 0x4F68F8, dword!(o => o.input.devices.ff_gain)),
+    (b"joyffgain", dword!(o => o.input.devices.ff_gain)),
     (
         b"mergejoy",
-        0x4F68FC,
         dword!(o => o.input.devices.two_devices_one_player),
     ),
-    (b"nonetwork", 0x52A4B0, dword!(o => o.net.vars.receive_done)),
-    (b"inetport", 0x52AC24, dword!(o => o.net.setup().port)),
-    (b"screensnapshot", 0x4F52B4, dword!(o => o.gfx.shots.on)),
+    (b"nonetwork", dword!(o => o.net.vars.receive_done)),
+    (b"inetport", dword!(o => o.net.setup().port)),
+    (b"screensnapshot", plain_cell!(o => o.gfx.shots.on)),
     (
         b"framecounter",
-        0x5EB100,
-        dword!(o => o.race.frame.counter().show),
+        Target::Plain {
+            get: frame_counter_shown,
+            set: set_frame_counter_shown,
+        },
     ),
     (
         b"noreplay",
-        0x5BEC7C,
         dword!(o => o.race.shared.replay_file().no_replay_switch),
     ),
     (
         b"replaykeys",
-        0x5BECA8,
         dword!(o => o.race.shared.replay_file().viewer_editing),
     ),
     (
         b"logfile",
-        0x4E0098,
         dword!(_o => crate::logfile::write_line::state::LEVEL),
     ),
-    (b"nofmv", 0x5BE870, dword!(o => o.system.machine().no_fmv)),
+    (b"nofmv", dword!(o => o.system.machine().no_fmv)),
     (
         b"key",
-        0x4E052C,
-        dword!(o => o.race.replay.seal_work().key[0]),
+        Target::Plain {
+            get: seal_key_first,
+            set: set_seal_key_first,
+        },
     ),
     (
         b"allsecretcars",
-        0x758710,
-        dword!(o => o.menus.play.cheats.all_secret_cars),
+        plain!(o => o.menus.play.cheats; all_secret_cars),
     ),
     (
         b"secretcar",
-        0x758710,
-        dword!(o => o.menus.play.cheats.all_secret_cars),
+        plain!(o => o.menus.play.cheats; all_secret_cars),
     ),
     (
         b"usesavegamekeys",
-        0x755144,
-        dword!(o => o.saves.savegame_preview.use_savegame_keys),
+        plain_cell!(o => o.saves.savegame_preview.use_savegame_keys),
     ),
     (
         b"sensiblesaving",
-        0x75AAD8,
-        dword!(o => o.menus.screens.state.menus.review_kind),
+        plain!(o => o.menus.screens.state; menus.review_kind),
     ),
     (
         b"noprecipitation",
-        0x71C800,
         dword!(o => o.race.shared.work.get().no_precipitation),
     ),
     (
         b"seasoncode",
-        0x5BECAC,
         dword!(o => o.race.shared.replay_file().season_code),
     ),
     (
         b"noautoneutral",
-        0x61416C,
         dword!(o => o.race.shared.physics_tables.get().no_auto_neutral),
     ),
     (
         b"nonlinearsteering",
-        0x4F6900,
         dword!(o => o.input.devices.nonlinear_steering),
     ),
-    (
-        b"wrreplayenable",
-        0x5C2CEB,
-        Target::Unaligned(set_developer_keys),
-    ),
-    (
-        b"wrreplayrate",
-        0x5C2CEF,
-        Target::Unaligned(set_picture_rate),
-    ),
-    (
-        b"alt2axcode",
-        0x4F68F0,
-        dword!(o => o.input.devices.alt_axes_code),
-    ),
+    (b"wrreplayenable", Target::Unaligned(set_developer_keys)),
+    (b"wrreplayrate", Target::Unaligned(set_picture_rate)),
+    (b"alt2axcode", dword!(o => o.input.devices.alt_axes_code)),
     (
         b"fizpatch",
-        0x71C6D0,
         dword!(o => o.race.shared.work.get().patches[0]),
     ),
     (
         b"patchmaxdrawdistance",
-        0x71C6D4,
         dword!(o => o.race.shared.work.get().patches[1]),
     ),
     (
         b"patchstickygrass",
-        0x71C6D8,
         dword!(o => o.race.shared.work.get().patches[2]),
     ),
     (
         b"patchgravity",
-        0x71C6DC,
         dword!(o => o.race.shared.work.get().patches[3]),
     ),
     (
         b"patchdamages",
-        0x71C6E0,
         dword!(o => o.race.shared.work.get().patches[4]),
     ),
     (
         b"patchbrakegrip",
-        0x71C6E4,
         dword!(o => o.race.shared.work.get().patches[5]),
     ),
     (
         b"patchaccelgrip",
-        0x71C6E8,
         dword!(o => o.race.shared.work.get().patches[6]),
     ),
     (
         b"patchslidegrip",
-        0x71C6EC,
         dword!(o => o.race.shared.work.get().patches[7]),
     ),
     (
         b"patchgripgrass",
-        0x71C6F0,
         dword!(o => o.race.shared.work.get().patches[8]),
     ),
     (
         b"patchgriptarmac",
-        0x71C6F4,
         dword!(o => o.race.shared.work.get().patches[9]),
     ),
     (
         b"patchgripsnow",
-        0x71C6F8,
         dword!(o => o.race.shared.work.get().patches[10]),
     ),
     (
         b"patchgripmud",
-        0x71C6FC,
         dword!(o => o.race.shared.work.get().patches[11]),
     ),
     (
         b"patchgripgravel",
-        0x71C700,
         dword!(o => o.race.shared.work.get().patches[12]),
     ),
     (
         b"lexcontrol",
-        0x4E0758,
         dword!(o => o.strings.lexicon.recompile_level),
     ),
     (
         b"sparksmode",
-        0x7558DC,
-        dword!(o => o.menus.screens.event.sparks_mode),
+        plain!(o => o.menus.screens.event; sparks_mode),
     ),
 ];
 
@@ -402,9 +356,26 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
 pub fn apply_settings(o: Owners<'static>, text: &[u8]) -> Result<(), BadInput> {
     let parsed = rc2k_core::files::settings::parse_settings(text, &case_table())?;
     for (setting, number) in parsed {
-        ENTRIES[setting.0].2.set(o, number);
+        ENTRIES[setting.0].1.set(o, number);
     }
     Ok(())
+}
+
+/// The number of the variable `key` names (lower case) now, if it has one here.
+pub fn value_of(o: Owners<'static>, key: &str) -> Option<u32> {
+    let (_, target) = ENTRIES.iter().find(|(k, _)| *k == key.as_bytes())?;
+    target.get(o)
+}
+
+/// Sets the variable `key` names to `number`; false when there is no such key.
+pub fn set_value(o: Owners<'static>, key: &str, number: u32) -> bool {
+    match ENTRIES.iter().find(|(k, _)| *k == key.as_bytes()) {
+        Some((_, target)) => {
+            target.set(o, number);
+            true
+        }
+        None => false,
+    }
 }
 
 pub fn read_settings(o: Owners<'static>) -> Result<(), BadInput> {
@@ -420,103 +391,29 @@ mod tests {
 
     /// Where each setting's variable is: its store (a registry name) and the field in it, by
     /// path. The game's table holds the variables' addresses; these are the places of them.
-    const PLACES: [(&str, &str, &str); 75] = [
+    const PLACES: [(&str, &str, &str); 31] = [
         (
             "notaskswitch",
             "owners.system.window_loop",
             ".no_task_switch",
         ),
-        ("noprichange", "owners.system.window_loop", ".keep_priority"),
-        ("ignoremmx", "owners.system.machine", ".ignore_mmx"),
-        ("ignorekatmai", "owners.system.machine", ".ignore_katmai"),
-        ("ignoreamdk3d", "owners.system.machine", ".ignore_3dnow"),
-        ("noaudio", "owners.audio.state", ".no_audio"),
-        ("nosound", "owners.audio.state", ".no_audio"),
-        ("nocdaudio", "owners.sound.menu.cd_audio", ".no_cd_audio"),
-        ("nomusic", "owners.audio.state", ".no_music"),
-        ("audiobasefreq", "owners.audio.state", ".mix_rate_setting"),
-        ("ignoreds3d", "owners.audio.state", ".no_listener"),
-        ("ignoredsv", "owners.audio.state", ".ignore_dsv_setting"),
-        ("ignoreeax", "owners.audio.state", ".ignore_eax_setting"),
-        ("ignorea3d", "owners.audio.state", ".no_a3d_setting"),
-        ("wavheapsize", "owners.audio.state", ".sample_buffer_kb"),
-        ("bundleheapsize", "owners.gfx.fonts.glyph_tables", ".units"),
-        (
-            "imageheapsize",
-            "owners.strings.lexicon.memory",
-            ".kilobytes",
-        ),
-        (
-            "gamegfxheapsize",
-            "owners.gfx.fonts.game_fonts_memory",
-            ".units",
-        ),
-        ("forcedx5", "owners.gfx.d3d.cards", ".force_dx5"),
-        ("forceno3dcard", "owners.gfx.d3d.cards", ".no_search"),
-        ("ignoreprimary", "owners.gfx.d3d.cards", ".not_primary"),
-        (
-            "ignoresecondary",
-            "owners.gfx.d3d.cards",
-            ".ignore_secondary",
-        ),
-        ("agpmode", "owners.gfx.d3d.cards", ".agp_mode"),
-        ("force3dtrans", "owners.gfx.d3d.cards", ".force_trans"),
-        ("force3dalpha", "owners.gfx.d3d.cards", ".force_alpha"),
-        ("force3dshadow", "owners.gfx.d3d.cards", ".force_shadow"),
-        ("force3dfogging", "owners.gfx.d3d.cards", ".force_fogging"),
+        ("imageheapsize", "owners.strings.lexicon.kilobytes", ""),
         ("textflashmode", "owners.strings.text.blend_mode", ""),
-        ("videomodemain", "owners.gfx.display.mode", ".menu_mode"),
-        ("videomodegame", "owners.gfx.display.mode", ".race_mode"),
-        (
-            "v3driverfix",
-            "owners.scene.drawing.scene",
-            ".v3_driver_fix",
-        ),
         ("nopngdecode", "owners.gfx.png.setting", ""),
-        ("nojoy", "owners.input.devices", ".no_joysticks"),
-        ("joymode", "owners.input.devices", ".joy_mode"),
-        ("joycode", "owners.input.devices", ".joy_code"),
-        ("joylowerdz", "owners.input.devices", ".joy_dead_zone"),
-        ("joyupperdz", "owners.input.devices", ".joy_end_zone"),
-        (
-            "noforcefeedback",
-            "owners.input.devices",
-            ".no_force_feedback",
-        ),
-        ("joyffgain", "owners.input.devices", ".ff_gain"),
-        (
-            "mergejoy",
-            "owners.input.devices",
-            ".two_devices_one_player",
-        ),
-        ("nonetwork", "owners.net.vars", ".receive_done"),
-        ("inetport", "owners.net.main.setup", ".port"),
-        ("screensnapshot", "owners.gfx.shots", ".on"),
-        ("framecounter", "owners.race.frame.counter", ".show"),
+        ("nonetwork", "owners.net.vars.receive_done", ""),
+        ("inetport", "owners.net.main.setup.port", ""),
         (
             "noreplay",
-            "owners.race.shared.replay_file",
-            ".no_replay_switch",
+            "owners.race.shared.replay_file.no_replay_switch",
+            "",
         ),
         (
             "replaykeys",
-            "owners.race.shared.replay_file",
-            ".viewer_editing",
+            "owners.race.shared.replay_file.viewer_editing",
+            "",
         ),
         ("logfile", "logfile.write_line.state.LEVEL", ""),
         ("nofmv", "owners.system.machine", ".no_fmv"),
-        ("key", "owners.race.replay.seal_work", ".key[0]"),
-        (
-            "allsecretcars",
-            "owners.menus.play.cheats",
-            ".all_secret_cars",
-        ),
-        ("secretcar", "owners.menus.play.cheats", ".all_secret_cars"),
-        (
-            "usesavegamekeys",
-            "owners.saves.savegame_preview",
-            ".use_savegame_keys",
-        ),
         (
             "sensiblesaving",
             "owners.menus.screens.state",
@@ -529,8 +426,8 @@ mod tests {
         ),
         (
             "seasoncode",
-            "owners.race.shared.replay_file",
-            ".season_code",
+            "owners.race.shared.replay_file.season_code",
+            "",
         ),
         (
             "noautoneutral",
@@ -538,21 +435,15 @@ mod tests {
             ".no_auto_neutral",
         ),
         (
-            "nonlinearsteering",
-            "owners.input.devices",
-            ".nonlinear_steering",
-        ),
-        (
             "wrreplayenable",
-            "owners.race.replay.viewer_and_kinds",
-            ".viewer_panel.untyped_tail",
+            "owners.race.replay.viewer_panel.untyped_tail",
+            "",
         ),
         (
             "wrreplayrate",
-            "owners.race.replay.viewer_and_kinds",
-            ".viewer_panel.untyped_tail",
+            "owners.race.replay.viewer_panel.untyped_tail",
+            "",
         ),
-        ("alt2axcode", "owners.input.devices", ".alt_axes_code"),
         ("fizpatch", "owners.race.shared.work", ".patches[0]"),
         (
             "patchmaxdrawdistance",
@@ -574,15 +465,44 @@ mod tests {
         ("sparksmode", "owners.menus.screens.event", ".sparks_mode"),
     ];
 
+    /// The settings whose variables are atomic fields of the audio and input threads' shared
+    /// records, which no registry store lists: the table's functions are their only places.
+    const THREAD_SHARED: [&str; 19] = [
+        "noaudio",
+        "nosound",
+        "nomusic",
+        "audiobasefreq",
+        "ignoreds3d",
+        "ignoredsv",
+        "ignoreeax",
+        "ignorea3d",
+        "wavheapsize",
+        "nojoy",
+        "joymode",
+        "joycode",
+        "joylowerdz",
+        "joyupperdz",
+        "noforcefeedback",
+        "joyffgain",
+        "mergejoy",
+        "nonlinearsteering",
+        "alt2axcode",
+    ];
+
     #[test]
     fn targets_are_the_variables_the_games_table_names() {
-        for (key, _, target) in ENTRIES {
+        for (key, target) in ENTRIES {
             let name = String::from_utf8_lossy(key);
             let cell: *const () = match target {
                 Target::Dword(cell) => std::ptr::from_ref(cell(Owners::the())).cast(),
+                // Plain fields have no cell; the tests below check them by writing.
+                Target::Plain { .. } => continue,
                 // Their cells are bytes of a tail: checked by writing, in the test below.
                 Target::Unaligned(_) | Target::Ignored => continue,
             };
+            if THREAD_SHARED.contains(&&*name) {
+                continue;
+            }
             let (_, store, path) = PLACES
                 .iter()
                 .find(|(k, _, _)| k.as_bytes() == key)
@@ -598,7 +518,7 @@ mod tests {
     fn unaligned_targets_write_their_bytes() {
         use crate::test_support::state::{Snapshot, walk};
         let _lock = crate::test_support::test_lock();
-        for (key, _, target) in ENTRIES {
+        for (key, target) in ENTRIES {
             if !matches!(target, Target::Unaligned(_)) {
                 continue;
             }
@@ -635,11 +555,11 @@ mod tests {
     #[test]
     fn table_matches_the_keys() {
         use rc2k_core::files::settings::Kind;
-        for (n, (key, _, target)) in ENTRIES.iter().enumerate() {
+        for (n, (key, target)) in ENTRIES.iter().enumerate() {
             let setting = rc2k_core::files::settings::Setting(n);
             assert_eq!(setting.name(), *key);
             let kind = match target {
-                Target::Dword(_) => Kind::Dword,
+                Target::Dword(_) | Target::Plain { .. } => Kind::Dword,
                 Target::Unaligned(_) => Kind::Unaligned,
                 Target::Ignored => Kind::Dword,
             };
@@ -649,13 +569,7 @@ mod tests {
 
     /// The variables of every setting that is a whole dword, as they are now.
     fn dword_values(o: Owners<'static>) -> Vec<Option<u32>> {
-        ENTRIES
-            .iter()
-            .map(|(_, _, target)| match target {
-                Target::Dword(cell) => Some(cell(o).get()),
-                Target::Unaligned(_) | Target::Ignored => None,
-            })
-            .collect()
+        ENTRIES.iter().map(|(_, target)| target.get(o)).collect()
     }
 
     /// The two unaligned settings' variables, as they are now.
@@ -674,7 +588,7 @@ mod tests {
         let start = dword_values(o);
         let start_unaligned = unaligned_values(o);
         for form in ["{}={}\r\n", "{} {}\r\n"] {
-            for (n, (key, _, target)) in ENTRIES.iter().enumerate() {
+            for (n, (key, target)) in ENTRIES.iter().enumerate() {
                 let number = 0x0100_0000 + n as u32 * 0x101;
                 let name = String::from_utf8_lossy(key).into_owned();
                 let text = form
@@ -686,7 +600,7 @@ mod tests {
                 let now = dword_values(o);
                 let now_unaligned = unaligned_values(o);
                 let mut changed: Vec<String> = Vec::new();
-                for (m, (other, _, _)) in ENTRIES.iter().enumerate() {
+                for (m, (other, _)) in ENTRIES.iter().enumerate() {
                     if now[m] != start[m] {
                         assert_eq!(
                             now[m],
@@ -698,7 +612,7 @@ mod tests {
                     }
                 }
                 match target {
-                    Target::Dword(_) => {
+                    Target::Dword(_) | Target::Plain { .. } => {
                         // A key whose number equals the variable's start value changes nothing.
                         assert!(changed.contains(&name), "{name} did not reach its variable");
                         assert_eq!(now_unaligned, start_unaligned, "{name}");
@@ -725,9 +639,9 @@ mod tests {
                     shares.iter().all(|k| allowed.contains(&k.as_str())),
                     "{name} also moved {shares:?}"
                 );
-                for (m, (_, _, other)) in ENTRIES.iter().enumerate() {
-                    if let (Target::Dword(cell), Some(value)) = (other, start[m]) {
-                        cell(o).set(value);
+                for (m, (_, other)) in ENTRIES.iter().enumerate() {
+                    if let Some(value) = start[m] {
+                        other.set(o, value);
                     }
                 }
                 let [keys, rate] = start_unaligned;
@@ -747,13 +661,13 @@ mod tests {
         let o = Owners::the();
         let start = dword_values(o);
         let start_unaligned = unaligned_values(o);
-        super::apply_settings(o, b"ignoremmx=7\r\nignorekatmai\r\nsparksmode 3\r\n\0").unwrap();
+        super::apply_settings(o, b"nomusic=7\r\nforcedx5\r\nsparksmode 3\r\n\0").unwrap();
         let now = dword_values(o);
-        let find = |key: &[u8]| ENTRIES.iter().position(|(k, _, _)| *k == key).unwrap();
-        assert_eq!(now[find(b"ignoremmx")], Some(7));
-        assert_eq!(now[find(b"ignorekatmai")], Some(0));
+        let find = |key: &[u8]| ENTRIES.iter().position(|(k, _)| *k == key).unwrap();
+        assert_eq!(now[find(b"nomusic")], Some(7));
+        assert_eq!(now[find(b"forcedx5")], Some(0));
         assert_eq!(now[find(b"sparksmode")], Some(3));
-        let untouched = [b"notaskswitch".as_slice(), b"noprichange", b"ignoreamdk3d"];
+        let untouched = [b"notaskswitch".as_slice(), b"noaudio", b"agpmode"];
         for key in untouched {
             assert_eq!(
                 now[find(key)],
@@ -762,9 +676,9 @@ mod tests {
                 String::from_utf8_lossy(key)
             );
         }
-        for (m, (_, _, target)) in ENTRIES.iter().enumerate() {
-            if let (Target::Dword(cell), Some(value)) = (target, start[m]) {
-                cell(o).set(value);
+        for (m, (_, target)) in ENTRIES.iter().enumerate() {
+            if let Some(value) = start[m] {
+                target.set(o, value);
             }
         }
         assert_eq!(dword_values(o), start);

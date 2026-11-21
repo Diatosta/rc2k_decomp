@@ -8,42 +8,43 @@ use rc2k_core::menu::leaving::{Leaving, Question};
 
 pub fn leaving(menus: &Menus) -> Leaving {
     let screens = &menus.screens;
-    let flags = &screens.loop_flags;
+    let flags = screens.loop_flags.read();
     Leaving {
-        event_left: flags.event_left.is_set(),
-        leave_screen: flags.leave_screen.is_set(),
-        left_with_carry: flags.left_with_carry.is_set(),
-        ask_leave: flags.ask_leave.is_set(),
-        result: screens.draw_work.leave_result.get(),
+        event_left: flags.event_left,
+        leave_screen: flags.leave_screen,
+        left_with_carry: flags.left_with_carry,
+        ask_leave: flags.ask_leave,
+        result: screens.draw_work.read().leave_result,
     }
 }
 
-pub fn put_leaving(menus: &Menus, l: &Leaving) {
+fn put_leaving(menus: &Menus, l: &Leaving) {
     let screens = &menus.screens;
-    let flags = &screens.loop_flags;
-    flags.event_left.set(l.event_left);
-    flags.leave_screen.set(l.leave_screen);
-    flags.left_with_carry.set(l.left_with_carry);
-    flags.ask_leave.set(l.ask_leave);
-    screens.draw_work.leave_result.set(l.result);
+    let mut flags = screens.loop_flags.write();
+    flags.event_left = l.event_left;
+    flags.leave_screen = l.leave_screen;
+    flags.left_with_carry = l.left_with_carry;
+    flags.ask_leave = l.ask_leave;
+    drop(flags);
+    screens.draw_work.write().leave_result = l.result;
 }
 
 pub fn question(flow: &ScreenFlow, pages: &MenuPages, captions: &CaptionTables) -> Question {
     Question {
-        asking: flow.asking.is_set(),
-        answer: pages.yes_no_answer.get(),
-        answered: captions.left_by_key.is_set(),
+        asking: flow.read().asking,
+        answer: pages.read().yes_no_answer,
+        answered: captions.read().left_by_key,
     }
 }
 
-pub fn put_question(flow: &ScreenFlow, pages: &MenuPages, captions: &CaptionTables, q: &Question) {
-    flow.asking.set(q.asking);
-    pages.yes_no_answer.set(q.answer);
-    captions.left_by_key.set(q.answered);
+fn put_question(flow: &ScreenFlow, pages: &MenuPages, captions: &CaptionTables, q: &Question) {
+    flow.write().asking = q.asking;
+    pages.write().yes_no_answer = q.answer;
+    captions.write().left_by_key = q.answered;
 }
 
 /// The switches changed by `f`.
-pub fn with_leaving<R>(menus: &Menus, f: impl FnOnce(&mut Leaving) -> R) -> R {
+pub(super) fn with_leaving<R>(menus: &Menus, f: impl FnOnce(&mut Leaving) -> R) -> R {
     let mut l = leaving(menus);
     let r = f(&mut l);
     put_leaving(menus, &l);
@@ -51,7 +52,10 @@ pub fn with_leaving<R>(menus: &Menus, f: impl FnOnce(&mut Leaving) -> R) -> R {
 }
 
 /// The question and the switches changed by `f`.
-pub fn with_question<R>(menus: &Menus, f: impl FnOnce(&mut Question, &mut Leaving) -> R) -> R {
+pub(super) fn with_question<R>(
+    menus: &Menus,
+    f: impl FnOnce(&mut Question, &mut Leaving) -> R,
+) -> R {
     let tables = &menus.tables;
     let (mut q, mut l) = (
         question(&menus.screens.flow, &tables.pages, &tables.captions),

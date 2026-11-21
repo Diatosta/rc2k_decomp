@@ -1,7 +1,7 @@
 //! A folder and everything under it added to the tables, breadth first (the folders table is the
-//! queue): a sub-folder (not `.` / `..`) is appended behind its parent, a file to the files
-//! table. The skip mask is 0 for the walk and put back at the end. Overflow of either table is
-//! fatal error 0x80AF2201 or 0x80AF2202. Called by `install::run_script` (opcode 4).
+//! queue): a sub-folder (not `.` / `..`) is appended behind its parent, a file to the files table.
+//! The skip mask is 0 for the walk and put back at the end. Overflow of either table is fatal error
+//! 0x80AF2201 or 0x80AF2202. The script's opcode 4.
 
 use crate::errors::Refused;
 use crate::install::installer::{
@@ -38,10 +38,7 @@ fn found_path(search: &[u8]) -> Result<Vec<u8>, Refused> {
     found_name(search, &find_name())
 }
 
-fn walk(
-    install: &'static crate::install::owner::Install,
-    folder: crate::memory::place::BytePlace,
-) -> Result<(), Refused> {
+fn walk(install: &'static crate::install::owner::Install, folder: &[u8]) -> Result<(), Refused> {
     let mut folder = resolve_path(folder)?;
     if !folder.is_empty() {
         let (used, scan) = install
@@ -126,11 +123,10 @@ fn walk(
 
 /// `folder` and every folder under it added to the folders' table, their files to
 /// the files'.
-pub fn list_folder_tree(
+pub(super) fn list_folder_tree(
     install: &'static crate::install::owner::Install,
-    folder: impl Into<crate::memory::place::BytePlace>,
+    folder: &[u8],
 ) -> Result<(), Refused> {
-    let folder = folder.into();
     walk(install, folder)
 }
 
@@ -158,9 +154,7 @@ mod tests {
             std::fs::write(dir.join(f), b"x").unwrap();
         }
         let root = crate::files::ansi_bytes(&dir.to_string_lossy());
-        let mut path = root.clone();
-        path.push(0);
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         let list = &memory;
         crate::test_support::own::install()
             .folders
@@ -179,12 +173,7 @@ mod tests {
         ] {
             d.set(0);
         }
-        let path_buffer: &'static crate::memory::session::Bytes<1024> =
-            Box::leak(Box::new(crate::memory::session::Bytes::new([0; 1024])));
-        for (n, &b) in path.iter().enumerate() {
-            path_buffer.set(n, b);
-        }
-        super::list_folder_tree(crate::test_support::own::install(), path_buffer).unwrap();
+        super::list_folder_tree(crate::test_support::own::install(), &root).unwrap();
         let joined = |parts: &[&str]| {
             let mut p = root.clone();
             for part in parts {

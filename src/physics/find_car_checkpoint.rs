@@ -4,7 +4,7 @@
 //! `nearest_checkpoint_distance`; above 0xA0000 (unsigned) `race::nearest_checkpoint` runs over
 //! all of them, otherwise the nearest of the three is the result.
 //!
-//! Caller: `physics::track_checkpoints`. Refuses what the two calls refuse.
+//! Refuses what the two calls refuse.
 
 use crate::errors::Refused;
 use crate::math::x87::{ext_div2, int_80};
@@ -17,27 +17,23 @@ use rc2k_core::physics::progress;
 /// (`race::nearest_checkpoint_in`), or, when that is too far, of them all
 /// (`race::nearest_checkpoint`).
 // Core: `rc2k_core::physics::progress::{near_window, search_all}`.
-pub fn find_car_checkpoint(
+pub(super) fn find_car_checkpoint(
     physics: &Physics,
     course: &Course,
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
 ) -> Result<u32, Refused> {
-    physics
-        .ground()
-        .ground_x
-        .set(shared.car().position[0].get());
-    physics
-        .ground()
-        .ground_z
-        .set(shared.car().position[2].get());
+    {
+        let mut search = physics.ground_search().borrow_mut();
+        search.x = shared.car().position.bits_at(0);
+        search.z = shared.car().position.bits_at(2);
+    }
     if shared.vars.get().checkpoint_count.get() == 0 {
         return Ok(0);
     }
     let (from, to) = progress::near_window(shared.car().checkpoint.get());
     let near =
         crate::race::start_place::nearest_checkpoint_in(physics, course, shared, from, to, scene)?;
-    scene.drawing.scene.get().scratch.set(near.distance);
     // The nearest checkpoint's distance.
     shared
         .physics_tables
@@ -45,7 +41,7 @@ pub fn find_car_checkpoint(
         .nearest_checkpoint_distance
         .set(ext_div2(
             int_80(near.distance as i32, false),
-            &course.numbers.get().k65536,
+            course.numbers.k65536,
             0x3F80_0000,
         ));
     if progress::search_all(near.distance) {

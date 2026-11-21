@@ -31,6 +31,8 @@ pub enum Var {
     /// The race's two results (-1 none, -2 left).
     RaceResult,
     RaceResult2,
+    /// Player k's race result, for k 2 and 3 (the split screen's third and fourth players).
+    RaceResultOf(u32),
     /// 1 picks the single rally's first car list.
     CarListKind,
     /// The cheat bits.
@@ -38,9 +40,9 @@ pub enum Var {
     /// The two-, three- and four-player events' cleared figure k: 0 .. 3 the players' totals before
     /// the stage, 4 .. 7 their totals.
     Cleared(u32),
-    /// Player n's time (+0x88).
+    /// Player n's time.
     PlayerTime(u32),
-    /// Player n's `entry` field (+0xD0).
+    /// Player n's `entry` field.
     PlayerEntry(u32),
     /// 1 when a saved game goes on.
     Continuing,

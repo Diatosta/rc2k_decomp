@@ -8,7 +8,7 @@ use crate::Invalid;
 
 /// The highest start number worked out (`RaceTables.start_slot` indexes
 /// `RaceTables.arcade_car_numbers[0]`).
-pub const LAST_START: u32 = 0x400;
+pub(crate) const LAST_START: u32 = 0x400;
 
 /// Refused: a start number above `LAST_START`.
 pub fn check_start(n: u32) -> Result<(), Invalid> {

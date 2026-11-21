@@ -15,13 +15,13 @@ pub fn car_page_title(
     menus: &Menus,
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), Refused> {
-    let page: u32 = menus.screens.event.shown.car_page.get();
+    let page: u32 = menus.screens.event.read().shown.car_page;
     if page >= PAGES {
         return Err(BadInput("a page past the four").into());
     }
     put_string(
         so,
-        menus.lists.car_page_titles[page as usize].get(),
+        menus.lists.read().car_page_titles[page as usize],
         &text.title,
         TITLE_LEN,
     )

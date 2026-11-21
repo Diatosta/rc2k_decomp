@@ -1,33 +1,52 @@
 //! The PNG header's fields: `decode_png` writes them from the file's header chunk and, without one
 //! in the file, reads what the last file left.
 
-use crate::memory::session::{PlainByte, PlainBytes, PlainDword};
+use std::cell::Cell;
 
 /// The header of the PNG being decoded.
-#[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells)]
 pub struct PngHeader {
     /// The picture's width.
-    pub width: PlainDword,
+    pub width: Cell<u32>,
     /// The picture's height.
-    pub height: PlainDword,
+    pub height: Cell<u32>,
     /// The header's byte after the colour type (the compression method).
-    pub compression: PlainByte,
-    /// Pads the byte to the next dword (Rust's alignment).
-    pub _pad_align: PlainBytes<3>,
+    pub compression: Cell<u8>,
     /// The colour type.
-    pub colour_type: PlainDword,
+    pub colour_type: Cell<u32>,
 }
 
 impl PngHeader {
     /// The header.
     pub const fn new() -> Self {
         PngHeader {
-            width: PlainDword::new(0),
-            height: PlainDword::new(0),
-            compression: PlainByte::new(0),
-            _pad_align: PlainBytes::new([0; 3]),
-            colour_type: PlainDword::new(0),
+            width: Cell::new(0),
+            height: Cell::new(0),
+            compression: Cell::new(0),
+            colour_type: Cell::new(0),
         }
+    }
+}
+
+#[cfg(test)]
+impl PngHeader {
+    /// Every value of the record, in field order: what a test keeps to put back.
+    pub fn values(&self) -> Vec<u32> {
+        let out = vec![
+            self.width.get(),
+            self.height.get(),
+            self.colour_type.get(),
+            u32::from(self.compression.get()),
+        ];
+        out
+    }
+
+    /// The values `values` returned put back.
+    pub fn set_values(&self, values: &[u32]) {
+        let mut values = values.iter().copied();
+        let mut next = || values.next().expect("a value kept for every field");
+        self.width.set(next());
+        self.height.set(next());
+        self.colour_type.set(next());
+        self.compression.set(next() as u8);
     }
 }

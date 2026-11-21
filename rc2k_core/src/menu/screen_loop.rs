@@ -108,8 +108,8 @@ pub struct Shape {
     /// The Escape flag is looked at at the top of every frame, and leaves the screen.
     pub escape_leaves: bool,
     pub action_check: ActionCheck,
-    /// The quit switch is not looked at; the menu sound is cleared once a frame instead.
-    pub no_quit_check: bool,
+    /// The menu sound is cleared once a frame, before the frame.
+    pub clears_menu_sound: bool,
     /// "Next frame" goes to the `AfterFirstFrame` steps, not past them.
     pub next_frame_repeats_first: bool,
     /// Some if leaving is asked about.
@@ -122,7 +122,7 @@ impl Shape {
         late_highlight: false,
         escape_leaves: false,
         action_check: ActionCheck::Standard,
-        no_quit_check: false,
+        clears_menu_sound: false,
         next_frame_repeats_first: false,
         asking: None,
     };
@@ -391,13 +391,13 @@ impl<H: ScreenHost> Loop<'_, H> {
             self.why = ScreenExit::EscapeFlag;
             return Ok(Next::Leave);
         }
-        if !self.shape.no_quit_check && self.host.quitting() {
+        if self.host.quitting() {
             self.host.leave_on_close();
         }
         if self.host.debug_serve()? {
             return Ok(Next::SetUp);
         }
-        if self.shape.no_quit_check {
+        if self.shape.clears_menu_sound {
             self.host.clear_menu_sound();
         }
         self.host.run(Place::BeforeFrame)?;

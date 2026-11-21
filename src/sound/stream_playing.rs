@@ -1,7 +1,5 @@
 //! `sound::stream_playing`: whether the music stream's playing flag (`AudioShared.sound_stream`) is
 //! 1 (first result) or below 1 (second result).
-//!
-//! Called by `menu::championship_welcome` and one more; `sound::step_car_stream` has it inlined.
 
 use crate::audio::owner::Audio;
 

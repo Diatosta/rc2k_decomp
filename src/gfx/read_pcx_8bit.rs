@@ -17,11 +17,11 @@ use crate::files::read_stream_byte::{ByteRead, read_stream_byte};
 use crate::files::stream::Stream;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
 use crate::gfx::pcx::{FILE_PALETTE_LEN, on_stream, read_stream_header};
-use crate::gfx::picture::{put_or_end, with_buffer};
+use crate::gfx::picture::{put, with_buffer};
 
 /// The file's palette read with a seek and a plain read on the stream's handle, and the handle back
 /// at the start: whether it worked.
-pub fn read_file_palette(stream: &Stream, gfx: &crate::gfx::owner::Gfx) -> bool {
+pub(super) fn read_file_palette(stream: &Stream, gfx: &crate::gfx::owner::Gfx) -> bool {
     let file = stream.file;
     seek(file, -(FILE_PALETTE_LEN as i32), 2).is_some()
         && read_palette(file, &gfx.pictures.pcx.file_palette)
@@ -30,7 +30,10 @@ pub fn read_file_palette(stream: &Stream, gfx: &crate::gfx::owner::Gfx) -> bool 
 
 /// The palette's bytes read from `file` into `palette` (those the file has): whether the read
 /// worked.
-fn read_palette(file: u32, palette: &crate::memory::session::PlainBytes<FILE_PALETTE_LEN>) -> bool {
+fn read_palette(
+    file: u32,
+    palette: &crate::memory::plain_buffer::PlainBuffer<FILE_PALETTE_LEN>,
+) -> bool {
     let mut bytes = [0u8; FILE_PALETTE_LEN];
     let (got, ok) = read_slice(file, &mut bytes);
     for (k, &b) in bytes[..got as usize].iter().enumerate() {
@@ -48,18 +51,28 @@ fn read_rows(stream: &mut Stream, gfx: &crate::gfx::owner::Gfx) -> Result<bool, 
     pictures.picture.flags.set(0x800u32);
     let layout = lay_out_pcx(gfx)?;
     let palette: [u32; 256] = pictures.decoder.palette();
+    // A pixel past the buffer (a header that claims more than the buffer holds) is skipped and
+    // refused after the decode: the file is damaged.
+    let past = std::cell::Cell::new(false);
     with_buffer(&pictures.buffers, pictures.decoder.pixels.get(), |pixels| {
         rc2k_core::gfx::pcx::decode_8bit(
             &layout,
             &palette,
             || read_stream_byte(stream).map(ByteRead::value),
-            |to, pixel| put_or_end(pixels, to as usize, &pixel.to_le_bytes()),
+            |to, pixel| {
+                if !put(pixels, to as usize, &pixel.to_le_bytes()) {
+                    past.set(true);
+                }
+            },
         )
     })??
     .ok_or(BadInput("a PCX picture without rows"))?;
+    if past.get() {
+        return Err(BadInput("a decoded pixel past the picture buffer"));
+    }
     Ok(true)
 }
 
-pub fn read_pcx_8bit(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<bool, BadInput> {
+pub(super) fn read_pcx_8bit(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<bool, BadInput> {
     on_stream(path, |stream| read_rows(stream, gfx))
 }

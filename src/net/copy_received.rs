@@ -9,8 +9,8 @@ use rc2k_core::net::inbox::{self, Inbox};
 
 /// The blocks' room: 8 players.
 pub const MOST_PLAYERS: u32 = rc2k_core::net::players::MOST;
-pub fn copy_received(net: &Net, inboxes: &mut [Inbox; 8]) -> Result<(), Refused> {
-    let count = || net.race_slot.players();
+pub(super) fn copy_received(net: &Net, inboxes: &mut [Inbox; 8]) -> Result<(), Refused> {
+    let count = || net.race_slot.cars();
     if count() > MOST_PLAYERS {
         return Err(BadInput("more than the blocks' 8 players").into());
     }

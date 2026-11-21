@@ -7,7 +7,7 @@ use crate::audio::own::AudioOwn;
 use crate::errors::Refused;
 use crate::memory::session::PlainDword;
 
-pub fn write_mix_in_game(state: &AudioOwn) -> Result<(), Refused> {
+pub(super) fn write_mix_in_game(state: &AudioOwn) -> Result<(), Refused> {
     let parts = state.locked_parts.each_ref().map(PlainDword::get);
     write_mix(
         state,

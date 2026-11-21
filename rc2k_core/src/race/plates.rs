@@ -7,7 +7,7 @@ pub fn times_changed(now: [u32; 4], kept: [u32; 4]) -> bool {
 }
 
 /// Ids below this are string ids; a name at or above it is a text.
-pub const STRING_IDS: u32 = 0x1_0000;
+pub(crate) const STRING_IDS: u32 = 0x1_0000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NameAsk {

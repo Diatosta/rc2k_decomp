@@ -1,10 +1,10 @@
-//! A force-feedback effect's DirectInput object (`IDirectInputEffect`, an effect's +0x30;
-//! the effects are a device record's six from +0x3C, 0xA4 bytes each), asked by the game's
+//! A force-feedback effect's DirectInput object (`IDirectInputEffect`, an effect's `object`;
+//! the effects are a device record's six), asked by the game's
 //! four small functions, each doing nothing when the effect has no object:
-//! - `input::release_effect`: `Stop`, `Release`, +0x30 0;
+//! - `input::release_effect`: `Stop`, `Release`, `object` 0;
 //! - `input::start_effect`: `Download`, `Start` (one iteration, no flags);
 //! - `input::set_effect_parameters`: `SetParameters` with the effect's
-//!   `DIEFFECT` (+0x34) and the flags;
+//!   `DIEFFECT` (`effect`) and the flags;
 //! - `input::stop_effect`: `Stop`.
 
 use crate::input::di_objects::EffectParameters;
@@ -13,7 +13,7 @@ use crate::input::types::ForceEffect;
 /// What the DirectInput stand-in takes from the effect's `DIEFFECT`. Its pointers
 /// (`directions`, `envelope`, `type_specific`) say whether the part is there; they always
 /// point at the effect's own arrays (`effect_changes`, `make_effect`), so those are read.
-pub fn parameters_of(effect: &ForceEffect) -> EffectParameters {
+pub(super) fn parameters_of(effect: &ForceEffect) -> EffectParameters {
     let d = &effect.effect;
     let specific = d.type_specific_size.get() / 4;
     EffectParameters {
@@ -42,7 +42,7 @@ pub fn parameters_of(effect: &ForceEffect) -> EffectParameters {
 }
 
 /// Gives the effect's DirectInput object back.
-pub fn release_effect(effect: &ForceEffect) {
+pub(super) fn release_effect(effect: &ForceEffect) {
     let object = effect.object.get();
     if object != 0 {
         crate::input::di_objects::stop(object);
@@ -52,7 +52,7 @@ pub fn release_effect(effect: &ForceEffect) {
 }
 
 /// Downloads and starts the effect.
-pub fn start_effect(effect: &ForceEffect) {
+pub(super) fn start_effect(effect: &ForceEffect) {
     let object = effect.object.get();
     if object != 0 {
         crate::input::di_objects::download(object);
@@ -61,7 +61,7 @@ pub fn start_effect(effect: &ForceEffect) {
 }
 
 /// Sets the effect's parameters with `flags`.
-pub fn set_effect_parameters(effect: &ForceEffect, flags: u32) {
+pub(super) fn set_effect_parameters(effect: &ForceEffect, flags: u32) {
     let object = effect.object.get();
     if object != 0 {
         crate::input::di_objects::set_parameters(object, &parameters_of(effect), flags);

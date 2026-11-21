@@ -72,6 +72,11 @@ impl State {
             .with(State::READY)
     }
 
+    /// The state after the lobby's "ready" is pressed again: ready off.
+    pub fn made_not_ready(self) -> State {
+        self.without(State::READY)
+    }
+
     /// The state once its race is done: waiting and ready off, raced on.
     pub fn raced(self) -> State {
         self.without(State::READY.with(State::WAITING))
@@ -171,6 +176,15 @@ pub fn none_racing(count: u32, state_of: impl Fn(u32) -> State) -> bool {
         .all(|state| state.has(State::LEFT_OUT) || !state.has(State::WAITING))
 }
 
+/// How far through its stage a car is, in percent: its checkpoint of the stage's `count`
+/// (held to 100; none counted is 0).
+pub fn stage_share(checkpoint: u32, count: u32) -> u8 {
+    if count == 0 {
+        return 0;
+    }
+    (u64::from(checkpoint) * 100 / u64::from(count)).min(100) as u8
+}
+
 /// DirectPlay's system messages the game handles, by their first dword.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum System {
@@ -230,6 +244,17 @@ mod tests {
     }
 
     #[test]
+    fn a_stage_share_is_the_checkpoint_over_the_count() {
+        assert_eq!(stage_share(0, 0), 0);
+        assert_eq!(stage_share(0, 400), 0);
+        assert_eq!(stage_share(100, 400), 25);
+        assert_eq!(stage_share(399, 400), 99);
+        assert_eq!(stage_share(400, 400), 100);
+        assert_eq!(stage_share(900, 400), 100);
+        assert_eq!(stage_share(u32::MAX, 3), 100);
+    }
+
+    #[test]
     fn order() {
         let s = |total, time, id| Standing { total, time, id };
         assert!(goes_after(s(0, NO_TIME, 0), s(9, 5, 9)));
@@ -260,6 +285,7 @@ mod tests {
         assert_eq!(s(0x03).made_host(), s(0x12));
         assert_eq!(s(0x16).made_ready(), s(0x11));
         assert_eq!(s(0).made_ready(), State::READY);
+        assert_eq!(s(0).made_ready().made_not_ready(), s(0));
         assert!(s(0x11).is_host() && s(0x11).is_ready() && !s(0x10).is_ready());
         let states = [2u8, 0x82, 6];
         assert_eq!(

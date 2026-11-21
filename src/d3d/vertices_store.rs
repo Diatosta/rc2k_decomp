@@ -1,35 +1,63 @@
 //! The polygon vertex buffer: 64 transformed and lit vertices (`Vertex`, 0x20 bytes), one
-//! buffer for each drawing part (`scene::workers::PartScratch::vertices`). The polygon about to be
+//! buffer for each drawing part (`scene::scratch_store::PartScratch::vertices`). The polygon about to be
 //! drawn stands in its first vertices (`polygon_vertex_count` says how many).
 
 use crate::memory::session::{CellKind, PlainCells};
 
 /// One vertex: a Direct3D transformed and lit vertex.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct Vertex<K: CellKind = PlainCells> {
-    /// +0x0: the screen x.
+    /// The screen x.
     pub x: K::Float,
-    /// +0x4: the screen y.
+    /// The screen y.
     pub y: K::Float,
-    /// +0x8: the depth.
+    /// The depth.
     pub z: K::Float,
-    /// +0xC: the reciprocal of the homogeneous w.
+    /// The reciprocal of the homogeneous w.
     pub rhw: K::Float,
-    /// +0x10: the colour (ARGB).
+    /// The colour (ARGB).
     pub colour: K::Dword,
-    /// +0x14: the specular colour (its top byte the fog).
+    /// The specular colour (its top byte the fog).
     pub specular: K::Dword,
-    /// +0x18: the texture u.
+    /// The texture u.
     pub u: K::Float,
-    /// +0x1C: the texture v.
+    /// The texture v.
     pub v: K::Float,
 }
 
-/// The vertices of the polygon being drawn: a drawing part's own (`scene::workers::PartScratch`), on
+impl Vertex {
+    /// The vertex's eight 32-bit words, in the order Direct3D takes them (x, y, z, rhw, colour,
+    /// specular, u, v).
+    pub fn words(&self) -> crate::d3d::Vertex {
+        [
+            self.x.bits(),
+            self.y.bits(),
+            self.z.bits(),
+            self.rhw.bits(),
+            self.colour.get(),
+            self.specular.get(),
+            self.u.bits(),
+            self.v.bits(),
+        ]
+    }
+
+    /// A vertex of zeros.
+    pub const fn new() -> Self {
+        use crate::memory::session::{PlainDword, PlainFloat};
+        Self {
+            x: PlainFloat::new(0.0),
+            y: PlainFloat::new(0.0),
+            z: PlainFloat::new(0.0),
+            rhw: PlainFloat::new(0.0),
+            colour: PlainDword::new(0),
+            specular: PlainDword::new(0),
+            u: PlainFloat::new(0.0),
+            v: PlainFloat::new(0.0),
+        }
+    }
+}
+
+/// The vertices of the polygon being drawn: a drawing part's own (`scene::scratch_store::PartScratch`), on
 /// plain cells, reached by the one thread that draws the part.
-#[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells)]
 pub struct PolygonVertices {
     /// The 64 vertices (`d3d::draw_fan_unclipped`, `scene::draw_polygon`, `effects::`, `hud::`,
     /// `drive::tyre_parts`).
@@ -39,7 +67,9 @@ pub struct PolygonVertices {
 impl PolygonVertices {
     /// The buffer, zeroed as in the image.
     pub const fn new() -> Self {
-        crate::memory::cells::zeroed_cells()
+        Self {
+            vertices: [const { Vertex::new() }; 64],
+        }
     }
 }
 

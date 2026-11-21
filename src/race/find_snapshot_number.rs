@@ -1,9 +1,8 @@
-//! Finds the highest number of the viewer's pictures (`savedata\snapshot\000.pcx`): the name's
+//! Finds the highest number of the viewer's pictures (`savedata\snapshot\000.png`): the name's
 //! digits are made `???` and searched for (`files::find_first`, `files::find_next_wanted`,
 //! `files::close_search`, the path not resolved, `last_file_path` the pattern); of each name found
 //! whose first three characters are digits the number is taken, and the highest (0 for none) is
-//! written back over the `???`. `race::viewer_snapshot` counts on from it. Called by
-//! `race::replay_viewer`.
+//! written back over the `???`. `race::viewer_snapshot` counts on from it.
 
 use crate::errors::BadInput;
 use crate::files::search::DIRECTORY;
@@ -33,7 +32,8 @@ pub fn find_snapshot_number(replay: &Replay) -> Result<(), BadInput> {
         .write_at(DIGITS_AT, b"???.", "the snapshot name")?;
     let mut highest = 0u32;
     // The pattern: the snapshot name's text, read where it is named.
-    let found = match crate::files::cstring(replay.snapshot(), "a search pattern") {
+    let found = match crate::memory::session::TextPlace::text(replay.snapshot(), "a search pattern")
+    {
         Ok(pattern) => find_first(&pattern, DIRECTORY),
         Err(_) => {
             set_last_file_path(None);

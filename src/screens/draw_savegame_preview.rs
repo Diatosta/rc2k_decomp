@@ -25,9 +25,9 @@ pub fn draw_savegame_preview(
     // The logic is in `rc2k_core::screens::savegame_preview::preview` (the slot); the panels
     // are converted in their own functions.
     use rc2k_core::screens::savegame_preview::{NO_SLOT, Preview, preview};
-    let page = menus.tables.pages.save_page.get();
+    let page = menus.tables.pages.read().save_page;
     match preview(
-        menus.screens.loop_flags.item.get(),
+        menus.screens.loop_flags.read().item,
         page,
         savegame_preview.shown_slot.get(),
     ) {

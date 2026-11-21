@@ -3,7 +3,7 @@
 
 use crate::errors::Refused;
 use crate::net::owner::Net;
-pub fn free_messages(net: &Net) -> Result<(), Refused> {
+pub(super) fn free_messages(net: &Net) -> Result<(), Refused> {
     { crate::memory::free_list::free_list(net.link.memory()) }?;
     net.link.give_back_tables();
     Ok(())

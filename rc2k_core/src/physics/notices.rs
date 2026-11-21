@@ -9,7 +9,7 @@ pub struct Notice {
     /// The notice's id (0: none).
     pub id: u32,
     /// The notice's counter.
-    pub w6f8: u32,
+    pub counter: u32,
     /// The last notice shown.
     pub last: u32,
     /// Non-zero while a notice is shown.
@@ -17,18 +17,18 @@ pub struct Notice {
     /// Its time, counted down while shown.
     pub time: u32,
     /// A second time (0x32 when taken from the queue).
-    pub w708: u32,
+    pub second_time: u32,
 }
 
 /// The notice raised by `value_notice`.
-pub const VALUE_NOTICE: u32 = 0xCE;
+pub(crate) const VALUE_NOTICE: u32 = 0xCE;
 const VALUE_THRESHOLD: u32 = 300;
 
 impl Notice {
-    /// Notice 0xCE by a figure against 300 (signed difference): at or past it, with none shown
+    /// Notice 0xCE by a figure (signed) against 300: at or past it, with none shown
     /// and 0xCE not the last, it is set with time 0; below it with 0xCE the last, cleared.
     pub fn value_notice(&mut self, figure: u32) {
-        if (figure.wrapping_sub(VALUE_THRESHOLD) as i32) >= 0 {
+        if (figure as i32) >= VALUE_THRESHOLD as i32 {
             if self.shown == 0 && self.last != VALUE_NOTICE {
                 self.id = VALUE_NOTICE;
                 self.time = 0;
@@ -63,7 +63,7 @@ impl Notice {
         }
         let id = queue.ids[0];
         self.id = id;
-        self.w708 = 0x32;
+        self.second_time = 0x32;
         self.time = 0x12C;
         queue.count = queue.count.wrapping_sub(1);
         for list in [&mut queue.ids, &mut queue.values, &mut queue.levels] {
@@ -126,61 +126,4 @@ impl NoticeQueue {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn value_and_count_down() {
-        let mut n = Notice::default();
-        n.value_notice(300);
-        assert_eq!((n.id, n.time), (VALUE_NOTICE, 0));
-        let mut m = Notice {
-            shown: 1,
-            last: VALUE_NOTICE,
-            ..Default::default()
-        };
-        m.value_notice(299);
-        assert_eq!((m.shown, m.last), (0, 0));
-        let mut big = Notice::default();
-        big.value_notice(0x8000_0000);
-        assert_eq!(big.id, VALUE_NOTICE); // the difference's sign wraps
-        let mut c = Notice {
-            shown: 1,
-            time: 2,
-            ..Default::default()
-        };
-        assert_eq!(c.count_down(), Some(2));
-        assert_eq!(c.count_down(), Some(1));
-        assert_eq!((c.shown, c.time), (0, 0));
-        assert_eq!(c.count_down(), None);
-        let mut z = Notice {
-            shown: 1,
-            ..Default::default()
-        };
-        assert_eq!(z.count_down(), Some(0));
-        assert_eq!(z.shown, 1);
-    }
-
-    #[test]
-    fn queue_and_take() {
-        let mut q = NoticeQueue::default();
-        assert_eq!(q.queue(0, 1, 1, 1), Ok(None));
-        assert_eq!(q.queue(4, 0xCF, 1, 7), Ok(Some(0)));
-        assert_eq!(q.queue(4, 0xD0, 3, 7), Ok(Some(0)));
-        assert_eq!((q.ids[0], q.levels[0], q.count), (0xD0, 3, 1));
-        assert_eq!(q.queue(4, 0xD1, 2, 7), Ok(Some(0)));
-        assert_eq!(q.ids[0], 0xD0);
-        assert_eq!(q.queue(4, 0xD2, 0, 7), Ok(Some(1)));
-        let mut n = Notice::default();
-        assert_eq!(n.take(&mut q), Some(0xD0));
-        assert_eq!(
-            (n.id, n.time, n.w708, q.count, q.ids[0]),
-            (0xD0, 0x12C, 0x32, 1, 0xD2)
-        );
-        assert_eq!(n.take(&mut q), None);
-        q.count = QUEUE_ROOM;
-        assert_eq!(q.queue(4, 1, 1, 1), Ok(None));
-        q.count = QUEUE_ROOM + 1;
-        assert!(q.queue(4, 1, 1, 1).is_err());
-    }
-}
+mod tests;

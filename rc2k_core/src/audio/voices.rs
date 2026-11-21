@@ -2,8 +2,8 @@
 //! reached through a `Pool` by handle (the game's addresses), and the playing and stopping lists
 //! linked by `Voice::next`.
 //!
-//! A sound number picks a sample record (0x1CD); a loaded record points at its first voice
-//! (a pool of 0x200); a sound that can sound more than once at a time has more voices,
+//! A sound number picks a sample record (`SAMPLES`); a loaded record points at its first voice
+//! (a pool of `VOICES`); a sound that can sound more than once at a time has more voices,
 //! linked by `next_copy`. A voice that sounds is on the playing list and holds a mixer
 //! channel; a voice put out of use goes to the stopping list for the next turn to stop.
 //! What a command changes in a voice is marked in its `dirty` bits for the turn.
@@ -11,26 +11,54 @@
 use crate::Invalid;
 use crate::audio::commands::{Setting, Start};
 
-pub const SAMPLES: u32 = 0x1CD;
-pub const VOICES: u32 = 0x200;
+pub const BASE_SAMPLES: u32 = 0x1CD;
+/// The engine sounds' records (numbers below this) that the cars after the first two have copies
+/// of, after the base records: a block of copies for each further pair of cars, the copy of sound
+/// `n` in block `b` being `BASE_SAMPLES + b * PLAYER_COPIES + n`.
+pub const PLAYER_COPIES: u32 = 0xD0;
+/// The blocks of copies: for cars 2 and 3, 4 and 5, 6 and 7.
+pub(crate) const COPY_BLOCKS: u32 = 3;
+/// The co-driver's voice records: pairs from here, the first of a pair the first player's voice
+/// and the second the second player's.
+pub const CODRIVER_FIRST: u32 = 0xED;
+/// How many voice records there are (95 phrases, a pair each).
+pub const CODRIVER_RECORDS: u32 = 190;
+/// Where the copies of the voice records start: after the engine sounds' copies. The third and
+/// fourth players of a split screen speak with them.
+pub const CODRIVER_COPIES: u32 = BASE_SAMPLES + COPY_BLOCKS * PLAYER_COPIES;
+/// The sample records: the base ones, then the copies for the cars after the first two (the
+/// engine sounds', then the voices').
+pub const SAMPLES: u32 = CODRIVER_COPIES + CODRIVER_RECORDS;
+
+/// The third and fourth players' copy of voice record `record`, when it is one.
+pub const fn codriver_copy(record: u32) -> Option<u32> {
+    if record >= CODRIVER_FIRST && record < CODRIVER_FIRST + CODRIVER_RECORDS {
+        Some(CODRIVER_COPIES + record - CODRIVER_FIRST)
+    } else {
+        None
+    }
+}
+/// The voice pool: 0x200 voices, and room for the third and fourth players' co-driver's
+/// copies of the voices (a split screen of three or four players uses every voice of the 0x200 up).
+pub const VOICES: u32 = 0x240;
 /// The mixer channels that are cleared (`audio::clear_channels`).
-pub const CHANNELS_CLEARED: u32 = 0x10;
+pub(crate) const CHANNELS_CLEARED: u32 = 0x10;
 
 /// "As the sample record says" in a command.
 pub const DEFAULT: u32 = 0xFFFF_FF91;
 /// "The voice's own frequency".
-pub const OWN_FREQUENCY: u32 = 0xFFFF_FF90;
+pub(crate) const OWN_FREQUENCY: u32 = 0xFFFF_FF90;
 /// "As the sample record says", for a place's float.
-pub const DEFAULT_PLACE: u32 = 0xFF80_0000;
+pub(crate) const DEFAULT_PLACE: u32 = 0xFF80_0000;
 /// The sound mode's bit: places in 3D.
 pub const MODE_3D: u32 = 0x10_0000;
 
-pub const DIRTY_VOLUME: u32 = 1;
-pub const DIRTY_PAN: u32 = 2;
-pub const DIRTY_FREQUENCY: u32 = 4;
-pub const DIRTY_PLACE: u32 = 8;
-pub const DIRTY_PLAY: u32 = 0x10;
-pub const DIRTY_RESTART: u32 = 0x20;
+pub(crate) const DIRTY_VOLUME: u32 = 1;
+pub(crate) const DIRTY_PAN: u32 = 2;
+pub(crate) const DIRTY_FREQUENCY: u32 = 4;
+pub(crate) const DIRTY_PLACE: u32 = 8;
+pub(crate) const DIRTY_PLAY: u32 = 0x10;
+pub(crate) const DIRTY_RESTART: u32 = 0x20;
 /// `Voice::flags`: the voice's sample is loaded.
 pub const LOADED: u32 = 0x10;
 
@@ -119,8 +147,8 @@ pub struct MixerChannel {
     pub step_fraction: u32,
     pub left: i32,
     pub right: i32,
-    /// +0x44 .. +0x58: five dwords nothing reads (cleared when the channel is released).
-    pub unused_44: [u32; 5],
+    /// Five dwords nothing reads (cleared when the channel is released).
+    pub reserved_44: [u32; 5],
 }
 
 const _: () = assert!(std::mem::size_of::<SampleRecord>() == 0x40);
@@ -192,7 +220,7 @@ fn set<P: Pool>(pool: &mut P, lists: &mut Lists, link: Link, value: u32) {
     }
 }
 
-/// The voices of a list from `head`. Refused: no end within 0x200.
+/// The voices of a list from `head`. Refused: no end within `VOICES`.
 pub fn list<P: Pool>(pool: &mut P, head: u32) -> Result<Vec<u32>, Invalid> {
     let mut out = Vec::new();
     let mut at = head;
@@ -232,14 +260,14 @@ pub fn stop_all<P: Pool>(pool: &mut P, lists: &mut Lists) -> Result<(), Invalid>
     Ok(())
 }
 
-/// The first 0x10 channels made free: `used`, `voice` and the five dwords from +0x44 0.
+/// The first 0x10 channels made free: `used`, `voice` and the five unused dwords of each.
 pub fn clear_channels<P: Pool>(pool: &mut P) {
     for n in 0..CHANNELS_CLEARED {
         let at = pool.channel_at(n);
         pool.update_channel(at, |c| {
             c.used = 0;
             c.voice = 0;
-            c.unused_44 = [0; 5];
+            c.reserved_44 = [0; 5];
         });
     }
 }
@@ -266,19 +294,6 @@ pub fn new_voice(count: &mut u32) -> Option<u32> {
     }
     *count += 1;
     Some(*count - 1)
-}
-
-/// The playing voices that were sounding (state 2, the voice's +0x3C) and have a buffer,
-/// in the list's order (`audio::replay_looping` plays each again after a lost buffer).
-/// Refused (before any is played): a list without its end.
-pub fn sounding_to_replay<P: Pool>(pool: &mut P, lists: &Lists) -> Result<Vec<u32>, Invalid> {
-    Ok(list(pool, lists.playing)?
-        .into_iter()
-        .filter(|&at| {
-            let v = pool.voice(at);
-            v.state == 2 && v.buffer != 0
-        })
-        .collect())
 }
 
 /// Where a voice and a command lead.
@@ -360,7 +375,7 @@ fn plan<P: Pool>(pool: &mut P, lists: &Lists, sound: i32, cmd: &Start) -> Result
         return Ok(Plan::Nothing);
     }
     if sound as u32 >= SAMPLES {
-        return Err(Invalid("a sound of 0x1CD or more"));
+        return Err(Invalid("a sound past the sample records"));
     }
     let first = pool.record(sound as u32).first_voice;
     if first == 0 || pool.voice(first).flags & LOADED == 0 {
@@ -462,7 +477,7 @@ pub fn start_voice<P: Pool>(
     if let Some(at) = target
         && pool.voice(at).sound >= SAMPLES
     {
-        return Err(Invalid("a voice whose sound is 0x1CD or more"));
+        return Err(Invalid("a voice whose sound is past the sample records"));
     }
     if let Plan::Stop { voice, .. } = plan
         && pool.voice(voice).channel == 0
@@ -517,14 +532,11 @@ pub enum Step {
     Commit,
 }
 
-/// The EAX room's variables (and the kept one, `AudioOwn::environment_kept`) and the 3D commit
-/// flag.
+/// The EAX room's variables and the 3D commit flag.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Room {
     pub asked: u32,
     pub set: u32,
-    pub environment: u32,
-    pub kept: u32,
     pub commit: u32,
 }
 
@@ -594,7 +606,7 @@ fn apply<P: Pool, E>(
 /// emptied (each voice free, its channel freed); each playing voice's marked settings
 /// carried to its buffer, one not sounding (or to restart) rewound and played; one that
 /// does not loop and has ended goes to the stopping list (a channel fewer); the stopping
-/// list again; then in 3D the EAX room when asked or the environment changed, and the
+/// list again; then in 3D the EAX room when asked, and the
 /// deferred settings committed. Refused (before anything, as `Invalid` through `E`): a
 /// list without its end; a playing voice that does not loop without its channel or
 /// buffer; a marked voice's volume or pan past the volume table; a voice to stop without
@@ -646,15 +658,9 @@ pub fn update_buffers<P: Pool, E: From<Invalid>>(
     }
     stopping_pass(pool, lists, &mut step)?;
     if mode & MODE_3D != 0 {
-        if mode & MODE_EAX != 0 {
-            if room.asked != room.set {
-                room.set = room.asked;
-                room.kept = room.environment;
-                step(Step::Room)?;
-            } else if room.environment != room.kept {
-                room.kept = room.environment;
-                step(Step::Room)?;
-            }
+        if mode & MODE_EAX != 0 && room.asked != room.set {
+            room.set = room.asked;
+            step(Step::Room)?;
         }
         if room.commit == 1 {
             step(Step::Commit)?;
@@ -895,7 +901,7 @@ mod tests {
             (lists.playing, lists.stopping, lists.channels_used),
             (0, v(3), 0)
         );
-        assert!(start_voice(&mut t, &mut lists, 0, 0x1CD, &cmd(5)).is_err());
+        assert!(start_voice(&mut t, &mut lists, 0, SAMPLES as i32, &cmd(5)).is_err());
         // The turn: the stopping list emptied.
         t.voice_mut(v(3)).state = 2;
         t.voice_mut(v(3)).buffer = 9;
@@ -916,8 +922,8 @@ mod tests {
             (lists.playing, lists.stopping, t.voice(v(2)).next),
             (0, v(0), v(1))
         );
-        let mut count = 0x1FF;
-        assert_eq!(new_voice(&mut count), Some(0x1FF));
+        let mut count = VOICES - 1;
+        assert_eq!(new_voice(&mut count), Some(VOICES - 1));
         assert_eq!(new_voice(&mut count), None);
     }
 

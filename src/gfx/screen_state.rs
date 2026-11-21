@@ -1,41 +1,37 @@
 //! The screen mode's choice and the draw surface's description (what `gfx::try_screen_mode` leaves
 //! of the mode chosen, `platform` presents, the race's drawing code writes pixels through).
-//! `#[repr(C)]` structs of atomic cells.
+//! The draw surface is atomic cells; the mode choice plain ones.
 
-use crate::memory::session::{Dword, PlainDword};
+use crate::memory::session::Dword;
+use std::cell::Cell;
 
 /// The screen mode chosen.
-#[derive(rc2k_derive::Cells)]
 pub struct ScreenMode {
     /// The depth formats' bits (`gfx::mark_3d_modes`).
-    pub depth_bits: PlainDword,
+    pub depth_bits: Cell<u32>,
     /// The extra flags.
-    pub depth_extra: PlainDword,
+    pub depth_extra: Cell<u32>,
     /// The flags of the screen mode in use.
-    pub mode_flags: PlainDword,
-    /// The mode set (`platform`).
-    pub mode_set: PlainDword,
+    pub mode_flags: Cell<u32>,
     /// The menus' screen mode.
-    pub menu_mode: PlainDword,
+    pub menu_mode: Cell<u32>,
     /// The race's screen mode.
-    pub race_mode: PlainDword,
+    pub race_mode: Cell<u32>,
 }
 
 impl ScreenMode {
     pub const fn new() -> Self {
         ScreenMode {
-            depth_bits: PlainDword::new(0x0),
-            depth_extra: PlainDword::new(0x0),
-            mode_flags: PlainDword::new(0x0),
-            mode_set: PlainDword::new(0x0),
-            menu_mode: PlainDword::new(0x0),
-            race_mode: PlainDword::new(0x0),
+            depth_bits: Cell::new(0),
+            depth_extra: Cell::new(0),
+            mode_flags: Cell::new(0),
+            menu_mode: Cell::new(0),
+            race_mode: Cell::new(0),
         }
     }
 }
 
-/// The surface the screen is drawn on.
-#[derive(rc2k_derive::Cells)]
+/// The surface the screen is drawn on (atomic cells: the drawing threads read it).
 pub struct DrawSurface {
     /// The presented picture's row pitch (`platform`).
     pub present_pitch: Dword,
@@ -90,7 +86,7 @@ impl DrawSurface {
             bytes_per_pixel: Dword::new(0x0),
             row_bytes: Dword::new(0x0),
             row_dwords: Dword::new(0x0),
-            format: Dword::new(0x4f496c),
+            format: Dword::new(crate::gfx::pixel_format::SCREEN_FORMAT),
             pitch: Dword::new(0x0),
             pixels: Dword::new(0x0),
             row_gap: Dword::new(0x0),

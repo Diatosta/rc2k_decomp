@@ -27,20 +27,70 @@ pub fn wheel_place(panel: Rect, wheel: [u32; 2], shift: u32) -> [u32; 2] {
     ]
 }
 
-/// The ten fixed quads (texture, screen) from the second rectangle of the layout
+/// The box a title is centred in on a strip of the title texture's 256 width.
+pub const TITLE_BOX: u32 = 0xF8;
+/// The box of a title on two strips (the texture's second row of strips holds the right half).
+pub const TITLE_WIDE_BOX: u32 = 0x1F8;
+
+/// The title's quads (texture rectangle on the title texture, screen rectangle) from the layout's
+/// second rectangle: one strip centred on the old title strip's place when the title fits
+/// `TITLE_BOX`, else two side by side (left half from the texture's first row of strips, right
+/// half from its second) centred on the same place.
+pub fn title_parts(table: Rect, width: u32) -> Vec<(Rect, Rect)> {
+    if width <= TITLE_BOX {
+        return vec![([0, 0, 0x100, 0x19], [table[0], table[1], 0x100, 0x19])];
+    }
+    let left = table[0].wrapping_sub(0x80);
+    vec![
+        ([0, 0, 0x100, 0x19], [left, table[1], 0x100, 0x19]),
+        (
+            [0, 0x19, 0x100, 0x19],
+            [left.wrapping_add(0x100), table[1], 0x100, 0x19],
+        ),
+    ]
+}
+
+/// The first row of the title texture's prompt strips for a half (0 or 1) of the screen: below
+/// the title's two strips, two strips (left half, right half) for each half.
+pub const fn prompt_row(half: u32) -> u32 {
+    0x32 + 0x32 * half
+}
+
+/// The prompt's quads (texture rectangle on the title texture, screen rectangle) where the
+/// prompt's three old strips were: one strip when `width` fits `TITLE_BOX`, else two side by
+/// side, centred on the same place.
+pub fn prompt_parts(table: Rect, width: u32, half: u32) -> Vec<(Rect, Rect)> {
+    let row = prompt_row(half);
+    let y = table[3].wrapping_sub(0x32);
+    let centre = table[2].wrapping_add(0xB8);
+    if width <= TITLE_BOX {
+        return vec![(
+            [0, row, 0x100, 0x19],
+            [centre.wrapping_sub(0x80), y, 0x100, 0x19],
+        )];
+    }
+    vec![
+        (
+            [0, row, 0x100, 0x19],
+            [centre.wrapping_sub(0x100), y, 0x100, 0x19],
+        ),
+        ([0, row + 0x19, 0x100, 0x19], [centre, y, 0x100, 0x19]),
+    ]
+}
+
+/// The nine fixed quads (texture, screen) from the second rectangle of the layout
 /// (`TyreChange.parts[0]` ..), the wheel's rectangle (`TyreChange.wheel[0]` ..) and whether the car
 /// is not the first (its half of the texture).
-pub fn fixed_parts(table: Rect, wheel: Rect, second_car: bool) -> [(Rect, Rect); 10] {
-    let mut out = [([0; 4], [0; 4]); 10];
-    out[0] = ([0, 0x80, 0x100, 0x19], [table[0], table[1], 0x100, 0x19]);
+pub fn fixed_parts(table: Rect, wheel: Rect, second_car: bool) -> [(Rect, Rect); 9] {
+    let mut out = [([0; 4], [0; 4]); 9];
     let rect = [
         wheel[0].wrapping_sub(0x4E),
         wheel[1].wrapping_sub(0xA),
         0x80,
         0x19,
     ];
-    out[1] = ([0x80, 0, 0x80, 0x19], rect);
-    out[2] = (
+    out[0] = ([0x80, 0, 0x80, 0x19], rect);
+    out[1] = (
         [0x80, 0x19, 0x80, 0x19],
         [
             wheel[0].wrapping_add(wheel[2]).wrapping_sub(0x32),
@@ -52,16 +102,16 @@ pub fn fixed_parts(table: Rect, wheel: Rect, second_car: bool) -> [(Rect, Rect);
     let half = if second_car { 0x80 } else { 0 };
     for k in 0..3u32 {
         let x = table[2].wrapping_add(0x78 * k);
-        out[3 + k as usize] = (
+        out[2 + k as usize] = (
             [half, 0xB2 + 0x19 * k, 0x80, 0x19],
             [x, table[3].wrapping_sub(0x32), 0x80, 0x19],
         );
-        out[6 + k as usize] = (
+        out[5 + k as usize] = (
             [0x80, 0x32 + 0x19 * k, 0x80, 0x19],
             [x, table[3], 0x80, 0x19],
         );
     }
-    out[9] = (
+    out[8] = (
         [0, 0x99, 0x100, 0x19],
         [
             table[2].wrapping_add(0x3C),
@@ -111,16 +161,43 @@ mod tests {
             [170 - 0xAA, 80]
         );
         let p = fixed_parts([10, 20, 300, 400], [500, 600, 64, 64], true);
-        assert_eq!(p[0], ([0, 0x80, 0x100, 0x19], [10, 20, 0x100, 0x19]));
-        assert_eq!(p[2].1, [500 + 64 - 0x32, 600 - 0xA, 0x80, 0x19]);
+        assert_eq!(p[1].1, [500 + 64 - 0x32, 600 - 0xA, 0x80, 0x19]);
         assert_eq!(
-            p[5],
+            p[4],
             (
                 [0x80, 0xB2 + 0x32, 0x80, 0x19],
                 [300 + 0xF0, 400 - 0x32, 0x80, 0x19]
             )
         );
-        assert_eq!(p[8].0, [0x80, 0x32 + 0x32, 0x80, 0x19]);
-        assert_eq!(p[9].1, [300 + 0x3C, 400 + 0x1E, 0x100, 0x19]);
+        assert_eq!(p[7].0, [0x80, 0x32 + 0x32, 0x80, 0x19]);
+        assert_eq!(p[8].1, [300 + 0x3C, 400 + 0x1E, 0x100, 0x19]);
+    }
+
+    #[test]
+    fn prompts() {
+        let one = prompt_parts([0, 0, 100, 200], 10, 1);
+        assert_eq!(
+            one,
+            vec![(
+                [0, 0x64, 0x100, 0x19],
+                [100 + 0xB8 - 0x80, 200 - 0x32, 0x100, 0x19]
+            )]
+        );
+        let two = prompt_parts([0, 0, 100, 200], TITLE_BOX + 1, 0);
+        assert_eq!(two.len(), 2);
+        assert_eq!(two[0].1[0] + 0x100, two[1].1[0]);
+        assert_eq!(two[1].0, [0, 0x32 + 0x19, 0x100, 0x19]);
+    }
+
+    #[test]
+    fn titles() {
+        let one = title_parts([10, 20, 0, 0], TITLE_BOX);
+        assert_eq!(one, vec![([0, 0, 0x100, 0x19], [10, 20, 0x100, 0x19])]);
+        let two = title_parts([10, 20, 0, 0], TITLE_BOX + 1);
+        assert_eq!(two.len(), 2);
+        // Side by side, centred on the single strip's middle (10 + 0x80).
+        assert_eq!(two[0].1, [10u32.wrapping_sub(0x80), 20, 0x100, 0x19]);
+        assert_eq!(two[1].1, [10 + 0x80, 20, 0x100, 0x19]);
+        assert_eq!(two[1].0, [0, 0x19, 0x100, 0x19]);
     }
 }

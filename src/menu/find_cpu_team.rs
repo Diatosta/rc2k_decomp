@@ -1,18 +1,18 @@
-//! `menu::find_cpu_team`: the driver (`standings::drivers`'s walk) whose first dword is the
+//! `menu::find_cpu_team`: the driver (`standings::walked`'s walk) whose first dword is the
 //! given one (a reading: the computer team's number); none: the fatal error 0x8070A098
 //! "CpuTeam Not Found (oh sh_t!)".
 //!
 //! Refuses a table without its end entry, before anything; raises the fatal error.
 
 use crate::errors::Refused;
-use crate::menu::drivers_store::Driver;
 use crate::menu::owner::Menus;
 
-/// The driver.
-pub fn find_cpu_team(menus: &Menus, team: u32) -> Result<&Driver, Refused> {
-    crate::menu::standings::drivers(menus)?
+/// The driver's number among the walked ones.
+pub(super) fn find_cpu_team(menus: &Menus, team: u32) -> Result<usize, Refused> {
+    let count = crate::menu::standings::walked(&menus.cars)?;
+    menus.cars.drivers.read().drivers[..count]
         .iter()
-        .find(|d| d.name_entry.get() == team)
+        .position(|d| d.name_entry == team)
         .ok_or(
             crate::errors::FatalError {
                 code: 0x8070A098,

@@ -6,13 +6,13 @@
 //! A point is reached by its number (`point_number`, `point_word`, `put_point_word`, `copy_point`):
 //! the number's byte is 12 n. The points are a part of the stage's `CourseData`.
 //!
-//! The points past the count are scratch: each drawing part (`scene::workers::PartScratch`) has its
+//! The points past the count are scratch: each drawing part (`scene::scratch_store::PartScratch`) has its
 //! own while it is drawn in a run of a list drawn by several parts, taken from the shared ones
 //! as they are when it first reaches them in the run (`OwnPoints`). A reader names the own
 //! points it reads through; outside the parts that is `no_own()`, the shared points throughout.
 
 use crate::errors::BadInput;
-use crate::race::course_places::CourseData;
+use crate::race::course_places_store::CourseData;
 use crate::race::owner_course::CourseReads;
 use std::cell::{Cell, RefCell};
 
@@ -27,7 +27,7 @@ fn table(tables: &CourseData) -> &crate::memory::shared_table::SharedTable {
     &tables.points
 }
 
-/// A drawing part's own points past the count (`scene::workers::PartScratch::points`): kept from the
+/// A drawing part's own points past the count (`scene::scratch_store::PartScratch::points`): kept from the
 /// count on while the part is drawn in a run of a list drawn by several parts (the game thread's
 /// first part too), none otherwise (see the header). Plain cells: only the thread that draws the
 /// part reaches it (`memory::part_cell::PartCell`).
@@ -188,7 +188,7 @@ fn outside(
     caller: &std::panic::Location<'static>,
 ) -> BadInput {
     let held = table(tables).len().ok();
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "scene points: {what} of {len} bytes at {at:#x}; the points at {:#x}, {held:?} bytes; \
          from {}",
         base(),
@@ -282,7 +282,7 @@ pub fn point_number(
 
 /// Point `n`'s x and z, read as one point.
 #[track_caller]
-pub fn point_xz(
+pub(super) fn point_xz(
     course: CourseReads<'_>,
     points: &OwnPoints,
     n: u32,
@@ -292,7 +292,7 @@ pub fn point_xz(
 
 /// Point `from` copied over point `to` (as `bytes` reads `from`).
 #[track_caller]
-pub fn copy_point(
+pub(super) fn copy_point(
     course: CourseReads<'_>,
     points: &OwnPoints,
     from: u32,
@@ -319,7 +319,7 @@ pub fn point_word(
 
 /// Coordinate `k` (0 x, 1 y, 2 z) of point `n` set to `v`.
 #[track_caller]
-pub fn put_point_word(
+pub(super) fn put_point_word(
     course: CourseReads<'_>,
     points: &OwnPoints,
     n: u32,
@@ -340,7 +340,7 @@ fn write(
     let caller = std::panic::Location::caller();
     // The points below the count are the course's own (the ones past it are copies made
     // while drawing): a change to them is noted.
-    let counted = (course.course.scene_point_count.get() as usize).saturating_mul(12);
+    let counted = (course.course.get().scene_point_count as usize).saturating_mul(12);
     let tables = &course.stage.course;
     let refused = || {
         outside(
@@ -370,7 +370,7 @@ fn put(course: CourseReads<'_>, points: &OwnPoints, at: u32, v: u32) -> Result<(
 /// `f` with the scene points `words` held, the points as they were afterwards (the differential
 /// tests: the reference reads the same words at their address).
 #[cfg(test)]
-pub fn with_test_points<R>(tables: &CourseData, words: &[u32], f: impl FnOnce() -> R) -> R {
+pub(super) fn with_test_points<R>(tables: &CourseData, words: &[u32], f: impl FnOnce() -> R) -> R {
     let kept = table(tables).all().ok();
     table(tables)
         .set(

@@ -23,24 +23,24 @@ fn bar_width(install: &crate::install::owner::Install) -> Result<u32, Refused> {
 }
 
 /// The progress frame; true when the last lock or show failed.
-pub fn progress_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused> {
+pub(super) fn progress_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused> {
     let (install, strings, gfx, system) = (o.install, o.strings, o.gfx, o.system);
     let drawing = &gfx.drawing;
     let width = bar_width(install)?;
-    let mut carry = false;
+    let mut failed = false;
     for _ in 0..2 {
         if !lock(gfx, system) {
-            carry = true;
+            failed = true;
             continue;
         }
         // gfx::fill_rect: colour 0
         crate::gfx::rect::fill_rect(
-            crate::gfx::rect::rect_in(&install.pages.bar),
+            install.pages.bar,
             0,
             crate::gfx::rect::Palette::Of(&gfx.fonts.blended_palette),
             gfx,
         )?;
-        let x = install.pages.bar.get_u32(0);
+        let x = install.pages.bar[0] as u32;
         let kept_clip: u32 = drawing.blit.clip.right.get();
         drawing
             .blit
@@ -66,22 +66,22 @@ pub fn progress_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused
             FONT,
             &text,
             x.wrapping_add(0xC8),
-            install.pages.bar.get_u32(4).wrapping_add(2),
+            (install.pages.bar[1] as u32).wrapping_add(2),
             gfx,
         )?;
         unlock(gfx);
-        carry = !show(o);
+        failed = !show(o);
     }
-    Ok(carry)
+    Ok(failed)
 }
 
 /// The copying frame; true when the last lock or show failed.
-pub fn copying_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused> {
+pub(super) fn copying_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused> {
     let (install, gfx, system) = (o.install, o.gfx, o.system);
-    let mut carry = false;
+    let mut failed = false;
     for _ in 0..2 {
         if !lock(gfx, system) {
-            carry = true;
+            failed = true;
             continue;
         }
         copy_picture(gfx, system)?;
@@ -94,7 +94,7 @@ pub fn copying_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused>
         )?;
         // gfx::frame_rect: colour 0x2A
         crate::gfx::rect::frame_rect(
-            crate::gfx::rect::rect_in(&install.pages.frame),
+            install.pages.frame,
             0,
             0,
             0x2A,
@@ -102,7 +102,7 @@ pub fn copying_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused>
             gfx,
         );
         unlock(gfx);
-        carry = !show(o);
+        failed = !show(o);
     }
-    Ok(carry)
+    Ok(failed)
 }

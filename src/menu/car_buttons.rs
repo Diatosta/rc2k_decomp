@@ -9,7 +9,6 @@ use crate::menu::load_slideshow_picture::load_slideshow_picture_in;
 use crate::menu::owner::Menus;
 use crate::owners::Owners;
 use crate::sound::play_car_stream::play_car_stream;
-use crate::text::draw_text::GameCanvas;
 
 pub use rc2k_core::menu::cars::{Button as Which, Call};
 
@@ -23,17 +22,17 @@ pub fn press(
     use rc2k_core::menu::cars::Shown;
 
     let mut s = Shown {
-        car: menus.screens.event.shown.car.get(),
-        last_car: menus.cars.table.last_car.get(),
-        picture: menus.screens.event.shown.picture.get(),
-        page: menus.screens.event.shown.car_page.get(),
-        leave: menus.screens.loop_flags.leave_screen.is_set(),
+        car: menus.screens.event.read().shown.car,
+        last_car: menus.cars.table.read().last_car,
+        picture: menus.screens.event.read().shown.picture,
+        page: menus.screens.event.read().shown.car_page,
+        leave: menus.screens.loop_flags.read().leave_screen,
     };
     let calls = rc2k_core::menu::cars::press(b, &mut s);
-    menus.screens.event.shown.car.set(s.car);
-    menus.screens.event.shown.picture.set(s.picture);
-    menus.screens.event.shown.car_page.set(s.page);
-    menus.screens.loop_flags.leave_screen.set(s.leave);
+    menus.screens.event.write().shown.car = s.car;
+    menus.screens.event.write().shown.picture = s.picture;
+    menus.screens.event.write().shown.car_page = s.page;
+    menus.screens.loop_flags.write().leave_screen = s.leave;
     for &c in calls {
         call(c)?;
     }
@@ -41,19 +40,10 @@ pub fn press(
     Ok(())
 }
 
-/// The game's: each call goes to the Rust function.
-pub fn call_in_game(o: Owners<'static>, call: Call) -> Result<(), Refused> {
+/// A button's call made.
+pub(super) fn make_call(o: Owners<'static>, call: Call) -> Result<(), Refused> {
     match call {
-        Call::Background => load_car_background(o.menus, &mut |path| {
-            crate::menu::load_background::load_background_in(
-                &path,
-                &mut GameCanvas::new(o.gfx),
-                o.menus,
-                o.gfx,
-                o.system,
-            )?;
-            Ok(false)
-        }),
+        Call::Background => load_car_background(o.menus, o.gfx, o.system),
         Call::Stream => play_car_stream(
             &mut |name, volume| {
                 crate::sound::start_stream::start_stream(o, name, volume);

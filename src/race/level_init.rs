@@ -3,7 +3,6 @@
 //! and, as `course_info`, 0x400000 bytes where the texture and mark info files are read.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::cells::Store;
 use crate::memory::session::TextPlace;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
@@ -13,36 +12,20 @@ use crate::scene::file_numbers_store::texts;
 
 const FIRST_PART: u32 = rc2k_core::race::loading::FIRST_PART as u32;
 const INFO_PART: u32 = 0x40_0000;
-/// The path strings the course's number is written into: the tens' and the units' places.
-pub fn number_places(
-    p: &'static crate::race::level_paths_store::LevelPaths,
-) -> [crate::memory::place::BytePlace; 6] {
-    use crate::memory::place::BytePlace;
-    [
-        BytePlace::from(&p.edit_path).add(0xD),
-        BytePlace::from(&p.cdat_src).add(0xD),
-        BytePlace::from(&p.cdat_files).add(0x12),
-        BytePlace::from(&p.cdat_src_copy).add(0xD),
-        BytePlace::from(&p.localdat_src).add(0xD),
-        BytePlace::from(&p.localdat_files).add(0x12),
-    ]
-}
 const TEXTURES: u32 = 0x100;
 
 /// Counts the course's memory (the file's room and the course info) on `list` and takes the course
 /// info (`CourseData::info`).
-pub fn allocate_course_memory(
+pub(super) fn allocate_course_memory(
     course: &Course,
-    list: &crate::memory::ListCells,
+    list: &crate::memory::PlainList,
 ) -> Result<(), Refused> {
-    course.lists.get().course_bytes_total.set(
-        course
-            .lists
-            .get()
+    {
+        let mut lists = course.lists.borrow_mut();
+        lists.course_bytes_total = lists
             .course_bytes_total
-            .get()
-            .wrapping_add(FIRST_PART + INFO_PART),
-    );
+            .wrapping_add(FIRST_PART + INFO_PART);
+    }
     crate::memory::owned::count_on(list, FIRST_PART + INFO_PART)?;
     crate::race::course_places::take_info(&course.stage.course, INFO_PART)?;
     Ok(())
@@ -51,12 +34,11 @@ pub fn allocate_course_memory(
 /// Reads `files\a\textinfo`, `files\m\markinfo` and `files\b\textinfo` into the course info
 /// (`CourseInfo` lays them out and makes their finish) and takes it into the course info table.
 /// Refuses no course info.
-pub fn load_texture_info(
+pub(super) fn load_texture_info(
     course: &Course,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     use rc2k_core::race::stage_files::{CourseInfo, MARK_INFO, TEXTURE_INFO_A, TEXTURE_INFO_B};
-    let file_numbers = &scene.file_numbers();
     if !crate::race::course_places::info_held(&course.stage.course) {
         return Err(BadInput("no course info to read the info files into").into());
     }
@@ -66,7 +48,7 @@ pub fn load_texture_info(
         (texts::MARK_INFO, MARK_INFO),
         (texts::TEXTURE_INFO_B, TEXTURE_INFO_B),
     ] {
-        let path = file_numbers.text_at(texts_at).text("a course info path")?;
+        let path = scene.path_text(texts_at).text("a course info path")?;
         let mut file = vec![0u8; part.1];
         let read = crate::files::read_whole_file::read_whole_file_len(&path, &mut file)?;
         info.lay_file(part, &file[..read])?;
@@ -78,38 +60,38 @@ pub fn load_texture_info(
 
 /// Writes the course's two digits (tens, units, from the low byte divided by 10) into the nine
 /// path strings (the stage's files) that hold the course's number.
-pub fn set_course_number(
+pub(super) fn set_course_number(
     eax: u32,
     race: &'static Race,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     // Logic in `rc2k_core::race::stage::two_digits`.
     let [tens, units] = rc2k_core::race::stage::two_digits(eax as u8);
-    for place in number_places(race.course.level_paths()) {
-        place.write(&[tens, units], "a path's course number")?;
-    }
+    race.course
+        .level_paths_mut()
+        .set_course_number([tens, units]);
     for text in [
         texts::NUMBER_PLACE_A,
         texts::NUMBER_PLACE_B,
         texts::NUMBER_PLACE_C,
     ] {
-        scene.file_numbers().text_at(text).write_text_at(
-            0,
-            &[tens, units],
-            "a path's course number",
-        )?;
+        scene
+            .path_text(text)
+            .write_text_at(0, &[tens, units], "a path's course number")?;
     }
     Ok(())
 }
 
 /// Reads the named file, 0x2000 bytes at most, into the error list.
-pub fn load_error_list(frame: &Frame, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    crate::files::read_whole_file::read_whole_file_plain_bytes(
+pub(super) fn load_error_list(
+    frame: &Frame,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    crate::files::read_whole_file::read_whole_file_len(
         &scene
-            .file_numbers()
-            .text_at(texts::ERROR_LIST_PATH)
+            .path_text(texts::ERROR_LIST_PATH)
             .text("the error list's path")?,
-        &frame.error_list().list,
+        &mut frame.error_list_mut().list,
     )?;
     Ok(())
 }
@@ -118,14 +100,13 @@ pub fn load_error_list(frame: &Frame, scene: &crate::scene::owner::Scene) -> Res
 /// its kind k (`texture_kinds`) and the info's record at k * 0x80, a record of 0x40
 /// (`rc2k_core::race::stage_files::texture_infos`). Refuses a kind whose record lies past the
 /// info, before any is written.
-pub fn build_texture_infos(race: &Race) -> Result<(), Refused> {
+pub(super) fn build_texture_infos(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::stage_files::{INFO_SIZE, KIND_RECORD, texture_infos};
     let course = &race.course;
     if !crate::race::course_places::info_held(&course.stage.course) {
         return Ok(());
     }
-    let kinds: [u32; TEXTURES as usize] =
-        std::array::from_fn(|n| course.stage_prefs.get().texture_kinds[n].get());
+    let kinds: [u32; TEXTURES as usize] = course.stage_prefs.borrow().texture_kinds;
     let trap = Trap::new();
     let infos = texture_infos(&kinds, |kind| {
         if kind as usize >= INFO_SIZE / KIND_RECORD {
@@ -141,32 +122,36 @@ pub fn build_texture_infos(race: &Race) -> Result<(), Refused> {
         )
     });
     trap.finish()?;
-    for (n, t) in infos?.iter().enumerate() {
-        let out = &race.polygon_tables().texture_infos[n].words;
-        out[9].set(t.row);
-        out[8].set(t.group);
+    let infos = infos?;
+    let mut tables = race.shared.buffers.polygon_tables.borrow_mut();
+    for (n, t) in infos.iter().enumerate() {
+        let out = &mut tables.texture_infos[n].words;
+        out[9] = t.row;
+        out[8] = t.group;
         for (k, &value) in t.values.iter().enumerate() {
-            out[4 + k].set(value);
+            out[4 + k] = value;
         }
-        // The record's byte at +0x1C and three at +0x2C are bytes inside their dwords.
-        out[7].store(0, &[t.byte])?;
-        out[11].store(0, &t.bytes)?;
+        // One byte of the record's seventh dword and three of its twelfth are stored inside those
+        // dwords.
+        out[7] = out[7] & !0xFF | u32::from(t.byte);
+        out[11] =
+            out[11] & !0x00FF_FFFF | u32::from_le_bytes([t.bytes[0], t.bytes[1], t.bytes[2], 0]);
         for (k, &value) in t.first.iter().enumerate() {
-            out[k].set(value);
+            out[k] = value;
         }
-        out[10].set(t.marked);
+        out[10] = t.marked;
     }
     Ok(())
 }
 
 /// Resets `grid_x` and `grid_z`, the course grid's corner (each view keeps its own,
 /// `race::view_grid`), so every view makes its grid again.
-pub fn reset_refresh(scratch: &crate::scene::workers::DrawingScratch) {
+pub(super) fn reset_refresh(scratch: &crate::scene::scratch_store::DrawingScratch) {
     crate::race::view_grid::reset_corners(scratch);
 }
 
 /// The checkpoints the split tables list: of the table entries 1 .. `last_checkpoint`, those whose
-/// face has its byte +0x26 set. None with fewer than two checkpoints. Reads the loaded course
+/// face has its check byte set. None with fewer than two checkpoints. Reads the loaded course
 /// and writes nothing. Refused: an end below 2, or more found than the list's 0x201 (a real
 /// stage's end is past 0x201).
 pub fn listed_checkpoints(race: &Race) -> Result<Option<Vec<u32>>, Refused> {
@@ -175,15 +160,14 @@ pub fn listed_checkpoints(race: &Race) -> Result<Option<Vec<u32>>, Refused> {
         return Ok(None);
     }
     let end = shared.vars.get().last_checkpoint.get();
-    let table = &race.checkpoints().checkpoint_faces;
+    let table = race.checkpoints();
     let trap = Trap::new();
     let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {
         // n < `last_checkpoint`, one less than the chain's length, which `race::best_line`
         // wrote into the table's 5146 entries: inside the table.
         let face = trap.keep_read(
             table
-                .get(n as usize)
-                .map(crate::memory::session::PlainDword::get)
+                .read(|tables| tables.checkpoint_faces.get(n as usize).copied())
                 .ok_or(BadInput("a checkpoint past the checkpoint table")),
         );
         trap.keep_read(crate::race::course_places::face_field::<u8>(
@@ -201,25 +185,23 @@ pub fn listed_checkpoints(race: &Race) -> Result<Option<Vec<u32>>, Refused> {
 /// 0x101 entries but may run on for up to 0x201, over the stage's numbers that follow it (0x100
 /// entries: the two fields end together at 0x201); such a stage is refused later by
 /// `race::init_overlay` (more than 0x40 parts).
-pub fn init_checkpoints(race: &Race) -> Result<(), Refused> {
-    let tables = race.physics.split_tables();
+pub(super) fn init_checkpoints(race: &Race) -> Result<(), Refused> {
     let Some(listed) = listed_checkpoints(race)? else {
-        tables.split_colour_count.set(0);
+        race.physics.split_tables_mut().split_colour_count = 0;
         return Ok(());
     };
+    let mut tables = race.physics.split_tables_mut();
     for (k, &n) in listed.iter().enumerate() {
-        let entry = tables
-            .checkpoints
-            .get(k)
-            .or_else(|| tables.stage_numbers.get(k - tables.checkpoints.len()));
-        entry
-            .ok_or(BadInput(
-                "a split past the split list and the stage's numbers",
-            ))?
-            .set(n);
+        let list_len = tables.checkpoints.len();
+        let entry = if k < list_len {
+            tables.checkpoints.get_mut(k)
+        } else {
+            tables.stage_numbers.get_mut(k - list_len)
+        };
+        *entry.ok_or(BadInput(
+            "a split past the split list and the stage's numbers",
+        ))? = n;
     }
-    tables
-        .split_colour_count
-        .set((listed.len() as u32).wrapping_sub(1));
+    tables.split_colour_count = (listed.len() as u32).wrapping_sub(1);
     Ok(())
 }

@@ -1,14 +1,13 @@
-//! `scene::set_fog_colour`: the fog's colour: kept as the fade start and given to Direct3D
-//! (render state 0x22 = the colour with its top byte set, through `d3d::set_render_state`).
-//! Callers: `race::set_up_fog` and ten more.
+//! `scene::set_fog_colour`: the fog's colour: kept as the fade start and given to Direct3D (render
+//! state 0x22 = the colour with its top byte set, through `d3d::set_render_state`).
 
 // Logic: `rc2k_core::scene::render_states::fog_colour`
 pub fn set_fog_colour(
     colour: u32,
-    poly: &crate::scene::polygon_work::PolygonWork,
-    part: &crate::scene::workers::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
 ) {
-    poly.fade_from.set(colour);
+    poly.scalars.borrow_mut().fade_from = colour;
     let s = rc2k_core::scene::render_states::fog_colour(colour);
     crate::d3d::set_render_state::set_render_state(part, s.value, s.state);
 }

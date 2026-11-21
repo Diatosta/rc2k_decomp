@@ -8,7 +8,6 @@
 //! set; `services` is not cleared after a stage; no `best_overall_scores` at the end; an unknown
 //! record kind is fatal error 0x8070DBA9 "Invalid Level Type(A8)".
 //!
-//! Callers: `saves::load_savegame` (event mode 0x13) and the five starters (`menu::start_a8_*`).
 //! Refuses what its callees refuse, when they are reached.
 
 use crate::errors::Refused;

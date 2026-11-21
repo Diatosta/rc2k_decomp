@@ -1,4 +1,4 @@
-//! The replay list "CARREGAR REPETIÇÃO"; returns the replay chosen. Screen-specific part of
+//! The replay list "LOAD REPLAY"; returns the replay chosen. Screen-specific part of
 //! `menu::screen_loop`: background `loadsv.png`; leaving is not asked about; its own 3D scene list
 //! is set before the first frame only; the Escape flag is looked at at the top of every frame; it
 //! returns a value.
@@ -11,8 +11,10 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Frames, Keys, List, Screen, Step};
 
 fn before(screens: &Screens) -> Result<(), Refused> {
-    screens.items.current[slot::LOAD_REPLAY].set(screens.items.first[slot::LOAD_REPLAY].get());
-    screens.draw_work.escape_pressed.set(false);
+    screens
+        .items
+        .set_current(slot::LOAD_REPLAY, screens.items.first(slot::LOAD_REPLAY));
+    screens.draw_work.write().escape_pressed = false;
     Ok(())
 }
 
@@ -20,15 +22,15 @@ fn before(screens: &Screens) -> Result<(), Refused> {
 /// item 0x16 or `CaptionTables.left_by_key` is 1, else the replay's number, `MenuPages.replay_page`
 /// * 20 + the highlighted item - 1.
 fn result(menus: &Menus) -> u32 {
-    let item: u32 = menus.screens.loop_flags.item.get();
-    if item == 0x16 || menus.tables.captions.left_by_key.is_set() {
+    let item: u32 = menus.screens.loop_flags.read().item;
+    if item == 0x16 || menus.tables.captions.read().left_by_key {
         return 0xFFFF_FFFF;
     }
     menus
         .tables
         .pages
+        .read()
         .replay_page
-        .get()
         .wrapping_mul(0x14)
         .wrapping_add(item)
         .wrapping_sub(1)

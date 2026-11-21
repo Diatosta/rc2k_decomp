@@ -23,7 +23,7 @@ pub fn draw_car_figures(
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let menus = o.menus;
-    let page: u32 = menus.screens.event.shown.car_page.get();
+    let page: u32 = menus.screens.event.read().shown.car_page;
     if page >= PAGES {
         return Err(BadInput("a page past the four").into());
     }
@@ -33,7 +33,7 @@ pub fn draw_car_figures(
 /// One page (0 to 3) of the record at `record`; returns whether the last text drawn was too wide
 /// for its box. The logic is in `rc2k_core::screens::car_pages::page` (the record written back when
 /// it changed it: the Clio's strings).
-pub fn draw_car_page(
+fn draw_car_page(
     o: crate::owners::Owners<'static>,
     page: u32,
     record: u32,
@@ -44,8 +44,8 @@ pub fn draw_car_page(
     {
         let before = read(o.menus, record)?;
         let mut d = before;
-        let notice = crate::strings::load_language::notice_kind(o.strings);
-        let carry = rc2k_core::screens::car_pages::page(
+        let notice = crate::strings::locale::notice_kind(o.strings);
+        let too_wide = rc2k_core::screens::car_pages::page(
             &mut GameScreen::<Font, Work>::new(canvas, o),
             page,
             &mut d,
@@ -53,8 +53,8 @@ pub fn draw_car_page(
             crate::strings::units::units(o.strings),
         );
         if d != before {
-            crate::menu::cars_store::description(&o.menus.cars.table, record)?.set(d);
+            crate::menu::cars_store::set_description(&o.menus.cars.table, record, d)?;
         }
-        carry
+        too_wide
     }
 }

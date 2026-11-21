@@ -3,17 +3,15 @@
 //! probe, the contact steps (which hold the other two), the camera, the reset chain and the
 //! clear-place search, the checkpoints, the lighting and the moving slots.
 
-use crate::drive::finish_store::Finish;
-use crate::drive::replay_frames_store::ReplayFrames;
+use crate::memory::session::DrawPlain;
 use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
-use crate::physics::contact_store::ContactWork;
+use crate::physics::contact_store::{ContactWork, ProbeLists};
 use crate::physics::ground_probe_store::GroundProbe;
-use crate::physics::ground_store::GroundWork;
-use crate::physics::split_tables_store::SplitTables;
+use crate::physics::ground_query::GroundSearch;
 use crate::physics::step_inputs::StepInputs;
 use crate::physics::tables_store::PhysicsTables;
-use crate::race::frame_store::FrameWork;
+use crate::race::frame_store::FrameWorkStore;
 use crate::race::groups_store::ViewAndRecords;
 use crate::race::lights_store::LightsData;
 use crate::race::matrices_store::SceneMatrices;
@@ -21,26 +19,27 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::RaceShared;
-use crate::race::scratch_store::FrameScratch;
-use crate::race::sound_spots_store::SoundSpotBlock;
 use crate::race::tables_store::RaceTables;
 use crate::race::vars_store::RaceVars;
 use crate::race::view_store::RaceView;
 use crate::race::work_store::RaceWork;
+use std::cell::RefCell;
 
-/// What a contact's sound cue reads: the car, the numbers, the sound spots and bands, the
+/// What a contact's sound cue reads: the car, the numbers, the sound bands, the
 /// matrices that turn the place, the contact's speed, the current car.
 #[derive(Clone, Copy)]
 pub struct SoundInputs<'a> {
     pub car: &'a Car,
+    /// The car whose camera the sounds are placed against (`race::heard_cars::listener`).
+    pub listener: &'a Car,
     pub numbers: &'a Numbers,
     pub work: &'a RaceWork,
-    pub frame_work: &'a FrameWork,
-    pub matrices: &'a SceneMatrices,
+    pub frame_work: &'a FrameWorkStore,
+    pub matrices: &'a DrawPlain<SceneMatrices>,
+    pub view_turn: crate::scene::matrix::Matrix,
     pub heard_turn: &'a crate::race::heard_turn::HeardTurn,
-    pub spots: &'a SoundSpotBlock,
-    pub polygon_tables: &'a crate::scene::polygon_store::PolygonTables,
-    pub contact: &'a ContactWork,
+    pub polygon_tables: crate::scene::polygon_store::PolygonTablesRef<'a>,
+    pub contact: &'a RefCell<ContactWork>,
     /// The sound owner, whose objects the cues are placed on.
     pub owner: &'a crate::sound::owner::Sound,
 }
@@ -52,10 +51,11 @@ pub struct GroundInputs<'a> {
     pub numbers: &'a Numbers,
     pub tables: &'a PhysicsTables,
     pub course: &'a Course,
-    pub contact: &'a ContactWork,
-    pub ground: &'a GroundWork,
-    pub probe: &'a GroundProbe,
-    pub engine_tables: &'a crate::scene::engine_tables_store::EngineTables,
+    pub contact: &'a RefCell<ContactWork>,
+    pub probes: &'a RefCell<ProbeLists>,
+    pub search: &'a RefCell<GroundSearch>,
+    pub probe: &'a RefCell<GroundProbe>,
+    pub engine_tables: crate::math::engine_tables::EngineTablesRef<'a>,
 }
 
 /// What the camera's ground checks read: the car's camera place, the ground search and
@@ -64,9 +64,9 @@ pub struct GroundInputs<'a> {
 pub struct CameraGroundInputs<'a> {
     pub car: &'a Car,
     pub course: &'a Course,
-    pub camera: &'a CameraWork,
-    pub ground: &'a GroundWork,
-    pub probe: &'a GroundProbe,
+    pub camera: &'a RefCell<CameraWork>,
+    pub search: &'a RefCell<GroundSearch>,
+    pub probe: &'a RefCell<GroundProbe>,
 }
 
 /// What the camera steps read: the camera variables, the car's place and the views, the
@@ -77,17 +77,18 @@ pub struct CameraInputs<'a> {
     pub course: &'a Course,
     pub numbers: &'a Numbers,
     pub tables: &'a PhysicsTables,
-    pub camera: &'a CameraWork,
-    pub split_tables: &'a SplitTables,
+    pub camera: &'a RefCell<CameraWork>,
+    /// The replay still flag (`SplitTables.still`), as it is when the inputs are built.
+    pub still: u32,
     pub race_tables: &'a RaceTables,
     pub shared: &'a RaceShared,
-    pub frame_work: &'a FrameWork,
+    pub frame_work: &'a FrameWorkStore,
     pub view_records: &'a ViewAndRecords,
     pub lights_data: &'a LightsData,
-    pub replay_frames: &'a ReplayFrames,
-    pub checkpoints: &'a crate::race::checkpoints_store::Checkpoints,
+    pub step_first: u32,
+    pub checkpoints: crate::race::checkpoints_store::CheckpointsRef<'a>,
     pub kind_tables: &'a crate::race::kind_store::KindTables,
-    pub light_records: &'a crate::race::light_records_store::LightRecords,
+    pub light_records: crate::race::light_records_store::LightRecordsRef<'a>,
     pub ground: CameraGroundInputs<'a>,
 }
 
@@ -98,9 +99,10 @@ pub struct ContactInputs<'a> {
     pub numbers: &'a Numbers,
     pub tables: &'a PhysicsTables,
     pub course: &'a Course,
-    pub contact: &'a ContactWork,
+    pub contact: &'a RefCell<ContactWork>,
+    pub lit_faces: &'a crate::physics::lit_faces_store::LitFacesStore,
     pub work: &'a RaceWork,
-    pub scratch: &'a FrameScratch,
+    pub frame: &'a crate::race::owner_frame::Frame,
     pub shared: &'a RaceShared,
     pub ground: GroundInputs<'a>,
     pub sound: SoundInputs<'a>,
@@ -121,9 +123,10 @@ pub struct ResetInputs<'a> {
     pub shared: &'a RaceShared,
     pub vars: &'a RaceVars,
     pub view: &'a RaceView,
-    pub finish: &'a Finish,
+    /// The finish state's "no place" switch.
+    pub no_place: u32,
     pub car_blocks: &'a crate::race::blocks_store::CarBlocks,
-    pub matrices: &'a SceneMatrices,
+    pub matrices: &'a DrawPlain<SceneMatrices>,
     pub ground: GroundInputs<'a>,
 }
 
@@ -132,7 +135,7 @@ pub struct ResetInputs<'a> {
 #[derive(Clone, Copy)]
 pub struct CollisionInputs<'a> {
     pub contact: ContactInputs<'a>,
-    pub matrices: &'a SceneMatrices,
+    pub matrices: &'a DrawPlain<SceneMatrices>,
     pub vars: &'a RaceVars,
     pub view: &'a RaceView,
 }
@@ -157,9 +160,10 @@ pub struct CheckpointInputs<'a> {
     pub tables: &'a PhysicsTables,
     pub work: &'a RaceWork,
     pub vars: &'a RaceVars,
-    pub frame_work: &'a FrameWork,
-    pub finish: &'a Finish,
-    pub checkpoints: &'a crate::race::checkpoints_store::Checkpoints,
+    pub frame_work: &'a FrameWorkStore,
+    /// The finish state's "no place" switch.
+    pub no_place: u32,
+    pub checkpoints: crate::race::checkpoints_store::CheckpointsRef<'a>,
 }
 
 /// What the car's lighting reads: the car, the course's faces, the ground search and probe,
@@ -168,10 +172,10 @@ pub struct CheckpointInputs<'a> {
 pub struct LightingInputs<'a> {
     pub car: &'a Car,
     pub course: &'a Course,
-    pub ground: &'a GroundWork,
-    pub probe: &'a GroundProbe,
+    pub search: &'a RefCell<GroundSearch>,
+    pub probe: &'a RefCell<GroundProbe>,
     pub vars: &'a RaceVars,
-    pub polygon_tables: &'a crate::scene::polygon_store::PolygonTables,
+    pub polygon_tables: crate::scene::polygon_store::PolygonTablesRef<'a>,
 }
 
 /// What the wheels' surfaces read: the car and the surface tables, the probe points' shares,
@@ -183,7 +187,7 @@ pub struct WheelInputs<'a> {
     pub tables: &'a PhysicsTables,
     pub course: &'a Course,
     pub shared: &'a RaceShared,
-    pub contact: &'a ContactWork,
+    pub probes: &'a RefCell<ProbeLists>,
     pub view: &'a RaceView,
     pub vars: &'a RaceVars,
 }
@@ -196,9 +200,9 @@ pub struct SlotInputs<'a> {
     pub tables: &'a PhysicsTables,
     pub course: &'a Course,
     pub work: &'a RaceWork,
-    pub matrices: &'a SceneMatrices,
-    pub ground: &'a GroundWork,
-    pub probe: &'a GroundProbe,
+    pub matrices: &'a DrawPlain<SceneMatrices>,
+    pub search: &'a RefCell<GroundSearch>,
+    pub probe: &'a RefCell<GroundProbe>,
 }
 
 impl<'a> StepInputs<'a> {
@@ -208,17 +212,19 @@ impl<'a> StepInputs<'a> {
             course: self.course,
             numbers: self.numbers,
             tables: self.tables,
-            camera: self.physics.camera(),
-            split_tables: self.physics.split_tables(),
+            camera: self.physics.camera_cell(),
+            still: self.physics.split_tables().still,
             race_tables: self.race_tables,
             shared: self.shared,
-            frame_work: self.frame.frame_work.get(),
+            frame_work: &self.frame.frame_work,
             view_records: self.frame.view_and_records.get(),
             lights_data: self.course.lights_data(),
-            replay_frames: self.replay_frames,
-            checkpoints: &self.shared.buffers.reads.get().checkpoints,
-            kind_tables: &self.replay.viewer_and_kinds.kind_tables,
-            light_records: &self.frame.lights_and_gear.get().light_records,
+            step_first: self.step_first,
+            checkpoints: self.shared.checkpoints(),
+            kind_tables: &crate::race::kind_store::KIND_TABLES,
+            light_records: crate::race::light_records_store::LightRecordsRef::Store(
+                &self.frame.light_records,
+            ),
             ground: self.camera_ground(),
         }
     }
@@ -227,23 +233,24 @@ impl<'a> StepInputs<'a> {
         CameraGroundInputs {
             car: self.car,
             course: self.course,
-            camera: self.physics.camera(),
-            ground: self.physics.ground(),
-            probe: self.physics.ground_probe.get(),
+            camera: self.physics.camera_cell(),
+            search: self.physics.ground_search(),
+            probe: self.physics.ground_probe(),
         }
     }
 
     pub fn sound(&self, owner: &'a crate::sound::owner::Sound) -> SoundInputs<'a> {
         SoundInputs {
             car: self.car,
+            listener: crate::race::heard_cars::listener(self.shared, self.car),
             numbers: self.numbers,
             work: self.work,
-            frame_work: self.frame.frame_work.get(),
-            matrices: self.frame.matrices.get(),
+            frame_work: &self.frame.frame_work,
+            matrices: &self.frame.matrices,
+            view_turn: self.frame.view_kept.borrow().view_turn_matrix,
             heard_turn: self.shared.heard_turn.get(),
-            spots: self.frame.sound_spots(),
-            polygon_tables: &self.shared.buffers.reads.get().polygon_tables,
-            contact: self.physics.contact.get(),
+            polygon_tables: self.shared.buffers.polygon_tables(),
+            contact: self.physics.contact(),
             owner,
         }
     }
@@ -254,10 +261,11 @@ impl<'a> StepInputs<'a> {
             numbers: self.numbers,
             tables: self.tables,
             course: self.course,
-            contact: self.physics.contact.get(),
-            ground: self.physics.ground(),
-            probe: self.physics.ground_probe.get(),
-            engine_tables: &self.shared.buffers.reads.get().engine_tables,
+            contact: self.physics.contact(),
+            probes: self.physics.probes(),
+            search: self.physics.ground_search(),
+            probe: self.physics.ground_probe(),
+            engine_tables: self.shared.buffers.engine_tables(),
         }
     }
 
@@ -267,9 +275,10 @@ impl<'a> StepInputs<'a> {
             numbers: self.numbers,
             tables: self.tables,
             course: self.course,
-            contact: self.physics.contact.get(),
+            contact: self.physics.contact(),
+            lit_faces: &self.physics.lit_faces,
             work: self.work,
-            scratch: self.frame.scratch(),
+            frame: self.frame,
             shared: self.shared,
             ground: self.ground(),
             sound: self.sound(sound),
@@ -287,9 +296,9 @@ impl<'a> StepInputs<'a> {
             shared: self.shared,
             vars: self.vars,
             view: self.view,
-            finish: self.replay.finish.get(),
+            no_place: self.replay.no_place(),
             car_blocks: self.shared.car_blocks.get(),
-            matrices: self.frame.matrices.get(),
+            matrices: &self.frame.matrices,
             ground: self.ground(),
         }
     }
@@ -297,7 +306,7 @@ impl<'a> StepInputs<'a> {
     pub fn collisions(&self, sound: &'a crate::sound::owner::Sound) -> CollisionInputs<'a> {
         CollisionInputs {
             contact: self.contact(sound),
-            matrices: self.frame.matrices.get(),
+            matrices: &self.frame.matrices,
             vars: self.vars,
             view: self.view,
         }
@@ -320,9 +329,9 @@ impl<'a> StepInputs<'a> {
             tables: self.tables,
             work: self.work,
             vars: self.vars,
-            frame_work: self.frame.frame_work.get(),
-            finish: self.replay.finish.get(),
-            checkpoints: &self.shared.buffers.reads.get().checkpoints,
+            frame_work: &self.frame.frame_work,
+            no_place: self.replay.no_place(),
+            checkpoints: self.shared.checkpoints(),
         }
     }
 
@@ -330,10 +339,10 @@ impl<'a> StepInputs<'a> {
         LightingInputs {
             car: self.car,
             course: self.course,
-            ground: self.physics.ground(),
-            probe: self.physics.ground_probe.get(),
+            search: self.physics.ground_search(),
+            probe: self.physics.ground_probe(),
             vars: self.vars,
-            polygon_tables: &self.shared.buffers.reads.get().polygon_tables,
+            polygon_tables: self.shared.buffers.polygon_tables(),
         }
     }
 
@@ -344,7 +353,7 @@ impl<'a> StepInputs<'a> {
             tables: self.tables,
             course: self.course,
             shared: self.shared,
-            contact: self.physics.contact.get(),
+            probes: self.physics.probes(),
             view: self.view,
             vars: self.vars,
         }
@@ -356,9 +365,9 @@ impl<'a> StepInputs<'a> {
             tables: self.tables,
             course: self.course,
             work: self.work,
-            matrices: self.frame.matrices.get(),
-            ground: self.physics.ground(),
-            probe: self.physics.ground_probe.get(),
+            matrices: &self.frame.matrices,
+            search: self.physics.ground_search(),
+            probe: self.physics.ground_probe(),
         }
     }
 }

@@ -1,7 +1,7 @@
 //! The work car's loose parts: parts are bits of one word; a part that comes off goes into one
 //! of the eight race slots and flies with the car's motion.
 
-use super::car_word::test_car_word;
+use super::car_word::car_word_bits;
 use super::x87::below;
 
 /// The race slots.
@@ -11,7 +11,7 @@ pub const SLOTS: usize = 8;
 pub const LAST_PART: u32 = 0xFF;
 
 /// A damage figure that never breaks its part.
-pub const UNBROKEN: u32 = 0x8000_0000;
+pub(crate) const UNBROKEN: u32 = 0x8000_0000;
 
 /// The slot chosen for a part that comes off.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -112,7 +112,7 @@ pub fn hit_tests(
     bits: impl FnOnce() -> u32,
 ) -> (usize, Hit) {
     for (k, &(rotation, bit)) in tests.iter().enumerate() {
-        if !test_car_word(word, rotation).carry {
+        if !car_word_bits(word, rotation).carry {
             continue;
         }
         if below(timer(k) as f64, limit() as f64) {
@@ -140,7 +140,7 @@ pub fn parts_left(bits: u32) -> u32 {
 }
 
 /// The car kinds with a hit-sound table.
-pub const SOUND_KINDS: u32 = 0x22;
+pub(crate) const SOUND_KINDS: u32 = 0x22;
 
 /// Whether a car kind has sounds for its hit parts: below `SOUND_KINDS` and its entry not 0.
 pub fn has_hit_sounds(kind: u32, entry: impl FnOnce(u32) -> u32) -> bool {

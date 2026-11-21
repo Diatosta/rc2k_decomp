@@ -1,7 +1,6 @@
 //! What the contact, wall, ground-touch, camera and checkpoint steps read of the race, borrowed
 //! once at the step's entry (`car_physics_step`) and handed down in place of the whole race.
 
-use crate::drive::replay_frames_store::ReplayFrames;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
@@ -30,7 +29,8 @@ pub struct StepInputs<'a> {
     pub vars: &'a RaceVars,
     pub view: &'a RaceView,
     pub race_tables: &'a RaceTables,
-    pub replay_frames: &'a ReplayFrames,
+    /// Set while the replay steps to a still (`ReplayFrames::step_first`).
+    pub step_first: u32,
     pub replay: &'a Replay,
 }
 
@@ -39,7 +39,7 @@ impl<'a> StepInputs<'a> {
         StepInputs {
             physics: &race.physics,
             course: &race.course,
-            numbers: race.course.numbers.get(),
+            numbers: &race.course.numbers,
             frame: &race.frame,
             car: race.shared.car(),
             tables: race.shared.physics_tables.get(),
@@ -48,7 +48,7 @@ impl<'a> StepInputs<'a> {
             vars: race.shared.vars.get(),
             view: race.shared.view.get(),
             race_tables: race.shared.tables(),
-            replay_frames: race.replay.replay_frames(),
+            step_first: race.replay.replay_frames().step_first,
             replay: &race.replay,
         }
     }

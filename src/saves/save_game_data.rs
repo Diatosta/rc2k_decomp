@@ -1,6 +1,4 @@
-//! Writes what the game keeps between runs: `saves::save_options`, then
-//! `saves::save_best_times`. Called by the main loop after the front end is left, and
-//! `menu::arcade_level_end`.
+//! Writes what the game keeps between runs: `saves::save_options`, then `saves::save_best_times`.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
@@ -28,4 +26,26 @@ pub fn save_in_game(o: Owners<'static>, saves: &Saves) -> Result<bool, Refused> 
         &mut || crate::saves::options_files::save(o),
         &mut || crate::saves::save_best_times::in_game(saves),
     )
+}
+
+/// The options alone (the options files), written when a page that changes them is left. Not
+/// before the game's data is loaded (a save then would write blanks); a failure is logged and
+/// the game goes on, the exit save tries again.
+pub fn save_settings_in_game(o: Owners<'static>) {
+    // After "delete all saved data" nothing is written back.
+    if crate::saves::delete_all::deleted() {
+        return;
+    }
+    let tables = &o.saves.best_times;
+    if [tables.allocated.get(), tables.loaded.get()] != [1, 1] {
+        return;
+    }
+    let done = crate::saves::list_car_numbers::list_car_numbers_in(o.menus)
+        .map_err(Refused::from)
+        .and_then(|()| crate::saves::options_files::save(o));
+    if let Err(e) = done {
+        crate::program_log::log(&format!(
+            "saves: the settings were not saved on leaving a page: {e:?}"
+        ));
+    }
 }

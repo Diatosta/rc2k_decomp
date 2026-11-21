@@ -1,8 +1,6 @@
 //! Notice 0xCE by `turned_steps` against 300: at 300 or more, with no notice shown (`notice_shown`
 //! 0) and 0xCE not the last (`notice_last`), `notice_id` = 0xCE and `notice_time` = 0; below 300
 //! with 0xCE the last, `notice_shown` and `notice_last` = 0. What the figure is is not known.
-//!
-//! Caller: `physics::car_physics_step`, its last call, every physics step.
 
 use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;

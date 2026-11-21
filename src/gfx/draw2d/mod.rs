@@ -7,9 +7,11 @@
 //! funnels wrote; the quad check compares the GPU's two ways of drawing it). Glyphs drawn on the
 //! screen are also noted as quads for the GPU (`quads`), which needs no recording.
 
-pub mod check;
-pub mod quads;
-pub mod replay;
+pub(crate) mod check;
+#[cfg_attr(handheld, path = "quad_check_none.rs")]
+pub(crate) mod quad_check;
+pub(crate) mod quads;
+mod replay;
 
 use crate::gfx::blit_glyph::{BlitCall, Scratch};
 use rc2k_core::gfx::raster::{Clip, Surface};
@@ -107,8 +109,7 @@ struct Recorder {
     outside: bool,
     /// With the quad check: what the funnels wrote since the GPU last took it, as the pixels
     /// the canvas would hold, the overlay's "unwritten" pixel where nothing.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-    interval: Vec<u8>,
+    interval: quad_check::Interval,
 }
 
 /// What `written` holds where nothing was written.
@@ -124,8 +125,7 @@ static RECORDER: Mutex<Recorder> = Mutex::new(Recorder {
     latest: std::collections::BTreeMap::new(),
     written: Vec::new(),
     outside: false,
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-    interval: Vec::new(),
+    interval: quad_check::Interval::new(),
 });
 
 fn recorder() -> std::sync::MutexGuard<'static, Recorder> {
@@ -189,29 +189,8 @@ pub fn mirror(offset: u32, bytes: &[u8]) {
         Some(place) => place.copy_from_slice(bytes),
         None => rec.outside = true,
     }
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-    if quads::check_wanted() {
-        if rec.interval.is_empty() {
-            let len = rec.written.len();
-            let mut blank = vec![0u8; len];
-            blank
-                .as_chunks_mut::<4>()
-                .0
-                .fill(rc2k_core::gfx::atlas::UNWRITTEN_PIXEL.to_le_bytes());
-            rec.interval = blank;
-        }
-        if let Some(place) = rec.interval.get_mut(at..at.wrapping_add(bytes.len())) {
-            place.copy_from_slice(bytes);
-        }
-    }
-}
-
-/// What the funnels wrote since the last call, as the canvas would hold it (the overlay's
-/// "unwritten" pixel where nothing was written); `None` when nothing was.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-pub fn take_interval() -> Option<Vec<u8>> {
-    let interval = std::mem::take(&mut recorder().interval);
-    (!interval.is_empty()).then_some(interval)
+    let screen_len = rec.written.len();
+    rec.interval.note(screen_len, at, bytes);
 }
 
 /// Notes a command.
@@ -248,7 +227,7 @@ pub fn palette_state(fonts: &crate::gfx::owner::FontStores, handle: u32) -> Opti
 }
 
 /// The frame so far and what the funnels wrote, taken: the next frame starts empty.
-pub fn take_frame() -> (Frame, Vec<u8>, bool) {
+fn take_frame() -> (Frame, Vec<u8>, bool) {
     let mut rec = recorder();
     let frame = std::mem::take(&mut rec.frame);
     rec.latest.clear();

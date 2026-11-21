@@ -9,14 +9,14 @@ use crate::strings::format::{binary, hex};
 pub const FATAL: u32 = 0x8000_0000;
 /// Bit 28: the message alone (no heading, no file, no registers), and the message box's
 /// caption "Rally: Guru Meditation" cut to "Rally".
-pub const TEXT_ONLY: u32 = 0x1000_0000;
+pub(crate) const TEXT_ONLY: u32 = 0x1000_0000;
 /// The room for the report, its NUL included.
 pub const TEXT_LEN: usize = 0x400;
 /// Where the caption is cut for a code with bit 28 (its byte 5 made 0).
 pub const CAPTION_CUT: usize = 5;
 
 /// The register lines' template.
-pub const TEMPLATE: &[u8] = b"EAX=XXXXXXXX\tEBX=XXXXXXXX\tECX=XXXXXXXX\tEDX=XXXXXXXX\r\nESI=XXXXXXXX\tEDI=XXXXXXXX\tESP=XXXXXXXX\tEBP=XXXXXXXX\r\nC=X  Z=X  S=X  V=X  P=X";
+const TEMPLATE: &[u8] = b"EAX=XXXXXXXX\tEBX=XXXXXXXX\tECX=XXXXXXXX\tEDX=XXXXXXXX\r\nESI=XXXXXXXX\tEDI=XXXXXXXX\tESP=XXXXXXXX\tEBP=XXXXXXXX\r\nC=X  Z=X  S=X  V=X  P=X";
 /// Where the eight register values go in the template.
 const HEX_AT: [usize; 8] = [4, 17, 30, 43, 57, 70, 83, 96];
 /// Where the five flags go, with their bits: carry, zero, sign, overflow, parity.
@@ -37,7 +37,7 @@ pub struct Context {
 }
 
 /// The register and flag lines: the template with the values in.
-pub fn register_dump(c: &Context) -> Vec<u8> {
+fn register_dump(c: &Context) -> Vec<u8> {
     let mut dump = TEMPLATE.to_vec();
     let values = [c.eax, c.ebx, c.ecx, c.edx, c.esi, c.edi, c.esp, c.ebp];
     for (at, value) in HEX_AT.into_iter().zip(values) {
@@ -56,14 +56,12 @@ pub fn register_dump(c: &Context) -> Vec<u8> {
 
 /// The report, without its NUL: unless bit 28, "Error code \[XXXXXXXX\]" (bit 31) or
 /// "Breakpoint \[XXXXXXXX\]"; the message (empty as none) with the two characters `\n` made a
-/// line break; `extra`; unless bit 28, "Last file: `path'", "W32=XXXXXXXX" when `w32` is not 0,
-/// and the register lines (left out without a `context`).
+/// line break; unless bit 28, "Last file: `path'" and the register lines (left out without a
+/// `context`).
 pub fn report_text(
     code: u32,
     message: Option<&[u8]>,
-    extra: &[u8],
     last_file: Option<&[u8]>,
-    w32: u32,
     context: Option<&Context>,
 ) -> Vec<u8> {
     let mut text = Vec::new();
@@ -91,17 +89,11 @@ pub fn report_text(
         }
         text.extend_from_slice(b"\r\n");
     }
-    text.extend_from_slice(extra);
     if full {
         if let Some(path) = last_file {
             text.extend_from_slice(b"Last file: `");
             text.extend_from_slice(path);
             text.extend_from_slice(b"'\r\n");
-        }
-        if w32 != 0 {
-            text.extend_from_slice(b"W32=");
-            text.extend(hex(w32, 8).unwrap_or_default());
-            text.extend_from_slice(b"\r\n");
         }
         if let Some(context) = context {
             text.extend(register_dump(context));
@@ -115,35 +107,27 @@ pub fn fits(len: usize) -> bool {
     len < TEXT_LEN
 }
 
-/// How the reporter leaves.
+/// How the reporter leaves; `T` names one of the game's own threads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Leave {
+pub enum Leave<T> {
     /// Back to the game: the code was not fatal.
     Return,
-    /// To the exit path in `start`: a fatal code on a thread without a slot.
+    /// The program ends: a fatal code on a thread that is none of the game's own.
     Exit,
-    /// To the start routine of the current thread's slot (`slot`).
-    Routine { slot: u32, routine: u32 },
+    /// The routine of the game's own thread the report was made on is run again.
+    Routine(T),
 }
 
-/// The way out once the report is made: for a fatal code `quit` is asked first, then the
-/// current thread's slot (0: none) and, for one, its routine (the slot's +0).
-pub fn leave(
-    code: u32,
-    quit: &mut dyn FnMut(),
-    slot: &dyn Fn() -> u32,
-    routine: &dyn Fn(u32) -> u32,
-) -> Leave {
+/// The way out once the report is made: for a fatal code `quit` is asked first, then which of
+/// the game's own threads this is (`own_thread`, None for any other).
+pub fn leave<T>(code: u32, quit: &mut dyn FnMut(), own_thread: &dyn Fn() -> Option<T>) -> Leave<T> {
     if code & FATAL == 0 {
         return Leave::Return;
     }
     quit();
-    match slot() {
-        0 => Leave::Exit,
-        slot => Leave::Routine {
-            slot,
-            routine: routine(slot),
-        },
+    match own_thread() {
+        None => Leave::Exit,
+        Some(thread) => Leave::Routine(thread),
     }
 }
 
@@ -153,9 +137,60 @@ pub fn caption_cut(code: u32) -> bool {
     code & TEXT_ONLY != 0
 }
 
+/// `text` cut into lines no wider than `max` by `width` (a word is not split unless it is
+/// wider than a line alone, and then by characters); line breaks in the text start new lines.
+pub fn wrap_lines(text: &str, max: i32, width: &dyn Fn(&str) -> i32) -> Vec<String> {
+    let mut lines = Vec::new();
+    for paragraph in text.split('\n') {
+        let mut line = String::new();
+        for word in paragraph.split_whitespace() {
+            let mut word = word.to_string();
+            // A word wider than a line alone is cut at the last character that fits.
+            while width(&word) > max && word.chars().count() > 1 {
+                if !line.is_empty() {
+                    lines.push(std::mem::take(&mut line));
+                }
+                let mut cut = word.chars().count() - 1;
+                while cut > 1 && width(&word.chars().take(cut).collect::<String>()) > max {
+                    cut -= 1;
+                }
+                lines.push(word.chars().take(cut).collect());
+                word = word.chars().skip(cut).collect();
+            }
+            let joined = if line.is_empty() {
+                word.clone()
+            } else {
+                format!("{line} {word}")
+            };
+            if width(&joined) <= max || line.is_empty() {
+                line = joined;
+            } else {
+                lines.push(std::mem::replace(&mut line, word));
+            }
+        }
+        lines.push(line);
+    }
+    lines
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lines_are_wrapped_to_the_width() {
+        let width = |s: &str| s.chars().count() as i32;
+        assert_eq!(
+            wrap_lines("one two three four", 9, &width),
+            vec!["one two", "three", "four"]
+        );
+        assert_eq!(wrap_lines("a\nb", 9, &width), vec!["a", "b"]);
+        assert_eq!(
+            wrap_lines("abcdefghij", 4, &width),
+            vec!["abcd", "efgh", "ij"]
+        );
+        assert_eq!(wrap_lines("", 4, &width), vec![""]);
+    }
 
     #[test]
     fn texts() {
@@ -169,23 +204,17 @@ mod tests {
         assert_eq!(&dump[..12], b"EAX=12345678");
         assert_eq!(&dump[83..91], b"DEADBEEF");
         assert_eq!(&dump[106..], b"C=1  Z=1  S=0  V=0  P=0");
-        let t = report_text(
-            0x8010_8571,
-            Some(b"Need\\nmore"),
-            b"",
-            Some(b"a.txt"),
-            5,
-            Some(&c),
-        );
-        let head =
-            b"Error code [80108571]\r\nNeed\r\nmore\r\nLast file: `a.txt'\r\nW32=00000005\r\n";
+        let t = report_text(0x8010_8571, Some(b"Need\\nmore"), Some(b"a.txt"), Some(&c));
+        let head = b"Error code [80108571]\r\nNeed\r\nmore\r\nLast file: `a.txt'\r\n";
         assert_eq!(&t[..head.len()], head);
         assert_eq!(&t[head.len()..], &dump[..]);
-        let t = report_text(0x1000_0001, Some(b""), b"x\r\n", Some(b"a"), 5, Some(&c));
+        let t = report_text(0x1000_0001, Some(b"x"), Some(b"a"), Some(&c));
         assert_eq!(t, b"x\r\n");
-        let t = report_text(0x0000_0002, Some(b"\\"), b"", None, 0, Some(&c));
+        let t = report_text(0x1000_0001, Some(b""), Some(b"a"), Some(&c));
+        assert_eq!(t, b"");
+        let t = report_text(0x0000_0002, Some(b"\\"), None, Some(&c));
         assert!(t.starts_with(b"Breakpoint [00000002]\r\n\\\r\nEAX="));
-        let t = report_text(0x0000_0002, Some(b"\\"), b"", None, 0, None);
+        let t = report_text(0x0000_0002, Some(b"\\"), None, None);
         assert_eq!(t, b"Breakpoint [00000002]\r\n\\\r\n");
         assert!(fits(0x3FF) && !fits(0x400));
     }
@@ -193,21 +222,15 @@ mod tests {
     #[test]
     fn ways_out() {
         let mut asked = 0;
-        assert_eq!(
-            leave(1, &mut || asked += 1, &|| 5, &|s| s + 1),
-            Leave::Return
-        );
+        assert_eq!(leave(1, &mut || asked += 1, &|| Some(5)), Leave::Return);
         assert_eq!(asked, 0);
         assert_eq!(
-            leave(FATAL, &mut || asked += 1, &|| 0, &|s| s + 1),
+            leave::<u32>(FATAL, &mut || asked += 1, &|| None),
             Leave::Exit
         );
         assert_eq!(
-            leave(FATAL | 3, &mut || asked += 1, &|| 5, &|s| s + 1),
-            Leave::Routine {
-                slot: 5,
-                routine: 6
-            }
+            leave(FATAL | 3, &mut || asked += 1, &|| Some(5)),
+            Leave::Routine(5)
         );
         assert_eq!(asked, 2);
         assert!(caption_cut(TEXT_ONLY) && !caption_cut(FATAL));

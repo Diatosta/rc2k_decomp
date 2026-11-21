@@ -4,8 +4,7 @@
 //! negated goes to the next pair; `car_time` is the time; for car 0 or 1 the time is kept in the
 //! results' data for the split.
 //!
-//! Caller: `physics::split_by_mode`. Refuses (before anything) a split past 27 (each kept table
-//! is 28 dwords).
+//! Refuses (before anything) a split past 27 (each kept table is 28 dwords).
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
 use crate::race::league_store::League;
@@ -15,7 +14,7 @@ use rc2k_core::physics::splits::{LAST_COMPARED_SPLIT, compare_split};
 
 // Core: `rc2k_core::physics::splits::compare_split`.
 pub fn compare_split_times(
-    league: &League,
+    league: &mut League,
     work: &RaceWork,
     state: &RaceState,
     car: &Car,
@@ -24,14 +23,14 @@ pub fn compare_split_times(
         return Err(BadInput("a split past 27").into());
     }
     let time = car.stage_time.get();
-    league.car_time.set(time);
+    league.car_time = time;
     // Splits 16 .. 27 read past the sixteen rows (a slip kept as is).
     let first = car.splits_recorded.get().wrapping_mul(10) as usize;
     let mut kept = [0u32; 10];
     for (k, part) in kept.iter_mut().enumerate() {
         *part = league.kept_time(first + k)?;
     }
-    let c = compare_split(time, &kept, |c| league.names[c].get());
+    let c = compare_split(time, &kept, |c| league.names[c]);
     let f = c.figures;
     for (k, v) in [
         f.place,
@@ -46,14 +45,12 @@ pub fn compare_split_times(
         car.split_gaps[k].set(v);
     }
     let current = work.current_car.get();
+    // The players' cars (the first four); the computer's have no record.
     let times = match current {
-        0 => &state.results.results[0],
-        1 => &state.results.results[1],
+        0..=3 => state.result(current as usize),
         _ => return Ok(()),
     };
     // From the record's data on, and no further than the record.
-    let at = std::mem::offset_of!(crate::race::state_store::RaceResult, data)
-        + 4 * car.splits_recorded.get() as usize;
-    crate::memory::cells::Store::store(times, at, &time.to_le_bytes())?;
+    times.set_split_time(car.splits_recorded.get() as usize, time)?;
     Ok(())
 }

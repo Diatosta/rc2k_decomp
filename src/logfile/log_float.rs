@@ -7,7 +7,7 @@
 use crate::errors::BadInput;
 use crate::logfile::numeric::{Body, NumberText, log_number};
 
-pub fn float_text(bits: u32, decimals: u32) -> NumberText {
+fn float_text(bits: u32, decimals: u32) -> NumberText {
     let text = rc2k_core::files::log::float(bits, decimals);
     NumberText {
         bytes: text.bytes,

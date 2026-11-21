@@ -3,8 +3,7 @@
 //! `drive_torque_figure` / the gear's ratio / 10000, or 0 with `drive_cut_steps` set; then
 //! `physics::drive_torque_share`.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses (before anything) a gear
-//! outside -1 ..= 7.
+//! Refuses (before anything) a gear outside -1 ..= 7.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::{mul_div2, sum_times_int_over_minus};
@@ -15,7 +14,7 @@ use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 
 /// The exact version, for the Rust callers' exact comparisons.
-pub fn drive_force(
+pub(super) fn drive_force(
     course: &Course,
     shared: &RaceShared,
     gear_figures: &GearFigures,
@@ -34,13 +33,13 @@ pub fn drive_force(
             &shared.physics_tables.get().engine_force,
             &shared.physics_tables.get().engine_torque,
             shared.car().throttle.get() as i32,
-            &course.numbers.get().k256,
+            course.numbers.k256,
         ));
     shared.physics_tables.get().drive_torque.set(mul_div2(
         &shared.physics_tables.get().drive_ratio,
         &gear_figures.drive_torque_figure,
         &shared.physics_tables.get().gear_ratios[(gear + 1) as usize],
-        &course.numbers.get().k10000,
+        course.numbers.k10000,
     ));
     if shared.car().drive_cut_steps.get() != 0 {
         shared.physics_tables.get().drive_torque.set(0.0);
@@ -48,7 +47,7 @@ pub fn drive_force(
     drive_torque_share(
         shared.car(),
         shared.physics_tables.get(),
-        course.numbers.get(),
+        &course.numbers,
         scene,
     );
     Ok(())

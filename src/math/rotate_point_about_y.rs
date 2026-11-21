@@ -8,7 +8,7 @@ use crate::math::rotate_scratch_about_y::{Scratch, rotate_scratch_about_y};
 /// x', y (as it comes back through a float, left only in the scratch point), z' and the
 /// angle table's entry.
 pub fn rotate_point_about_y(
-    tables: &crate::scene::engine_tables_store::EngineTables,
+    tables: crate::math::engine_tables::EngineTablesRef,
     x: i32,
     y: i32,
     z: i32,
@@ -18,14 +18,14 @@ pub fn rotate_point_about_y(
 }
 
 fn turn_point_with(
-    tables: &crate::scene::engine_tables_store::EngineTables,
+    tables: crate::math::engine_tables::EngineTablesRef,
     x: i32,
     y: i32,
     z: i32,
     angle: u32,
-    turn: fn(&crate::scene::engine_tables_store::EngineTables, &mut Scratch, u32) -> u32,
+    turn: fn(crate::math::engine_tables::EngineTablesRef, &mut Scratch, u32) -> u32,
 ) -> [u32; 4] {
-    // Converted: `rc2k_core::math::geometry` (whole numbers become `f32` and back, rounded).
+    // The logic is in `rc2k_core::math::geometry` (whole numbers become `f32` and back, rounded).
     let mut point = Scratch {
         x: x as f32,
         y: y as f32,

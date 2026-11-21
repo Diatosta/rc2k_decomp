@@ -2,23 +2,21 @@
 //! (`race::open_viewed_replay`, 222), saved and closed (`race::close_viewed_replay`).
 //!
 //! Takes the slot.
-//!
-//! Caller: `race::replay_viewer` (mode 3, the slot from `menu::save_replay_loop`; no flags
-//! read).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::viewer::LAST_RACE;
 
-/// `slot` the slot to save the last race's replay into.
+/// `slot` the slot to save the last race's replay into. Whether it was saved.
 pub fn save_last_replay(
     race: &Race,
     system: &crate::system::owner::System,
     slot: u32,
-) -> Result<(), Refused> {
-    if crate::race::open_viewed_replay::open_viewed_replay(race, system, LAST_RACE)? {
-        return Ok(());
+) -> Result<bool, Refused> {
+    if crate::race::open_viewed_replay::open_viewed_replay(race, system, LAST_RACE)?.failed() {
+        return Ok(false);
     }
-    crate::race::save_viewed_replay::save_viewed_replay(race, system, slot)?;
-    crate::race::close_viewed_replay::close_viewed_replay(race)
+    let saved = crate::race::save_viewed_replay::save_viewed_replay(race, system, slot)?;
+    crate::race::close_viewed_replay::close_viewed_replay(race)?;
+    Ok(saved)
 }

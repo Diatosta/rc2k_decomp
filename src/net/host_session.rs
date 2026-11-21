@@ -1,4 +1,4 @@
-//! Hosts a session ("NET: Host"): keeps its description (name, most players, password), opens
+//! Hosts a session ("NET: Host"): keeps its description (name, most players, the game's mark), opens
 //! it with DPOPEN_CREATE (directly or, with `posting` 1, on the receiving thread), logs the
 //! result and restores the window; then the own player and the group are made. The name goes to
 //! `net::dp_objects` as text. Returns true when hosted.
@@ -12,23 +12,36 @@ use crate::net::store::put_bytes;
 use crate::race::viewer_screen_store::{NetTexts, texts};
 
 const OPEN_CREATE: u32 = 2; // DPOPEN_CREATE
-pub const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
+pub(super) const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
 
 /// `Open(description, flags)`.
 pub fn open(link: &Link, flags: u32, name: &[u8]) -> u32 {
     let d = crate::net::dp_objects::desc(link.session_desc(), name);
-    crate::net::dp_objects::open(link.dplay(), &d, flags)
+    crate::net::dp_objects::open_with_password(
+        link.dplay(),
+        &d,
+        flags,
+        &if flags & OPEN_JOIN != 0 {
+            crate::net::password::joining()
+        } else {
+            crate::net::password::get()
+        },
+    )
 }
 
 /// The `Open` as the receiving thread calls it when it is posted.
-pub fn posted_open_host(net: &Net, _lines: &NetTexts) -> u32 {
+pub(super) fn posted_open_host(net: &Net, _lines: &NetTexts) -> u32 {
     open(&net.link, OPEN_CREATE, &net.link.host_name().read())
 }
-pub fn host_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, Refused> {
+pub(super) fn host_session(
+    o: crate::owners::Owners<'static>,
+    lines: &NetTexts,
+) -> Result<bool, Refused> {
     let net = o.net;
     log_bytes(&lines.text(texts::NET_HOST), false, 2);
     log_bytes(&net.setup().machine_name.read(), true, 2);
     if !net.link.has_dplay() {
+        crate::program_log::log("net: no connection object to host with");
         return Ok(false);
     }
     net.joined().joined.write(&[0; 16]);
@@ -37,8 +50,8 @@ pub fn host_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Resu
         .write(&net.setup().machine_name.read());
     net.joined().joined_most.set(net.setup().most_players.get());
     net.joined()
-        .joined_password
-        .write(&net.setup().session_password.read());
+        .joined_user_values
+        .write(&net.setup().session_user_values.read());
     // For `posted_open_host`, which may run on the receiving thread.
     net.link.host_name().write(&net.setup().machine_name.read());
     zeroed_description(&net.link)?;
@@ -47,7 +60,7 @@ pub fn host_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Resu
     put_bytes(&desc.application, &crate::net::store::APP_GUID);
     desc.max_players.set(net.setup().most_players.get());
     // The name goes to `open` as text (the description's pointer is left 0).
-    put_bytes(&desc.user, &net.setup().session_password.read());
+    put_bytes(&desc.user, &net.setup().session_user_values.read());
     finish(
         o,
         lines,
@@ -69,14 +82,23 @@ pub fn finish(
 ) -> Result<bool, Refused> {
     let net = o.net;
     let result = posted_or_called(o, lines, posted);
+    crate::net::password::note_refused(result == crate::net::dp_session::DPERR_INVALIDPASSWORD);
     log_bytes(&lines.text(texts::NET_OPEN), false, 2);
     log_hex(result, true);
     crate::system::restore_window::restore_window();
     if result != 0 {
+        crate::program_log::log(&format!(
+            "net: the session could not be opened (error {result:#x})"
+        ));
         return Ok(false);
     }
     net.link.mark_session_open();
-    if !crate::net::create_player::create_player(net, lines)? || !then(&net.link)? {
+    if !crate::net::create_player::create_player(net, lines)? {
+        crate::program_log::log("net: the own player could not be made in the session");
+        return Ok(false);
+    }
+    if !then(&net.link)? {
+        crate::program_log::log("net: the group could not be made or joined");
         return Ok(false);
     }
     log_bytes(&lines.text(done), true, 2);

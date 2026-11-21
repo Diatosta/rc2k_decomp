@@ -8,7 +8,7 @@
 //! for itself). Another thread's step is waited for.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::{HeldList, ListCells, with_figures};
+use crate::memory::{HeldList, with_figures};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
@@ -36,7 +36,7 @@ fn check_count(bytes: u32) -> Result<(), Refused> {
 /// only while one function runs. Sized as the game's block was (whole pages less its
 /// header), so a read just past `bytes` gives zeros as it did. Refuses what `count_on`
 /// refuses.
-pub fn counted(list: &ListCells, bytes: u32) -> Result<Vec<u8>, Refused> {
+pub fn counted(list: &impl HeldList, bytes: u32) -> Result<Vec<u8>, Refused> {
     count_on(list, bytes)?;
     Ok(vec![0; block_len(bytes)])
 }
@@ -58,6 +58,13 @@ pub struct Owned<T> {
 
 thread_local! {
     /// Only its address is used: what names this thread as a value's holder.
+    #[cfg_attr(
+        target_os = "android",
+        allow(
+            clippy::missing_const_for_thread_local,
+            reason = "clippy reports an initializer that is already const when building for Android"
+        )
+    )]
     static THREAD_MARK: u8 = const { 0 };
 }
 
@@ -135,7 +142,7 @@ mod tests {
     fn taken_counted_lent_and_given_back() {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let l = crate::memory::ListCells::new(crate::memory::MemoryList {
+        let l = crate::memory::PlainList::new(crate::memory::MemoryList {
             head: 0,
             total: 0,
             cursor: 0,

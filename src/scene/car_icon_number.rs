@@ -10,5 +10,5 @@ use crate::race::owner::Race;
 pub fn car_icon_number(race: &Race, place: u32) -> u32 {
     // Logic: `rc2k_core::scene::kinds::known_place`.
     let place = rc2k_core::scene::kinds::known_place(place);
-    race.kind_tables().car_icon_numbers[place].get()
+    race.kind_tables().car_icon_numbers[place]
 }

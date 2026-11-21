@@ -1,4 +1,4 @@
-//! One tick of the race. Fatal error 0x80600655 (no message) when the first car block's +0x260
+//! One tick of the race. Fatal error 0x80600655 (no message) when the first car block's `probe_count`
 //! is 0. Free roaming (`levers_on` 0): `drive::simple_car_step`. Else the tick count
 //! `race_ticks` + 1 and `drive::replay_step` every tick, or with `after_credits` set every
 //! second tick, and past 1 every fourth.
@@ -14,8 +14,10 @@ pub fn race_tick(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
         }
         .into());
     }
-    if race.shared.switches.get().levers_on.get() == 0 {
-        return crate::drive::simple_car_step::simple_car_step(race, o.input, o.scene, o.net);
+    if race.shared.switches.borrow().levers_on == 0 {
+        crate::drive::simple_car_step::simple_car_step(race, o.input, o.scene, o.net)?;
+        crate::race::blend::note_tick(race);
+        return Ok(());
     }
     race.shared
         .vars
@@ -28,5 +30,9 @@ pub fn race_tick(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
     ) {
         return Ok(());
     }
-    crate::drive::replay_step::replay_step(o, race)
+    crate::drive::replay_step::replay_step(o, race)?;
+    // Only a tick that moved the cars (a credits race's skipped ticks did not) is a state to
+    // blend from.
+    crate::race::blend::note_tick(race);
+    Ok(())
 }

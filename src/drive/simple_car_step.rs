@@ -1,14 +1,15 @@
 //! The free-roaming car's step (no physics, the race mode
 //! `levers_on` 0). The inputs (`drive::car_input_words`, `drive::read_car_controls`,
 //! `drive::steer_inputs`, `drive::pedal_inputs`, `drive::reset_request`); the car moved along its
-//! heading (+0x9C0) by (+0x638 - +0x63C) << 5, turned by +0x644 >> 4; the wheels' surfaces; the
+//! heading (`car_heading`) by (`throttle` - `brake`) << 5, turned by `steering` >> 4; the wheels' surfaces; the
 //! ground under `place_x`, `place_z` (`physics::find_ground`), found: the height
-//! `ground_height` + `ground_drop`'s bits into `place_y` and +0x138; pitch and roll 0;
+//! `ground_height` + `ground_drop`'s bits into `place_y` and the height word of `position`; pitch and roll 0;
 //! `race::get_mat_crash`. The first car block throughout.
 //!
 //! Refuses what its calls refuse.
 
 use crate::errors::Refused;
+use crate::physics::figures::GROUND_DROP;
 use crate::race::owner::Race;
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 
@@ -40,10 +41,9 @@ pub fn simple_car_step(
             race.car_blocks().cars[0].car_heading.get(),
         )
     };
-    race.car_blocks().cars[0].position[0]
-        .set(race.car_blocks().cars[0].position[0].get().wrapping_add(x));
-    race.car_blocks().cars[0].position[2]
-        .set(race.car_blocks().cars[0].position[2].get().wrapping_add(z));
+    let position = &race.car_blocks().cars[0].position;
+    position.set_bits_at(0, position.bits_at(0).wrapping_add(x));
+    position.set_bits_at(2, position.bits_at(2).wrapping_add(z));
     race.car_blocks().cars[0].car_heading.set(
         race.car_blocks().cars[0]
             .car_heading
@@ -56,37 +56,34 @@ pub fn simple_car_step(
             scene,
         )
     }?;
-    race.physics
-        .ground()
-        .ground_x
-        .set(race.course.course.get().place_x.get());
-    race.physics
-        .ground()
-        .ground_z
-        .set(race.course.course.get().place_z.get());
+    {
+        let mut search = race.physics.ground_search().borrow_mut();
+        let place = *race.course.course.borrow();
+        search.x = place.place_x;
+        search.z = place.place_z;
+    }
     {
         crate::physics::find_ground::find_ground(
-            race.physics.ground_probe.get(),
-            race.physics.ground(),
+            race.physics.ground_probe(),
+            race.physics.ground_search(),
             &race.course,
-            scene,
         )
     }?;
-    if race.course.course.get().ground_slot.get() != u32::MAX {
+    if race.physics.ground_search().borrow().slot != u32::MAX {
         let y = race
             .physics
-            .ground()
-            .ground_height
-            .get()
-            .wrapping_add(race.shared.physics_tables.get().ground_drop.get());
-        race.course.course.get().place_y.set(y);
-        race.car_blocks().cars[0].position[1].set(y);
+            .ground_search()
+            .borrow()
+            .height
+            .wrapping_add(GROUND_DROP);
+        race.course.course.borrow_mut().place_y = y;
+        race.car_blocks().cars[0].position.set_bits_at(1, y);
     }
     race.car_blocks().cars[0].car_pitch.set(0);
     race.car_blocks().cars[0].car_roll.set(0);
     crate::race::stage_prefs::get_mat_crash(
         race.engine_tables(),
-        race.frame.matrices.get(),
+        &race.frame.matrices,
         race.shared.car(),
         scene,
     );

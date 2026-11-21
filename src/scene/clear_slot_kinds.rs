@@ -2,7 +2,5 @@
 //! 0. Two callers.
 
 pub fn clear_slot_kinds(scene: &crate::scene::owner::Scene) {
-    for kind in &scene.objects.tables.get().slot_kinds {
-        kind.set(0);
-    }
+    scene.texture_levels_mut().slot_kinds.fill(0);
 }

@@ -3,7 +3,7 @@
 //! `race::place_car_on_line`, `race::reset_car_motion`; then `value_jump_steps` and
 //! `light_hold_steps` = 8 and `reset_marker` = 10.
 //!
-//! Caller: `physics::reset_car`. Refuses what the three calls refuse.
+//! Refuses what the three calls refuse.
 
 use crate::errors::Refused;
 use crate::physics::step_families::ResetInputs;
@@ -14,7 +14,6 @@ pub fn reset_car_on_line(
     c: &ResetInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let lights = &scene.lights;
     let nearest =
         crate::race::start_place::nearest_checkpoint(c.physics, c.course, c.shared, scene)?;
     for cell in [
@@ -24,11 +23,10 @@ pub fn reset_car_on_line(
     ] {
         cell.set(nearest);
     }
-    for cell in [
-        &lights.state.get().line_place,
-        &lights.state.get().line_fraction,
-    ] {
-        cell.set(nearest);
+    {
+        let mut line = scene.line_and_shake_mut();
+        line.line_place = nearest;
+        line.line_fraction = nearest;
     }
     crate::race::start_place::place_car_on_line(c.shared, c.course, scene)?;
     crate::race::car_starts::reset_car_motion(c, scene)?;

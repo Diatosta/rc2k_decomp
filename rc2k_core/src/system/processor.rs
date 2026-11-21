@@ -3,31 +3,25 @@
 //! The family is 3 when the flags' AC bit cannot be changed, 4 when the ID bit cannot (or
 //! `cpuid` has no leaf 1), else `cpuid`'s; leaf 1 says which of the FPU, time-stamp counter,
 //! CMOV, MMX and SSE are there, and an AMD's leaf 0x80000001 3DNow!. Without `cpuid` the FPU
-//! is looked for by its words after `fninit`. With a time-stamp counter, 250 ms of cycles
-//! give the clock in MHz. Each found feature is set to 1; nothing is cleared.
-
-use crate::Invalid;
+//! is looked for by its words after `fninit`. Each found feature is set to 1; nothing is
+//! cleared. (The original also timed the clock in MHz for 250 ms at every start; nothing needs
+//! it: the frame rate is measured with a clock of its own.)
 
 /// The flags' alignment check bit and ID bit.
-pub const AC_FLAG: u32 = 0x4_0000;
-pub const ID_FLAG: u32 = 0x20_0000;
-/// The timed span, in milliseconds, and its cycles per MHz.
-pub const SPAN: u32 = 250;
-pub const PER_MHZ: u64 = 250_000;
-/// The vendors' texts as `cpuid` 0's ebx, edx, ecx.
-pub const AMD: [u32; 3] = [0x6874_7541, 0x6974_6E65, 0x444D_4163];
-pub const CYRIX: [u32; 3] = [0x6972_7943, 0x736E_4978, 0x6461_6574];
+pub(crate) const AC_FLAG: u32 = 0x4_0000;
+pub(crate) const ID_FLAG: u32 = 0x20_0000;
+/// The vendors' texts as `cpuid` 0's second, fourth and third result words.
+pub(crate) const AMD: [u32; 3] = [0x6874_7541, 0x6974_6E65, 0x444D_4163];
+pub(crate) const CYRIX: [u32; 3] = [0x6972_7943, 0x736E_4978, 0x6461_6574];
 
 /// What the processor answers (the platform's, or a test's).
 pub trait Processor {
     /// Whether toggling `bit` in the flags changes them.
     fn flag_toggles(&self, bit: u32) -> bool;
-    /// The four result words (eax, ebx, ecx, edx) of `cpuid` leaf `leaf`.
+    /// The four result words of `cpuid` leaf `leaf`.
     fn cpuid(&self, leaf: u32) -> (u32, u32, u32, u32);
     /// The status word after `fninit` (0x5A5A there before) and the control word.
     fn fpu_words(&self) -> (u16, u16);
-    fn ticks(&self) -> u32;
-    fn cycles(&self) -> u64;
 }
 
 /// The game's variables the test writes and reads.
@@ -38,8 +32,6 @@ pub enum Var {
     Signature,
     /// The vendor's text, dword 0 .. 2.
     Vendor(usize),
-    /// MHz.
-    Clock,
     HasFpu,
     HasTsc,
     HasCmov,
@@ -52,36 +44,15 @@ pub enum Var {
     FpuWord,
 }
 
-/// The test: `put` writes a variable, `get` reads one back. Refuses (with the processor's
-/// variables already written) a clock whose quotient does not fit in 32 bits.
-pub fn test(
-    p: &dyn Processor,
-    put: &mut dyn FnMut(Var, u32),
-    get: &dyn Fn(Var) -> u32,
-) -> Result<(), Invalid> {
-    if !test_cpuid(p, put, get) {
-        test_fpu(p, put);
+/// The test: `put` writes a variable, `get` reads one back.
+pub fn detect(p: &dyn Processor, put: &mut dyn FnMut(Var, u32), get: &dyn Fn(Var) -> u32) {
+    if !detect_cpuid(p, put, get) {
+        detect_fpu(p, put);
     }
-    if get(Var::HasTsc) != 1 {
-        return Ok(());
-    }
-    let first = p.ticks();
-    let mut now = p.ticks();
-    while now == first {
-        now = p.ticks();
-    }
-    let end = now.wrapping_add(SPAN);
-    let start = p.cycles();
-    while p.ticks() < end {}
-    let cycles = p.cycles().wrapping_sub(start);
-    let mhz = u32::try_from(cycles / PER_MHZ)
-        .map_err(|_| Invalid("a clock past 32 bits (the original's div traps)"))?;
-    put(Var::Clock, mhz);
-    Ok(())
 }
 
 /// The FPU test (no `cpuid`).
-fn test_fpu(p: &dyn Processor, put: &mut dyn FnMut(Var, u32)) {
+fn detect_fpu(p: &dyn Processor, put: &mut dyn FnMut(Var, u32)) {
     let (status, control) = p.fpu_words();
     put(Var::FpuWord, status as u32);
     if status as u8 != 0 {
@@ -94,7 +65,11 @@ fn test_fpu(p: &dyn Processor, put: &mut dyn FnMut(Var, u32)) {
 }
 
 /// `cpuid` and what follows from it; false where the FPU test is needed instead.
-fn test_cpuid(p: &dyn Processor, put: &mut dyn FnMut(Var, u32), get: &dyn Fn(Var) -> u32) -> bool {
+fn detect_cpuid(
+    p: &dyn Processor,
+    put: &mut dyn FnMut(Var, u32),
+    get: &dyn Fn(Var) -> u32,
+) -> bool {
     put(Var::Family, 3);
     if !p.flag_toggles(AC_FLAG) {
         return false;
@@ -142,15 +117,12 @@ fn test_cpuid(p: &dyn Processor, put: &mut dyn FnMut(Var, u32), get: &dyn Fn(Var
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::cell::Cell;
     use std::collections::HashMap;
 
     struct Fake {
         toggles: [bool; 2],
         leaves: HashMap<u32, (u32, u32, u32, u32)>,
         fpu: (u16, u16),
-        tick: Cell<u32>,
-        cycle: Cell<u64>,
     }
 
     impl Processor for Fake {
@@ -163,26 +135,18 @@ mod tests {
         fn fpu_words(&self) -> (u16, u16) {
             self.fpu
         }
-        fn ticks(&self) -> u32 {
-            self.tick.set(self.tick.get() + 1);
-            self.tick.get() / 4
-        }
-        fn cycles(&self) -> u64 {
-            self.cycle.set(self.cycle.get() + 500_000_000);
-            self.cycle.get()
-        }
     }
 
-    fn run(f: &Fake) -> (Result<(), Invalid>, Vec<(Var, u32)>) {
+    fn run(f: &Fake) -> Vec<(Var, u32)> {
         let vars = std::cell::RefCell::new(Vec::new());
-        let got = test(f, &mut |v, x| vars.borrow_mut().push((v, x)), &|v| {
+        detect(f, &mut |v, x| vars.borrow_mut().push((v, x)), &|v| {
             vars.borrow()
                 .iter()
                 .rev()
                 .find(|w| w.0 == v)
                 .map_or(0, |w| w.1)
         });
-        (got, vars.into_inner())
+        vars.into_inner()
     }
 
     #[test]
@@ -196,15 +160,11 @@ mod tests {
             toggles: [true, true],
             leaves,
             fpu: (0, 0),
-            tick: Cell::new(0),
-            cycle: Cell::new(0),
         };
-        let (got, vars) = run(&f);
-        assert_eq!(got, Ok(()));
+        let vars = run(&f);
         assert!(vars.contains(&(Var::Family, 6)));
         assert!(vars.contains(&(Var::Has3dNow, 1)));
         assert!(vars.contains(&(Var::HasSse, 1)));
-        assert_eq!(vars.last(), Some(&(Var::Clock, 2000)));
     }
 
     #[test]
@@ -213,10 +173,8 @@ mod tests {
             toggles: [false, false],
             leaves: HashMap::new(),
             fpu: (0, 0x37F),
-            tick: Cell::new(0),
-            cycle: Cell::new(0),
         };
-        let (_, vars) = run(&f);
+        let vars = run(&f);
         assert_eq!(
             vars,
             [
@@ -232,7 +190,7 @@ mod tests {
             ..f
         };
         assert_eq!(
-            run(&f).1,
+            run(&f),
             [(Var::Family, 3), (Var::Family, 4), (Var::FpuWord, 0x5A5A)]
         );
     }

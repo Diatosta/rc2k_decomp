@@ -6,8 +6,8 @@
 //! limit) and not chosen for repair, over the fourteen parts without the turbo (item 6). The
 //! result is left in the inspection score.
 //!
-//! Seen in a screenshot of the championship's service area: the "ESTADO DE INSPECÇÃO" label (drawn
-//! by `draw_service_area`) and a red to green bar between "REPROV." and "PASSAR".
+//! Seen in a screenshot of the championship's service area: the "INSPECTION STATUS" label (drawn
+//! by `draw_service_area`) and a red to green bar between "FAIL" and "PASS".
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Screens;
@@ -30,8 +30,8 @@ pub fn inspection_status(
         let item = PARTS[n];
         Part {
             damage: player.get().damage[item as usize - 2] as i32,
-            threshold: screens.state.driver_stats.limits[item as usize - 2].get() as i32,
-            weight: screens.state.driver_stats.penalties[item as usize - 2].get() as i32,
+            threshold: screens.state.read().driver_stats.limits[item as usize - 2] as i32,
+            weight: screens.state.read().driver_stats.penalties[item as usize - 2] as i32,
             repairing: repair_flag(service, item) != 0,
         }
     });

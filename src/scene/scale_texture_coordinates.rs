@@ -1,10 +1,9 @@
 //! `scene::scale_texture_coordinates`: the polygon's texture coordinates from whole numbers to
 //! floats.
 //!
-//! For each entry of the polygon, with the switch `SceneDraw.polygon_sides[0]` its first pair
-//! of coordinates (+8, +0xC) and with `SceneDraw.polygon_sides[1]` its second (+0x10, +0x14): a
-//! value that is not 0 becomes a float whose bits then lose 0x0C000000: the number over 2^24.
-//! Eight callers.
+//! For each entry of the polygon, with the switch `SceneDraw.polygon_sides[0]` its first pair of
+//! coordinates (`u`, `v`) and with `SceneDraw.polygon_sides[1]` its second (`u2`, `v2`): a value
+//! that is not 0 becomes a float whose bits then lose 0x0C000000: the number over 2^24.
 
 use crate::errors::Refused;
 use crate::scene::polygon::{Listed, listed};
@@ -14,9 +13,9 @@ use crate::scene::polygon::{Listed, listed};
 // Logic: `rc2k_core::scene::texture_coordinates`
 pub fn scale_texture_coordinates(
     polygon_work: &crate::scene::polygon_store::PolygonWork,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
 ) -> Result<(), Refused> {
-    if (poly.polygon_vertex_count.get() as i32) <= 0 {
+    if (poly.scalars.borrow().polygon_vertex_count as i32) <= 0 {
         return Ok(());
     }
     scale_entries(poly, &listed(polygon_work, poly)?)
@@ -24,11 +23,14 @@ pub fn scale_texture_coordinates(
 
 /// `scale_texture_coordinates` on the polygon's entries as listed (a polygon of some).
 pub fn scale_entries(
-    poly: &crate::scene::polygon_work::PolygonWork,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     entries: &Listed,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::texture_coordinates as coordinates;
-    let switches: [u32; 2] = [poly.polygon_sides[0].get(), poly.polygon_sides[1].get()];
+    let switches: [u32; 2] = [
+        poly.scalars.borrow().polygon_sides[0],
+        poly.scalars.borrow().polygon_sides[1],
+    ];
     for entry in entries {
         for (pair, switch) in switches.into_iter().enumerate() {
             if switch == 0 {

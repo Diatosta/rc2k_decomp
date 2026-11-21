@@ -2,35 +2,37 @@
 //! fifth the overall) of ten entries, best first.
 
 pub const GROUPS: usize = 5;
-pub const PER_GROUP: usize = 10;
+pub(crate) const PER_GROUP: usize = 10;
 pub const ENTRY_LEN: usize = 0x3C;
 /// The table's bytes in `var\hst.dat`.
 pub const TABLE_LEN: usize = GROUPS * PER_GROUP * ENTRY_LEN;
 /// The name's room in bytes.
 pub const NAME_ROOM: usize = 0x20;
 /// What a ranking moves of a name (and what an entered name gets): its room less the last byte.
-pub const NAME_MOVED: usize = 0x1F;
+pub(crate) const NAME_MOVED: usize = 0x1F;
+
+use crate::saves::name_id::NameId;
 
 /// One best score (0x3C bytes).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ScoreEntry {
-    /// +0: where the player's name was (a game address), written when entered and never moved by a
-    /// ranking. -1 ends a list.
-    pub name_ref: u32,
-    /// +4: the player (1 .. 4); 0 for a made-up entry, cleared after the pages.
+    /// The player's name, written when entered and never moved by a ranking. `NameId::LIST_END`
+    /// ends a list.
+    pub name_id: NameId,
+    /// The player (1 .. 4); 0 for a made-up entry, cleared after the pages.
     pub player: u32,
-    /// +8: the nationality.
+    /// The nationality.
     pub nation: u32,
-    /// +0xC: the car.
+    /// The car.
     pub car: u32,
-    /// +0x10: the group (the player's class).
+    /// The group (the player's class).
     pub group: u32,
-    /// +0x14: 1 for an entry made in this event, cleared after the pages.
+    /// 1 for an entry made in this event, cleared after the pages.
     pub new: u32,
-    /// +0x18: the name; a made-up entry's has no NUL, an entered one the player's first 0x1F
+    /// The name; a made-up entry's has no NUL, an entered one the player's first 0x1F
     /// bytes.
     pub name: [u8; NAME_ROOM],
-    /// +0x38: the score.
+    /// The score.
     pub score: u32,
 }
 
@@ -46,7 +48,7 @@ impl ScoreEntry {
     /// From its 0x3C bytes.
     pub fn read(b: &[u8; ENTRY_LEN]) -> Self {
         Self {
-            name_ref: dword(b, 0),
+            name_id: NameId::from_file(dword(b, 0)),
             player: dword(b, 4),
             nation: dword(b, 8),
             car: dword(b, 0xC),
@@ -59,7 +61,7 @@ impl ScoreEntry {
 
     /// Into its 0x3C bytes.
     pub fn write(&self, b: &mut [u8; ENTRY_LEN]) {
-        put(b, 0, self.name_ref);
+        put(b, 0, self.name_id.to_file());
         put(b, 4, self.player);
         put(b, 8, self.nation);
         put(b, 0xC, self.car);
@@ -113,7 +115,7 @@ impl crate::saves::tables::FileTable for BestScores {
     }
 }
 
-/// Exchanges `upper` and `lower` but for `name_ref` and the name's last byte; the name goes
+/// Exchanges `upper` and `lower` but for `name_id` and the name's last byte; the name goes
 /// through `kept`, which ends with the upper's.
 fn exchange(ten: &mut Group, upper: usize, lower: usize, kept: &mut [u8; NAME_MOVED]) {
     let (a, b) = (ten[upper], ten[lower]);
@@ -132,7 +134,7 @@ fn exchange(ten: &mut Group, upper: usize, lower: usize, kept: &mut [u8; NAME_MO
 
 /// Moves a group's last entry up: nine steps from the bottom, each pair exchanged when the
 /// lower score (signed) is at least the upper's.
-pub fn rank_in_group(ten: &mut Group, kept: &mut [u8; NAME_MOVED]) {
+pub(crate) fn rank_in_group(ten: &mut Group, kept: &mut [u8; NAME_MOVED]) {
     for lower in (1..PER_GROUP).rev() {
         let upper = lower - 1;
         if ten[lower].score as i32 >= ten[upper].score as i32 {
@@ -141,14 +143,14 @@ pub fn rank_in_group(ten: &mut Group, kept: &mut [u8; NAME_MOVED]) {
     }
 }
 
-/// A best score to enter: player (1 .. 4), score, nationality, car, group, name pointer, name.
+/// A best score to enter: player (1 .. 4), score, nationality, car, group, name id, name.
 pub struct Best {
     pub player: u32,
     pub score: u32,
     pub nation: u32,
     pub car: u32,
     pub group: u32,
-    pub name_ref: u32,
+    pub name_id: NameId,
     pub name: [u8; NAME_MOVED],
 }
 
@@ -161,7 +163,7 @@ pub fn enter_best(ten: &mut Group, best: &Best, kept: &mut [u8; NAME_MOVED]) {
     e.nation = best.nation;
     e.car = best.car;
     e.group = best.group;
-    e.name_ref = best.name_ref;
+    e.name_id = best.name_id;
     e.name[..NAME_MOVED].copy_from_slice(&best.name);
     rank_in_group(ten, kept);
 }
@@ -208,11 +210,11 @@ mod tests {
     }
 
     #[test]
-    fn ranking_moves_all_but_the_name_pointer_and_last_name_byte() {
+    fn ranking_moves_all_but_the_name_id_and_last_name_byte() {
         let mut ten = Group::default();
         for (n, e) in ten.iter_mut().enumerate() {
             e.score = 50 - n as u32;
-            e.name_ref = n as u32;
+            e.name_id = NameId::String(n as u32);
             e.name = [b'a' + n as u8; NAME_ROOM];
         }
         let mut kept = [0; NAME_MOVED];
@@ -222,16 +224,16 @@ mod tests {
             nation: 3,
             car: 4,
             group: 1,
-            name_ref: 0x99,
+            name_id: NameId::String(0x99),
             name: [b'z'; NAME_MOVED],
         };
         enter_best(&mut ten, &best, &mut kept);
         // Equal scores move up: the new 48 goes above the old one.
         assert_eq!((ten[2].score, ten[2].player, ten[2].name[0]), (48, 2, b'z'));
         assert_eq!(ten[2].name[NAME_MOVED], b'c', "the last byte stays");
-        assert_eq!(ten[2].name_ref, 2, "the pointer stays");
+        assert_eq!(ten[2].name_id, NameId::String(2), "the name id stays");
         assert_eq!((ten[3].score, ten[3].name[0], ten[3].new), (48, b'c', 0));
-        assert_eq!(ten[9].name_ref, 0x99);
+        assert_eq!(ten[9].name_id, NameId::String(0x99));
         assert_eq!(kept, [b'c'; NAME_MOVED]);
     }
 

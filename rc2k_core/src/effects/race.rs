@@ -5,17 +5,18 @@ use crate::Invalid;
 
 /// The most cars of a race.
 pub const MOST_CARS: u32 = 8;
-/// The last kind of car with a row (`LightsAndGear.light_records.records[0].groups[5]` ..: rows of
+/// The last kind of car with a row (`light_records.records[0].groups[5]` ..: rows of
 /// 0x134 bytes).
 pub const LAST_KIND: i32 = 0x16;
 pub const ROW_LEN: usize = 0x134;
 /// The stages' records.
-pub const STAGE_RECORDS: u32 = 0x34;
+pub(crate) const STAGE_RECORDS: u32 = 0x34;
 
-/// The row's offsets the record's `slot_kinds` (its first seven) are set from.
-pub const SLOT_KIND_ROWS: [usize; 7] = [0, 0x20, 0x24, 0x18, 0x1C, 0x14, 0x28];
+/// The groups of a kind's row (counted from the row's first group) the record's `slot_kinds` (its
+/// first seven) are set from.
+pub const SLOT_KIND_GROUPS: [usize; 7] = [0, 8, 9, 6, 7, 5, 10];
 /// The seventeen numbers of the record's `kinds`.
-pub const FIXED: [u32; 17] = [
+pub(crate) const FIXED: [u32; 17] = [
     0xA, 0xB, 0x18, 0x19, 0xC, 0xD, 0x16, 0x17, 0x1A, 0x1B, 0xE, 0xF, 0x10, 0x11, 0x13, 0x14, 0x12,
 ];
 
@@ -44,20 +45,20 @@ pub fn check_cars(count: u32, has: impl Fn(u32) -> bool) -> Result<(), Invalid> 
     Ok(())
 }
 
-/// A kind's row (its block's +0x24 held to 0 .. 0x16): its offset in the rows.
+/// A kind's row (its block's kind held to 0 .. 0x16): its offset in the rows.
 pub fn kind_row(kind: i32) -> usize {
     kind.clamp(0, LAST_KIND) as usize * ROW_LEN
 }
 
 /// Car n's record's fields, the places first (0x50 + 0x14 a car, and 0xA more), the seven
-/// from its kind's row (`row(offset)`, asked in the order of `SLOT_KIND_ROWS`), the
+/// from its kind's row (`row(group)`, asked in the order of `SLOT_KIND_GROUPS`), the
 /// seventeen fixed numbers.
 pub fn car_fields(n: u32, row: impl Fn(usize) -> u32) -> CarFields {
     let place = n * 0x14 + 0x50;
     CarFields {
         object: place,
         second_object: place + 0xA,
-        slot_kinds: SLOT_KIND_ROWS.map(row),
+        slot_kinds: SLOT_KIND_GROUPS.map(row),
         kinds: FIXED,
     }
 }
@@ -82,7 +83,7 @@ mod tests {
         assert!(check_cars(8, |_| true).is_ok());
         assert_eq!(kind_row(-1), 0);
         assert_eq!(kind_row(0x17), 0x16 * 0x134);
-        let f = car_fields(2, |o| o as u32 + 1);
+        let f = car_fields(2, |g| g as u32 * 4 + 1);
         assert_eq!((f.object, f.second_object), (0x78, 0x82));
         assert_eq!(f.slot_kinds, [1, 0x21, 0x25, 0x19, 0x1D, 0x15, 0x29]);
         assert_eq!(f.kinds[16], 0x12);

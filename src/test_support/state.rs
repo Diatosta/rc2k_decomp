@@ -7,9 +7,15 @@
 pub struct Snapshot(Vec<Box<dyn Fn() + 'static>>);
 
 impl Snapshot {
-    /// The stores named `names` (registry names, the first of each).
+    /// The stores named `names` (registry names, the first of each; or the scene's plain
+    /// stores, `kept_plain`).
     pub fn of(names: &[&str]) -> Self {
-        Self(names.iter().map(|name| walk(name).keep()).collect())
+        Self(
+            names
+                .iter()
+                .map(|name| kept_plain(name).unwrap_or_else(|| walk(name).keep()))
+                .collect(),
+        )
     }
 
     /// The copies put back, store by store.
@@ -20,16 +26,50 @@ impl Snapshot {
     }
 }
 
+/// The scene's plain stores (values the registry does not walk): a copy of the one named `name`,
+/// to be put back; `None` for any other name.
+fn kept_plain(name: &str) -> Option<Box<dyn Fn() + 'static>> {
+    match name {
+        // The game's float constants: fixed, nothing to keep.
+        "owners.race.course.numbers" => Some(Box::new(|| {})),
+        "owners.scene.draw_work" => {
+            let copy = super::own::scene().draw_work().clone();
+            Some(Box::new(move || {
+                *super::own::scene().draw_work_mut() = copy.clone();
+            }))
+        }
+        "owners.race.frame.frame_work" => {
+            let copy = *super::own::race().frame.frame_work.borrow();
+            Some(Box::new(move || {
+                *super::own::race().frame.frame_work.borrow_mut() = copy;
+            }))
+        }
+        "owners.race.frame.shadow_skids" => {
+            let copy = super::own::race().frame.shadow_skids.borrow().clone();
+            Some(Box::new(move || {
+                *super::own::race().frame.shadow_skids.borrow_mut() = copy.clone();
+            }))
+        }
+        "owners.scene.line_and_shake" => {
+            let copy = *super::own::scene().line_and_shake();
+            Some(Box::new(move || {
+                *super::own::scene().line_and_shake_mut() = copy;
+            }))
+        }
+        _ => None,
+    }
+}
+
 /// A record's cells copied out whole, to be copied back: the typed counterpart of `Snapshot`
 /// for a test that writes one record it holds.
-pub struct RecordSnapshot<'a, T: crate::memory::cells::Cells> {
+struct RecordSnapshot<'a, T: crate::memory::cells::Cells> {
     record: &'a T,
     copy: T,
 }
 
 impl Snapshot {
     /// A copy of every cell of `record` (a zeroed record filled by `copy_from`).
-    pub fn of_record<T: crate::memory::cells::Cells>(record: &T) -> RecordSnapshot<'_, T> {
+    fn of_record<T: crate::memory::cells::Cells>(record: &T) -> RecordSnapshot<'_, T> {
         let copy = crate::memory::cells::zeroed_cells::<T>();
         copy.copy_from(record);
         RecordSnapshot { record, copy }

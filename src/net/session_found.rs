@@ -45,12 +45,13 @@ pub fn session_found(
         s.max_players = d.max_players;
         s.players = d.current_players;
         s.user = user;
+        s.locked = d.flags & crate::net::dp_session::DPSESSION_PASSWORDREQUIRED != 0;
     })?;
     Ok(1)
 }
 
 pub fn callback(link: &Link, lines: &NetTexts, desc: Option<&Desc>, flags: u32) -> u32 {
-    crate::net::lobby::callback_entry("net::session_found", 0x418A62, || {
+    crate::net::lobby::callback_entry("net::session_found", || {
         session_found(link, lines, desc, flags)
     })
 }

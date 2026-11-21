@@ -1,6 +1,5 @@
-//! `scene::full_view_window`: `scene::choose_view_window` with `LightTables.view_mode` 2
-//! (800 x 600 when framed), the word back to 0 after. Callers: `hud::overlay_pass` and the
-//! code that frames the views.
+//! `scene::full_view_window`: `scene::choose_view_window` with `DrawWork.view_mode` 2 (800 x 600
+//! when framed), the word back to 0 after.
 
 use crate::scene::choose_view_window::choose_view_window;
 
@@ -10,8 +9,7 @@ pub fn full_view_window(
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
 ) {
-    let light_tables = scene.light_tables.get();
-    light_tables.view_mode.set(2);
+    scene.draw_work_mut().view_mode = 2;
     choose_view_window(race, scene, system);
-    light_tables.view_mode.set(0);
+    scene.draw_work_mut().view_mode = 0;
 }

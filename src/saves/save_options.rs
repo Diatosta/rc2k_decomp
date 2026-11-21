@@ -1,34 +1,34 @@
 //! Writes the game's kept options, `var\ral.dat`.
 //!
 //! The file is put together in the scratch block: "R5CI", 0, 0x50004, the time
-//! (`system::packed_local_time`), the 69 pieces of `saves::options_state` in the same order, taken
-//! from the captured options, and "####"; then `files::write_file`. One caller,
-//! `saves::save_game_data`. Refuses what `write_file` refuses.
+//! (`clock::packed_local_time`), the 69 pieces of `saves::options_state` in the same order, taken
+//! from the captured options, and "####"; then `files::write_file`. Refuses what `write_file`
+//! refuses.
 
+use crate::clock::packed_local_time::packed_local_time;
 use crate::errors::Refused;
-use crate::files::write_file::write_file_from_store;
+use crate::files::write_file::write_file_from_buffer;
 use crate::owners::Owners;
 use crate::saves::options_state::capture;
-use crate::system::packed_local_time::packed_local_time;
 
 const HEAD_LEN: usize = 0x10;
 /// The whole file's length.
-pub fn file_len() -> usize {
+fn file_len() -> usize {
     HEAD_LEN + rc2k_core::options::model::PIECES_LEN + 4
 }
 
 /// True if the file was written.
-pub fn save_options(
+pub(super) fn save_options(
     o: Owners<'static>,
-    path: &dyn crate::memory::cells::Store,
+    path: &crate::memory::plain_buffer::PlainBuffer<12>,
 ) -> Result<bool, Refused> {
     let file = &o.system.work().files.buffer;
     let owned = capture(o)?.to_pieces();
     let pieces: Vec<&[u8]> = owned.iter().map(std::vec::Vec::as_slice).collect();
     let bytes = rc2k_core::saves::kept::options_file(packed_local_time(), &pieces);
     file.write_at(0, &bytes, "the scratch buffer")?;
-    Ok(write_file_from_store(
-        &crate::files::cstring(path, "the options file's path")?,
+    Ok(write_file_from_buffer(
+        &crate::files::cstring_in(&path.read())?,
         file,
         file_len() as u32,
     )?

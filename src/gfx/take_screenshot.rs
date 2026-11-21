@@ -1,4 +1,4 @@
-//! `gfx::take_screenshot`: with screenshots on, the screen saved as `000.pcx` and on: the surface
+//! `gfx::take_screenshot`: with screenshots on, the screen saved as `000.png` and on: the surface
 //! locked unless it is (`gfx::lock_surface`; a failed lock ends it; `locked_here` 1 while it is
 //! this function's lock), written (`gfx::write_screen_pcx`), unlocked again if it was locked here
 //! (`gfx::unlock_surface`), `locked_here` 0. The lock and unlock (the platform's) and the writer
@@ -33,12 +33,10 @@ impl rc2k_core::gfx::screenshot::Shooting for Shot<'_> {
         Ok(crate::platform::lock_surface(self.gfx, self.system) < 1)
     }
     fn write(&mut self) -> Result<(), Refused> {
-        if let Some(screen) = crate::platform::direct3d::screen(self.system.session.screen.get()) {
-            crate::render::bring_back(&screen);
-        }
         crate::gfx::write_screen_pcx::write_screen_pcx(
             &self.gfx.shots,
             None,
+            true,
             self.gfx,
             self.system,
         )?;

@@ -1,5 +1,5 @@
 //! The car's sound objects placed: four functions under the sound drive that, when the current car
-//! is listed (`listed_car_sounds` entry not -1), take a band (`physics::sound_band_1` .. `_4`), set
+//! is listed (`listed_car_sounds` entry not -1), take a band (`physics::sound_bands`), set
 //! two words of the car's sound object and its place: the car's place (with an offset for one) less
 //! the listener's, turned by the heard turn (`race::heard_turn::turn`), each part times
 //! `one_over_65536`.
@@ -8,120 +8,115 @@
 //! used by `place_sound_e1`'s exact version (its Rust callers).
 
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::rounded_value;
 use crate::math::x87::ext_times;
 use crate::math::x87_float::{f80, int};
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::plain_floats::PlainFloats;
 use crate::physics::car_store::Car;
 use crate::physics::step_families::SoundInputs;
-use crate::race::frame_store::FrameWork;
-use crate::race::matrices_store::SceneMatrices;
+use crate::race::frame_store::FrameWorkStore;
 use crate::race::numbers_store::Numbers;
-use crate::scene::matrix3::rounded_value;
-use crate::scene::rotate_point::rotate_point;
-use crate::sound::store::SoundObject;
+use crate::scene::matrix::Matrix;
+use crate::scene::rotate_point::rotate_point_by;
+use crate::sound::store::SoundObjectCell;
 use rc2k_core::physics::sound_places::{FIRST, PLAY, SECOND, Slot};
 
 /// Whether car `car` (a number) is listed; refused past 7.
-pub fn listed(frame_work: &FrameWork, car: u32) -> Result<bool, Refused> {
+pub fn listed(frame_work: &FrameWorkStore, car: u32) -> Result<bool, Refused> {
     if car > 7 {
         return Err(BadInput("a car number past 7").into());
     }
-    Ok(frame_work.listed_car_sounds[car as usize].get() != u32::MAX)
+    Ok(frame_work.borrow().listed_car_sounds[car as usize] != u32::MAX)
 }
 
 /// The current car's sound object.
-pub fn object<'a>(c: &SoundInputs<'a>) -> &'a SoundObject {
+pub fn object<'a>(c: &SoundInputs<'a>) -> &'a SoundObjectCell {
     crate::sound::store::current_object(c.owner, c.work)
 }
 
-/// The place (with `offset` added to the car's, when given), turned and scaled, into
-/// the three floats `into`.
+/// The place (with `offset` added to the car's, when given), turned and scaled.
 pub fn place(
     numbers: &Numbers,
-    matrices: &SceneMatrices,
+    view_turn: &Matrix,
     heard_turn: &crate::race::heard_turn::HeardTurn,
     car: &Car,
-    into: &[PlainFloat; 3],
+    listener: &Car,
     offset: Option<[u32; 3]>,
-) {
+) -> [f32; 3] {
     // The steps are the x87's (load the offset, add the car's, subtract the listener's; without
     // an offset load the car's, subtract): each rounds to the control word's precision, so a
     // big difference keeps fewer bits at 24.
     let part = |k: usize| {
-        let here = car.position[k].get();
-        let listener = car.camera_position[k].get();
+        let here = car.position.bits_at(k);
+        let listener = listener.camera_position.bits_at(k);
         match offset {
             Some(o) => offset_part(o[k], here, listener),
             None => car_part(here, listener),
         }
     };
-    let out = rotate_point(heard_turn.turn(matrices), [part(0), part(1), part(2)]);
+    let out = rotate_point_by(&heard_turn.turn(view_turn), [part(0), part(1), part(2)]);
     let k = numbers.one_over_65536.get();
-    for (cell, e) in into.iter().zip(&out) {
-        cell.set(rounded_value(ext_times(*e, k)));
-    }
+    out.map(|e| rounded_value(ext_times(e, k)))
 }
 
-/// The converted place (`rc2k_core::physics::sound_places::place`) into the three floats
-/// `into`.
-pub fn place_plain(
+/// The converted place (`rc2k_core::physics::sound_places::place`).
+fn place_plain(
     numbers: &Numbers,
-    matrices: &SceneMatrices,
+    view_turn: &Matrix,
     heard_turn: &crate::race::heard_turn::HeardTurn,
     car: &Car,
-    into: &[PlainFloat; 3],
+    listener: &Car,
     offset: Option<[u32; 3]>,
-) {
-    let whole = |x: &[PlainDword; 3]| [0, 1, 2].map(|k| x[k].get() as i32);
-    let p = rc2k_core::physics::sound_places::place(
+) -> [f32; 3] {
+    let whole = |x: &PlainFloats<3>| x.bits().map(|k| k as i32);
+    let turn = heard_turn.turn(view_turn);
+    rc2k_core::physics::sound_places::place(
         whole(&car.position),
-        whole(&car.camera_position),
+        whole(&listener.camera_position),
         offset.map(|o| o.map(|v| v as i32)),
-        &std::array::from_fn(|n| heard_turn.turn(matrices)[n].get()),
+        &std::array::from_fn(|n| turn[n]),
         numbers.one_over_65536.get(),
-    );
-    for (cell, x) in into.iter().zip(&p) {
-        cell.set(*x);
-    }
-}
-
-/// The object's one-off sound slot that `slot` (the core's offsets) names: the sound, its
-/// band (the volume) and its place. Any other slot is refused.
-fn one_off(
-    o: &SoundObject,
-    slot: Slot,
-) -> Result<(&PlainDword, &PlainDword, &[PlainFloat; 3]), BadInput> {
-    match slot {
-        FIRST => Ok((&o.hit_sound, &o.hit_volume, &o.hit_place)),
-        SECOND => Ok((&o.cue_sound, &o.cue_volume, &o.cue_place)),
-        _ => Err(BadInput("a sound object's slot not worked out")),
-    }
+    )
 }
 
 /// The converted steps' end: the sound and the band in the object's `slot`, the place
-/// (with `offset`), the object told to play.
+/// (with `offset`), the object told to play. Any slot but the two one-off ones is refused.
 // Core: `rc2k_core::physics::sound_places`.
-pub fn cue_plain(
+pub(super) fn cue_plain(
     c: &SoundInputs<'_>,
-    o: &SoundObject,
+    o: &SoundObjectCell,
     slot: Slot,
     sound: u32,
     band: u32,
     offset: Option<[u32; 3]>,
 ) -> Result<(), BadInput> {
-    let (sound_cell, band_cell, place_cells) = one_off(o, slot)?;
-    sound_cell.set(sound);
-    band_cell.set(band);
-    place_plain(
+    if slot != FIRST && slot != SECOND {
+        return Err(BadInput("a sound object's slot not worked out"));
+    }
+    let mut guard = o.borrow_mut();
+    let object = &mut *guard;
+    let (sound_cell, band_cell) = if slot == FIRST {
+        (&mut object.hit_sound, &mut object.hit_volume)
+    } else {
+        (&mut object.cue_sound, &mut object.cue_volume)
+    };
+    *sound_cell = sound;
+    *band_cell = band;
+    let place = place_plain(
         c.numbers,
-        c.matrices,
+        &c.view_turn,
         c.heard_turn,
         c.car,
-        place_cells,
+        c.listener,
         offset,
     );
+    if slot == FIRST {
+        object.hit_place = place;
+    } else {
+        object.cue_place = place;
+    }
     // `PLAYING`: the play switch, the cell the revs' new reading flag shares.
-    o.new_revs.set(PLAY);
+    object.new_revs = PLAY;
     Ok(())
 }
 
@@ -162,7 +157,7 @@ fn x87_2(v: [u32; 3]) -> [u8; 10] {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::{Base, view};
+    use crate::math::x87_mem::{Base, view};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {

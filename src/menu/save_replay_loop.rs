@@ -1,4 +1,4 @@
-//! The replay naming screen "GRAVAR REPETIÇÃO"; returns the slot the replay goes to.
+//! The replay naming screen "SAVE REPLAY"; returns the slot the replay goes to.
 //! Screen-specific part of `menu::screen_loop`: background `loadsv.png`; leaving is not asked
 //! about; its own 3D scene list is set before the first frame only; the Escape flag is looked at
 //! at the top of every frame; it has a step of its own once a frame.
@@ -11,24 +11,22 @@ use crate::menu::screen_loop::{Callee, Entry, Flow, Frames, Keys, List, Screen, 
 
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     let menus = entry.menus;
-    if menus.screens.entry.typing.is_set() {
+    if menus.screens.entry.read().typing {
         let failed = Callee::EditReplayName.run(entry)?;
         if !failed {
-            if menus.screens.entry.typing.is_set() {
+            if menus.screens.entry.read().typing {
                 return Ok(Flow::NextFrame);
             }
-            if menus.tables.captions.left_by_key.is_set() {
-                menus.tables.captions.left_by_key.set(false);
-                menus.screens.draw_work.leave_result.set(0xFFFFFFFFu32);
+            if menus.tables.captions.read().left_by_key {
+                menus.tables.captions.write().left_by_key = false;
+                menus.screens.draw_work.write().leave_result = 0xFFFFFFFFu32;
                 return Ok(Flow::Leave);
             }
             // 0x14 replays a page; the items count from 1.
-            let replay = menus.tables.pages.replay_page.get().wrapping_mul(0x14);
-            menus.screens.draw_work.leave_result.set(
-                replay
-                    .wrapping_add(menus.screens.loop_flags.item.get())
-                    .wrapping_sub(1),
-            );
+            let replay = menus.tables.pages.read().replay_page.wrapping_mul(0x14);
+            menus.screens.draw_work.write().leave_result = replay
+                .wrapping_add(menus.screens.loop_flags.read().item)
+                .wrapping_sub(1);
             return Ok(Flow::Leave);
         }
     }
@@ -38,7 +36,7 @@ fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
 /// What the loop returns: `DrawWork.leave_result`, which the step above leaves at -1 or at the
 /// replay's number.
 fn result(menus: &Menus) -> u32 {
-    menus.screens.draw_work.leave_result.get()
+    menus.screens.draw_work.read().leave_result
 }
 
 pub const SCREEN: Screen = Screen {

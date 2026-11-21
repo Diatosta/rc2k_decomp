@@ -18,12 +18,12 @@ fn prepare(set_up: &SetUp) -> Result<(), Refused> {
 
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     let screens = &entry.menus.screens;
-    if screens.entry.typing.is_set() {
+    if screens.entry.read().typing {
         Callee::EditSetupName.run(entry)?;
-        if screens.entry.typing.is_set() {
+        if screens.entry.read().typing {
             return Ok(Flow::NextFrame);
         }
-        screens.draw_work.action_mode.set(0x2u32);
+        screens.draw_work.write().action_mode = 0x2u32;
         return Ok(Flow::Leave);
     }
     Ok(Flow::On)

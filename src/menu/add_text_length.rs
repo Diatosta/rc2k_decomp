@@ -1,7 +1,7 @@
 //! `menu::add_text_length`: adds the length of a NUL-terminated text to the text entry's length.
-//! Its callers use it with the length at 0, to set it to the length of a text just restored.
+//! It is used with the length at 0 to set it to the length of a text just restored.
 //!
-//! Refuses a text with no NUL in its first 0x1000 bytes.
+//! Refuses a text with no NUL in its first 4096 bytes.
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
@@ -13,7 +13,7 @@ pub fn add_text_length(
     text: impl Into<crate::memory::place::BytePlace>,
 ) -> Result<(), BadInput> {
     let text = text.into();
-    let fault = crate::menu::event_flow::Fault::default();
+    let fault = crate::errors::Fault::default();
     let len = text_length(|i| {
         fault.ok(text
             .add(i as u32)

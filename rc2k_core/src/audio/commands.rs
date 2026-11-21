@@ -5,7 +5,7 @@
 use std::collections::VecDeque;
 
 /// How many commands the queue holds; one more is dropped.
-pub const CAPACITY: usize = 0x400;
+pub(crate) const CAPACITY: usize = 0x400;
 
 /// The fields of the race's sets of sounds, in the order a list that runs past its field reads on
 /// through them (the order of the game's data layout).
@@ -95,7 +95,19 @@ impl RaceField {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SoundList {
     Menu,
-    Race { field: RaceField, entry: u32 },
+    Race {
+        field: RaceField,
+        entry: u32,
+    },
+    /// One sound alone: the third and fourth cars' copies of an engine sound, which no list of
+    /// the race's sets holds.
+    One(u32),
+    /// Sounds `first` and the `count` (below 0x100) after it: the third and fourth players'
+    /// copies of the co-driver's voices.
+    Range {
+        first: u32,
+        count: u32,
+    },
 }
 
 impl SoundList {
@@ -105,6 +117,9 @@ impl SoundList {
     fn word(self) -> u32 {
         match self {
             SoundList::Menu => 1,
+            // Beyond every race list's word.
+            SoundList::One(sound) => 0x4000_0000 | sound,
+            SoundList::Range { first, count } => 0x2000_0000 | (first << 8) | count,
             SoundList::Race { field, entry } => field
                 .original_offset()
                 .wrapping_add(entry.wrapping_mul(4))
@@ -119,6 +134,11 @@ impl SoundList {
         match word {
             0 => None,
             1 => Some(SoundList::Menu),
+            n if n & 0x4000_0000 != 0 => Some(SoundList::One(n & 0x3FFF_FFFF)),
+            n if n & 0x2000_0000 != 0 => Some(SoundList::Range {
+                first: (n & 0x1FFF_FFFF) >> 8,
+                count: n & 0xFF,
+            }),
             n => {
                 let offset = n - 2;
                 RaceField::ALL.into_iter().rev().find_map(|field| {
@@ -154,7 +174,7 @@ pub enum Setting {
 
 impl Setting {
     /// The setting a command word names.
-    pub fn from_word(word: u32) -> Setting {
+    pub(crate) fn from_word(word: u32) -> Setting {
         if word == OWN_WORD {
             Setting::Own
         } else {
@@ -192,7 +212,7 @@ pub enum Frequency {
 
 impl Frequency {
     /// The frequency a command word names.
-    pub fn from_word(word: u32) -> Frequency {
+    pub(crate) fn from_word(word: u32) -> Frequency {
         match word {
             OWN_WORD => Frequency::Own,
             VOICE_FREQUENCY_WORD => Frequency::Voice,
@@ -220,7 +240,7 @@ impl Frequency {
 }
 
 /// A place's three coordinates as float bits; 0xFF80_0000 in one is the sample record's.
-pub type PlaceBits = [u32; 3];
+pub(crate) type PlaceBits = [u32; 3];
 
 /// Command 1: a sound started, changed or stopped.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -287,8 +307,9 @@ pub enum StreamAction {
 }
 
 impl StreamAction {
+    #[cfg(test)]
     /// The action a command word names (a word that is none of 0, 1, 3 plays).
-    pub fn from_word(word: u32) -> StreamAction {
+    pub(crate) fn from_word(word: u32) -> StreamAction {
         match word {
             0 => StreamAction::Stop,
             1 => StreamAction::Turn,
@@ -464,6 +485,16 @@ mod tests {
             RaceField::KindSetsFirst.list_place(u32::MAX, usize::MAX),
             ListPlace::StartsPastSets
         );
+    }
+
+    /// The word of a range of sounds names it back.
+    #[test]
+    fn a_range_keeps_its_word() {
+        let list = SoundList::Range {
+            first: 0x4C8,
+            count: 190,
+        };
+        assert_eq!(SoundList::from_word(list.word()), Some(list));
     }
 
     /// A race list's command word is its old offset plus 2, and the word names the list back.

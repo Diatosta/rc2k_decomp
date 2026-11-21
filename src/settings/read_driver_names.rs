@@ -8,21 +8,13 @@ use crate::errors::BadInput;
 use crate::menu::owner::Menus;
 use crate::settings::read_text::read_text;
 use crate::strings::format_u32::format_u32;
+use crate::strings::owner::{DRIVERS, NAMES_LEN, POOL_ROOM};
 use rc2k_core::files::settings::DriverNames;
 
 // ---- game data ----
 
-/// "var\name.cfg" (0x529D98 in the image), what `system::load_game_data` hands in.
+/// "var\name.cfg", what `system::load_game_data` hands in.
 static PATH: &[u8; 13] = b"var\\name.cfg\0";
-const DRIVERS: usize = 180;
-/// The image's block (0x95ECF8 .. 0x960000, bss): a pointer a driver (`NAMES_LEN`
-/// bytes), then the pool of names, up to the block's end: room for about 130 names of
-/// the full length, not for 180. Nothing else reads either.
-const NAMES_LEN: usize = DRIVERS * 4;
-const POOL_ROOM: usize = 0x960000 - 0x95EFC8;
-/// `NAMES`' length.
-pub const NAMES_SIZE: usize = NAMES_LEN + POOL_ROOM;
-
 /// The path of `var\name.cfg` (without its NUL).
 pub fn path() -> &'static [u8] {
     &PATH[..PATH.len() - 1]
@@ -82,10 +74,10 @@ pub fn apply_driver_names(
             pool_used += text.len();
         }
         if let Some(n) = entry.first {
-            cars.drivers.drivers[driver].nation.set(n);
+            cars.drivers.write().drivers[driver].nation = n;
         }
         if let Some(n) = entry.second {
-            cars.drivers.drivers[driver].car.set(n);
+            cars.drivers.write().drivers[driver].car = n;
         }
     }
     Ok(())
@@ -104,8 +96,6 @@ mod tests {
         // bounded by the block (the longest read, 31 bytes, fits the pool's room).
         let first = super::NAMES_LEN as u32;
         assert!(first as usize + 31 <= super::NAMES_LEN + super::POOL_ROOM);
-        let names: &dyn crate::memory::cells::Store =
-            &crate::test_support::own::strings().drivers.names;
-        assert!((first as usize) < names.size());
+        assert!((first as usize) < super::NAMES_LEN + super::POOL_ROOM);
     }
 }

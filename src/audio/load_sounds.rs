@@ -1,8 +1,8 @@
 //! Command 3: loads a list of sounds. For each sound whose record has a file and a copy count
-//! above 0, that many voices are made (while fewer than 0x200 are in use): found shared voice or
+//! above 0, that many voices are made (while fewer than `VOICES` are in use): found shared voice or
 //! sample read, new voice, `fill_voice`, sample mode, prepare, keep, make and fill buffer; the
 //! voice's flags get `LOADED`. Quitting ends it after any entry. Refuses, before anything is
-//! done: a list without its -1 within 0x1000 entries, a sound of 0x1CD or more, and A3D.
+//! done: a list without its -1 within 0x1000 entries, and a sound of 0x1CD or more.
 
 use crate::audio::own::AudioThread;
 use crate::audio::voices::*;
@@ -68,10 +68,37 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
                 .record(at.sound)
                 .expect("a sound inside the records"),
             &mut |p| {
-                samples::read_sample_in_game(
-                    &self.audio.state,
-                    &crate::audio::store::name_in(&self.audio.sample_names, p)?,
-                )
+                let name = crate::audio::sample_records::name_in(&self.audio.sample_names, p)?;
+                let problem = match samples::read_sample_in_game(&self.audio.state, &name) {
+                    // A file that is not a sound the game can use stays silent, with one notice.
+                    Err(Refused::BadInput(why)) => why.0,
+                    Ok(false) => {
+                        let shown = crate::error_dialog::file_name(&name);
+                        let there = crate::files::resolve_path::resolve(&name)
+                            .and_then(|path| crate::files::file_exists::file_exists(&path))
+                            .unwrap_or(false);
+                        if !there {
+                            // The stock game's lists name sounds it does not ship: silent, said
+                            // in the log only.
+                            crate::program_log::log(&format!(
+                                "audio: the sound {shown} is not there"
+                            ));
+                            return Ok(false);
+                        }
+                        "the file holds no sample the mixer can play"
+                    }
+                    other => return other,
+                };
+                let shown = crate::error_dialog::file_name(&name);
+                crate::program_log::log(&format!(
+                    "audio: the sound {shown} cannot be used: {problem}"
+                ));
+                crate::error_dialog::notice_own_once(
+                    &shown,
+                    rc2k_core::strings::own::id::BAD_SOUND,
+                    &shown,
+                );
+                Ok(false)
             },
         )
     }
@@ -117,6 +144,14 @@ fn list_entries<'a>(
 ) -> Result<Box<dyn Fn(usize) -> Option<u32> + 'a>, BadInput> {
     match list {
         SoundList::Menu => Ok(Box::new(|n| menu_sounds.sound(n))),
+        SoundList::One(sound) => Ok(Box::new(move |n| match n {
+            0 => Some(sound),
+            _ => Some(rc2k_core::audio::load::END),
+        })),
+        SoundList::Range { first, count } => Ok(Box::new(move |n| match n as u32 {
+            n if n < count => Some(first + n),
+            _ => Some(rc2k_core::audio::load::END),
+        })),
         SoundList::Race { field, entry } => {
             sets.list_entry(field, entry, 0)?;
             Ok(Box::new(move |n| {
@@ -126,7 +161,7 @@ fn list_entries<'a>(
     }
 }
 
-pub fn load_sounds(
+pub(super) fn load_sounds(
     audio: &AudioThread,
     system: &System,
     sets: &SoundSets,
@@ -136,9 +171,6 @@ pub fn load_sounds(
     let Some(list) = list else {
         return Ok(());
     };
-    if crate::audio::buffer_settings::a3d(&audio.state) {
-        return Err(BadInput("A3D").into());
-    }
     let entry = list_entries(sets, menu_sounds, list)?;
     let refusal = std::cell::Cell::new(None);
     let entries = rc2k_core::audio::load::entries(|n| {
@@ -153,7 +185,9 @@ pub fn load_sounds(
         return Err(e.into());
     }
     let mut l = GameLoader { audio, system };
-    rc2k_core::audio::load::load(&mut l, &entries)
+    let loaded = rc2k_core::audio::load::load(&mut l, &entries);
+    crate::remote::sound_loaded(audio.state.voice_count.get(), VOICES, &list);
+    loaded
 }
 
 #[cfg(test)]

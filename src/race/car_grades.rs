@@ -3,14 +3,15 @@
 //! `grade_all_cars` for the eight.
 
 use crate::errors::BadInput;
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::plain_floats::FloatRef;
+use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::race::owner_shared::RaceShared;
 
 /// A car's grade: the block's value (a float), where its grade goes, and the thresholds, in the
 /// order `grade_car_values` tries them.
 pub type Grade = (
-    fn(&Car) -> &PlainFloat,
+    for<'a> fn(&'a Car) -> FloatRef<'a>,
     fn(&Car) -> &PlainDword,
     &'static [u32],
 );
@@ -18,107 +19,187 @@ pub type Grade = (
 /// The grades `grade_car_values` works out.
 pub const GRADES: [Grade; 34] = [
     (
-        |c| &c.engine_heat,
+        |c| (&c.engine_heat).into(),
         |c| &c.damage_levels[22],
         &[50, 75, 90, 100],
     ),
-    (|c| &c.brake_heat[0], |c| &c.damage_levels[23], &[75]),
     (
-        |c| &c.engine_damage,
+        |c| c.brake_heat.float_at(0).into(),
+        |c| &c.damage_levels[23],
+        &[75],
+    ),
+    (
+        |c| (&c.engine_damage).into(),
         |c| &c.damage_levels[0],
         &[50, 75, 90, 100],
     ),
     (
-        |c| &c.exhaust_damage,
+        |c| (&c.exhaust_damage).into(),
         |c| &c.damage_levels[1],
         &[50, 75, 90, 100],
     ),
     (
-        |c| &c.turbo_damage,
+        |c| (&c.turbo_damage).into(),
         |c| &c.damage_levels[2],
         &[50, 75, 90, 100],
     ),
     (
-        |c| &c.cooling_damage,
+        |c| (&c.cooling_damage).into(),
         |c| &c.damage_levels[3],
         &[50, 75, 90, 100],
     ),
     (
-        |c| &c.clutch_damage,
+        |c| (&c.clutch_damage).into(),
         |c| &c.damage_levels[4],
         &[50, 75, 90, 100],
     ),
     (
-        |c| &c.differential_damage,
+        |c| (&c.differential_damage).into(),
         |c| &c.damage_levels[5],
         &[50, 75, 90, 100],
     ),
     (
-        |c| &c.gearbox_damage,
+        |c| (&c.gearbox_damage).into(),
         |c| &c.damage_levels[6],
         &[50, 75, 90, 100],
     ),
     (
-        |c| &c.body_damage,
+        |c| (&c.body_damage).into(),
         |c| &c.damage_levels[7],
         &[50, 75, 90, 100],
     ),
     (
-        |c| &c.electrics_damage,
+        |c| (&c.electrics_damage).into(),
         |c| &c.damage_levels[8],
         &[50, 75, 90, 100],
     ),
     (
-        |c| &c.steering_damage,
+        |c| (&c.steering_damage).into(),
         |c| &c.damage_levels[9],
         &[50, 75, 90, 100],
     ),
     (
-        |c| &c.brake_damage,
+        |c| (&c.brake_damage).into(),
         |c| &c.damage_levels[10],
         &[50, 75, 90, 100],
     ),
     (
-        |c| &c.overall_suspension_damage,
+        |c| (&c.overall_suspension_damage).into(),
         |c| &c.damage_levels[13],
         &[50, 75, 90, 100],
     ),
     (
-        |c| &c.lights_damage,
+        |c| (&c.lights_damage).into(),
         |c| &c.damage_levels[11],
         &[50, 75, 90],
     ),
-    (|c| &c.light_damage[0], |c| &c.damage_levels[25], &[100]),
-    (|c| &c.light_damage[1], |c| &c.damage_levels[26], &[100]),
-    (|c| &c.light_damage[2], |c| &c.damage_levels[27], &[100]),
-    (|c| &c.light_damage[3], |c| &c.damage_levels[28], &[100]),
-    (|c| &c.light_damage[4], |c| &c.damage_levels[29], &[100]),
-    (|c| &c.light_damage[5], |c| &c.damage_levels[30], &[100]),
-    (|c| &c.wheel_hit_damage[0], |c| &c.damage_levels[31], &[100]),
-    (|c| &c.wheel_hit_damage[1], |c| &c.damage_levels[32], &[100]),
-    (|c| &c.wheel_hit_damage[2], |c| &c.damage_levels[33], &[100]),
-    (|c| &c.wheel_hit_damage[3], |c| &c.damage_levels[34], &[100]),
-    (|c| &c.tyre_wear, |c| &c.damage_levels[12], &[50, 75, 90]),
-    (|c| &c.gear_wear[0], |c| &c.damage_levels[14], &[100]),
-    (|c| &c.gear_wear[2], |c| &c.damage_levels[15], &[100]),
-    (|c| &c.gear_wear[3], |c| &c.damage_levels[16], &[100]),
-    (|c| &c.gear_wear[4], |c| &c.damage_levels[17], &[100]),
-    (|c| &c.gear_wear[5], |c| &c.damage_levels[18], &[100]),
-    (|c| &c.gear_wear[6], |c| &c.damage_levels[19], &[100]),
-    (|c| &c.gear_wear[7], |c| &c.damage_levels[20], &[100]),
-    (|c| &c.gear_wear[8], |c| &c.damage_levels[21], &[100]),
+    (
+        |c| c.light_damage.float_at(0).into(),
+        |c| &c.damage_levels[25],
+        &[100],
+    ),
+    (
+        |c| c.light_damage.float_at(1).into(),
+        |c| &c.damage_levels[26],
+        &[100],
+    ),
+    (
+        |c| c.light_damage.float_at(2).into(),
+        |c| &c.damage_levels[27],
+        &[100],
+    ),
+    (
+        |c| c.light_damage.float_at(3).into(),
+        |c| &c.damage_levels[28],
+        &[100],
+    ),
+    (
+        |c| c.light_damage.float_at(4).into(),
+        |c| &c.damage_levels[29],
+        &[100],
+    ),
+    (
+        |c| c.light_damage.float_at(5).into(),
+        |c| &c.damage_levels[30],
+        &[100],
+    ),
+    (
+        |c| c.wheel_hit_damage.float_at(0).into(),
+        |c| &c.damage_levels[31],
+        &[100],
+    ),
+    (
+        |c| c.wheel_hit_damage.float_at(1).into(),
+        |c| &c.damage_levels[32],
+        &[100],
+    ),
+    (
+        |c| c.wheel_hit_damage.float_at(2).into(),
+        |c| &c.damage_levels[33],
+        &[100],
+    ),
+    (
+        |c| c.wheel_hit_damage.float_at(3).into(),
+        |c| &c.damage_levels[34],
+        &[100],
+    ),
+    (
+        |c| (&c.tyre_wear).into(),
+        |c| &c.damage_levels[12],
+        &[50, 75, 90],
+    ),
+    (
+        |c| c.gear_wear.float_at(0).into(),
+        |c| &c.damage_levels[14],
+        &[100],
+    ),
+    (
+        |c| c.gear_wear.float_at(2).into(),
+        |c| &c.damage_levels[15],
+        &[100],
+    ),
+    (
+        |c| c.gear_wear.float_at(3).into(),
+        |c| &c.damage_levels[16],
+        &[100],
+    ),
+    (
+        |c| c.gear_wear.float_at(4).into(),
+        |c| &c.damage_levels[17],
+        &[100],
+    ),
+    (
+        |c| c.gear_wear.float_at(5).into(),
+        |c| &c.damage_levels[18],
+        &[100],
+    ),
+    (
+        |c| c.gear_wear.float_at(6).into(),
+        |c| &c.damage_levels[19],
+        &[100],
+    ),
+    (
+        |c| c.gear_wear.float_at(7).into(),
+        |c| &c.damage_levels[20],
+        &[100],
+    ),
+    (
+        |c| c.gear_wear.float_at(8).into(),
+        |c| &c.damage_levels[21],
+        &[100],
+    ),
 ];
 
 /// For each of `GRADES`, stores as the grade the number of its thresholds, taken in order, that lie
 /// below the block's value (a NaN passes them all). Each threshold tried goes through `scratch`;
 /// its one caller reads nothing of it.
-pub fn grade_car_values(car: &Car, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+fn grade_car_values(car: &Car, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     // `scratch` gets the last threshold tried (the ones before it are written over at once); the
     // core is `rc2k_core::race::cars::grade`.
     for &(from, to, thresholds) in &GRADES {
         let x = from(car).get();
         let (grade, tried) = rc2k_core::race::cars::grade(x, thresholds);
-        scene.drawing.scene.get().scratch.set(tried);
+        scene.draw_work_mut().scratch = tried;
         to(car).set(grade);
     }
     Ok(())
@@ -182,7 +263,7 @@ mod tests {
         let car = &CAR_BLOCKS.cars[0];
         for ((value, grade, _), (from, to)) in GRADES.iter().zip(old) {
             let now = |p: usize| crate::physics::car_offsets_1999::offset_1999(car, p);
-            assert_eq!(now(core::ptr::from_ref(value(car)) as usize), from);
+            assert_eq!(now(value(car).addr()), from);
             assert_eq!(now(core::ptr::from_ref(grade(car)) as usize), to);
         }
     }

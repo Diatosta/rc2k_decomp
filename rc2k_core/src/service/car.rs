@@ -18,23 +18,23 @@ impl Part {
     /// Its run of `parts_wear` (first, dwords) and its `damage` dword.
     fn places(self) -> (usize, usize, usize) {
         match self {
-            Part::Body => (10, 6, 1),       // +0x1A4, +0xD8
-            Part::Gearbox => (0, 10, 12),   // +0x17C, +0x104
-            Part::Brakes => (28, 3, 11),    // +0x1EC, +0x100
-            Part::Lights => (16, 7, 5),     // +0x1BC, +0xE8
-            Part::Suspension => (23, 5, 9), // +0x1D8, +0xF8
+            Part::Body => (10, 6, 1),
+            Part::Gearbox => (0, 10, 12),
+            Part::Brakes => (28, 3, 11),
+            Part::Lights => (16, 7, 5),
+            Part::Suspension => (23, 5, 9),
         }
     }
 }
 
-/// The tyre damage dword (+0x108).
+/// The tyre damage's place among the damage dwords.
 const TYRE_DAMAGE: usize = 13;
-/// The damage dwords `repair_car` zeroes itself (+0xD4 .. +0xFC).
+/// The damage dwords `repair_car` zeroes itself (the places of the damage dwords).
 const CAR_DAMAGE: [usize; 8] = [0, 2, 3, 4, 6, 7, 8, 10];
 
 impl Player {
     /// The part's run of wear dwords zeroed, before the work is shown.
-    pub fn clear_wear(&mut self, part: Part) {
+    pub(crate) fn clear_wear(&mut self, part: Part) {
         let (first, dwords, _) = part.places();
         self.parts_wear[first..first + dwords].fill(0);
     }
@@ -46,7 +46,7 @@ impl Player {
         self.damage[damage] = 0;
     }
 
-    /// `service::reset_tyre_wear`: the five wear dwords (+0x1F8) and the tyre damage.
+    /// `service::reset_tyre_wear`: the five tyre wear dwords and the tyre damage.
     pub fn reset_tyre_wear(&mut self) {
         self.tyre_wear = [0; 5];
         self.damage[TYRE_DAMAGE] = 0;
@@ -69,7 +69,7 @@ impl Player {
 }
 
 /// The service area's pictures (`files\g\graphics\screens\servNN.png`).
-pub const PICTURES: u32 = 60;
+pub(crate) const PICTURES: u32 = 60;
 
 /// The picture of the service area for a car: car 0x21 has car 0x17's. Refuses a car
 /// past the pictures' table.

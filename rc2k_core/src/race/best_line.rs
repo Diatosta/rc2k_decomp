@@ -4,7 +4,7 @@
 //! the share's sum keeps `f64` intermediates rounded to `f32` where stored.
 
 /// The most faces a set of replay cameras lists.
-pub const MOST_CAMERAS: u32 = 0x400;
+pub(crate) const MOST_CAMERAS: u32 = 0x400;
 
 /// Distance along the line at each checkpoint 0 ..= `last`: the running sum, `length(k)` asked
 /// in order for the link k to k + 1.

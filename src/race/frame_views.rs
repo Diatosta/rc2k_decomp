@@ -19,18 +19,19 @@ pub fn full_view_window(
     window: &crate::scene::view_window::ViewWindow,
 ) {
     let session = &system.session;
-    window.view_size[0].set(session.screen.get().width.get());
-    window.view_size[1].set(session.screen.get().height.get());
-    window.view_offset[0].set(0);
-    window.view_offset[1].set(0);
-    window.view_zoom.set(0x100);
+    window.borrow_mut().view_size[0] = session.screen.get().width.get();
+    window.borrow_mut().view_size[1] = session.screen.get().height.get();
+    window.borrow_mut().view_offset[0] = 0;
+    window.borrow_mut().view_offset[1] = 0;
+    window.borrow_mut().view_zoom = 0x100;
+    let draw = *scene.drawing.scene.borrow();
     crate::scene::set_view_window::set_view_window(
         race.course.reads(),
-        scene.drawing.scene.get(),
+        &draw,
         session.screen.get(),
         window,
         &race.frame.view_and_records.get().view_vars,
-        &race.shared.vars.get().scale_factor,
+        &crate::race::vars_store::SCALE_FACTOR,
     );
     // `draw_mode` is not written: it stays 0 (modes 1 and 2 are only read), and the drawing parts
     // leave the light state alone.
@@ -47,68 +48,72 @@ const MIRROR_REACH: u32 = 2;
 pub fn mirror_view_window(
     race: &Race,
     view: &crate::race::view_scratch::ViewScratch,
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     reads: crate::scene::workers::DrawReads<'_>,
 ) -> Result<(), Refused> {
-    let draw = reads.scene_draw;
+    let draw = &reads.scene_draw;
     let (fog, poly, car, vars) = (&view.fog, &view.polygon, &view.car, &view.vars);
     let drawn_view = view.drawn_view(race);
     // Logic in `rc2k_core::race::view::{mirror_entry, mirror_window}`.
     use rc2k_core::race::view::{MirrorRect, mirror_entry, mirror_window};
-    let n = mirror_entry(
-        reads.vars.split.get(),
-        drawn_view,
-        reads.panel_and_overlay.panel.flat.get() == 0,
-    );
+    let n = mirror_entry(reads.vars.split(), drawn_view, reads.panel.flat() == 0);
     // mirror_places: 12 entries of two dwords. The entry is the split (0 for one player, 1 or 2 for
     // two: `race_shell::set_start_states` holds it there and the split key turns 1 and 2 round)
     // plus 3 for the second view (0 or 1) plus 6 for the second set: at most 11.
-    let places = &reads.frame_work.mirror_places;
+    let places = &crate::race::frame_store::MIRROR_PLACES;
     let trap = Trap::new();
     let at = |word: usize| {
         let k = (n as usize).wrapping_mul(2).wrapping_add(word);
-        places.get(k).map_or_else(
-            || {
-                trap.keep(BadInput("a mirror place past the twelve"));
-                0
-            },
-            crate::memory::session::PlainDword::get,
-        )
+        places.get(k).copied().unwrap_or_else(|| {
+            trap.keep(BadInput("a mirror place past the twelve"));
+            0
+        })
     };
+    // The mirror keeps to the part of the screen clear of a phone's notch and home indicator.
+    let [inset_x, inset_y, inset_width, inset_height] =
+        crate::hud::safe_inset::get((reads.screen.width.get(), reads.screen.height.get()), None);
     let Some(MirrorRect {
-        x,
-        y,
+        x: place_x,
+        y: place_y,
         width: sx,
         height: sy,
     }) = mirror_window(
         (at(0), at(1)),
-        (reads.screen.width.get(), reads.screen.height.get()),
+        (inset_width, inset_height),
+        // Two players side by side keep each mirror to their own half.
+        if reads.vars.split() == 1 {
+            rc2k_core::hud::anchor::Rule::Halves
+        } else {
+            rc2k_core::hud::anchor::Rule::Thirds
+        },
+        crate::hud::box_ratio::get(),
     )
     else {
         trap.finish()?;
         return Err(BadInput("a mirror place whose scaling overflows").into());
     };
     trap.finish()?;
-    poly.window.view_offset[0].set(x);
-    poly.window.view_offset[1].set(y);
-    poly.window.view_size[0].set(sx);
-    poly.window.view_size[1].set(sy);
-    poly.cleared_rectangle[0].set(x);
-    poly.cleared_rectangle[1].set(y);
-    poly.cleared_rectangle[2].set(x.wrapping_add(sx));
-    poly.cleared_rectangle[3].set(y.wrapping_add(sy));
-    poly.window.view_zoom.set(0x100);
+    let (x, y) = ((place_x + inset_x) & !1, place_y + inset_y);
+    poly.window.borrow_mut().view_offset[0] = x;
+    poly.window.borrow_mut().view_offset[1] = y;
+    poly.window.borrow_mut().view_size[0] = sx;
+    poly.window.borrow_mut().view_size[1] = sy;
+    poly.scalars.borrow_mut().cleared_rectangle[0] = x;
+    poly.scalars.borrow_mut().cleared_rectangle[1] = y;
+    poly.scalars.borrow_mut().cleared_rectangle[2] = x.wrapping_add(sx);
+    poly.scalars.borrow_mut().cleared_rectangle[3] = y.wrapping_add(sy);
+    poly.window.borrow_mut().view_zoom = 0x100;
     crate::scene::set_view_window::set_view_window_reaching(
         reads.course(),
         draw,
         reads.screen,
         &poly.window,
         vars,
-        &reads.vars.scale_factor,
+        &crate::race::vars_store::SCALE_FACTOR,
         MIRROR_REACH,
     );
     crate::race::frame_draw::set_up_fog(
-        &reads.buffers.engine_tables,
+        reads.engine_tables,
         reads.stage_prefs,
         fog,
         poly,
@@ -116,14 +121,14 @@ pub fn mirror_view_window(
         part,
     )?;
     // `draw_mode` is not written here either: see `full_view_window`.
-    poly.view_mirrored.set(1);
+    poly.scalars.borrow_mut().view_mirrored = 1;
     Ok(())
 }
 
 /// Draws a flat triangle of three vertices at (1, 1, 0) with texture 0 and colour 0
 /// (`scene::draw_fan`, `polygon_vertex_count` 3).
-pub fn draw_flat_triangle(
-    part: &crate::scene::workers::PartScratch,
+pub(super) fn draw_flat_triangle(
+    part: &crate::scene::scratch_store::PartScratch,
     scene: &crate::scene::owner::Scene,
 ) {
     let buffer = &part.vertices;
@@ -141,8 +146,9 @@ pub fn draw_flat_triangle(
     scene
         .scratch
         .front_end_polygon()
-        .polygon_vertex_count
-        .set(3);
+        .scalars
+        .borrow_mut()
+        .polygon_vertex_count = 3;
     crate::scene::draw_fan::draw_fan(part, scene, scene.scratch.front_end_polygon(), buffer);
 }
 
@@ -169,7 +175,7 @@ fn shadow_refuses(
 
 /// Draws the marks' overlays, then the shadow (`effects::draw_overlays`, `effects::draw_shadow`).
 /// Refuses (before anything) the second shadow's refusals.
-pub fn draw_marks_overlays(
+fn draw_marks_overlays(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     gfx: &crate::gfx::owner::Gfx,
     cheats: &crate::menu::cheats_store::Cheats,
@@ -203,12 +209,12 @@ pub fn load_first_car(shared: &RaceShared) -> Result<(), Refused> {
 }
 
 /// Copies the mirror's surface (slot `mirror_picture`) onto the slot
-/// `KindTextureTables.kind_first_textures[200]`: each pixel goes through `gfx::pixel_to_components`
-/// (the screen's format, 16 or 32 bits by `screen_bits`) and back through
+/// `Textures::first_textures[200]`: each pixel goes through `gfx::pixel_to_components`
+/// (the screen's format) and back through
 /// `gfx::components_to_pixel` (the destination's) with alpha 0xFF, over the destination's width and
 /// height. Both surfaces are locked and unlocked (`d3d::lock_texture` / `d3d::unlock_texture`).
 /// Refuses (before the copy) a null destination format.
-pub fn copy_mirror_picture(
+fn copy_mirror_picture(
     frame: &Frame,
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
@@ -220,19 +226,19 @@ pub fn copy_mirror_picture(
     use crate::d3d::{lock_texture::lock_texture_in, unlock_texture::unlock_texture};
     use rc2k_core::race::view_steps::{PictureCopy, copy_picture};
     let (from, to) = (
-        scene.drawing.scene.get().mirror_picture.get(),
-        scene.textures.kinds.get().kind_first_textures[200].get(),
+        scene.drawing.scene.borrow().mirror_picture,
+        scene.textures.first_textures()[200],
     );
-    if lock_texture_in(gfx, from)?.carry {
+    if !lock_texture_in(gfx, from)? {
         return Ok(());
     }
     // The surfaces' pixels by handle (kept, never read back).
     let from_pixels = crate::gfx::surface::handle(gfx)?;
-    frame.frame_work.get().view_kept[0].set(from_pixels);
-    let ebp = gfx_drawing.draw_surface.pitch.get();
-    if !lock_texture_in(gfx, to)?.carry {
+    frame.frame_work.borrow_mut().view_kept[0] = from_pixels;
+    let from_pitch = gfx_drawing.draw_surface.pitch.get();
+    if lock_texture_in(gfx, to)? {
         let to_pixels = crate::gfx::surface::handle(gfx)?;
-        frame.frame_work.get().view_kept[1].set(to_pixels);
+        frame.frame_work.borrow_mut().view_kept[1] = to_pixels;
         let format = gfx_drawing.draw_surface.format.get();
         if format == 0 {
             return Err(BadInput("a surface without its format").into());
@@ -243,9 +249,8 @@ pub fn copy_mirror_picture(
         let copy = PictureCopy {
             width: gfx_drawing.draw_surface.width.get(),
             height: gfx_drawing.draw_surface.height.get(),
-            from_pitch: ebp,
+            from_pitch,
             to_pitch: gfx_drawing.draw_surface.pitch.get(),
-            from_16_bit: system.session.screen.get().bits.get() == 0x10,
             to_16_bit: gfx_drawing.draw_surface.bits_per_pixel.get() == 0x10,
         };
         let mut surfaces = GameSurfaces {
@@ -255,9 +260,8 @@ pub fn copy_mirror_picture(
             to: crate::gfx::locked_pixels::Place::start(to_pixels),
             gfx,
         };
-        // What the first pixel's high half is under: the destination's slot, as the lock was given
-        // it. The pixels are places in each surface's bytes, from offset 0.
-        copy_picture(&copy, 0, 0, to, &mut surfaces);
+        // The pixels are places in each surface's bytes, from offset 0.
+        copy_picture(&copy, 0, 0, &mut surfaces);
         unlock_texture(gfx, to)?;
     }
     unlock_texture(gfx, from)?;
@@ -276,9 +280,6 @@ struct GameSurfaces<'a> {
 }
 
 impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
-    fn read16(&mut self, at: u32) -> u16 {
-        self.from.must_read_at(at, "a surface's pixel")
-    }
     fn read32(&mut self, at: u32) -> u32 {
         self.from.must_read_at(at, "a surface's pixel")
     }
@@ -298,16 +299,15 @@ impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
 
 /// Makes the view textures load again this frame: each adds 0x4000 to `texture_changes` and sets
 /// a bit in `view_textures_forgotten`: the two views' cars' first texture (slots
-/// `KindTextureTables.kind_first_slots[198]` / `[199]`, bits 1, 2) and their counted-down one
+/// `KindSlots.kind_first_slots[198]` / `[199]`, bits 1, 2) and their counted-down one
 /// (slots `[196]` / `[197]`, bits 4, 8), `forget_flag_0` / `forget_flag_1` (slots `[220]` /
 /// `[221]`, bits 0x10, 0x1000). With the mirror on (`mirror_wanted`, not the next flag) bits 0x20
 /// and 0x400 are set too, and the mirror's picture is copied (`race::copy_mirror_picture`, then its
-/// slot forgotten) or uploaded with the mirror table. Refuses (before anything) a null view block
+/// slot forgotten). Refuses (before anything) a null view block
 /// or a slot past 0x3FF.
-pub fn forget_view_textures(
+pub(super) fn forget_view_textures(
     race: &Race,
     scene: &crate::scene::owner::Scene,
-    input: &crate::input::owner::Input,
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
@@ -330,7 +330,7 @@ pub fn forget_view_textures(
     let trap = Trap::new();
     let field = |b: usize, word: fn(&Car) -> u32| word(&race.car_blocks().cars[b]);
     // (the switch, the slot's variable) of each.
-    let slot_of = |n: usize| &textures.kinds.get().kind_first_slots[n];
+    let slot_of = |n: usize| textures.kinds.borrow().kind_first_slots[n];
     let source = |f: Forget| match f {
         Forget::Changing(v) => (
             field(blocks[v], |car| car.map_redrawn.get()),
@@ -340,52 +340,37 @@ pub fn forget_view_textures(
             field(blocks[v], |car| car.notice_counter.get()),
             slot_of(196 + v),
         ),
-        Forget::Extra(n) => (
-            [
-                &frame.panel_and_overlay.get().overlay.forget_flag_0,
-                &frame.panel_and_overlay.get().overlay.forget_flag_1,
-            ][n]
-                .get(),
-            slot_of(220 + n),
-        ),
+        Forget::Extra(n) => (frame.overlay().forget_flags[n], slot_of(220 + n)),
     };
     let mirror = mirror_on(
-        u32::from(frame.frame_work.get().mirror_wanted.is_set()),
-        frame.frame_work.get().mirror_switch.get(),
+        u32::from(frame.frame_work.borrow().mirror_wanted),
+        frame.frame_work.borrow().mirror_switch,
     );
-    let uploaded = input.devices.keys_now.get(0x18) != 0; // Devices.keys_now
     let mut slots: Vec<u32> = FORGET_ORDER
         .iter()
         .map(|&(f, _)| source(f))
         .filter(|&(switch, _)| forgets(switch))
-        .map(|(_, slot)| slot.get())
+        .map(|(_, slot)| slot)
         .collect();
     if mirror {
-        slots.push(textures.kinds.get().kind_first_textures[200].get());
+        slots.push(textures.first_textures()[200]);
     }
     trap.finish()?;
     check_slots(&slots)?;
-    frame.frame_work.get().view_textures_forgotten.set(0);
+    frame.frame_work.borrow_mut().view_textures_forgotten = 0;
     for (f, bit) in FORGET_ORDER {
         let (switch, slot) = source(f);
         if !forgets(switch) {
             continue;
         }
-        forget_slot_texture(slot.get(), scene)?;
-        frame.panel_and_overlay.get().panel.texture_changes.set(
-            frame
-                .panel_and_overlay
-                .get()
-                .panel
-                .texture_changes
-                .get()
-                .wrapping_add(FORGET_COST),
-        );
-        frame
-            .frame_work
-            .get()
-            .view_textures_forgotten
-            .set(frame.frame_work.get().view_textures_forgotten.get() | bit);
+        forget_slot_texture(slot, scene)?;
+        let value = frame
+            .panel
+            .borrow()
+            .texture_changes
+            .wrapping_add(FORGET_COST);
+        frame.panel.borrow_mut().texture_changes = value;
+        frame.frame_work.borrow_mut().view_textures_forgotten |= bit;
         if let Forget::Counted(v) = f {
             let counter = &race.car_blocks().cars[blocks[v]].notice_counter;
             counter.set(counter.get().wrapping_sub(1));
@@ -394,43 +379,31 @@ pub fn forget_view_textures(
     if !mirror {
         return Ok(());
     }
-    frame
-        .frame_work
-        .get()
-        .view_textures_forgotten
-        .set(frame.frame_work.get().view_textures_forgotten.get() | MIRROR_BIT);
-    if !uploaded {
-        copy_mirror_picture(frame, scene, system, gfx)?;
-        forget_slot_texture(textures.kinds.get().kind_first_textures[200].get(), scene)?;
-    } else {
-        // The platform's upload (then the slot forgotten), with the picture and the slot.
-        crate::standalone::not_ported(0x44E828, "race::frame_views");
-    }
-    frame.panel_and_overlay.get().panel.texture_changes.set(
-        frame
-            .panel_and_overlay
-            .get()
-            .panel
-            .texture_changes
-            .get()
-            .wrapping_add(MIRROR_COST),
-    );
+    frame.frame_work.borrow_mut().view_textures_forgotten |= MIRROR_BIT;
+    copy_mirror_picture(frame, scene, system, gfx)?;
+    forget_slot_texture(textures.first_textures()[200], scene)?;
+    let value = frame
+        .panel
+        .borrow()
+        .texture_changes
+        .wrapping_add(MIRROR_COST);
+    frame.panel.borrow_mut().texture_changes = value;
     Ok(())
 }
 
 /// The quad's corners, from (0, 0) to the view window's size.
 fn window_corners(view: &crate::race::view_scratch::ViewScratch) {
-    view.quad.corners[0].set(0);
-    view.quad.corners[4].set(0);
-    view.quad.corners[1].set(view.polygon.window.view_size[0].get());
-    view.quad.corners[5].set(view.polygon.window.view_size[1].get());
+    view.quad.borrow_mut().corners[0] = 0;
+    view.quad.borrow_mut().corners[4] = 0;
+    view.quad.borrow_mut().corners[1] = view.polygon.window.borrow().view_size[0];
+    view.quad.borrow_mut().corners[5] = view.polygon.window.borrow().view_size[1];
 }
 
 /// Draws a tinted quad over the view window: `in_credits` 0x283080 half through; else the sun's
 /// glare, with the view fog's far value (`fog_far`, held to 0 ..= 0xFF) as the alpha, colour
 /// `lamp_table_c` red, `glare_bytes` green and `StagePrefs.glare_bytes[1]` blue, none when 0.
 /// `sun_on_screen` is put back afterwards.
-pub fn draw_screen_tint(
+pub(super) fn draw_screen_tint(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     fog: &crate::scene::fog::Fog,
 ) -> Result<(), Refused> {
@@ -439,54 +412,55 @@ pub fn draw_screen_tint(
     // glare_colour}`.
     use rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha, glare_colour};
     if ctx.reads.work.in_credits.is_set() {
-        ctx.view.quad.colour[1].set(NIGHT_ALPHA);
+        ctx.view.quad.borrow_mut().colour[1] = NIGHT_ALPHA;
         window_corners(ctx.view);
-        ctx.view.quad.colour[0].set(NIGHT_COLOUR);
+        ctx.view.quad.borrow_mut().colour[0] = NIGHT_COLOUR;
         return crate::scene::draw_tinted_quad::draw_tinted_quad(ctx);
     }
-    let sun = ctx.view.polygon.sun.on_screen.get();
-    let a = glare_alpha(fog.far.get());
-    ctx.view.quad.colour[1].set(a);
+    let sun = ctx.view.polygon.sun.borrow().on_screen;
+    let a = glare_alpha(fog.borrow().far);
+    ctx.view.quad.borrow_mut().colour[1] = a;
     let mut done = Ok(());
     if a != 0 {
         window_corners(ctx.view);
         // The two glare bytes (`glare_bytes`, StagePrefs.glare_bytes[1]): the low bytes of two
         // dwords.
-        let byte = |k: usize| ctx.reads.stage_prefs.glare_bytes[k].get() as u8;
-        ctx.view.quad.colour[0].set(glare_colour(
-            ctx.reads.stage_prefs.lamp_table_c.get(),
+        let byte = |k: usize| ctx.reads.stage_prefs.read(|p| p.glare_bytes[k]) as u8;
+        ctx.view.quad.borrow_mut().colour[0] = glare_colour(
+            ctx.reads.stage_prefs.read(|p| p.lamp_table_c),
             byte(0),
             byte(1),
-        ));
+        );
         done = crate::scene::draw_tinted_quad::draw_tinted_quad(ctx);
     }
-    race.frame.frame_work.get().sun_on_screen.set(sun);
+    race.frame.frame_work.borrow_mut().sun_on_screen = sun;
     done
 }
 
 /// With the device on (`d3d_drawing_on`), sets the clip rectangle (`cleared_rectangle` ..) to the
 /// whole screen and clears the depth there (`d3d::clear_viewport_unless_held`).
-pub fn clear_view_depth(
+fn clear_view_depth(
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
-    part: &crate::scene::workers::PartScratch,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
 ) {
     let session = &system.session;
-    if scene.objects.tables.get().d3d_drawing_on.get() == 0 {
+    if scene.objects.tables.borrow().d3d_drawing_on == 0 {
         return;
     }
-    poly.cleared_rectangle[0].set(0);
-    poly.cleared_rectangle[1].set(0);
-    poly.cleared_rectangle[2].set(session.screen.get().width.get());
-    poly.cleared_rectangle[3].set(session.screen.get().height.get());
-    clear_viewport_unless_held(scene.drawing.scene.get(), part, &poly.cleared_rectangle);
+    poly.scalars.borrow_mut().cleared_rectangle[0] = 0;
+    poly.scalars.borrow_mut().cleared_rectangle[1] = 0;
+    poly.scalars.borrow_mut().cleared_rectangle[2] = session.screen.get().width.get();
+    poly.scalars.borrow_mut().cleared_rectangle[3] = session.screen.get().height.get();
+    let rectangle = poly.scalars.borrow().cleared_rectangle;
+    clear_viewport_unless_held(scene.drawing.v3_driver_fix.get().get(), part, rectangle);
 }
 
 /// In a race, when the drawn view's car (`drawn_car`) is seen from inside: sets `view_light_base`
 /// from the car's block, clears the depth (`race::clear_view_depth`) when the car's block asks for
 /// it or `view_cleared` is set, and draws the car (`race::draw_car_shined`) with all parts shown
-/// (`group_mask` -1), texture `KindTextureTables.kind_first_slots[202]`, render state 0x14 = 2,
+/// (`group_mask` -1), texture `KindSlots.kind_first_slots[202]`, render state 0x14 = 2,
 /// `polygon_vertex_count` 4, then the marks' overlays (`race::draw_marks_overlays`). Refuses
 /// (before anything) the car without its block.
 pub fn draw_own_car(
@@ -499,26 +473,26 @@ pub fn draw_own_car(
     let (race, scene) = (ctx.race, ctx.scene);
     // Logic in `rc2k_core::race::view_steps::{car_number, seen_inside, clears_depth}`.
     use rc2k_core::race::view_steps::{car_number, clears_depth, seen_inside};
-    if ctx.reads.switches.scene_set_up.get() == 0 {
+    if ctx.reads.switches.scene_set_up() == 0 {
         return Ok(());
     }
-    let number = ctx.reads.view.view_cars[ctx.view.drawn_view(race) as usize].get();
+    let number = ctx.reads.view.drawn_view_car(ctx.view.drawn_view(race))?;
     if !ctx.reads.work.has_car_block(car_number(number) as usize) {
         return Err(BadInput("the drawn car without its block").into());
     }
     let car = ctx.reads.work.block_number(car_number(number) as usize)?;
     ctx.view.vars.drawn_car.set(number);
-    ctx.view.state.drawn_car.set(number);
+    ctx.view.state.borrow_mut().drawn_car = number;
     // The state bits are the view's own; the rest, the car as seen.
-    if !seen_inside(ctx.view.cars.state_of(car)?.get()) {
+    if !seen_inside(ctx.view.cars.borrow().state_of(car)?) {
         return Ok(());
     }
     let block = ctx.reads.frame_cars.car(car)?;
-    ctx.view.light.car_light.set(block.light_colour.get());
+    ctx.view.light.borrow_mut().car_light = block.light_colour.get();
     let clears = clears_depth(
         block.surface_noise_a.get(),
         || block.surface_noise_b.get(),
-        || ctx.view.object.view_cleared[0].get(),
+        || ctx.view.object.borrow().view_cleared[0],
     );
     if clears {
         clear_view_depth(scene, system, ctx.part, &ctx.view.polygon);
@@ -526,18 +500,19 @@ pub fn draw_own_car(
     }
     // `race::draw_car_shined` reads only the car's block.
     crate::race::car_draw::draw_car_shined(ctx, car)?;
-    ctx.view.cars.group_mask.set(u32::MAX);
+    ctx.view.cars.borrow_mut().group_mask = u32::MAX;
     crate::scene::set_texture::set_texture_with(
         ctx.part,
         ctx.reads.object_tables,
-        ctx.reads.kind_textures.kind_first_slots[202].get(),
+        ctx.reads.kind_textures.first_slot(202),
     );
     crate::scene::set_render_state::set_render_state(ctx.part, 2, 0x14);
     ctx.scene
         .scratch
         .front_end_polygon()
-        .polygon_vertex_count
-        .set(4);
+        .scalars
+        .borrow_mut()
+        .polygon_vertex_count = 4;
     draw_marks_overlays(ctx, gfx, cheats, effects)
 }
 
@@ -573,7 +548,7 @@ pub fn run_view_marks(
     use rc2k_core::race::view_steps::{
         CAR_RECORDS, check_view_marks, first_word, layout_index, marks_shown,
     };
-    if ctx.reads.switches.view_marks_on.get() == 0 {
+    if ctx.reads.switches.view_marks_on() == 0 {
         return Ok(());
     }
     let view = ctx.view.drawn_view(race);
@@ -585,19 +560,22 @@ pub fn run_view_marks(
     )?;
     let (other, own) = marks_shown(
         view,
-        ctx.reads.vars.scene_switch.get(),
-        race.physics.split_tables().still.get(),
+        ctx.reads.vars.scene_switch(),
+        race.physics.split_tables().still,
     );
     race.effects_settings().other_marks_shown.set(other);
     race.effects_settings().own_marks_shown.set(own);
-    let layout_at = layout_index(view, ctx.reads.vars.split.get());
-    let layout = race.frame.frame_work.get().view_layouts[layout_at as usize].get();
+    let layout_at = layout_index(view, ctx.reads.vars.split());
+    // The marks' layout number: the two-player layouts' table has none for a larger split's views.
+    let layout = crate::race::frame_store::VIEW_LAYOUTS
+        .get(layout_at as usize)
+        .copied()
+        .unwrap_or(0);
     race.effects_settings().marks_layout.set(layout);
-    crate::math::cells::copy_cells(
-        &ctx.reads.car_blocks.cars[ctx.reads.view.view_number(view as usize)?].whole_matrix,
-        &race.frame.matrices.get().view_place,
-        16,
+    let whole = crate::scene::matrix::matrix_of(
+        &ctx.reads.car_parts.cars[ctx.reads.view.view_number(view as usize)?].whole_matrix,
     );
+    race.frame.view_kept.borrow_mut().view_place = whole;
     crate::drive::share_all_cars::share_all_cars(
         race,
         sound,
@@ -605,29 +583,52 @@ pub fn run_view_marks(
         crate::drive::set_listener::ListenerView::of(ctx.view, race),
         ctx.reads.net_race,
     )?;
-    let first = first_word(ctx.reads.vars.run_kind.get());
+    let first = first_word(ctx.reads.vars.run_kind());
     for b in 0..CAR_RECORDS {
         race.car_record(b as usize)?.streaks_on.set(first);
     }
     race.car_record(view as usize)?.streaks_on.set(1);
     let centre = (
-        ctx.view.polygon.window.view_centre[0].get(),
-        ctx.view.polygon.window.view_centre[1].get(),
+        ctx.view.polygon.window.borrow().view_centre[0],
+        ctx.view.polygon.window.borrow().view_centre[1],
     );
-    let n = race.frame.frame_work.get().view_layouts[layout_at as usize].get() as usize;
-    ctx.view.polygon.window.view_centre[0].set(int_over_times(
-        session.screen.get().width.get(),
-        ctx.reads.numbers.k800.get(),
-        race.frame.frame_work.get().view_scale_x[n].get(),
-    ));
-    ctx.view.polygon.window.view_centre[1].set(int_over_times(
-        session.screen.get().height.get(),
-        ctx.reads.numbers.k600.get(),
-        race.frame.frame_work.get().view_scale_y[n].get(),
-    ));
+    // The effects project through the front end's window (a copy of the view's, made before the
+    // view's overlays), so a part's middle goes there.
+    let effects_window = &scene.scratch.front_end_polygon().window;
+    let effects_centre = (
+        effects_window.borrow().view_centre[0],
+        effects_window.borrow().view_centre[1],
+    );
+    let part_split = ctx.reads.view.players() > 2;
+    if part_split {
+        // A part of a larger split screen: the effects are placed about the part's own middle,
+        // in screen pixels, and cut to the part (the two-player layouts' table has no entry for
+        // the third and fourth views).
+        let window = &ctx.view.polygon.window;
+        for axis in 0..2 {
+            let middle = window.borrow().view_offset[axis] + window.borrow().view_size[axis] / 2;
+            effects_window.borrow_mut().view_centre[axis] = middle as f32;
+        }
+        crate::effects::clip_quad::cut_to_part(effects, true);
+    } else {
+        let n = crate::race::frame_store::VIEW_LAYOUTS[layout_at as usize] as usize;
+        let centre_x = int_over_times(
+            session.screen.get().width.get(),
+            ctx.reads.numbers.k800.get(),
+            crate::race::frame_store::VIEW_SCALE_X[n],
+        );
+        let centre_y = int_over_times(
+            session.screen.get().height.get(),
+            ctx.reads.numbers.k600.get(),
+            crate::race::frame_store::VIEW_SCALE_Y[n],
+        );
+        let mut window = ctx.view.polygon.window.borrow_mut();
+        window.view_centre[0] = centre_x;
+        window.view_centre[1] = centre_y;
+    }
     // No register is read or left.
     let done = crate::effects::frame_marks::frame_marks(race, scene, effects).and_then(|_| {
-        if race.frame.frame_work.get().drawing.get() == 0 {
+        if race.frame.frame_work.borrow().drawing == 0 {
             crate::effects::run_frame::run_frame(
                 &ctx.part.vertices,
                 race,
@@ -642,32 +643,36 @@ pub fn run_view_marks(
             Ok(())
         }
     });
-    ctx.view.polygon.window.view_centre[1].set(centre.1);
-    ctx.view.polygon.window.view_centre[0].set(centre.0);
+    ctx.view.polygon.window.borrow_mut().view_centre[1] = centre.1;
+    ctx.view.polygon.window.borrow_mut().view_centre[0] = centre.0;
+    if part_split {
+        crate::effects::clip_quad::cut_to_part(effects, false);
+        effects_window.borrow_mut().view_centre[0] = effects_centre.0;
+        effects_window.borrow_mut().view_centre[1] = effects_centre.1;
+    }
     done
 }
 
 /// The same clear as `d3d::clear_viewport` (flag 2) over `cleared_rectangle`, unless
 /// `v3_driver_fix` is not 0.
-pub fn clear_viewport_unless_held(
-    draw: &crate::scene::draw_store::SceneDraw,
-    part: &crate::scene::workers::PartScratch,
-    own: &[crate::memory::session::PlainDword; 4],
+fn clear_viewport_unless_held(
+    v3_driver_fix: u32,
+    part: &crate::scene::scratch_store::PartScratch,
+    own: [u32; 4],
 ) {
-    if draw.v3_driver_fix.get() == 0 {
-        crate::platform::direct3d::clear_viewport(part, own);
+    if v3_driver_fix == 0 {
+        crate::d3d::device::clear_viewport(part, own);
     }
 }
 
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::asm_test::{Rng, at_each_control_word, lock, same};
+    use crate::race::asm_test::{Rng, at_each_control_word, same};
     use crate::test_support::vectors::{Recorder, word};
 
     #[test]
     fn int_over_times_matches() {
-        let _l = lock();
         let mut r = Rng(1);
         let mut file = Recorder::replay("race.frame_views.int_over_times");
         at_each_control_word(|| {

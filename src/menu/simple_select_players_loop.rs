@@ -1,4 +1,4 @@
-//! The player count of the simple mode, titled "ESCOLHA NÚMERO DE JOGADORES", the mode menu's
+//! The player count of the simple mode, titled "SELECT NUMBER OF PLAYERS", the mode menu's
 //! first entry. Screen-specific part of `menu::screen_loop`: background `arcade1.png`; leaving
 //! is not asked about; the next frame begins with the steps after the first frame. The
 //! background's file name says "arcade", but the arcade mode is another one and has no player
@@ -15,20 +15,20 @@ use crate::menu::screen_loop::{
 
 fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     let screens = &set_up.menus.screens;
-    screens.flow.turning.set(0x1u32);
-    screens.carousel.menu.set(0x2u32);
+    screens.flow.write().turning = 0x1u32;
+    screens.carousel.write().menu = 0x15u32;
     set_up.carousel_with(None)?;
-    let item = screens.items.current[slot::SIMPLE_SELECT_PLAYERS].get();
-    screens.loop_flags.item.set(item);
-    screens.carousel.front.set(item.wrapping_sub(1));
+    let item = screens.items.current(slot::SIMPLE_SELECT_PLAYERS);
+    screens.loop_flags.write().item = item;
+    screens.carousel.write().front = item.wrapping_sub(1);
     set_up.set_view(7, 10, 0x100);
     set_up.prepare_scene();
     Ok(())
 }
 
 fn after_first_frame(tables: &Tables) -> Result<Flow, Refused> {
-    if tables.captions.left_by_key.is_set() {
-        tables.captions.left_by_key.set(false);
+    if tables.captions.read().left_by_key {
+        tables.captions.write().left_by_key = false;
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)

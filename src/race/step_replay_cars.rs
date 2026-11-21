@@ -6,9 +6,9 @@
 //! its clocks (`step_clock`, `run_ticks`) one more; `drive::store_car` follows. Last comes
 //! `drive::race_mode_cars`.
 //!
-//! Called by `race::show_replay_still`. Unlike `drive::replay_step` the clocks count only for a
-//! running car, and nothing is recorded or sent. Refuses (before anything) a cars' count of 0 or
-//! past 8 (a count of 0 would loop 2^32 times).
+//! Unlike `drive::replay_step` the clocks count only for a running car, and nothing is recorded or
+//! sent. Refuses (before anything) a cars' count of 0 or past 8 (a count of 0 would loop 2^32
+//! times).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
@@ -39,7 +39,7 @@ pub fn step_replay_cars(o: crate::owners::Owners<'static>, race: &Race) -> Resul
                     RunStep::Controls => read_car_controls::read_car_controls(race, scene, o.net)?,
                     RunStep::GearRules => crate::physics::gear_input_rules::gear_input_rules(
                         race.shared.car(),
-                        race.shared.physics_tables.get(),
+                        &mut race.shared.run_mut().gear_inputs,
                         race.shared.vars.get(),
                     ),
                     RunStep::Steering => steer_inputs::steer_inputs(race, scene),
@@ -57,6 +57,7 @@ pub fn step_replay_cars(o: crate::owners::Owners<'static>, race: &Race) -> Resul
             }
         }
         store_car::store_car(shared)?;
+        replay_v2_step::after_step(race)?;
         let (next, done) = next_car(
             shared.work.get().current_car.get(),
             shared.view.get().race_cars.get(),

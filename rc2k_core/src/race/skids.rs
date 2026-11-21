@@ -33,6 +33,15 @@ pub fn middle(p: &Point) -> [u32; 3] {
     })
 }
 
+/// Whether a wheel at `place` is where the strip's last point already is (on the ground plane).
+/// A point laid there would have no direction (the angle between two equal places is 0), so its
+/// edges, and the strip's last point's, would turn across the strip: a twisted quad that draws as
+/// a gap. A game drawn faster than the physics steps asks again before the wheel has moved.
+pub fn is_repeat(last: &Point, place: [u32; 3]) -> bool {
+    let m = middle(last);
+    m[0] == place[0] && m[2] == place[2]
+}
+
 /// A point's edges across `centre` by `offset` (x, z): left less it, right plus it, y the
 /// centre's.
 pub fn edges(centre: [u32; 3], offset: (u32, u32)) -> Point {
@@ -59,10 +68,41 @@ pub fn next_point(n: u32) -> u32 {
     if next == POINTS { 0 } else { next }
 }
 
-/// The ring's points and their links.
-pub struct Ring<'a> {
+/// The ring's tables, read and written one entry at a time, so a caller whose tables are
+/// stored elsewhere need not copy them out. The indexes given are below `capacity()`.
+pub trait Ring {
+    /// How many points (and links) the tables hold.
+    fn capacity(&self) -> usize;
+    fn point(&self, index: usize) -> Point;
+    fn set_point(&mut self, index: usize, point: Point);
+    fn link(&self, index: usize) -> Link;
+    fn set_link(&mut self, index: usize, link: Link);
+}
+
+#[cfg(test)]
+/// The ring over two slices.
+pub(crate) struct SliceRing<'a> {
     pub points: &'a mut [Point],
     pub links: &'a mut [Link],
+}
+
+#[cfg(test)]
+impl Ring for SliceRing<'_> {
+    fn capacity(&self) -> usize {
+        self.points.len().min(self.links.len())
+    }
+    fn point(&self, index: usize) -> Point {
+        self.points[index]
+    }
+    fn set_point(&mut self, index: usize, point: Point) {
+        self.points[index] = point;
+    }
+    fn link(&self, index: usize) -> Link {
+        self.links[index]
+    }
+    fn set_link(&mut self, index: usize, link: Link) {
+        self.links[index] = link;
+    }
 }
 
 /// What adding a point worked out along the way, besides the ring's changes.
@@ -90,7 +130,7 @@ pub struct Added {
 /// else are made again across its middle halfway); `offset_of(angle, y)` is the edges'
 /// offset. Refuses a point or link outside the ring before changing anything.
 pub fn add_skid_point(
-    ring: Ring,
+    mut ring: impl Ring,
     n: u32,
     last: u32,
     place: [u32; 3],
@@ -98,16 +138,20 @@ pub fn add_skid_point(
     mut angle_of: impl FnMut(u32, u32) -> u32,
     mut offset_of: impl FnMut(u32, u32) -> (u32, u32),
 ) -> Result<Added, Invalid> {
-    let Ring { points, links } = ring;
-    let ring = |i: u32| i < POINTS && (i as usize) < points.len() && (i as usize) < links.len();
-    let named = |w: u16| w == NONE || ring(w as u32);
-    if !ring(n) || !named(links[n as usize].previous) || !named(links[n as usize].next) {
+    let len = ring.capacity();
+    let inside = |i: u32| i < POINTS && (i as usize) < len;
+    let named = |w: u16| w == NONE || inside(w as u32);
+    if !inside(n) {
         return Err(Invalid("a skid point or its links outside the ring"));
     }
-    if last != u32::MAX && !ring(last) {
+    let (nu, has_last) = (n as usize, last != u32::MAX);
+    let mut own = ring.link(nu);
+    if !named(own.previous) || !named(own.next) {
+        return Err(Invalid("a skid point or its links outside the ring"));
+    }
+    if has_last && !inside(last) {
         return Err(Invalid("the last skid point outside the ring"));
     }
-    let (nu, has_last) = (n as usize, last != u32::MAX);
     let mut added = Added {
         angle: 0,
         offset: (0, 0),
@@ -118,50 +162,66 @@ pub fn add_skid_point(
         next_read: 0,
     };
     if has_last {
-        let m = middle(&points[last as usize]);
+        let m = middle(&ring.point(last as usize));
         added.from = Some(m);
         added.angle = angle_of(place[0].wrapping_sub(m[0]), place[2].wrapping_sub(m[2]));
         added.offset = offset_of(added.angle & 0xFFFF, m[2]);
     }
-    links[nu].car = car;
-    points[nu] = edges(place, added.offset);
-    let previous = links[nu].previous;
+    ring.set_point(nu, edges(place, added.offset));
+    // The new point's old neighbours lose their links to it. A neighbour may be the point
+    // itself or the last point, so each entry is read where it is changed.
+    own.car = car;
+    ring.set_link(nu, own);
+    let previous = own.previous;
     if previous != NONE {
-        links[previous as usize].next = NONE;
+        let mut neighbour = ring.link(previous as usize);
+        neighbour.next = NONE;
+        ring.set_link(previous as usize, neighbour);
     }
-    added.next_read = links[nu].next;
+    added.next_read = ring.link(nu).next;
     if added.next_read != NONE {
-        links[added.next_read as usize].previous = NONE;
+        let mut neighbour = ring.link(added.next_read as usize);
+        neighbour.previous = NONE;
+        ring.set_link(added.next_read as usize, neighbour);
     }
     if has_last {
-        links[last as usize].next = n as u16;
+        let mut before = ring.link(last as usize);
+        before.next = n as u16;
+        ring.set_link(last as usize, before);
     }
-    links[nu].previous = last as u16;
-    links[nu].next = NONE;
-    links[nu].angle = added.angle as u16;
+    let mut own = ring.link(nu);
+    own.previous = last as u16;
+    own.next = NONE;
+    own.angle = added.angle as u16;
+    ring.set_link(nu, own);
     if has_last {
         let l = last as usize;
         added.last_moved = true;
-        if links[l].previous == NONE {
-            links[l].angle = added.angle as u16;
-            let p = points[l];
+        let mut before = ring.link(l);
+        if before.previous == NONE {
+            before.angle = added.angle as u16;
+            ring.set_link(l, before);
+            let p = ring.point(l);
             let (ox, oz) = added.offset;
-            points[l] = [
-                p[0].wrapping_sub(ox),
-                p[1],
-                p[2].wrapping_sub(oz),
-                p[3].wrapping_add(ox),
-                p[4],
-                p[5].wrapping_add(oz),
-            ];
+            ring.set_point(
+                l,
+                [
+                    p[0].wrapping_sub(ox),
+                    p[1],
+                    p[2].wrapping_sub(oz),
+                    p[3].wrapping_add(ox),
+                    p[4],
+                    p[5].wrapping_add(oz),
+                ],
+            );
         } else {
-            let turned = between(added.angle, links[l].angle);
-            let m = middle(&points[l]);
+            let turned = between(added.angle, before.angle);
+            let m = middle(&ring.point(l));
             added.turned = Some((turned, m));
             added.offset = offset_of(turned, m[1]);
-            points[l] = edges(m, added.offset);
+            ring.set_point(l, edges(m, added.offset));
         }
-        let p = points[l];
+        let p = ring.point(l);
         added.right = [p[3], p[4], p[5]];
     }
     Ok(added)
@@ -179,6 +239,10 @@ mod tests {
         assert_eq!(between(0x0001_0010, 0x0008), 0x0001_000C);
         assert_eq!(between(0x0000_0002, 0xFFFE), 0x0000_0000);
         assert_eq!(next_point(0x3FF), 0);
+        let p = edges([100, 7, 200], (5, 9));
+        assert!(is_repeat(&p, [100, 8, 200]));
+        assert!(!is_repeat(&p, [101, 7, 200]));
+        assert!(!is_repeat(&p, [100, 7, 199]));
         assert_eq!(next_point(5), 6);
     }
 
@@ -196,7 +260,7 @@ mod tests {
         ];
         // First point of a strip: no angle, no offset.
         let a = add_skid_point(
-            Ring {
+            SliceRing {
                 points: &mut points,
                 links: &mut links,
             },
@@ -212,7 +276,7 @@ mod tests {
         assert_eq!(points[0], [100, 5, 100, 100, 5, 100]);
         // The second links after the first, which turns to its angle.
         let a = add_skid_point(
-            Ring {
+            SliceRing {
                 points: &mut points,
                 links: &mut links,
             },
@@ -232,7 +296,7 @@ mod tests {
         assert_eq!(a.right, [100, 5, 107]);
         // The third turns the second (not first in its strip) halfway.
         let a = add_skid_point(
-            Ring {
+            SliceRing {
                 points: &mut points,
                 links: &mut links,
             },
@@ -247,7 +311,7 @@ mod tests {
         assert_eq!(a.turned.map(|t| t.0), Some(150));
         // Reusing point 0 cuts it from the strip.
         add_skid_point(
-            Ring {
+            SliceRing {
                 points: &mut points,
                 links: &mut links,
             },
@@ -262,7 +326,7 @@ mod tests {
         assert_eq!(links[1].previous, NONE);
         assert!(
             add_skid_point(
-                Ring {
+                SliceRing {
                     points: &mut points,
                     links: &mut links
                 },
@@ -277,7 +341,7 @@ mod tests {
         );
         assert!(
             add_skid_point(
-                Ring {
+                SliceRing {
                     points: &mut points,
                     links: &mut links
                 },

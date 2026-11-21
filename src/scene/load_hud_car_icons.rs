@@ -4,7 +4,7 @@
 //! "plate".
 //!
 //! Unless kind 0xC1's first texture is none, twice, for the player's car (the own car, or in a
-//! network session the block of the network player's car, its +0x24) and then for the second
+//! network session the block of the network player's car, its `car_kind`) and then for the second
 //! player's car:
 //! - `scene::car_icon_number` of it gives the icon's number;
 //! - under 0x12 the pictures `files\b\tx1822.pcx` and `tx1823.pcx`, else `tx1824.pcx` and
@@ -13,8 +13,7 @@
 //!   texture (0xAD, 0x68 for the first and 0x94 for the second);
 //! - `scene::upload_car_icon`.
 //!
-//! One caller, `scene::reload_system_textures`. Refuses a number of 0x24 or more (the tables'
-//! room) and a car without its block.
+//! Refuses a number of 0x24 or more (the tables' room) and a car without its block.
 
 use crate::errors::Refused;
 use crate::scene::car_icon_number::car_icon_number;
@@ -40,7 +39,7 @@ pub fn load_hud_car_icons(
 ) -> Result<(), Refused> {
     let shared = &race.shared;
     use rc2k_core::scene::car_icons;
-    let texture: u32 = scene.textures.kinds.get().kind_first_textures[193].get();
+    let texture: u32 = scene.textures.first_textures()[193];
     if texture == u32::MAX {
         return Ok(());
     }
@@ -53,6 +52,31 @@ pub fn load_hud_car_icons(
     } else {
         race.car_blocks().cars[0].car_kind.get()
     };
+    let players = shared.view.get().players.get();
+    if players > 2 && net_race.get().is_none() {
+        // Three or four players: each part's own car, at half size, four to the first row's place.
+        for n in 0..players.min(4) as usize {
+            let number = car_icon_number(race, race.car_blocks().cars[n].car_kind.get());
+            car_icons::check_numbers([number, 0])?;
+            let names = car_icons::pictures(number);
+            let [target_x, target_y] = car_icons::half_place(n);
+            upload_car_icon(
+                &CarIcon {
+                    sheet: scene.path_text(NAMES[names]),
+                    alpha_sheet: scene.path_text(NAMES[names + 1]),
+                    texture,
+                    sheet_x: scene.texture_places().car_icon_sheet_x[number as usize],
+                    sheet_y: scene.texture_places().car_icon_sheet_y[number as usize],
+                    target_x,
+                    target_y,
+                    half: true,
+                },
+                gfx,
+                system,
+            )?;
+        }
+        return Ok(());
+    }
     let numbers = [
         car_icon_number(race, player),
         car_icon_number(race, race.car_blocks().cars[1].car_kind.get()),
@@ -61,15 +85,15 @@ pub fn load_hud_car_icons(
     for (number, target_y) in numbers.into_iter().zip(car_icons::ROWS) {
         let names = car_icons::pictures(number);
         upload_car_icon(
-            scene.icon_upload(),
             &CarIcon {
-                sheet: scene.file_numbers().text_at(NAMES[names]),
-                alpha_sheet: scene.file_numbers().text_at(NAMES[names + 1]),
+                sheet: scene.path_text(NAMES[names]),
+                alpha_sheet: scene.path_text(NAMES[names + 1]),
                 texture,
-                sheet_x: scene.textures.places.get().car_icon_sheet_x[number as usize].get(),
-                sheet_y: scene.textures.places.get().car_icon_sheet_y[number as usize].get(),
+                sheet_x: scene.texture_places().car_icon_sheet_x[number as usize],
+                sheet_y: scene.texture_places().car_icon_sheet_y[number as usize],
                 target_x: car_icons::COLUMN,
                 target_y,
+                half: false,
             },
             gfx,
             system,

@@ -13,7 +13,7 @@ const MOST_ENTRIES: u32 = 0x100;
 /// entry is looked at before the end mark -1). Refuses a current player past four, no
 /// entries, or entries without their end within 0x100.
 pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
-    let current: u32 = menus.screens.event.current_player.get();
+    let current: u32 = menus.screens.event.read().current_player;
     let car = player(menus, current)
         .ok_or(BadInput("a current player past the four"))?
         .get()
@@ -29,11 +29,7 @@ pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
     let mut cars = Vec::new();
     let mut n = 0;
     loop {
-        cars.push(
-            crate::menu::cars_store::description(&menus.cars.table, entry(n)?)?
-                .get()
-                .car,
-        );
+        cars.push(crate::menu::cars_store::description(&menus.cars.table, entry(n)?)?.car);
         if entry(n + 1)? == u32::MAX {
             break;
         }
@@ -43,8 +39,8 @@ pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
         }
     }
     let found = rc2k_core::menu::cars::find_car(&cars, car);
-    menus.screens.carousel.front.set(found);
-    menus.screens.event.shown.car.set(found);
+    menus.screens.carousel.write().front = found;
+    menus.screens.event.write().shown.car = found;
 
     Ok(())
 }
@@ -62,21 +58,21 @@ fn turn(menus: &Menus, on: bool) {
     let c = turn_carousel(
         Carousel {
             turn: Turn {
-                count: menus.screens.carousel.count.get() as i32,
-                value: menus.screens.carousel.front.get() as i32,
-                way: menus.screens.carousel.direction.get(),
-                step: menus.screens.carousel.angle.get(),
+                count: menus.screens.carousel.read().count as i32,
+                value: menus.screens.carousel.read().front as i32,
+                way: menus.screens.carousel.read().direction,
+                step: menus.screens.carousel.read().angle,
             },
-            shown: menus.screens.event.shown.car.get(),
-            last: menus.cars.table.last_car.get(),
+            shown: menus.screens.event.read().shown.car,
+            last: menus.cars.table.read().last_car,
         },
         on,
     );
-    menus.screens.carousel.front.set(c.turn.value as u32);
-    menus.screens.carousel.direction.set(c.turn.way);
-    menus.screens.carousel.angle.set(c.turn.step);
-    menus.screens.event.shown.car.set(c.shown);
-    menus.screens.loop_flags.leave_screen.set(false);
+    menus.screens.carousel.write().front = c.turn.value as u32;
+    menus.screens.carousel.write().direction = c.turn.way;
+    menus.screens.carousel.write().angle = c.turn.step;
+    menus.screens.event.write().shown.car = c.shown;
+    menus.screens.loop_flags.write().leave_screen = false;
 }
 
 pub fn next_choice_car(menus: &Menus) {

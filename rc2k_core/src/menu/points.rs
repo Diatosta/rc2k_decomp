@@ -23,7 +23,7 @@ impl Points {
 }
 
 /// A stage's points as the entry and its driver or player keep them: both the points when
-/// the owner's switch (a driver's +0x24, a player's +0xD0) is 1, else both 0.
+/// the owner's switch (a driver's `in_event`, a player's `entry`) is 1, else both 0.
 pub fn kept(points: u32, keeps: bool) -> u32 {
     if keeps { points } else { 0 }
 }

@@ -11,12 +11,12 @@
 //! - `Grading.reading` = 0 and the size 256 x 256 again; `scene::load_hud_car_icons`; two lines
 //!   in the log.
 //!
-//! Two callers. Refuses more than 0x400 system textures and a first texture past the table.
+//! Refuses more than 0x400 system textures and a first texture past the table.
 //!
 //! The kinds' pictures and the read sizes are in the core crate (`rc2k_core::scene::pictures`).
 
 use crate::errors::{BadInput, Refused};
-use crate::scene::load_changed_texture_picture::{TEXTURES, load_changed_texture_picture_in_game};
+use crate::scene::load_changed_texture_picture::{TEXTURES, load_changed_texture_picture};
 use crate::scene::load_hud_car_icons::load_hud_car_icons;
 use crate::scene::textures::KINDS;
 use rc2k_core::scene::pictures::{kind_picture, read_size};
@@ -39,11 +39,11 @@ pub fn reload_system_textures(
     let (race, system, gfx, scene) = (o.race, o.system, o.gfx, o.scene);
     let gfx_grading = &gfx.grading;
     let course = &race.course;
-    let textures: u32 = scene.textures.places.get().totals[3].get();
+    let textures: u32 = scene.texture_places().system_textures;
     if textures == 0 || textures > TEXTURES {
         return Err(BadInput("no system textures, or more than the table has").into());
     }
-    let first = |kind: u32| scene.textures.kinds.get().kind_first_textures[kind as usize].get();
+    let first = |kind: u32| scene.textures.first_textures()[kind as usize];
     if (0..KINDS).any(|kind| first(kind) != u32::MAX && first(kind) >= TEXTURES) {
         return Err(BadInput("a kind's first texture past the pictures' table").into());
     }
@@ -54,28 +54,28 @@ pub fn reload_system_textures(
         if texture == u32::MAX {
             continue;
         }
-        let picture = kind_picture(scene.textures.places.get().kind_pictures[kind as usize].get());
-        scene.textures.places.get().wanted_pictures[texture as usize].set(picture);
+        let picture = kind_picture(scene.texture_places().kind_pictures[kind as usize]);
+        scene.texture_places_mut().wanted_pictures[texture as usize] = picture;
     }
-    let size = [
-        course.stage_prefs.get().scene_size_a.get(),
-        course.stage_prefs.get().scene_size_b.get(),
-    ];
+    let size = {
+        let prefs = course.stage_prefs.borrow();
+        [prefs.scene_size_a, prefs.scene_size_b]
+    };
     for texture in 0..textures {
         gfx_grading.reading.set(1u32);
-        let wanted = scene.textures.places.get().wanted_pictures[texture as usize].get();
+        let wanted = scene.texture_places().wanted_pictures[texture as usize];
         let [scale, saturation] = read_size(wanted, size);
         let grading = &gfx_grading;
         grading.scale.set(scale);
         grading.saturation.set(saturation);
-        load_changed_texture_picture_in_game(race, gfx, texture, scene, system)?;
+        load_changed_texture_picture(race, gfx, texture, scene, system)?;
         progress.textures_done(textures, texture)?;
     }
     let grading = &gfx_grading;
     grading.reading.set(0u32);
     grading.scale.set(0x100);
     grading.saturation.set(0x100);
-    crate::race::load_times::mark("load_hud_car_icons");
+    crate::logfile::load_times::mark("load_hud_car_icons");
     load_hud_car_icons(scene, race, gfx, system, &o.net.race_slot)?;
     crate::logfile::log_write::log_nul(&TEXTS[2], true, 1);
     crate::logfile::log_write::log_nul(&TEXTS[3], true, 1);

@@ -15,20 +15,19 @@ pub fn choose_car(o: Owners<'static>, vars: &NetShared) -> Result<(), Refused> {
     let menus = o.menus;
     let play = &menus.play;
     // The current player of the event, and whether the screen was left with Escape.
-    let escape_pressed = &menus.screens.draw_work.escape_pressed;
-    menus.screens.event.current_player.set(0);
+    let draw_work = &menus.screens.draw_work;
+    menus.screens.event.write().current_player = 0;
     let cars = crate::net::car_list::car_list(&menus.cars.lists)?;
-    escape_pressed.set(false);
+    draw_work.write().escape_pressed = false;
     let entry = Entry::with_cars(o, Some(cars));
     { run_screen(ScreenId::SelectCar, &entry) }?;
-    if !escape_pressed.is_set() {
+    if !draw_work.read().escape_pressed {
         crate::menu::take_shown_car::take_shown_car(menus, Some(cars))?;
-        vars.own
-            .head
-            .set(record::CAR, play.slots.records[0].get().car_number as u8);
-        vars.own
-            .head
-            .set(record::COLOURS, play.slots.records[0].get().gearing as u8);
+        let chosen = play.slots.records[0].get();
+        vars.own.update(|r| {
+            r.set_byte(record::CAR, chosen.car_number as u8);
+            r.set_byte(record::COLOURS, chosen.gearing as u8);
+        });
     }
     crate::net::show_background::show_background(o)?;
     Ok(())

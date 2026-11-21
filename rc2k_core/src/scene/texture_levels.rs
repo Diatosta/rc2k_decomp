@@ -28,12 +28,23 @@ const fn run(count: u32, first: u32, level: u32, other_level: u32, tag: u32) -> 
 /// The fixed runs' tag.
 pub const FIXED_TAG: u32 = 0x63;
 
+/// The texture the tyre change's title is drawn into: a texture of its own, since the title
+/// (in Portuguese) is wider than the tyre change texture's strips (a number no stage's object
+/// names).
+pub const TYRE_TITLE_TEXTURE: u32 = 0x3F0;
+
+/// The textures of the third and fourth players' map pictures in a split screen of three or four:
+/// textures of their own beside the two the first and second players' maps use, the same size
+/// and format (numbers no stage's object names). They are made only for such a race.
+pub const FURTHER_MAP_TEXTURES: [u32; 2] = [0x3F1, 0x3F2];
+
 /// The runs after the kinds' slots.
-pub const AFTER_KINDS: [Run; 15] = [
+pub const AFTER_KINDS: [Run; 16] = [
     run(1, 0x87, 0, 0, FIXED_TAG),
     run(2, 0xC0, 0, 0, FIXED_TAG),
     run(1, 0xC2, 0, 1, FIXED_TAG),
     run(1, 0x257, 0, 0, FIXED_TAG),
+    run(1, TYRE_TITLE_TEXTURE, 0, 0, FIXED_TAG),
     run(1, 0xCA, 0, 0, FIXED_TAG),
     run(1, 0xC8, 3, 3, FIXED_TAG),
     run(1, 0xD3, 0, 0, FIXED_TAG),
@@ -59,6 +70,10 @@ pub const FRAMED: [Run; 3] = [
     run(1, 0x218, 0, 0, FIXED_TAG),
     run(8, 0x210, 0, 0, FIXED_TAG),
 ];
+/// The runs of the further players' map textures, level 1 as the first two maps are.
+pub fn further_map_runs() -> [Run; 2] {
+    FURTHER_MAP_TEXTURES.map(|texture| run(1, texture, 1, 1, FIXED_TAG))
+}
 /// The most cars.
 pub const MOST_CARS: u32 = 8;
 
@@ -152,6 +167,15 @@ pub struct LevelsSet {
     pub kind_slots_added: u32,
 }
 
+/// Which runs the stage has besides the ones every stage has.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ExtraRuns {
+    /// The framed layout's runs.
+    pub framed: bool,
+    /// The third and fourth players' map textures.
+    pub further_maps: bool,
+}
+
 /// The cars' runs, the kinds' slots (each block with its prefs entries), the runs after
 /// them, the slots of level one, the last run and with `framed` three more. Refuses a run
 /// past the tables (none of the fixed ones is).
@@ -160,7 +184,7 @@ pub fn set_levels(
     cars: u32,
     second_first: bool,
     kinds: &[(KindSlots, Vec<u32>)],
-    framed: bool,
+    extra: ExtraRuns,
     other: bool,
     own: impl Fn(u32) -> bool,
 ) -> Result<LevelsSet, Invalid> {
@@ -178,9 +202,14 @@ pub fn set_levels(
     t.system[from..from + LEVEL_ONE_SYSTEM as usize].fill(1);
     t.tags[from..from + LEVEL_ONE_SYSTEM as usize].fill(FIXED_TAG);
     t.video[from..from + LEVEL_ONE_VIDEO as usize].fill(1);
+    if extra.further_maps {
+        for r in &further_map_runs() {
+            t.apply(r, other)?;
+        }
+    }
     let mut last = LAST;
     t.apply(&LAST, other)?;
-    if framed {
+    if extra.framed {
         for r in &FRAMED {
             t.apply(r, other)?;
             last = *r;
@@ -193,83 +222,4 @@ pub fn set_levels(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_own_car_has_the_better_levels_whichever_it_is() {
-        // Car 0 is the own car.
-        let first = car_runs(2, true, |car| car == 0);
-        assert_eq!(first[0], run(4, 0x100, 0, 1, 0x29));
-        assert_eq!(first[1], run(4, 0x104, 0, 1, 0x29));
-        assert_eq!(first[2], run(4, 0x108, 0, 2, 0x2A));
-        assert_eq!(first[3], run(4, 0x10C, 1, 2, 0x2A));
-        // A network client's: the levels change places, the slots and tags stay.
-        let second = car_runs(2, true, |car| car == 1);
-        assert_eq!(second[0], run(4, 0x100, 0, 2, 0x29));
-        assert_eq!(second[1], run(4, 0x104, 1, 2, 0x29));
-        assert_eq!(second[2], run(4, 0x108, 0, 1, 0x2A));
-        assert_eq!(second[3], run(4, 0x10C, 0, 1, 0x2A));
-        // Two cars of the own model: both.
-        let both = car_runs(2, true, |_| true);
-        assert_eq!(both[0], run(4, 0x100, 0, 1, 0x29));
-        assert_eq!(both[1], run(4, 0x104, 0, 1, 0x29));
-        assert_eq!(both[3], run(4, 0x10C, 0, 1, 0x2A));
-    }
-
-    #[test]
-    fn cars() {
-        assert_eq!(
-            [0, 1, 5, 8, 9, 0x8000_0000, 0x7FFF_FFFF].map(held_cars),
-            [1, 1, 5, 8, 8, 8, 8]
-        );
-        assert_eq!(car_runs(1, true, |car| car == 0).len(), 2);
-        assert_eq!(car_runs(1, true, |car| car == 0)[1].level, 0);
-        let r = car_runs(8, false, |car| car == 0);
-        assert_eq!(r.len(), 16);
-        assert_eq!(
-            (r[15].first, r[15].tag, r[1].level),
-            (0x108 + 8 * 6 + 4, 0x30, 1)
-        );
-    }
-
-    #[test]
-    fn levels() {
-        let (mut tags, mut system, mut video) =
-            (vec![0u32; 0x400], vec![9u32; 0x400], vec![9u32; 0x400]);
-        let mut t = LevelTables {
-            tags: &mut tags,
-            system: &mut system,
-            video: &mut video,
-        };
-        let kind = KindSlots {
-            first: 0x40,
-            tag: 0x20,
-            level: 1,
-            other_level: 2,
-            step: 1,
-        };
-        let set = set_levels(
-            &mut t,
-            2,
-            false,
-            &[(kind, vec![0, 5, u32::MAX, 3])],
-            true,
-            false,
-            |car| car == 0,
-        )
-        .unwrap();
-        assert_eq!(set.kind_slots_added, 2);
-        assert_eq!(set.last, FRAMED[2]);
-        assert_eq!(
-            (tags[0x41], system[0x41], tags[0x40], system[0x40]),
-            (0x20, 1, 0, 9)
-        );
-        assert_eq!(
-            (system[0xE1], video[0xE1], video[0xDD], tags[0xE1]),
-            (1, 9, 1, FIXED_TAG)
-        );
-        assert_eq!((system[0x10C], tags[0x10C], system[0x110]), (1, 0x2A, 9));
-        assert_eq!(system[0x200], 2);
-    }
-}
+mod tests;

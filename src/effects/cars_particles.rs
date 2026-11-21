@@ -1,14 +1,14 @@
-//! `effects::cars_particles`: the effects' frame for each car, when the settings' +0x10 is 1. For
-//! each of the settings' +0x5C cars (from the last; each 0x4C8 bytes from the settings' +0x60) it
-//! sets the emitting car, the matrix's adjugate (+0x94, `scene::adjugate_matrix`), the motion
-//! history (+0x58 .. +0x7C), the mean of the last four motions (+0x4C ..) with its length (+0x88,
-//! rounded) and a rate from it (+0x90), the side factors (from the up vector and the vector at
-//! +0x28, `x87::normalised3`, `x87::crossed_turned`) and two more values from the looks table by
-//! the car's +4. While +0x30 counts down the mean and its length are 0. Then it runs
-//! `effects::emit_car_particles` (unless +0x30 counts down, by one), `effects::emit_exhaust_smoke`,
-//! `emit_twin_particle_first` and `emit_twin_particle_second`.
+//! `effects::cars_particles`: the effects' frame for each car, when the settings'
+//! `other_marks_shown` is 1. For each of the settings' `cars_copy` cars (from the last) it sets the
+//! emitting car, the matrix's adjugate (`CarEffects::matrix`, `scene::adjugate_matrix`), the motion
+//! history (`steps`), the mean of the last four motions (`motion`) with its length (`pace`,
+//! rounded) and a rate from it (`rate`), the side factors (from the up vector and the car's vector
+//! across, `x87::normalised3`, `x87::crossed_turned`) and two more values from the looks table by
+//! the car's model. While `reset_wait` counts down the mean and its length are 0. Then it runs
+//! `effects::emit_car_particles` (unless `reset_wait` counts down, by one),
+//! `effects::emit_exhaust_smoke`, `emit_twin_particle_first` and `emit_twin_particle_second`.
 //!
-//! Refuses null settings, more than 8 cars, a car's null matrix or vector, a car model (+4) of 34
+//! Refuses null settings, more than 8 cars, a car's null matrix or vector, a car model of 34
 //! or more, and the emitters' refusals; on a refusal nothing stays written (all it may write is put
 //! back).
 
@@ -19,7 +19,7 @@ use crate::effects::{emit_exhaust_smoke, emit_twin_particle_first, emit_twin_par
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::memory::session::{read_bits, write_bits};
+
 use crate::race::effects_settings_store::car_handle;
 use crate::scene::adjugate_matrix::adjugate_matrix;
 
@@ -30,8 +30,8 @@ const MOST_CARS: u32 = 8;
 // `SplineHead::look` reads past the table's end.
 const MODELS: u32 = 34;
 
-/// The cars' numbers, last first, worked out without writing: none when the settings' +0x10
-/// is not 1.
+/// The cars' numbers, last first, worked out without writing: none when the settings'
+/// `other_marks_shown` is not 1.
 fn cars(effects: &crate::effects::owner::Effects) -> Result<Vec<usize>, Refused> {
     let marks = effects.settings()?;
     Ok({
@@ -81,14 +81,12 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
     }
     let count = cars(effects)?.len() as u32;
     for n in (0..count).rev() {
-        effects
-            .kinds
-            .emitter
-            .tag
-            .set(bh::to_int(bh::int(n as i32) * bh::int(effects.kinds.emitter.tag_k.get())) as u32);
+        let tag_k = effects.kinds.emitter.borrow().tag_k;
+        effects.kinds.emitter.borrow_mut().tag =
+            bh::to_int(bh::int(n as i32) * bh::int(tag_k)) as u32;
         let car = &effects.settings()?.cars[n as usize];
-        effects.kinds.emitter.car.set(car_handle(n as usize));
-        let whole = car.whole(effects.car_blocks()?)?;
+        effects.kinds.emitter.borrow_mut().car = car_handle(n as usize);
+        let whole = car.whole(effects.car_parts()?)?;
         adjugate_matrix(whole, &car.matrix);
         for (to, from) in [(3, 2), (2, 1), (1, 0)] {
             for k in 0..3 {
@@ -101,7 +99,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
                 &car.last_place[k],
             ));
         }
-        let mean_k = effects.setup.floats.quarter.get();
+        let mean_k = effects.setup.floats.quarter;
         for k in 0..3 {
             car.motion[k].set(x87::sum4_times(
                 &car.steps[0][k],
@@ -114,8 +112,8 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
         for (k, cell) in car.last_place.iter().enumerate().take(3) {
             cell.set(matrix_float(whole, 0x30 + 4 * k as u32)?);
         }
-        let [k1, k2, k3] = read_bits(&effects.kinds.emitter.rate_k);
-        let one = effects.setup.floats.one.get();
+        let [k1, k2, k3] = effects.kinds.emitter.borrow().rate_k.map(f32::to_bits);
+        let one = effects.setup.floats.one;
         let (length, rate) = x87::length_and_rate(car.motion.each_ref(), k1, k2, one, k3);
         car.pace.set(length as u32);
         car.rate.set(rate as u32);
@@ -125,8 +123,8 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
             }
             car.pace.set(0);
         }
-        let parts = car.parts(effects.car_blocks()?)?;
-        let up = read_bits(&effects.kinds.emitter.up);
+        let parts = car.parts(effects.car_parts()?)?;
+        let up = effects.kinds.emitter.borrow().up.map(f32::to_bits);
         let across = [
             x87::product_difference(
                 up[1],
@@ -149,22 +147,29 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
         ];
         let across = x87::normalised3(across.map(f32::to_bits), one);
         let across = across.map(f32::to_bits);
-        write_bits(&effects.kinds.emitter.across, across);
+        effects.kinds.emitter.borrow_mut().across = across.map(f32::from_bits);
         let b = x87::crossed_turned(
             across,
-            car.parts(effects.car_blocks()?)?,
-            car.whole(effects.car_blocks()?)?,
+            car.parts(effects.car_parts()?)?,
+            car.whole(effects.car_parts()?)?,
         );
-        write_bits(&effects.kinds.emitter.side_b, b);
+        effects.kinds.emitter.borrow_mut().side_b = b.map(f32::from_bits);
         let a = [
             x87::product_difference(b[1], across[2], b[2], across[1]),
             x87::product_difference(b[2], across[0], b[0], across[2]),
             x87::product_difference(b[0], across[1], b[1], across[0]),
         ];
-        write_bits(&effects.kinds.emitter.side_a, a.map(f32::to_bits));
+        effects.kinds.emitter.borrow_mut().side_a = a;
         let model = car.model.get();
-        effects.kinds.emitter.looks[0].set(paths.spline_head.look(2 * model as usize));
-        effects.kinds.emitter.looks[1].set(paths.spline_head.look(2 * model as usize + 2));
+        let looks = {
+            let head = paths.spline_head.borrow();
+            [
+                head.look(2 * model as usize),
+                head.look(2 * model as usize + 2),
+            ]
+        };
+        effects.kinds.emitter.borrow_mut().looks[0] = looks[0];
+        effects.kinds.emitter.borrow_mut().looks[1] = looks[1];
         if car.reset_wait.get() != 0 {
             car.reset_wait.set(car.reset_wait.get().wrapping_sub(1));
         } else {

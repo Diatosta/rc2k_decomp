@@ -1,9 +1,10 @@
 //! The work car: the copy of the current car's block that the physics step works on.
 //! `drive::load_car` copies the current car's block (the same layout) into it
-//! and `drive::store_car` back. Most names are readings; `unknown_*` runs are places no ported
+//! and `drive::store_car` back. Most names are readings; `reserved_*` runs are places no ported
 //! code names. Its layout is Rust's own: no code addresses it by byte (the replay file's layout
 //! is `drive::replay_state`'s, field by field).
 
+use crate::memory::plain_floats::PlainFloats;
 use crate::memory::session::{CellKind, PlainCells};
 
 /// The record, on the cells of kind `K`: plain for the work car and the cars' blocks (`Car`),
@@ -43,14 +44,14 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Drive layout (1 both axles).
     pub drive_kind: K::Dword,
     /// Only cleared at the start (`drive::clear_start_state`); nothing else uses it.
-    pub unused_44: K::Dword,
+    pub reserved_44: K::Dword,
     /// Per part (six): 1 once the part's wake count reached 10 and the part's sound object was
     /// woken (`race::wake_part_sounds`). Never cleared but with the block.
     pub part_woken: [K::Dword; 6],
     /// Least wheel grip scaled; scales the ground's bumps.
     pub ground_bump_scale: K::Float,
     /// Eight 0 .. 1 gauges, one per octant of a hit's direction.
-    pub impact_octant_marks: [K::Float; 8],
+    pub impact_octant_marks: PlainFloats<8>,
     /// The lights switched on.
     pub lights_on: K::Dword,
     /// Stage time in steps after the start.
@@ -76,21 +77,21 @@ pub struct Car<K: CellKind = PlainCells> {
     /// -1 stood still too long, 2 stopped after the finish.
     pub stop_state: K::Dword,
     /// The 4 x 4 orientation matrix (the crash matrix); the translation row is its last.
-    pub crash_matrix: [K::Float; 16],
+    pub crash_matrix: PlainFloats<16>,
     /// World position x, y, z (x 65536).
-    pub position: [K::Dword; 3],
+    pub position: PlainFloats<3>,
     /// One figure per split taken.
     pub split_times: [K::Dword; 16],
     /// Drive speed less forward speed.
     pub drive_slip_speed: K::Float,
     /// Angular velocity x, y, z.
-    pub spin: [K::Float; 3],
+    pub spin: PlainFloats<3>,
     /// Length of the spin.
     pub spin_length: K::Float,
     /// World-frame velocity.
-    pub velocity: [K::Float; 3],
+    pub velocity: PlainFloats<3>,
     /// Velocity in the car's frame (z forward: the car speed).
-    pub local_velocity: [K::Float; 3],
+    pub local_velocity: PlainFloats<3>,
     /// Driven wheels' speed.
     pub drive_speed_a: K::Float,
     /// Second driven speed.
@@ -134,13 +135,13 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Steering pull from steering damage.
     pub steer_trim: K::Dword,
     /// Nothing reads or writes it.
-    pub unused_20c: K::Dword,
+    pub reserved_20c: K::Dword,
     /// The four terms: lateral, engine braking, yaw, lean.
     pub grip_forces: [K::Float; 4],
     /// Flags: bit 2 damage notices, bit 8 sound speed scale.
     pub option_bits: K::Dword,
     /// The x, y, z of the probe point that crossed an edge or hit.
-    pub contact_point: [K::Float; 3],
+    pub contact_point: PlainFloats<3>,
     /// Size of the contact.
     pub contact_depth: K::Float,
     /// 1 on any contact this step.
@@ -201,9 +202,9 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Brake fade gauge (reading).
     pub brake_fade: K::Float,
     /// Two damper wear gauges.
-    pub damper_wear: [K::Float; 2],
+    pub damper_wear: PlainFloats<2>,
     /// Brake temperature gauges.
-    pub brake_heat: [K::Float; 2],
+    pub brake_heat: PlainFloats<2>,
     /// Engine temperature gauge.
     pub engine_heat: K::Float,
     /// Engine damage gauge.
@@ -219,11 +220,11 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Differential damage gauge.
     pub differential_damage: K::Float,
     /// Per-gear wear, index gear + 1 (reverse, neutral, 1 .. 7).
-    pub gear_wear: [K::Float; 9],
+    pub gear_wear: PlainFloats<9>,
     /// Gearbox damage gauge.
     pub gearbox_damage: K::Float,
     /// Per-wheel hit gauges FL, FR, RL, RR.
-    pub wheel_hit_damage: [K::Float; 4],
+    pub wheel_hit_damage: PlainFloats<4>,
     /// General body-hit gauge.
     pub body_hit_damage: K::Float,
     /// Body damage gauge.
@@ -231,13 +232,13 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Electrics damage gauge.
     pub electrics_damage: K::Float,
     /// Lights' failure gauges (FL, FR, RL, RR, spots, brake light).
-    pub light_damage: [K::Float; 6],
+    pub light_damage: PlainFloats<6>,
     /// The lights' damage gauge.
     pub lights_damage: K::Float,
     /// Steering damage gauge.
     pub steering_damage: K::Float,
     /// Per-wheel suspension damage gauges.
-    pub suspension_damage: [K::Float; 4],
+    pub suspension_damage: PlainFloats<4>,
     /// The suspension's overall gauge.
     pub overall_suspension_damage: K::Float,
     /// Brake wear gauge (axle not settled).
@@ -248,7 +249,7 @@ pub struct Car<K: CellKind = PlainCells> {
     pub brake_damage: K::Float,
     /// The four tyres' wear, FL, FR, RL, RR, 0 ..= 100 (the developers' wear
     /// page's "tyre1" .. "tyre4"); `tyre_wear` is their overall figure.
-    pub tyre_wears: [K::Float; 4],
+    pub tyre_wears: PlainFloats<4>,
     /// Tyre wear gauge.
     pub tyre_wear: K::Float,
     /// Warning levels 0 .. 4, one per gauge group.
@@ -256,9 +257,9 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Engine health factor on the torque.
     pub engine_power_factor: K::Float,
     /// Braking factors (a, b).
-    pub brake_efficiency: [K::Float; 2],
+    pub brake_efficiency: PlainFloats<2>,
     /// Factors on the two drive-force outputs.
-    pub drive_efficiency: [K::Float; 2],
+    pub drive_efficiency: PlainFloats<2>,
     /// Steering factor from the steering damage.
     pub steering_efficiency: K::Float,
     /// Intermittent failures: electrics, then lights FL, FR, RL, RR, spots, brake.
@@ -272,9 +273,9 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Bit n: gear n - 1 barred.
     pub lost_gear_bits: K::Dword,
     /// Per-wheel ride height %.
-    pub wheel_ride_height: [K::Float; 4],
+    pub wheel_ride_height: PlainFloats<4>,
     /// Per-wheel suspension stiffness %.
-    pub wheel_stiffness: [K::Float; 4],
+    pub wheel_stiffness: PlainFloats<4>,
     /// Mean of wheel_stiffness.
     pub stiffness_mean: K::Float,
     /// Mean of wheel_ride_height.
@@ -366,7 +367,7 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Eased roll of the view.
     pub camera_roll: K::Float,
     /// Camera x, y, z (whole numbers).
-    pub camera_position: [K::Dword; 3],
+    pub camera_position: PlainFloats<3>,
     /// Camera heading, whole-number units << 4.
     pub camera_heading: K::Dword,
     /// Third camera turn (reading).
@@ -374,7 +375,7 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Camera pitch, units << 4, negated.
     pub camera_pitch: K::Dword,
     /// Three turns (<< 16) applied to the camera's offset.
-    pub camera_offset_turns: [K::Dword; 3],
+    pub camera_offset_turns: PlainFloats<3>,
     /// Zoom of the view.
     pub camera_zoom: K::Float,
     /// The first three: the view's focus point kept, the car's position with y + 0x8000
@@ -382,15 +383,9 @@ pub struct Car<K: CellKind = PlainCells> {
     pub kept_focus_point: [K::Dword; 9],
     /// 1 when the camera mode is 2 or 3.
     pub camera_mode_is_2_or_3: K::Dword,
-    /// Unused: each view keeps the car's state bits (lights, seen from inside, casts a shadow)
-    /// in `race::car_draw_state::CarDrawState::car_states`.
-    pub state_bits: K::Dword,
     /// The six parts' wake counts (`race::frame_draw`'s lights,
     /// `drive::share_car_state`).
     pub part_wake_counts: [K::Dword; 6],
-    /// The engine speed shown (the revs as a float, not below `PhysicsTables.idle_engine_speed`;
-    /// `race::car_parts`), drawn by the panel and the car's number.
-    pub shown_engine_speed: K::Float,
     /// Id of the notice shown (0 none).
     pub notice_id: K::Dword,
     /// The notice's counter: the name plates set it to 1 when drawn,
@@ -406,16 +401,7 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Second notice time.
     pub notice_time_b: K::Dword,
     /// The view's place kept with the car (`race::frame_draw`).
-    pub kept_view_place: [K::Dword; 3],
-    /// The four wheels' matrices, 16 floats each, kept by
-    /// `race::car_parts` for `race::car_draw`.
-    pub part_matrices: [K::Float; 64],
-    /// The body's turn matrix (`race::car_draw`, `race::car_shadow`, `drive::set_listener`).
-    pub body_matrix: [K::Float; 16],
-    /// The car's place matrix (`race::car_draw`, `drive::set_listener`).
-    pub place_matrix: [K::Float; 16],
-    /// The body's turn times its place (`race::car_parts`).
-    pub whole_matrix: [K::Float; 16],
+    pub kept_view_place: PlainFloats<3>,
     /// Noise sample 1 scaled.
     pub surface_noise_a: K::Dword,
     /// Same sample 1 value.
@@ -452,7 +438,7 @@ pub struct Car<K: CellKind = PlainCells> {
     /// Car roll (reading), units << 4.
     pub car_roll: K::Dword,
     /// The inverse of the crash matrix.
-    pub car_inverse_matrix: [K::Float; 16],
+    pub car_inverse_matrix: PlainFloats<16>,
     /// The split's figures (figure, gaps, names, two more).
     pub split_gaps: [K::Dword; 7],
     /// Crash contact point x.
@@ -479,17 +465,6 @@ pub struct Car<K: CellKind = PlainCells> {
     pub engine_sound_speed_int: K::Dword,
     /// The marks switched on (`race::car_parts`).
     pub marks_on: K::Dword,
-    /// The mode's marks on (`race::car_parts`; `race::car_draw`'s sound
-    /// groups).
-    pub mode_on: K::Dword,
-    /// The marks' bytes (the count x 0x20; `race::car_parts`,
-    /// `race::frame_draw`'s headlights).
-    pub marks_count: K::Dword,
-    /// The parts' switch bytes (`rc2k_core::race::car_parts::
-    /// mark_switches`).
-    pub part_switches: K::Bytes<0x11>,
-    /// Pads the switch bytes to a whole dword.
-    pub _pad_part_switches: K::Bytes<3>,
     /// The course map picture's corner x, y (16-pixel steps;
     /// `race::map_scroll`).
     pub map_corner: [K::Dword; 2],
@@ -559,7 +534,7 @@ pub struct Car<K: CellKind = PlainCells> {
     pub eased_value: K::Dword,
     /// Where a position received from the network is to be glided to
     /// (x, y, z; `net::apply_message`, stepped towards by `net::follow_remote`).
-    pub glide_target: [K::Dword; 3],
+    pub glide_target: PlainFloats<3>,
     /// The steps of the glide left (set to 32 by `net::apply_message`,
     /// one less each step in `net::follow_remote`).
     pub glide_steps_left: K::Dword,
@@ -588,6 +563,32 @@ impl Car {
         car.suspension_stiffness = PlainDword::new(0x40);
         car.parts_present = PlainDword::new(u32::MAX);
         car
+    }
+}
+
+/// Puts `values` into `fields`, the fields' dwords laid end to end in the order given, the first
+/// value into dword `skip`. A value past the last field is refused (nothing is written for it).
+pub(super) fn put_dwords(
+    fields: &[&dyn crate::memory::session::Run],
+    skip: usize,
+    values: impl IntoIterator<Item = u32>,
+) -> Result<(), crate::errors::BadInput> {
+    let mut values = values.into_iter().peekable();
+    let mut skip = skip;
+    for field in fields {
+        for i in skip.min(field.count())..field.count() {
+            let Some(v) = values.next() else {
+                return Ok(());
+            };
+            field.set_bits(i, v);
+        }
+        skip = skip.saturating_sub(field.count());
+    }
+    match values.peek() {
+        None => Ok(()),
+        Some(_) => Err(crate::errors::BadInput(
+            "a dword past the fields of its record",
+        )),
     }
 }
 

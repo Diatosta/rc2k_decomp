@@ -1,10 +1,9 @@
-//! Made-up best times for the championship's stages and rallies: the ten entries of each stage
-//! get the record's fourth class time + 24,000 and 0x9F more each, and a driver
+//! Made-up best times for the championship's stages and rallies: the ten entries of each stage get
+//! the record's fourth class time + 24,000 and 0x9F more each, and a driver
 //! (`saves/default_times.rs`); a rally's end (tag 3 or 4) gives the twenty entries of the next of
-//! the six rally tables the running sum of the stages' first class times + 0xB6 and 0xB2 more
-//! each, and a driver. With the checkpoint times asked for, those are made too. One caller,
-//! `menu::set_up_front_end`, when `var\hst.dat` was not loaded. Refuses missing tables, a record
-//! table without stages or without its end, and more rallies than the six tables; a refusal
+//! the six rally tables the running sum of the stages' first class times + 0xB6 and 0xB2 more each,
+//! and a driver. With the checkpoint times asked for, those are made too. Refuses missing tables, a
+//! record table without stages or without its end, and more rallies than the six tables; a refusal
 //! leaves nothing written.
 
 use crate::errors::{BadInput, Refused};
@@ -22,7 +21,6 @@ pub fn default_championship_times(
     race: &Race,
     system: &System,
     saves: &Saves,
-    ebp: u32,
     log: Log,
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
@@ -52,7 +50,8 @@ pub fn default_championship_times(
                 race,
             },
             &records,
-            Championship::Times { stage: ebp },
+            // The stage is looked at only when checkpoint times are guessed: not here.
+            Championship::Times { stage: 0 },
             present,
             false,
         )?;

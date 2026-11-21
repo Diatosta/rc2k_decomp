@@ -8,5 +8,7 @@ void main() {
     vec4 pixel = texelFetch(canvas, ivec2(gl_FragCoord.xy), 0);
     uvec4 bytes = uvec4(pixel * 255.0 + 0.5);
     if (bytes == uvec4(0xFF, 0x00, 0xFF, 0xA5)) discard;
-    result = vec4(pixel.rgb, 1.0);
+    // A top byte between 0 and 255 is a translucent white's alpha (a button picture's edge).
+    float alpha = (bytes.a == 0u || bytes.a == 255u) ? 1.0 : pixel.a;
+    result = vec4(pixel.rgb, alpha);
 }

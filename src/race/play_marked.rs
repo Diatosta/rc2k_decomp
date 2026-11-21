@@ -7,9 +7,6 @@
 //! The tail: the block to stop at into `play_end`, `viewer_stopped` 0 (playing), the
 //! start read (`drive::read_replay_frame` with the block and the frame; its failure not
 //! looked at), the play (`race::play_replay_range`), `play_from_here` 0.
-//!
-//! Callers: `race::viewer_action` (0x1A, 0x25 .. 0x28 `play_marked`; 6 and 0x22, 0x23
-//! `play_from_here`).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
@@ -17,7 +14,7 @@ use rc2k_core::race::viewer_flow::Play;
 
 /// The shared tail: from block `play.from`, frame `play.frame`, to block
 /// `play.end`. The start read's carry is not looked at.
-pub fn play_tail(
+pub(super) fn play_tail(
     race: &Race,
     o: crate::owners::Owners<'static>,
     play: Play,

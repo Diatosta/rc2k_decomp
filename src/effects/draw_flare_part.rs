@@ -1,5 +1,5 @@
 //! `effects::draw_flare_part`: one part of the lens flare drawn as a screen square. Its centre (x,
-//! y) rounded into the polygon vertex buffer's fifth vertex (+0x80, +0x84); the four vertices'
+//! y) rounded into the polygon vertex buffer's fifth vertex; the four vertices'
 //! colour (alpha << 24) | colour; their texture places from the mark corner (its words times
 //! `uv_k`: 0/2, 4/6, 0xC/0xE, 8/0xA); the side: the size (`half`) by the size times the corner's
 //! height over its width (the words' differences, 16-bit, made positive), times two constants into
@@ -12,8 +12,8 @@
 
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::rounded_value;
 use crate::math::x87;
-use crate::scene::matrix3::rounded_value;
 
 const CORNERS: u32 = 0x100;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
@@ -32,7 +32,7 @@ fn abs16(a: u32, b: u32) -> u32 {
     reason = "the original's registers, the effects' groups and the owners"
 )]
 pub fn draw_flare_part(
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    engine_tables: crate::math::engine_tables::EngineTablesRef,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     corner: u32,
     angle: u32,
@@ -50,8 +50,10 @@ pub fn draw_flare_part(
         if effects.setup.settings.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        for n in 0..2 {
-            effects.frame.draw_work.sides[n].set(x87::loaded(&effects.frame.flare_scales.scale[n]));
+        let scales = effects.frame.flare_scales.borrow().scale;
+        for (n, scale) in scales.into_iter().enumerate() {
+            let side = x87::loaded(scale);
+            effects.frame.draw_work.borrow_mut().sides[n] = side;
         }
         let colour = (alpha << 24) | colour;
         for item in buffer.vertices.iter().take(4) {
@@ -59,7 +61,7 @@ pub fn draw_flare_part(
         }
         let entry = &effects.blocks.corners.corners[corner as usize];
         let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
-        let uv_k = effects.frame.draw_work.uv_k.get();
+        let uv_k = effects.frame.draw_work.borrow().uv_k;
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
             let vertex = &buffer.vertices[n];
             vertex.u.set(x87::int_times(word(u) as i32, uv_k));
@@ -73,22 +75,25 @@ pub fn draw_flare_part(
         let ratio = x87::int_ratio(along as i32, across as i32);
         let width = x87::from_int(size as i32);
         let height = x87::int_times(size as i32, ratio);
-        effects.frame.draw_work.half[0].set(width);
-        effects.frame.draw_work.half[1].set(height);
+        effects.frame.draw_work.borrow_mut().half[0] = width;
+        effects.frame.draw_work.borrow_mut().half[1] = height;
         let turn = angle >> 20;
-        let sw = x87::mul(width, &effects.frame.draw_work.sides[0]);
-        let sh = x87::mul(height, &effects.frame.draw_work.sides[1]);
-        effects.frame.draw_work.sides[0].set(sw);
-        effects.frame.draw_work.sides[1].set(sh);
+        let sw = x87::mul(width, effects.frame.draw_work.borrow().sides[0]);
+        let sh = x87::mul(height, effects.frame.draw_work.borrow().sides[1]);
+        effects.frame.draw_work.borrow_mut().sides[0] = sw;
+        effects.frame.draw_work.borrow_mut().sides[1] = sh;
         let corners = [
             (x87::sub(0, sw), x87::sub(0, sh)),
             (x87::sub(width, sw), x87::sub(0, sh)),
             (x87::sub(width, sw), x87::sub(height, sh)),
             (x87::sub(0, sw), x87::sub(height, sh)),
         ];
-        let sin = crate::scene::engine_tables_store::sine(engine_tables, turn as usize).get();
-        let cos = crate::scene::engine_tables_store::cosine(engine_tables, turn as usize).get();
-        let depth = x87::mul(&effects.frame.draw_work.near, &effects.frame.draw_work.z_k);
+        let sin = crate::math::engine_tables::sine(engine_tables, turn as usize);
+        let cos = crate::math::engine_tables::cosine(engine_tables, turn as usize);
+        let depth = x87::mul(
+            effects.frame.draw_work.borrow().near,
+            effects.frame.draw_work.borrow().z_k,
+        );
         for (n, (x, y)) in corners.into_iter().enumerate() {
             let vertex = &buffer.vertices[n];
             let [tx, ty] = x87::turn_about(x, y, sin, cos, cx, cy);
@@ -96,11 +101,8 @@ pub fn draw_flare_part(
             vertex.y.set(ty);
             vertex.z.set(depth);
         }
-        effects
-            .frame
-            .view_vars
-            .cleared
-            .set(effects.frame.view_vars.cleared.get().wrapping_add(1));
+        let cleared = effects.frame.view_vars.borrow().cleared.wrapping_add(1);
+        effects.frame.view_vars.borrow_mut().cleared = cleared;
         if clip_quad(buffer, scene, effects)? {
             return Ok(());
         }

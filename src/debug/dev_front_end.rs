@@ -90,7 +90,7 @@ fn set_up_race(race: &Race) -> Result<(), Refused> {
     // (the neutral gear's wear too, which the network race's clearing leaves).
     for block in &race.car_blocks().cars[..2] {
         crate::net::clear_car_state::clear_car_state(block)?;
-        block.gear_wear[1].set(0.0);
+        block.gear_wear.float_at(1).set(0.0);
     }
     Ok(())
 }
@@ -132,7 +132,7 @@ fn round_a_race(
     stage_free::render3d_tidy(race, &o.scene.scratch)?;
     stage_free::objects_tidy(race, &o.scene.scratch)?;
     race_end::release_textures(o.scene, o.gfx);
-    shared.switches.get().mask_kind.set(0);
+    shared.switches.borrow_mut().mask_kind = 0;
     race_shell::clear_player_absences(race);
     f()?;
     step(o, Call::StopMusic)?;
@@ -154,10 +154,10 @@ fn test_course(o: Owners<'static>) -> Result<(), Refused> {
     use crate::race::{race_end, race_shell, replay, stage_loading};
     let race = o.race;
     round_a_race(o, || {
-        race.course.numbers.get().replay_mode.set(1);
+        race.course.set_replay_mode(1);
         race.shared.tables().noise_seed.set(0x1234_5678);
-        race.physics.split_tables().arcade_kind.set(2);
-        race.shared.switches.get().editor_mode.set(0);
+        race.physics.split_tables_mut().arcade_kind = 2;
+        race.shared.switches.borrow_mut().editor_mode = 0;
         // Free play leaves the car where it was: on another course, or with no race
         // yet, that is nowhere, and the first search ends the game.
         let course = SETTINGS.course.load(Relaxed);
@@ -185,9 +185,9 @@ fn finish_sequence(o: Owners<'static>) -> Result<(), Refused> {
     round_a_race(o, || {
         let s = &SETTINGS;
         let car = s.car.load(Relaxed);
-        race.course.numbers.get().replay_mode.set(1);
+        race.course.set_replay_mode(1);
         let results = &race.shared.state.results;
-        race.replay.finish.get().no_place.set(1);
+        race.replay.finish_mut().no_place = 1;
         results
             .stage_index
             .set(s.course.load(Relaxed).saturating_sub(1).min(5));
@@ -195,7 +195,7 @@ fn finish_sequence(o: Owners<'static>) -> Result<(), Refused> {
         results.finish_player.set(0x45);
         results.finished.set(car & 1);
         let result = crate::drive::finish_race::finish_race(race, o);
-        race.replay.finish.get().no_place.set(0);
+        race.replay.finish_mut().no_place = 0;
         result
     })
 }
@@ -215,15 +215,16 @@ fn last_replay(o: Owners<'static>) -> Result<(), Refused> {
     let shared = &race.shared;
     let course = &race.course;
     round_a_race(o, || {
-        course.numbers.get().replay_mode.set(2);
+        course.set_replay_mode(2);
         shared.view.get().player_options[0].set(u32::MAX);
         shared.view.get().player_options[1].set(u32::MAX);
-        let result = crate::race::replay_mode::replay_mode(
+        let result = crate::menu::replay_viewer::replay_mode::replay_mode(
             race,
             o,
-            crate::race::replay_viewer::Mode::LastRace,
-        );
-        course.numbers.get().replay_mode.set(0);
+            crate::menu::replay_viewer::Mode::LastRace,
+        )
+        .map(|_| ());
+        course.set_replay_mode(0);
         result
     })
 }
@@ -269,12 +270,12 @@ mod tab {
         let s = &SETTINGS;
         number(ui, "Course", &s.course, 99);
         let course = s.course.load(Relaxed) as usize;
-        let present = race.shared.switches.get().course_present[course].get() != 0;
+        let present = race.shared.switches.borrow().course_present[course] != 0;
         ui.same_line();
         if ui.button("Find the courses")
             && let Err(e) = crate::race::find_present_courses::find_present_courses(race, scene)
         {
-            crate::logfile::program_log::log(&format!("debug: find the courses: {e:?}"));
+            crate::program_log::log(&format!("debug: find the courses: {e:?}"));
         }
         ui.same_line();
         ui.text_disabled(if present {
@@ -284,9 +285,7 @@ mod tab {
         });
         number(ui, "Car", &s.car, 0x21);
         ui.same_line();
-        let name = race.physics.car_specs().cars[s.car.load(Relaxed) as usize]
-            .name
-            .read();
+        let name = race.physics.car_specs().cars[s.car.load(Relaxed) as usize].name;
         let end = name.iter().position(|&b| b == 0).unwrap_or(name.len());
         ui.text_disabled(String::from_utf8_lossy(&name[..end]));
         pick(ui, "Direction", &s.direction, &["forwards", "backwards"]);

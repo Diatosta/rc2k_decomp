@@ -23,18 +23,16 @@
 //! - the colours a third time with the stage's lamp level = 0x7F, `scene_set_up` = 1,
 //!   `scene::fill_light_tables`, the reflections setting = 1.
 //!
-//! Thirteen callers (the main menu's loop, the films, the ends of the events). A refusal by one
-//! of its parts comes with the work half done.
+//! A refusal by one of its parts comes with the work half done.
 
 use crate::errors::Refused;
-use crate::memory::session::PlainDword;
 use crate::scene::allocate_point_records::allocate_point_records_in_game;
 use crate::scene::clear_slot_kinds::clear_slot_kinds;
 use crate::scene::fill_light_tables::fill_light_tables;
 use crate::scene::fill_scene_light_tables::fill_scene_light_tables;
 use crate::scene::known_kind::known_kind;
 use crate::scene::known_kind_picture::known_kind_picture;
-use crate::scene::owner::Scene;
+use crate::scene::object_tables_store::TextureLevels;
 use crate::scene::reload_slot_textures::reload_slot_textures;
 use crate::scene::reset_texture_places::reset_texture_places;
 use crate::scene::reset_texture_tables::reset_texture_tables;
@@ -42,13 +40,13 @@ use crate::scene::set_up_object_memory::set_up_object_memory;
 use crate::scene::view_matrix::set_view_matrices;
 
 // ---- game data ----
-fn system_levels(scene: &Scene) -> &[PlainDword; 1024] {
-    &scene.objects.tables.get().system_levels
+fn system_levels(levels: &mut TextureLevels) -> &mut [u32; 1024] {
+    &mut levels.system_levels
 }
-fn video_levels(scene: &Scene) -> &[PlainDword; 1024] {
-    &scene.objects.tables.get().video_levels
+fn video_levels(levels: &mut TextureLevels) -> &mut [u32; 1024] {
+    &mut levels.video_levels
 }
-type Levels = for<'a> fn(&'a Scene) -> &'a [PlainDword; 1024];
+type Levels = for<'a> fn(&'a mut TextureLevels) -> &'a mut [u32; 1024];
 /// The textures needed: how many, the first, the levels' table, the tag.
 const NEEDS: [(usize, usize, Levels, u32); 6] = [
     (0x2A, 0x258, system_levels, 0x63),
@@ -72,11 +70,9 @@ fn picture_places() -> impl Iterator<Item = u32> {
 
 fn colours(course: &crate::race::owner_course::Course, dark_third: u32) {
     {
-        crate::memory::session::write_bits(&course.stage_prefs.get().lit_colour, [0xFFu32; 3]);
-        crate::memory::session::write_bits(
-            &course.stage_prefs.get().dark_colour,
-            [0u32, 0, dark_third],
-        );
+        let mut prefs = course.stage_prefs.borrow_mut();
+        prefs.lit_colour = [0xFF; 3];
+        prefs.dark_colour = [0, 0, dark_third];
     }
 }
 
@@ -86,62 +82,74 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     let shared = &race.shared;
     let frame = &race.frame;
     let course = &race.course;
+    // The menus' textures always have one level: the mipmapping option is the races' (each race
+    // copies it in again from its settings), so the last race's value does not carry over here.
+    shared.vars.get().mip_setting.set(0);
+    crate::logfile::load_times::begin("front end scene: loading picture");
     crate::menu::show_loading_picture::show_loading_picture_in(o)?;
+    crate::logfile::load_times::phase("front end scene: textures made");
     reset_texture_tables(scene);
     for (count, first, levels, tag) in NEEDS {
+        let mut tables = scene.texture_levels_mut();
         for texture in first..first + count {
-            levels(scene)[texture].set(0);
-            scene.objects.tables.get().texture_tags[texture].set(tag);
+            levels(&mut tables)[texture] = 0;
+            tables.texture_tags[texture] = tag;
         }
     }
     crate::scene::set_up_textures::set_up_textures(shared, scene, o.gfx, &o.gfx.d3d)?;
+    crate::logfile::load_times::phase("front end scene: object memory, lights");
     set_up_object_memory(race, scene)?;
     clear_slot_kinds(scene);
     colours(course, 0);
     // The scene's settings stored before the fog is cleared, after the two colours.
-    course.stage_prefs.get().scene_size_a.set(0x100u32);
-    course.stage_prefs.get().scene_size_b.set(0x100u32);
-    course.stage_prefs.get().fog_low.set(0u32);
-    course.stage_prefs.get().fog_high.set(0u32);
-    course.stage_prefs.get().fog_colour[0].set(0u32);
-    course.stage_prefs.get().fog_colour[1].set(0u32);
-    course.stage_prefs.get().fog_colour[2].set(0u32);
-    course.stage_prefs.get().fog_near.set(0u32);
-    course.stage_prefs.get().fog_start.set(0u32);
-    course.stage_prefs.get().fog_end.set(0u32);
-    o.scene.scratch.front_end().fog.clear();
-    shared.switches.get().scene_set_up.set(1u32);
+    {
+        let mut prefs = course.stage_prefs.borrow_mut();
+        prefs.scene_size_a = 0x100;
+        prefs.scene_size_b = 0x100;
+        prefs.fog_low = 0;
+        prefs.fog_high = 0;
+        prefs.fog_colour = [0; 3];
+        prefs.fog_near = 0;
+        prefs.fog_start = 0;
+        prefs.fog_end = 0;
+    }
+    o.scene.scratch.front_end().fog.borrow_mut().clear();
+    shared.switches.borrow_mut().scene_set_up = 1u32;
     fill_light_tables(scene, race)?;
 
-    scene.objects.tables.get().slot_kinds[0].set(1);
+    scene.texture_levels_mut().slot_kinds[0] = 1;
     for slot in 1..0x29 {
-        scene.objects.tables.get().slot_kinds[slot].set(0x258 + slot as u32);
+        scene.texture_levels_mut().slot_kinds[slot] = 0x258 + slot as u32;
     }
     for slot in 0x29..0x2D {
-        scene.objects.tables.get().slot_kinds[slot].set(0x262 + slot as u32);
+        scene.texture_levels_mut().slot_kinds[slot] = 0x262 + slot as u32;
     }
     for place in 0..0x22usize {
-        scene.objects.tables.get().slot_kinds[0x2D + place]
-            .set(known_kind(race.kind_tables(), place as u32));
+        scene.texture_levels_mut().slot_kinds[0x2D + place] =
+            known_kind(race.kind_tables(), place as u32);
     }
+    crate::logfile::load_times::phase("front end scene: objects");
     crate::scene::load_front_end_objects_logged::load_front_end_objects_logged(race, scene)?;
+    crate::logfile::load_times::phase("front end scene: texture places");
     reset_texture_places(scene);
 
-    scene.textures.places.get().kind_pictures[0x87].set(0x82A);
+    scene.texture_places_mut().kind_pictures[0x87] = 0x82A;
     for (k, &picture) in MENU_PICTURES.iter().enumerate() {
-        scene.textures.places.get().kind_pictures[0x258 + k].set(picture);
+        scene.texture_places_mut().kind_pictures[0x258 + k] = picture;
     }
     for place in picture_places() {
         let mut picture = known_kind_picture(race.kind_tables(), place);
         for k in 0..8 {
-            scene.textures.places.get().kind_pictures[0x2BC + place as usize * 8 + k].set(picture);
+            scene.texture_places_mut().kind_pictures[0x2BC + place as usize * 8 + k] = picture;
             picture = picture.wrapping_add(1);
         }
     }
+    crate::logfile::load_times::phase("front end scene: system textures");
     crate::scene::reload_system_textures::reload_system_textures(
         o,
         &mut crate::race::loading_bar_frame::LoadingBar::new(o),
     )?;
+    crate::logfile::load_times::phase("front end scene: records, lights");
     allocate_point_records_in_game(&scene.scratch, course)?;
     colours(course, 0);
     fill_scene_light_tables(race, scene)?;
@@ -150,10 +158,13 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
         frame,
         &o.scene.scratch.front_end().matrices,
     );
+    crate::logfile::load_times::phase("front end scene: slot textures");
     reload_slot_textures(frame, scene)?;
+    crate::logfile::load_times::phase("front end scene: rest");
     colours(course, 0x7F);
-    shared.switches.get().scene_set_up.set(1u32);
+    shared.switches.borrow_mut().scene_set_up = 1u32;
     fill_light_tables(scene, race)?;
     shared.vars.get().settings_words[1].set(1u32);
+    crate::logfile::load_times::end();
     Ok(())
 }

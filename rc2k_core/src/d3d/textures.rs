@@ -1,6 +1,6 @@
-//! The system textures' lock. A texture's record is 0x78 bytes (0x140 of them): +4 width, +8
-//! height, +0xC its pixel kind's description (+4 bytes a pixel, +8 the format), +0x14 its first
-//! level's surface, +0x60 locked. Locked, its surface is the one the blitters draw on.
+//! The system textures' lock. A texture's record (0x140 of them) holds its width, its height,
+//! its pixel kind's description (bytes a pixel, the format), its first level's surface and a
+//! locked flag. Locked, its surface is the one the blitters draw on.
 
 use crate::Invalid;
 
@@ -10,11 +10,6 @@ pub const POOL: u32 = 0x140;
 pub const LOCKED_TWICE: u32 = 0x8021_A171;
 pub const LOCK_FAILED: u32 = 0x8021_A172;
 pub const UNLOCK_FAILED: u32 = 0x8021_A173;
-
-/// A texture's locked word compared with 1: (below, equal).
-pub fn compared_with_one(locked: u32) -> (bool, bool) {
-    (locked < 1, locked == 1)
-}
 
 fn in_pool(slot: u32) -> Result<(), Invalid> {
     if slot >= POOL {
@@ -51,10 +46,9 @@ pub fn lock(slot: u32, surface: u32, locked: impl FnOnce() -> u32) -> Result<Loc
 /// What `d3d::unlock_texture` does for a texture slot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unlock {
-    /// Nothing done; the comparison's (below, equal) stand.
-    Flags(bool, bool),
-    /// The surface's `Unlock` (a failure is `UNLOCK_FAILED`), locked 0, below false and
-    /// equal true.
+    /// Nothing to do: no surface, or not locked.
+    Nothing,
+    /// The surface's `Unlock` (a failure is `UNLOCK_FAILED`), locked 0.
     Unlock,
 }
 
@@ -63,14 +57,11 @@ pub enum Unlock {
 pub fn unlock(slot: u32, surface: u32, locked: impl FnOnce() -> u32) -> Result<Unlock, Invalid> {
     in_pool(slot)?;
     if surface == 0 {
-        return Ok(Unlock::Flags(false, true));
+        return Ok(Unlock::Nothing);
     }
     match locked() {
         1 => Ok(Unlock::Unlock),
-        other => {
-            let (carry, zero) = compared_with_one(other);
-            Ok(Unlock::Flags(carry, zero))
-        }
+        _ => Ok(Unlock::Nothing),
     }
 }
 
@@ -128,12 +119,9 @@ mod tests {
         assert_eq!(lock(3, 5, || 1), Ok(Lock::Twice));
         assert_eq!(lock(3, 5, || 2), Ok(Lock::Lock));
         assert!(unlock(POOL, 1, || 0).is_err());
-        assert_eq!(
-            unlock(0, 0, || unreachable!()),
-            Ok(Unlock::Flags(false, true))
-        );
-        assert_eq!(unlock(0, 5, || 0), Ok(Unlock::Flags(true, false)));
-        assert_eq!(unlock(0, 5, || 2), Ok(Unlock::Flags(false, false)));
+        assert_eq!(unlock(0, 0, || unreachable!()), Ok(Unlock::Nothing));
+        assert_eq!(unlock(0, 5, || 0), Ok(Unlock::Nothing));
+        assert_eq!(unlock(0, 5, || 2), Ok(Unlock::Nothing));
         assert_eq!(unlock(0, 5, || 1), Ok(Unlock::Unlock));
     }
 

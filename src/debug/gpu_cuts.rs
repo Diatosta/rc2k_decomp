@@ -1,9 +1,9 @@
-//! The GPU tab: the diagnostic cuts of `render::gpu_cut` as tick boxes, applied to the next
+//! The GPU tab: the diagnostic cuts of `render::dev::gpu_cut` as tick boxes, applied to the next
 //! frame drawn. Each removes one kind of GPU work so that the frame rate shows what it cost;
 //! the picture is wrong under a cut, which is the point.
 
 use crate::race::owner::Race;
-use crate::render::gpu_cut::{CUTS, Cuts, live, set_live};
+use crate::render::dev::gpu_cut::{CUTS, Cuts, live, set_live};
 use dear_imgui_rs::Ui;
 use std::sync::Mutex;
 use std::sync::atomic::Ordering::Relaxed;
@@ -22,7 +22,7 @@ fn flushes_a_second() -> Option<f32> {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let rate = last.and_then(|(was, at)| {
         let seconds = now.duration_since(at).as_secs_f32();
-        (seconds > 0.0).then(|| (flushes - was) as f32 / seconds)
+        (seconds > 0.0).then(|| flushes.saturating_sub(was) as f32 / seconds)
     });
     *last = Some((flushes, now));
     rate
@@ -30,10 +30,10 @@ fn flushes_a_second() -> Option<f32> {
 
 /// The tab.
 pub fn tab(race: &Race, ui: &Ui) {
-    let fps = race.shared.switches.get().frame_rate.get();
+    let fps = race.shared.switches.borrow().frame_rate;
     let flushes = crate::render::GPU_FLUSHES.load(Relaxed);
     let backend = if !crate::render::choice::gpu_wanted() {
-        "software rasteriser (RC2K_RENDERER=software)"
+        "software rasteriser (--renderer or RC2K_RENDERER)"
     } else if flushes > 0 {
         "SDL GPU"
     } else {

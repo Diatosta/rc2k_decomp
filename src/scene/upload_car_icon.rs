@@ -1,13 +1,13 @@
 //! `scene::upload_car_icon`: one car icon painted into a texture (the HUD's, kind 0xC1). The
 //! game's log calls every texture a "plate".
 //!
-//! - The texture, the icon's place on the texture and on the sheet are kept in the icon upload
-//!   cell, and the icon's size 0x52 x 0x2A with them.
-//! - With the texture's record (0x78 bytes) +0x5C at 1: the second picture read
+//! - The texture, the icon's place on the texture and on the sheet are held in an
+//!   `IconUpload`, and the icon's size 0x52 x 0x2A with them.
+//! - With the texture's record (0x78 bytes) `keeps_alpha` at 1: the second picture read
 //!   (`gfx::read_texture_picture`) and copied 0x40000 bytes on, or, if there is none or it
-//!   cannot be read, +0x5C made 0.
-//! - The first picture read; `least_colour` of the texture's format (record +0xC, +8);
-//!   `alpha_from_kept` or `key_texture_colours` by +0x5C; `grade_texture`.
+//!   cannot be read, `keeps_alpha` made 0.
+//! - The first picture read; `least_colour` of the texture's format (the record's `format`);
+//!   `alpha_from_kept` or `key_texture_colours` by `keeps_alpha`; `grade_texture`.
 //! - The picture and the texture must be the same number of halvings from 256 (the card's
 //!   sizes table: 256, 128, 64, 32, and 1024 as 4), in width and in height; a size not in it,
 //!   or two different numbers, is a fatal error (0x80A18761 .. 0x80A18767). The picture is
@@ -27,67 +27,7 @@ use crate::gfx::blit_components::{Piece, blit_components, game_target};
 use crate::gfx::read_texture_picture::read_texture_picture;
 use crate::gfx::texture_pixels::{halvable, halve_texture};
 use crate::gfx::texture_upload::{Record, halvings_apart, keep_second_picture, ready_picture};
-
-// ---- game data ----
-
-const STORED_LEN: usize = std::mem::size_of::<IconUpload>();
-
-#[repr(C, packed)]
-#[derive(Clone, Copy, Debug)]
-pub struct IconUpload {
-    pub texture: u32,
-    /// Where on the texture the icon goes.
-    pub target_x: u32,
-    pub target_y: u32,
-    /// The icon's piece of the sheet: x, y, width, height (`blit_components`' rectangle).
-    pub piece: [u32; 4],
-}
-
-const _: () = assert!(STORED_LEN == 0x1C);
-
-/// What the upload keeps while it works: a record as bytes (it lies at an address that is no
-/// multiple of 4): `get` and `set` turn them to and from an `IconUpload`.
-#[repr(transparent)]
-#[derive(rc2k_derive::Cells)]
-pub struct IconUploadCell(crate::memory::session::PlainBytes<STORED_LEN>);
-
-impl IconUploadCell {
-    pub fn get(&self) -> IconUpload {
-        let bytes = self.0.read();
-        let word =
-            |n: usize| u32::from_le_bytes([bytes[n], bytes[n + 1], bytes[n + 2], bytes[n + 3]]);
-        IconUpload {
-            texture: word(0),
-            target_x: word(4),
-            target_y: word(8),
-            piece: [word(12), word(16), word(20), word(24)],
-        }
-    }
-
-    pub fn set(&self, upload: IconUpload) {
-        let (texture, target_x, target_y, piece) = (
-            upload.texture,
-            upload.target_x,
-            upload.target_y,
-            upload.piece,
-        );
-        let mut bytes = [0u8; STORED_LEN];
-        for (n, value) in [texture, target_x, target_y]
-            .into_iter()
-            .chain(piece)
-            .enumerate()
-        {
-            bytes[4 * n..4 * n + 4].copy_from_slice(&value.to_le_bytes());
-        }
-        self.0.write(&bytes);
-    }
-}
-
-impl IconUploadCell {
-    pub const fn new() -> Self {
-        IconUploadCell(crate::memory::session::PlainBytes::new([0; STORED_LEN]))
-    }
-}
+use crate::scene::icon_upload_store::IconUpload;
 
 /// What `upload_car_icon` is given: the icon sheet's two pictures, the system texture, where on
 /// the sheet the icon is and where on the texture it goes.
@@ -99,23 +39,23 @@ pub struct CarIcon<'a> {
     pub sheet_y: u32,
     pub target_x: u32,
     pub target_y: u32,
+    /// The icon painted at half its size (its piece and place are the full size's).
+    pub half: bool,
 }
 
 /// The upload.
 pub fn upload_car_icon(
-    upload: &IconUploadCell,
     icon: &CarIcon<'_>,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let texture = icon.texture;
     let record = Record::of(texture, gfx)?;
-    upload.set(IconUpload {
-        texture,
+    let mut stored = IconUpload {
         target_x: icon.target_x,
         target_y: icon.target_y,
         piece: [icon.sheet_x, icon.sheet_y, 0x52, 0x2A],
-    });
+    };
     keep_second_picture(&record, Some(&icon.alpha_sheet), gfx, system)?;
     let (pixels, width, height, _) = read_texture_picture(Some(&icon.sheet), gfx, system)?;
     ready_picture(&record, pixels, width, height, gfx)?;
@@ -132,19 +72,22 @@ pub fn upload_car_icon(
             0x80A1_8767,
         ],
     )?;
+    // A half-size icon: the picture is halved once more and the piece taken from it.
+    let across = if icon.half { across + 1 } else { across };
     if !halvable(width, height, across) {
         return Err(BadInput("a picture that halves to nothing").into());
     }
     let (_, height) = halve_texture(&gfx.pictures.buffers, pixels, width, height, across)?;
-    let mut stored: IconUpload = upload.get();
     let shift = across & 31;
-    stored.target_x >>= shift;
-    stored.target_y >>= shift;
+    // The place on the texture is in the texture's own pixels: the halvings the picture is from
+    // the texture, not the extra one.
+    let place_shift = if icon.half { shift - 1 } else { shift };
+    stored.target_x >>= place_shift;
+    stored.target_y >>= place_shift;
     stored.piece = stored.piece.map(|value| value >> shift);
-    upload.set(stored);
     // The texture locked (making it the surface): if it locked, the icon's piece
     // blitted and the texture unlocked.
-    if !crate::d3d::lock_texture::lock_texture_in(gfx, texture)?.carry {
+    if crate::d3d::lock_texture::lock_texture_in(gfx, texture)? {
         let piece = Piece {
             rectangle: stored.piece,
             x: stored.target_x,

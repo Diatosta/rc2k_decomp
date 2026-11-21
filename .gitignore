@@ -1,4 +1,5 @@
 /target
+/dist
 deploy.local
 /CLAUDE.md
 /third_party
@@ -11,3 +12,4 @@ rc2k_map.on
 /REVIEW_MENUS.md
 /REVIEW_PHYSICS.md
 /.idea/
+*~

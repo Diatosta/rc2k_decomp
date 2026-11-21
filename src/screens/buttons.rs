@@ -1,6 +1,6 @@
 //! The menu's buttons: a left end, a run of 32-pixel middle pieces and a right end, all sprites
 //! of the sprite table. Three drawers differ in the sprites they take, whether they leave their
-//! place behind and two slips kept as is (see `Kind`); five small ones choose among them for a menu item.
+//! place behind and what they leave behind (see `Kind`); five small ones choose among them for a menu item.
 //!
 //! A button is drawn from an x by its alignment: 2 = x is its left edge, 3 = x is where its right
 //! end piece goes, 1 = x is its middle. Any other alignment is fatal error 0x8070202n "Invalid
@@ -23,26 +23,20 @@ pub struct Kind {
     right_at: usize,
     /// The plain and highlighted buttons leave their place in `DrawWork.button_x` / `button_y`.
     keeps_place: bool,
-    /// `draw_button` only. Right-aligned, it goes wrong in two places: from the second whole
-    /// middle piece on it continues in the centred branch's loop, which draws rightwards and
-    /// ends with a second right end; and when the width is a multiple of 32 it falls through
-    /// into the centred branch after the left end, drawing a second, centred button.
-    slips: bool,
-    /// `ALT` only. Left-aligned, two of its blits still read the plain button's place: the
-    /// whole middle pieces take their y from `DrawWork.button_y`, and the last, shorter one
-    /// takes its x from `DrawWork.button_x`. Its one caller never asks for that alignment.
+    /// `ALT` only. Left-aligned, two of its blits still read the plain button's place: the whole
+    /// middle pieces take their y from `DrawWork.button_y`, and the last, shorter one takes its x
+    /// from `DrawWork.button_x`. Nothing draws it left-aligned.
     borrows: bool,
     bad_align: FatalError,
 }
 
 const BAD_ALIGN: &str = "Invalid Active Vbutt Align Tag";
 
-/// The plain button (with the right-aligned slips kept: `slips`).
+/// The plain button.
 pub const PLAIN: Kind = Kind {
     left_at: 0,
     right_at: 1,
     keeps_place: true,
-    slips: true,
     borrows: false,
     bad_align: FatalError {
         code: 0x8070_2021,
@@ -51,10 +45,9 @@ pub const PLAIN: Kind = Kind {
 };
 
 /// The highlighted button.
-pub const HIGHLIGHTED: Kind = Kind {
+pub(super) const HIGHLIGHTED: Kind = Kind {
     left_at: 2,
     right_at: 3,
-    slips: false,
     bad_align: FatalError {
         code: 0x8070_2022,
         message: BAD_ALIGN,
@@ -67,7 +60,6 @@ pub const ALT: Kind = Kind {
     left_at: 0,
     right_at: 1,
     keeps_place: false,
-    slips: false,
     borrows: true,
     bad_align: FatalError {
         code: 0x8070_2023,
@@ -82,7 +74,7 @@ pub const ALIGN_RIGHT: u32 = 3;
 
 // ---- the three button functions ----
 
-/// What the three functions do: the item is only read for its sprites (`set`, its +0x20).
+/// What the three functions do: the item is only read for its sprites (`set`, its `sprites`).
 pub fn draw_button(
     menus: &Menus,
     kind: &Kind,
@@ -101,18 +93,18 @@ pub fn draw_button(
     let sprites = [list[kind.left_at], list[kind.right_at], list[4]];
     let place = &menus.screens.draw_work;
     if kind.keeps_place {
-        place.button_x.set(x as u32);
-        place.button_y.set(y as u32);
+        let mut work = place.write();
+        work.button_x = x as u32;
+        work.button_y = y as u32;
     }
     // The logic is in `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite
     // table.
     use rc2k_core::screens::buttons::{Borrowed, Error};
     let borrowed = Borrowed {
-        y: place.button_y.get() as i32,
-        x: place.button_x.get() as i32,
+        y: place.read().button_y as i32,
+        x: place.read().button_x as i32,
     };
     let core = rc2k_core::screens::buttons::Kind {
-        slips: kind.slips,
         borrows: kind.borrows,
     };
     let (end, drawn) = rc2k_core::screens::buttons::draw(
@@ -129,7 +121,7 @@ pub fn draw_button(
         },
     );
     if kind.keeps_place {
-        place.button_x.set(end as u32);
+        place.write().button_x = end as u32;
     }
     match drawn {
         Ok(()) => Ok(()),
@@ -141,21 +133,21 @@ pub fn draw_button(
 
 // ---- the five that choose for an item ----
 
-/// The button an item describes itself (width at +8, alignment at +0xC), highlighted if the
+/// The button an item describes itself (`width_or_text_x`, `alignment_or_text_y`), highlighted if the
 /// item is.
-pub fn draw_item_button(
+pub(super) fn draw_item_button(
     menus: &Menus,
     item: &crate::menu::menus_store::MenuItem,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let highlighted = menus.screens.loop_flags.item.get() == item.fixed().id;
+    let highlighted = menus.screens.loop_flags.read().item == item.fixed().id;
     draw_button(
         menus,
         if highlighted { &HIGHLIGHTED } else { &PLAIN },
         item.fixed().width_or_text_x as u32,
         (item.fixed().x, item.fixed().y),
         item.fixed().alignment_or_text_y as u32,
-        item.sprites.get(),
+        item.state().sprites,
         canvas,
     )
 }
@@ -163,7 +155,7 @@ pub fn draw_item_button(
 /// The other four: a button as wide as the item's text (measured with the item's font) plus
 /// 12. The text is measured from x 0, as its width does not depend on x. Refused: a measuring
 /// font that does not only measure (it would draw the text at that x).
-pub fn draw_text_button(
+pub(super) fn draw_text_button(
     o: crate::owners::Owners<'static>,
     kind: &Kind,
     align: u32,
@@ -177,7 +169,7 @@ pub fn draw_text_button(
     )?;
     let measured = measure_string_by_id_at(
         crate::strings::append_string_by_id::StringOwners::of(o),
-        item.string.get(),
+        item.state().string,
         font,
         0,
         canvas,
@@ -188,7 +180,7 @@ pub fn draw_text_button(
         rc2k_core::screens::buttons::text_width(measured.width),
         (item.fixed().x, item.fixed().y),
         align,
-        item.sprites.get(),
+        item.state().sprites,
         canvas,
     )
 }

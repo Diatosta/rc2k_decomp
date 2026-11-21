@@ -6,12 +6,12 @@ use super::flow::{Call, CarList, Game, Var};
 use super::leaving::Switch;
 use crate::Invalid;
 
-/// Players 2 and 3's times (+0x88) in the time trial (3 597 928 and 3 602 000 ms).
-pub const TIME_2: u32 = 0x36F268;
-pub const TIME_3: u32 = 0x36F650;
+/// Players 2 and 3's times in the time trial (3 597 928 and 3 602 000 ms).
+pub(crate) const TIME_2: u32 = 0x36F268;
+pub(crate) const TIME_3: u32 = 0x36F650;
 
 /// A race's result: none, and left (-2).
-pub const NO_RESULT: u32 = u32::MAX;
+pub(crate) const NO_RESULT: u32 = u32::MAX;
 pub const LEFT: u32 = 0xFFFF_FFFE;
 
 /// The single rally's car list: the first with `ScreenFlow.car_list_kind` 1, else the second; the
@@ -266,6 +266,63 @@ pub fn single_rally_split<G: Game>(e: &mut G) -> Result<(), G::Error> {
     end(e)
 }
 
+/// The split screen's one race for `n` players (2 .. 4): all the cars' results and-ed.
+fn split_race_many<G: Game>(e: &mut G, n: u32, kind: u32) -> Result<u32, G::Error> {
+    e.run(Call::Race { next: false, kind })?;
+    let mut all = e.get(Var::RaceResult) & e.get(Var::RaceResult2);
+    for k in 2..n {
+        all &= e.get(Var::RaceResultOf(k));
+    }
+    Ok(all)
+}
+
+/// `menu::single_rally_split` for three or four players (event mode 5, the player count 3 or 4):
+/// the cars race together on one split screen, and the results go to the three / four players'
+/// results page.
+pub fn single_rally_split_many<G: Game>(e: &mut G, n: u32) -> Result<(), G::Error> {
+    if !(3..=4).contains(&n) {
+        return Err(Invalid("a split screen of other than three or four players").into());
+    }
+    rally_start(e)?;
+    e.run(Call::ClearEventState)?;
+    e.set(Var::Round, 0);
+    e.set(Var::PlayerCount, n);
+    e.set(Var::EventMode, 5);
+    e.set_flag(Switch::EventLeft, false);
+    if !choose_cars(e, n, false, &[])? {
+        return Ok(());
+    }
+    loop {
+        e.set(Var::Current, 0);
+        e.run(Call::ReadyPlayers)?;
+        repair_all(e)?;
+        // With three players the fourth record's time keeps it last on the results page.
+        if n == 3 {
+            e.set(Var::PlayerTime(3), TIME_3);
+        }
+        if !stage_chosen(e, Call::SelectStageLoop)? {
+            break;
+        }
+        e.set(Var::Current, 0);
+        e.set(Var::PlayerEntry(0), 1);
+        for player in 0..n {
+            e.set(Var::Current, player);
+            e.run(Call::RepairCar)?;
+        }
+        e.set(Var::Current, 0);
+        if split_race_many(e, n, 0)? != NO_RESULT {
+            e.run(Call::SingleRallyThreeFourResults)?;
+            if e.yes() {
+                break;
+            }
+        }
+        if review(e, Some(n), true)? {
+            break;
+        }
+    }
+    end(e)
+}
+
 /// `menu::single_rally_two`: two players in turn (event mode 8).
 pub fn single_rally_two<G: Game>(e: &mut G) -> Result<(), G::Error> {
     rally_start(e)?;
@@ -416,7 +473,7 @@ pub fn time_trial_one<G: Game>(e: &mut G) -> Result<(), G::Error> {
 }
 
 /// The time trial's start for two to four players: event mode 3, the event begun, the players'
-/// +0x284 cleared, player 1's units.
+/// `hud_bits` cleared, player 1's units.
 fn time_trial_start<G: Game>(e: &mut G) -> Result<(), G::Error> {
     e.set(Var::Mode, 3);
     e.run(Call::BeginEvent)?;
@@ -625,6 +682,31 @@ mod tests {
                 "Current=0"
             ]
         );
+    }
+
+    #[test]
+    fn four_players_race_together() {
+        // One stage, then the stage choice's yes; the race's results are all "none yet" (0).
+        let mut log = Log::default().on("SelectStageLoop", vec![vec![], vec![(Var::Answer, 1)]]);
+        single_rally_split_many(&mut log, 4).unwrap();
+        // The four car choices, then every car repaired before the one race of all of them.
+        assert_eq!(log.count("SelectCarLoop"), 4);
+        assert!(log.has("PlayerCount=4"));
+        assert!(log.has("EventMode=5"));
+        assert_eq!(log.count("Race { next: false, kind: 0 }"), 1);
+        let race = log
+            .steps
+            .iter()
+            .position(|s| s.starts_with("Race "))
+            .unwrap();
+        let repairs = log.steps[..race]
+            .iter()
+            .rev()
+            .take(9)
+            .filter(|s| *s == "RepairCar")
+            .count();
+        assert_eq!(repairs, 4);
+        assert!(single_rally_split_many(&mut Log::default(), 2).is_err());
     }
 
     #[test]

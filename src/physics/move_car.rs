@@ -2,31 +2,22 @@
 //! 65536 and the step `step_time`, rounded through `scratch`: x, z, then y.
 //!
 //! Returns y's move.
-//!
-//! Caller: `physics::car_physics_step`, twice every physics step.
 
 use crate::math::x87::mul2_to_int;
 use crate::physics::car_store::Car;
-use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 
 /// The exact version, for `physics::car_physics_step` and `physics::apply_wheel_torques`: the last
-/// move (it is also left in the scene's scratch dword).
-pub fn move_car(
-    car: &Car,
-    tables: &PhysicsTables,
-    numbers: &Numbers,
-    scene: &crate::scene::owner::Scene,
-) -> u32 {
+/// move.
+pub(super) fn move_car(car: &Car, numbers: &Numbers) -> u32 {
     let k65536 = numbers.k65536.get();
-    let dt = tables.step_time.get();
-    let scratch = &scene.drawing.scene.get().scratch;
+    let dt = numbers.step_time.get();
     let mut last = 0;
     // x, then z, then y.
     for k in [0, 2, 1] {
-        last = mul2_to_int(car.velocity[k].get(), k65536, dt) as u32;
-        scratch.set(last);
-        car.position[k].set(car.position[k].get().wrapping_add(last));
+        last = mul2_to_int(car.velocity.at(k), k65536, dt) as u32;
+        car.position
+            .set_bits_at(k, car.position.bits_at(k).wrapping_add(last));
     }
     last
 }

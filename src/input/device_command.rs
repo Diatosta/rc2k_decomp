@@ -1,8 +1,9 @@
 //! The input thread's command: 1 gives the device back and acquires it again; 2 (the race's
 //! end) switches the race off, ends the effects, ticks, gives both devices back; 3 (the race's
 //! start) sets up device 0 from player 1's controls and, unless one player uses one device,
-//! device 1 from player 2's, sleeps a second, begins the effects, ticks and switches the race
-//! on; others do nothing. Refuses (before anything) a device past 1 for command 1.
+//! device 1 from player 2's, begins the effects, ticks and switches the race
+//! on; 4 (a phone's player 1 changing between the touch pad and a controller in a race) sets
+//! device 0 up again; others do nothing. Refuses (before anything) a device past 1 for command 1.
 
 use crate::errors::Refused;
 use crate::input::owner::Input;
@@ -35,6 +36,7 @@ pub fn device_command(
             (command >> 8) as u8,
             input.devices.two_devices_one_player.get(),
             sound.one_player.get(),
+            input.devices.race_players.get(),
         )?;
         for step in steps {
             match step {
@@ -49,12 +51,27 @@ pub fn device_command(
                 }
                 EndEffects => crate::input::end_effects::end_effects(input)?,
                 Tick => crate::input::input_tick::input_tick(input, sound, system, race)?,
-                SetUp(n) => crate::input::set_up_device::set_up_device(
-                    input,
-                    system,
-                    device(&input.devices, n)?,
-                    &race.shared.state.settings.cars[n].controls,
-                )?,
+                SetUp(n) => {
+                    // A phone has no keyboard to drive with: the first car's keyboard is the
+                    // touch screen's controls, or the controller last used.
+                    #[cfg(phone)]
+                    if n == 0 {
+                        let controls = &race.shared.state.car(0).controls;
+                        controls
+                            .controller
+                            .set(crate::platform::touch::player_one_controller(
+                                &crate::input::device_ids::listed(input),
+                                controls.controller.get(),
+                            ));
+                    }
+                    crate::input::set_up_device::set_up_device(
+                        input,
+                        system,
+                        n,
+                        device(&input.devices, n)?,
+                        &race.shared.state.car(n).controls,
+                    )?;
+                }
                 Reading(n, on) => device(&input.devices, n)?.reading.set(on as u32),
                 SecondApart => {
                     if race.shared.state.settings.cars[0].controls.controller.get()
@@ -66,8 +83,20 @@ pub fn device_command(
                             .set(0);
                     }
                 }
-                Sleep(ms) => crate::system::sleep::sleep(ms),
-                BeginEffects => crate::input::begin_effects::begin_effects(input, sound, system)?,
+                ApartFrom(n) => {
+                    let state = &race.shared.state;
+                    let controller = state.car(n).controls.controller.get();
+                    if (0..n)
+                        .any(|earlier| state.car(earlier).controls.controller.get() == controller)
+                    {
+                        state.car(n).controls.controller.set(0);
+                    }
+                }
+                BeginEffects => crate::input::begin_effects::begin_effects(
+                    input,
+                    sound,
+                    &system.session.picture_clock,
+                )?,
             }
         }
     }

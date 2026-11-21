@@ -20,7 +20,7 @@ pub struct Opening<'a> {
 }
 
 impl<'a> Opening<'a> {
-    pub fn voice_manager(state: &'a AudioOwn) -> Self {
+    pub(super) fn voice_manager(state: &'a AudioOwn) -> Self {
         Self {
             setting: &state.ignore_dsv_setting,
             object: &state.voice_manager,
@@ -68,7 +68,11 @@ impl Holder {
 /// from the 3D buffer's `QueryInterface` and `QuerySupport` (get and set both), for the voice
 /// manager its mode set to 2; then logged. A failure leaves the set where it went (released at the
 /// close). Refuses a holder that is no pointer (`make_buffer`'s kept EAX bug).
-pub fn open_property_set(state: &AudioOwn, o: &Opening, holder: Holder) -> Result<bool, Refused> {
+pub(super) fn open_property_set(
+    state: &AudioOwn,
+    o: &Opening,
+    holder: Holder,
+) -> Result<bool, Refused> {
     if o.setting.is_set() || o.object.is_set() {
         return Ok(false);
     }
@@ -89,7 +93,7 @@ pub fn open_property_set(state: &AudioOwn, o: &Opening, holder: Holder) -> Resul
 }
 
 /// The room's reverb set when EAX is open. Refuses a room past the table.
-pub fn set_eax_room(state: &AudioOwn, room: u32) -> Result<(), Refused> {
+pub(super) fn set_eax_room(state: &AudioOwn, room: u32) -> Result<(), Refused> {
     // The room's entry lies inside the table; a room past it is refused.
     rc2k_core::audio::levels::eax_room_offset(room)?;
     let p = state.eax_properties.get();

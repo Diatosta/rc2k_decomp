@@ -5,24 +5,24 @@
 //! what is there.
 
 use crate::errors::Refused;
-use crate::gfx::build_glyphs::{SheetVars, build_glyphs};
+use crate::gfx::build_glyphs::build_glyphs;
 use crate::gfx::glyph_builder::RUN_LENGTHS;
 use crate::gfx::glyph_tables::{begin_glyph_table, begin_glyph_tables, end_glyph_tables};
 
-/// The table's address goes to `sprite_table`.
+/// The table's address goes to the menus' sprite table variable.
 pub fn build_menu_sprites(
-    vars: &SheetVars,
-    sprite_table: &crate::memory::session::PlainDword,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
+    menus: &crate::menu::owner::Menus,
     strings: &crate::strings::owner::Strings,
 ) -> Result<(), Refused> {
+    let vars = &gfx.sheet;
     let list = &gfx.fonts.glyph_tables.memory;
     begin_glyph_tables(vars, gfx, system, strings)?;
     gfx.pictures.decoder.builder_flags.set(RUN_LENGTHS);
     begin_glyph_table(&gfx.fonts, vars, list)?;
     build_glyphs(vars, &crate::gfx::texts::MBUTS, list, gfx, system, strings)?;
-    sprite_table.set(vars.table.get());
+    menus.screens.loop_flags.write().sprite_table = vars.table.get();
     end_glyph_tables(strings)?;
     all_direct_colour(vars.table.get(), gfx)
 }
@@ -43,20 +43,4 @@ fn all_direct_colour(table: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), Ref
         }
     }
     Ok(())
-}
-
-/// With the game's sprite table variable.
-pub fn build_menu_sprites_in_game(
-    gfx: &crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
-    menus: &crate::menu::owner::Menus,
-    strings: &crate::strings::owner::Strings,
-) -> Result<(), Refused> {
-    build_menu_sprites(
-        &gfx.sheet,
-        &menus.screens.loop_flags.sprite_table,
-        gfx,
-        system,
-        strings,
-    )
 }

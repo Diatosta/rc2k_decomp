@@ -6,7 +6,7 @@ use crate::errors::Refused;
 use crate::net::owner::Net;
 use crate::net::{close_session, destroy_player, free_messages, release_dplay, release_lobby};
 use crate::race::viewer_screen_store::{NetTexts, texts};
-pub fn destroy_connection(net: &Net, lines: &NetTexts) -> Result<(), Refused> {
+pub(super) fn destroy_connection(net: &Net, lines: &NetTexts) -> Result<(), Refused> {
     let link = &net.link;
     if link.has_dplay() {
         net.race_slot.end();

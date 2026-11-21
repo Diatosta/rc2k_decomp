@@ -1,12 +1,11 @@
 //! `scene::fog_polygon`: each of the polygon's points gets its fog by its depth.
 //!
-//! For each entry: the depth of its point's record (+0x18) as a whole number, under 0 taken as
-//! 0, over 0x2000 is the place in the view's fog table (`scene::fog_at`; a place past the
-//! table's length is the last one); the entry's byte +0x20 is that table's byte inverted. With
-//! the view kind at 4 the byte is the low byte of the next step inverted instead. The table,
-//! its length and the next step are the view's (`scene::fog::Fog`). One caller, a six-byte
-//! stub which six functions call. Refuses a polygon of no vertices, an entry without its
-//! record and a table's length above 0x1000. A length of 0, as the menus have it, makes every
+//! For each entry: the depth of its point's record (its depth) as a whole number, under 0 taken as
+//! 0, over 0x2000 is the place in the view's fog table (`scene::fog_at`; a place past the table's
+//! length is the last one); the entry's fog byte is that table's byte inverted. With the view kind
+//! at 4 the byte is the low byte of the next step inverted instead. The table, its length and the
+//! next step are the view's (`scene::fog::Fog`). Refuses a polygon of no vertices, an entry without
+//! its record and a table's length above 0x1000. A length of 0, as the menus have it, makes every
 //! place the byte before the table, which nothing writes: 0.
 
 use crate::errors::{BadInput, Refused};
@@ -17,7 +16,7 @@ use crate::scene::polygon::{Listed, listed};
 const TABLE_LEN: u32 = crate::scene::fog::TABLE_LEN as u32;
 
 pub fn fog_polygon(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
     let polygon_work = &part.polygon;
@@ -26,7 +25,7 @@ pub fn fog_polygon(
 
 /// `fog_polygon` on the polygon's entries as listed.
 pub fn fog_entries(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     entries: &Listed,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
@@ -38,7 +37,7 @@ pub fn fog_entries(
         return Err(BadInput("an entry without its record").into());
     }
     let length = table_length(view)?;
-    let fixed = (light.view_kind.get() == 4).then(|| fog.next.get());
+    let fixed = (light.borrow().view_kind == 4).then(|| fog.borrow().next);
     for entry in entries {
         entry
             .fog
@@ -49,7 +48,7 @@ pub fn fog_entries(
 
 /// The view's fog table's length; refused above its room.
 fn table_length(view: &crate::race::view_scratch::ViewScratch) -> Result<u32, BadInput> {
-    let length: u32 = view.fog.length.get();
+    let length: u32 = view.fog.borrow().length;
     if length > TABLE_LEN {
         return Err(BadInput("a fog table longer than its room"));
     }
@@ -59,7 +58,7 @@ fn table_length(view: &crate::race::view_scratch::ViewScratch) -> Result<u32, Ba
 /// The fog byte of the point whose record is `record`, as `fog_entries` gives an entry: by
 /// the record's depth (`length` the table's), or `fixed`'s low byte, inverted.
 fn byte(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     view: &crate::race::view_scratch::ViewScratch,
     record: u32,
     length: u32,
@@ -67,7 +66,7 @@ fn byte(
 ) -> u8 {
     let depth = x87::to_int(crate::scene::point_records::vertex(
         part,
-        &view.polygon.quad_vertices,
+        &view.polygon.quads,
         record,
         0x18,
     ));
@@ -79,7 +78,7 @@ fn byte(
     } else {
         length.wrapping_sub(1)
     };
-    let level = u32::from(view.fog.level(place));
+    let level = u32::from(view.fog.borrow().level(place));
     (fixed.unwrap_or(level) ^ 0xFF) as u8
 }
 
@@ -87,7 +86,7 @@ fn byte(
 /// kind 4 (whose byte is fixed): what a reflective object face's shine is scaled by
 /// (`scene::draw_object_face`). Refuses as `fog_entries` does a table longer than its room.
 pub fn fog_of_record(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     view: &crate::race::view_scratch::ViewScratch,
     record: u32,
 ) -> Result<u8, BadInput> {

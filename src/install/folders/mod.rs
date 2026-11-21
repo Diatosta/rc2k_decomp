@@ -9,28 +9,6 @@ use crate::errors::{BadInput, Refused};
 
 #[cfg(unix)]
 mod unix;
-/// Whether an edit field's text is the folder typed on the page.
-pub fn is_folder_field(
-    install: &'static crate::install::owner::Install,
-    text: crate::memory::place::BytePlace,
-) -> bool {
-    text.same_place(crate::memory::place::BytePlace::from(&install.paths.typed))
-}
-
-/// An edit field's most bytes: the folder field's by the system's rules, any other's its
-/// record's (`record_most`).
-pub fn field_most(
-    install: &'static crate::install::owner::Install,
-    text: crate::memory::place::BytePlace,
-    record_most: u8,
-) -> u8 {
-    if is_folder_field(install, text) {
-        <Native as Folders>::field_most(record_most)
-    } else {
-        record_most
-    }
-}
-
 #[cfg(windows)]
 mod windows;
 
@@ -64,7 +42,7 @@ pub trait Folders {
 
     /// The folder at `at` (that form) and those above it made; whether it
     /// worked.
-    fn make(at: crate::memory::place::BytePlace) -> Result<bool, Refused>;
+    fn make(at: &[u8]) -> Result<bool, Refused>;
 
     /// The room where the folder (that form) would go.
     fn room(folder: &[u8], system: &crate::system::owner::System) -> Room;
@@ -78,20 +56,6 @@ pub trait Folders {
     /// The folder field's most bytes, given the field record's own most (its +1). The buffers hold
     /// 256, with the game's folders still to go after it.
     fn field_most(record_most: u8) -> u8;
-}
-
-/// An edit field's width: the folder field's by the system's rules, any other's its
-/// record's (`record_width`). `text` is the field's text.
-pub fn field_width(
-    install: &'static crate::install::owner::Install,
-    text: crate::memory::place::BytePlace,
-    record_width: u16,
-) -> u16 {
-    if is_folder_field(install, text) {
-        <Native as Folders>::field_width(record_width)
-    } else {
-        record_width
-    }
 }
 
 #[cfg(windows)]

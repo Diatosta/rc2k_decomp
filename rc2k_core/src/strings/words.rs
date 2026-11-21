@@ -15,7 +15,7 @@ pub struct Word {
 /// tab or a carriage return (passed over) or at the text's end (its NUL, not passed). A
 /// word that starts with `"` is what follows up to the next `"` or carriage return
 /// (passed over) or the end. Refused: a text without its NUL.
-pub fn next_argument(text: &(impl Bytes + ?Sized), at: usize) -> Result<Word, Invalid> {
+pub(crate) fn next_argument(text: &(impl Bytes + ?Sized), at: usize) -> Result<Word, Invalid> {
     let byte = |p: usize| text.byte(p).ok_or(Invalid("a text without its NUL"));
     let mut start = at;
     while matches!(byte(start)?, b' ' | b'\t') {

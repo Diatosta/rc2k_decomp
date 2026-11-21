@@ -1,21 +1,10 @@
-//! The game's threads: their slots and what its waits and handles say.
-//!
-//! Four thread slots (0x110 bytes, +4 the thread's id); a thread finds its own by its id. A
-//! handle is compared with 1 and a wait's answer taken as (failed, failed or timed out).
+//! The game's threads: what a wait says, and the shutdown's rules.
 
-/// The thread slots.
-pub const SLOTS: usize = 4;
-
-/// The slot of the thread `id`: the first whose id (`id_of(n)`, asked in order) is it.
-pub fn slot_of(id_of: impl Fn(usize) -> u32, id: u32) -> Option<usize> {
-    (0..SLOTS).find(|&n| id_of(n) == id)
-}
-
-/// `WaitForSingleObject`'s answers that are not "signalled".
+/// `platform::sync`'s wait answers that are not "signalled".
 pub const WAIT_TIMEOUT: u32 = 0x102;
 pub const WAIT_FAILED: u32 = 0xFFFF_FFFF;
 
-/// What a wait ended in, as the game's flags say it.
+/// What a wait ended in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Waited {
     Signalled,
@@ -24,7 +13,7 @@ pub enum Waited {
 }
 
 impl Waited {
-    /// From `WaitForSingleObject`'s answer.
+    /// From the wait's answer.
     pub fn of(result: u32) -> Self {
         match result {
             WAIT_FAILED => Waited::Failed,
@@ -32,20 +21,6 @@ impl Waited {
             _ => Waited::Signalled,
         }
     }
-
-    /// (failed, failed or timed out).
-    pub fn flags(self) -> (bool, bool) {
-        match self {
-            Waited::Signalled => (false, false),
-            Waited::TimedOut => (false, true),
-            Waited::Failed => (true, true),
-        }
-    }
-}
-
-/// A handle compared with 1: (none, exactly 1).
-pub fn handle_flags(handle: u32) -> (bool, bool) {
-    (handle < 1, handle == 1)
 }
 
 /// The quit switch once the game is shutting down.
@@ -56,18 +31,9 @@ pub fn starts_shutdown(was: u32) -> bool {
     was != QUITTING
 }
 
-/// A slot's flag byte (+0xC) of a suspended thread, and what resuming makes it.
-pub const SUSPENDED: u8 = 0xFF;
-pub const RESUMED: u8 = 1;
-
-/// `threading::resume_slot_thread`: only a suspended thread is resumed.
-pub fn resumes(flag: u8) -> bool {
-    flag == SUSPENDED
-}
-
 /// The threads the shutdown waits for (input, audio, the network's receiving thread), and
 /// for how long at most (all of them, milliseconds).
-pub const WAITED: usize = 3;
+pub(crate) const WAITED: usize = 3;
 pub const WAIT_MS: u32 = 3000;
 
 /// The handles as the wait gets them: the slots' handles pushed in order, so the last first;
@@ -83,22 +49,15 @@ mod tests {
 
     #[test]
     fn answers() {
-        let ids = [5, 7, 7, 9];
-        assert_eq!(slot_of(|n| ids[n], 7), Some(1));
-        assert_eq!(slot_of(|n| ids[n], 8), None);
-        assert_eq!(Waited::of(0).flags(), (false, false));
-        assert_eq!(Waited::of(0x80).flags(), (false, false));
-        assert_eq!(Waited::of(0x102).flags(), (false, true));
-        assert_eq!(Waited::of(u32::MAX).flags(), (true, true));
-        assert_eq!(handle_flags(0), (true, false));
-        assert_eq!(handle_flags(1), (false, true));
-        assert_eq!(handle_flags(0x44), (false, false));
+        assert_eq!(Waited::of(0), Waited::Signalled);
+        assert_eq!(Waited::of(0x80), Waited::Signalled);
+        assert_eq!(Waited::of(0x102), Waited::TimedOut);
+        assert_eq!(Waited::of(u32::MAX), Waited::Failed);
     }
 
     #[test]
     fn shutdown() {
         assert!(starts_shutdown(0) && starts_shutdown(2) && !starts_shutdown(1));
-        assert!(resumes(0xFF) && !resumes(1));
         assert_eq!(wait_order([1, 2, 3]), [3, 2, 1]);
     }
 }

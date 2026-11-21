@@ -2,9 +2,7 @@
 //! one message into the line buffer and appends it to `var\logfile.txt` (nothing when its level
 //! is too high). The lock is released on every path.
 
-use std::sync::atomic::{AtomicU32, Ordering};
-
-/// The log's state: enabled, level, lock, indent, at-line-start. Atomics: any thread logs.
+/// The log's state: enabled, level, indent, at-line-start. Atomics: any thread logs.
 /// `LEVEL` is set from `var\ral.cfg` (`logfile=`); the race's steps change `INDENT` and
 /// `ENABLED` directly.
 pub mod state {
@@ -13,8 +11,6 @@ pub mod state {
     pub static ENABLED: Dword = Dword::new(1);
     /// The highest level logged; 0 logs nothing.
     pub static LEVEL: Dword = Dword::new(1);
-    /// 1 while a thread writes the log (`acquire`).
-    pub static LOCK: Dword = Dword::new(0);
     /// Spaces before a line.
     pub static INDENT: Dword = Dword::new(0);
     /// 1 when the next text starts a line.
@@ -42,9 +38,8 @@ const MODE_SHARE: u32 = 0;
 /// "var\logfile.txt"; starts with "var\": `resolve_path` returns it unchanged.
 pub static LOG_PATH: &[u8] = b"var\\logfile.txt\0";
 
-pub fn lock() -> &'static AtomicU32 {
-    state::LOCK.atomic()
-}
+/// Held from a line's level check to its write: one thread's line at a time.
+static LINE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// The log file kept open for appending between writes, where the system lets another process
 /// read a file that is open for writing (everywhere but Windows, whose open file is not shared).
@@ -54,7 +49,7 @@ pub fn lock() -> &'static AtomicU32 {
 static OPEN_LOG: std::sync::Mutex<Option<std::fs::File>> = std::sync::Mutex::new(None);
 
 /// Lets go of the kept log file: the next write opens the path again (the log was deleted).
-pub fn close_log() {
+pub(super) fn close_log() {
     #[cfg(not(windows))]
     {
         *OPEN_LOG
@@ -88,11 +83,10 @@ fn append_to_file(path: &'static [u8], data: &[u8]) -> Option<u32> {
     };
     #[cfg(windows)]
     let result = {
-        use std::os::windows::fs::OpenOptionsExt;
         let name = crate::files::host_path(&path[..path.len() - 1]);
         let mut options = std::fs::OpenOptions::new();
         options.write(true).create(true);
-        options.share_mode(MODE_SHARE).attributes(0x80);
+        crate::platform::os::share_mode(&mut options, MODE_SHARE);
         let mut file = options.open(name).ok()?; // not closed here: the path stays set
         match std::io::Seek::seek(&mut file, std::io::SeekFrom::End(0)) {
             // The bytes written; a failed write counts what it wrote, nothing.
@@ -122,18 +116,12 @@ pub fn log_text(text: &[u8], newline: bool, level: u8) {
     if entry(first.enabled, || first.level) != Entry::Written {
         return;
     }
-    acquire();
+    let _one_line = LINE_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut now = load_state();
     if let Logged::Line(line) = log_line(&mut now, text, newline, level) {
         state::LINE_START.set(now.line_start);
         append_to_file(LOG_PATH, &line);
-    }
-    lock().store(0, Ordering::Release);
-}
-
-/// Takes the lock: 1 swapped in, a sleep of 1 ms between tries.
-pub fn acquire() {
-    while lock().swap(1, Ordering::Acquire) != 0 {
-        crate::system::sleep::sleep(1);
     }
 }

@@ -4,84 +4,84 @@
 //! each player's lap panel. Textures, alpha and colour set between.
 
 use crate::errors::Refused;
+use crate::hud::block_store::texture;
 use crate::hud::draw_signs::row;
 use crate::hud::layout_common::{
-    begin_dials, black_divider, clock_panel, gear_rect, lap_panel, leading_time, needle_sign,
-    scaled, sign, sprite, time_digits, white_opaque,
+    Keep, begin_dials, black_divider, clock_panel, gear_rect, keep, keep_layout, lap_panel,
+    leading_time, needle_sign, scaled, sign, sprite, time_digits, white_opaque,
 };
-use crate::hud::owner::{Hud, Pen};
-use crate::hud::store::texture;
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 
 /// The HUD of two players side by side.
-pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
+pub(super) fn layout_1(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused> {
     use crate::hud::*;
-    let panel = &frame.panel_and_overlay.get().panel;
-    let [f1, f2] = [panel.hud_flags[0].get(), panel.hud_flags[1].get()];
+    let panel = *frame.panel.borrow();
+    let [f1, f2] = [panel.hud_flags[0], panel.hud_flags[1]];
     begin_dials(hud);
     if f1 & 0x10 != 0 {
         dials::disc(frame, hud, pen, &dials::DISC_1A)?;
     }
-    hud.block.texture.set(texture::DIAL_SECOND);
+    hud.block.texture = texture::DIAL_SECOND;
     if f2 & 0x10 != 0 {
         dials::disc(frame, hud, pen, &dials::DISC_1B)?;
     }
+    keep(hud, Keep::Middle);
     black_divider(frame, hud, pen, [0x18F, 0, 0x191, 0x258])?;
+    // The one progress bar runs over the whole width of the screen, as one player's does.
+    keep(hud, Keep::Bar);
     if f1 & 0x40 != 0 {
         draw_stage_bars::draw_stage_bars(frame, hud, pen, 0)?;
     }
+    keep_layout(hud);
     white_opaque(hud, texture::ICONS);
     icons::icons(frame, hud, pen, &icons::LAYOUT_1)?;
     white_opaque(hud, texture::NEEDLES_AND_DIGITS);
     if f1 & 0x20 != 0 {
         scaled(frame, hud, pen, 0x49, 7, 0x223)?;
-        scaled(
-            frame,
-            hud,
-            pen,
-            gear_rect(frame.panel_and_overlay.get().panel.view_a.gear.get()),
-            0xD,
-            0x22A,
-        )?;
+        let gear = gear_rect(hud, panel.view_a.gear);
+        scaled(frame, hud, pen, gear, 0xD, 0x22A)?;
     }
     if f2 & 0x20 != 0 {
         scaled(frame, hud, pen, 0x49, 0x198, 0x223)?;
-        scaled(
-            frame,
-            hud,
-            pen,
-            gear_rect(frame.panel_and_overlay.get().panel.view_b.gear.get()),
-            0x19E,
-            0x22A,
-        )?;
+        let gear = gear_rect(hud, panel.view_b.gear);
+        scaled(frame, hud, pen, gear, 0x19E, 0x22A)?;
     }
-    let p = needle_sign(hud, panel.start_values[0].get());
+    let p = needle_sign(hud, panel.start_values[0]);
     if f1 & 1 != 0 {
         scaled(frame, hud, pen, p, 0x19, 0x1DE)?;
     }
-    hud.block.texture.set(texture::SPRITES);
+    hud.block.texture = texture::SPRITES;
     if f1 & 0x10 != 0 {
+        dials::map_cars(frame, hud, pen, &dials::DISC_1A, 0)?;
         scaled(frame, hud, pen, 0x5F, 0x116, 0x1DE)?;
     }
-    let p = needle_sign(hud, panel.start_values[1].get());
+    let p = needle_sign(hud, panel.start_values[1]);
     if f2 & 1 != 0 {
         scaled(frame, hud, pen, p, 0x1AA, 0x1DE)?;
     }
-    hud.block.texture.set(texture::SPRITES);
+    hud.block.texture = texture::SPRITES;
     if f2 & 0x10 != 0 {
+        dials::map_cars(frame, hud, pen, &dials::DISC_1B, 1)?;
         scaled(frame, hud, pen, 0x5F, 0x2A7, 0x1DE)?;
     }
     if f1 & 0x40 != 0 {
+        keep(hud, Keep::BarMarker);
         draw_markers::draw_markers(frame, hud, pen, draw_markers::MARKER_ROWS_1)?;
+        keep_layout(hud);
     }
-    hud.block.quad.colour.set(0xFFFF_FFFF);
+    hud.block.quad.colour = 0xFFFF_FFFF;
+    // Each player's signs lie across the middle of their own half, whole.
+    keep(hud, Keep::PartMiddle);
     if f1 & 0x80 != 0 {
         draw_signs::draw_signs(frame, hud, pen, &draw_signs::LAYOUT_1A)?;
     }
     if f2 & 0x80 != 0 {
         draw_signs::draw_signs(frame, hud, pen, &draw_signs::LAYOUT_1B)?;
     }
-    hud.block.texture.set(texture::NEEDLES_AND_DIGITS);
+    keep_layout(hud);
+    hud.block.texture = texture::NEEDLES_AND_DIGITS;
     if f1 & 1 != 0 {
         dials::needle(frame, hud, pen, &dials::NEEDLE_1A)?;
     }
@@ -89,47 +89,45 @@ pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         dials::needle(frame, hud, pen, &dials::NEEDLE_1B)?;
     }
     for (flags, field, xs) in [
-        (f1, &panel.view_a.speed, [0x43, 0x57, 0x6B]),
-        (f2, &panel.view_b.speed, [0x1D4, 0x1E8, 0x1FC]),
+        (f1, panel.view_a.speed, [0x43, 0x57, 0x6B]),
+        (f2, panel.view_b.speed, [0x1D4, 0x1E8, 0x1FC]),
     ] {
         if flags & 0x20 != 0 {
-            leading_time(hud, field.get(), xs, 0x245, &mut |r, x, y| {
-                sprite(frame, hud, pen, r, x, y)
-            })?;
+            leading_time(frame, hud, pen, field, xs, 0x245)?;
         }
     }
     let left = [8, 0x16, 0x23, 0x2A, 0x38, 0x45, 0x4C, 0x5A];
     let right = [0x2B7, 0x2C5, 0x2D2, 0x2D9, 0x2E7, 0x2F4, 0x2FB, 0x309];
+    keep(hud, Keep::Bar);
     for (times, y) in [
-        ([&hud.block.times[0], &hud.block.times[1]], 2u32),
-        ([&hud.block.times[3], &hud.block.times[4]], 0x11),
+        ([hud.block.times[0], hud.block.times[1]], 2u32),
+        ([hud.block.times[3], hud.block.times[4]], 0x11),
     ] {
-        if f1 & 0x40 != 0 && panel.view_a.back.get() != 0xFFFF_FFFF {
+        if f1 & 0x40 != 0 && panel.view_a.back != 0xFFFF_FFFF {
             for (time, xs) in [(times[0], left), (times[1], right)] {
-                let t = time.get();
-                clock_panel(hud, t, xs, y, &mut |r, x, y| {
-                    sprite(frame, hud, pen, r, x, y)
-                })?;
+                let t = time;
+                clock_panel(frame, hud, pen, t, xs, y)?;
             }
         }
     }
+    keep_layout(hud);
     let laps = [
         (
             f1,
-            &panel.view_a.place,
+            panel.view_a.place,
             [0x55, 0x81],
             0u32,
             [3, 0x21, 4, 0x46],
-            &hud.block.times[2],
+            hud.block.times[2],
             [0x23, 0x37, 0x4B, 0x53, 0x67, 0x7B, 0x83, 0x97],
         ),
         (
             f2,
-            &panel.view_b.place,
+            panel.view_b.place,
             [0x1E6, 0x212],
             1,
             [0x194, 0x21, 0x195, 0x46],
-            &hud.block.times[5],
+            hud.block.times[5],
             [0x1B4, 0x1C8, 0x1DC, 0x1E4, 0x1F8, 0x20C, 0x214, 0x228],
         ),
     ];
@@ -137,7 +135,7 @@ pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         if flags & 2 == 0 {
             continue;
         }
-        let v = field.get();
+        let v = field;
         if v != 0xFFFF_FFFF {
             let d = time_digits(hud, v, 2);
             sign(hud, v, 0, 1);
@@ -146,10 +144,8 @@ pub fn layout_1(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         }
         sprite(frame, hud, pen, mark, sprites[0], row(frame, sprites[1]))?;
         sprite(frame, hud, pen, 0x4A, sprites[2], row(frame, sprites[3]))?;
-        let t = time.get();
-        lap_panel(hud, t, xs, row(frame, 0x51), &mut |r, x, y| {
-            sprite(frame, hud, pen, r, x, y)
-        })?;
+        let t = time;
+        lap_panel(frame, hud, pen, t, xs, row(frame, 0x51))?;
     }
     Ok(())
 }

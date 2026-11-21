@@ -1,5 +1,5 @@
 //! A force record's push and twist on a car, and the records' counts. A force record (0x20
-//! bytes) holds the force at +0 and the point it acts at at +0xC; the push moves the car's
+//! bytes) holds the force first and, after it, the point it acts at; the push moves the car's
 //! motion, the twist its spin. Floats: the x87's stack values are `f64`, rounded to `f32`
 //! where stored.
 
@@ -10,8 +10,6 @@ use crate::Invalid;
 
 /// The most records a run takes.
 pub const MOST_RECORDS: u32 = 0x100;
-/// The dwords `clear_records` empties in each record (the first six of eight).
-pub const CLEARED_DWORDS: u32 = 6;
 
 /// A run over `count` records: 0 is refused (the loop would run 2^32 times), as is a count past
 /// `MOST_RECORDS`; `why` says whose.

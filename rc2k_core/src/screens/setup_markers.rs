@@ -4,12 +4,12 @@
 /// The bars' x (left, right) and y (upper, lower); 204 pixels long.
 pub const LEFT_X: i32 = 0x81;
 pub const RIGHT_X: i32 = 0x1D0;
-pub const UPPER_Y: i32 = 0x199;
-pub const LOWER_Y: i32 = 0x1D1;
+pub(crate) const UPPER_Y: i32 = 0x199;
+pub(crate) const LOWER_Y: i32 = 0x1D1;
 pub const BAR_WIDTH: i32 = 0xCC;
 /// The chosen value's marker (yellow) and the installed one's (orange).
-pub const MARKER_GLYPH: u32 = 0x76;
-pub const SECOND_MARKER_GLYPH: u32 = 0x77;
+pub(crate) const MARKER_GLYPH: u32 = 0x76;
+pub(crate) const SECOND_MARKER_GLYPH: u32 = 0x77;
 
 /// One of the six functions.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

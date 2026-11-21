@@ -1,5 +1,5 @@
-//! `menu::arcade_finale`: after an arcade level is won. The finishing player is player 0's +0x28,
-//! the cars' kind and a second figure take its +8, the kept value copy is cleared, the arcade
+//! `menu::arcade_finale`: after an arcade level is won. The finishing player is player 0's `race_number`,
+//! the cars' kind and a second figure take its `car_number`, the kept value copy is cleared, the arcade
 //! race index becomes 5 - the level and the finish flag is cleared. Then come the race's sound
 //! objects and sounds (`race::set_up_race_sound_objects`, `sound::set_up_race_sounds`), the
 //! loading picture, the 3D tidied (`render3d_tidy`, `objects_tidy`, `release_textures`),
@@ -29,7 +29,7 @@ pub fn arcade_finale(o: Owners<'static>) -> Result<(), Refused> {
         .car_kind_current
         .set(first.car_number);
     race.shared.state.settings.kept.set(0);
-    let level = play.arcade.level.get();
+    let level = play.arcade.read().level;
     race.shared
         .state
         .results

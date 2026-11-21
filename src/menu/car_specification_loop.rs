@@ -1,4 +1,4 @@
-//! The screen titled "ESPECIFICAÇÕES DO CARRO". Screen-specific part of `menu::screen_loop`:
+//! The screen titled "CAR SPECIFICATIONS". Screen-specific part of `menu::screen_loop`:
 //! leaving is not asked about; it has a step of its own once a frame, and one after the loop
 //! (the shown car kept for the cheats).
 
@@ -10,13 +10,8 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Frames, List, Screen, SetUp, Step, screen_entry};
 
 fn before(menus: &Menus) -> Result<(), Refused> {
-    menus
-        .screens
-        .event
-        .shown
-        .car
-        .set(menus.play.cheats.kept_car.get());
-    menus.screens.event.shown.car_page.set(0x0u32);
+    menus.screens.event.write().shown.car = menus.play.cheats.read().kept_car;
+    menus.screens.event.write().shown.car_page = 0x0u32;
 
     Ok(())
 }
@@ -25,23 +20,19 @@ fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     let screens = &set_up.menus.screens;
     set_up.set_view(-160, -100, 0x100);
     set_up.prepare_scene();
-    screens.flow.turning.set(0x1u32);
-    screens.carousel.menu.set(0xBu32);
+    screens.flow.write().turning = 0x1u32;
+    screens.carousel.write().menu = 0xBu32;
     set_up.carousel_with(None)?;
-    let item = screens.items.current[slot::CAR_SPECIFICATION].get();
-    screens.loop_flags.item.set(item);
-    screens.carousel.front.set(item.wrapping_sub(1));
-    screens.flow.turning.set(0x0u32);
-    screens.carousel.front.set(screens.event.shown.car.get());
+    let item = screens.items.current(slot::CAR_SPECIFICATION);
+    screens.loop_flags.write().item = item;
+    screens.carousel.write().front = item.wrapping_sub(1);
+    screens.flow.write().turning = 0x0u32;
+    screens.carousel.write().front = screens.event.read().shown.car;
     Ok(())
 }
 
 fn after(menus: &Menus) -> Result<(), Refused> {
-    menus
-        .play
-        .cheats
-        .kept_car
-        .set(menus.screens.event.shown.car.get());
+    menus.play.cheats.write().kept_car = menus.screens.event.read().shown.car;
 
     Ok(())
 }

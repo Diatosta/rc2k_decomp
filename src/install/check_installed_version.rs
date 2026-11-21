@@ -1,6 +1,5 @@
-//! Whether the already-installed program is this same build (`same_version`): the installed
-//! copy is read in chunks and scanned for the version text and the copyright line. Called by
-//! `install::run_installer`.
+//! Whether the already-installed program is this same build (`same_version`): the installed copy is
+//! read in chunks and scanned for the version text and the copyright line.
 
 use crate::errors::Refused;
 use crate::install::installer::set_cd;
@@ -16,8 +15,8 @@ pub fn check_installed_version(
     install: &'static crate::install::owner::Install,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    install.run.same_version.set(0);
-    if install.names.status.get() != 1 || install.names.source.get(0) == 0 {
+    install.run.same_version.set(false);
+    if install.names.status.get() != 1 || install.names.source.is_empty() {
         return Ok(());
     }
     // Normalise the source into the installed folder's path, and go there.
@@ -28,15 +27,12 @@ pub fn check_installed_version(
     let Some(installed) = normalised else {
         return Ok(());
     };
-    install
-        .paths
-        .installed
-        .write_at(0, &installed, "the installed folder")?;
-    if !set_cd(&install.paths.installed) {
+    install.paths.installed.set(&installed)?;
+    if !set_cd(&install.paths.installed.text()) {
         return Ok(());
     }
     system.work().files.buffer.write(&[0; BUFFER_LEN]);
-    // The standalone checks its own program (the same version text is in its built-in
+    // The program checks itself (the same version text is in its built-in
     // image).
     let program = crate::install::run_after_exit::RC2K;
     if let Some(file) = crate::files::handle::open_by_mode(program, 0)? {
@@ -57,13 +53,13 @@ pub fn check_installed_version(
             let copyright = system.start().texts.copyright.read();
             if let Scan::Stopped { same, .. } = version::scan(&scanned[..], &copyright[..])? {
                 if same {
-                    install.run.same_version.set(1);
+                    install.run.same_version.set(true);
                 }
                 break;
             }
         }
         crate::files::handle::close(file);
     }
-    set_cd(&install.paths.game_dir);
+    set_cd(&install.paths.game_dir.text());
     Ok(())
 }

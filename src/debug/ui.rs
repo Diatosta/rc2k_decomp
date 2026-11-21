@@ -5,8 +5,6 @@
 //! league tables those pages dumped in hex), "Rivals" (the rivals' table the display page ended
 //! with, as it is), and the race's freeze as a check box.
 
-use crate::debug::row_cells::Raw;
-use crate::debug::switches::EXTENSIONS;
 use crate::debug::timing::STAGES;
 use crate::debug::wear_page::SURFACES;
 use crate::owners::Owners;
@@ -25,14 +23,13 @@ pub enum Shown {
     Surface,
 }
 
-/// A figure of the display page: its name, the developers' label, how it is shown, its
-/// place, whether the page drew a bar of it, and its place on the page's 800 x 600 screen.
+/// A figure of the display page: its name, the developers' label, how it is shown, the cell
+/// read, whether the page drew a bar of it, and its place on the page's 800 x 600 screen.
 pub struct Row {
     name: &'static str,
     label: &'static str,
     shown: Shown,
-    at: usize,
-    cell: for<'a> fn(&Owners<'a>) -> &'a dyn Raw,
+    cell: for<'a> fn(&Owners<'a>) -> u32,
     bar: bool,
     place: (u32, u32),
 }
@@ -42,8 +39,7 @@ impl Row {
         name: &'static str,
         label: &'static str,
         shown: Shown,
-        at: usize,
-        cell: for<'a> fn(&Owners<'a>) -> &'a dyn Raw,
+        cell: for<'a> fn(&Owners<'a>) -> u32,
         bar: bool,
         place: (u32, u32),
     ) -> Self {
@@ -51,7 +47,6 @@ impl Row {
             name,
             label,
             shown,
-            at,
             cell,
             bar,
             place,
@@ -59,7 +54,7 @@ impl Row {
     }
 
     fn value(&self, o: &Owners<'static>) -> u32 {
-        (self.cell)(o).raw()
+        (self.cell)(o)
     }
 }
 
@@ -88,13 +83,31 @@ type NotedView = ([f32; 16], f32, [f32; 2]);
 /// drawing (the mirror) changes them, so they are noted here (`note_view`).
 static VIEW: std::sync::Mutex<Option<NotedView>> = std::sync::Mutex::new(None);
 
-pub fn note_view(frame: &Frame, scene: &crate::scene::owner::Scene) {
+pub(super) fn note_view(frame: &Frame, scene: &crate::scene::owner::Scene) {
     let view = (
-        std::array::from_fn(|n| frame.matrices.get().view_matrix[n].get()),
-        scene.scratch.main_view(0).polygon.window.view_scale.get(),
+        frame.view_kept.borrow().view_matrix,
+        scene
+            .scratch
+            .main_view(0)
+            .polygon
+            .window
+            .borrow()
+            .view_scale,
         [
-            scene.scratch.main_view(0).polygon.window.view_centre[0].get(),
-            scene.scratch.main_view(0).polygon.window.view_centre[1].get(),
+            scene
+                .scratch
+                .main_view(0)
+                .polygon
+                .window
+                .borrow()
+                .view_centre[0],
+            scene
+                .scratch
+                .main_view(0)
+                .polygon
+                .window
+                .borrow()
+                .view_centre[1],
         ],
     );
     *VIEW
@@ -110,7 +123,7 @@ pub fn note_view(frame: &Frame, scene: &crate::scene::owner::Scene) {
 /// yellow the ground. Above the window, and behind the eye skipped.
 fn draw_probes(race: &Race, system: &crate::system::owner::System, ui: &Ui) {
     let physics = &race.physics;
-    let wk = &physics.contact.get();
+    let wk = physics.probes().borrow();
     let Some((m, scale, centre)) = *VIEW
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -118,7 +131,7 @@ fn draw_probes(race: &Race, system: &crate::system::owner::System, ui: &Ui) {
         return;
     };
     let [w, h] = ui.io().display_size();
-    let (width, height) = crate::platform::screen_size(system);
+    let (width, height) = crate::shell::frame::screen_size(system);
     let (sx, sy) = (w / width.max(1) as f32, h / height.max(1) as f32);
     let place = |[x, y, z]: [i32; 3]| {
         let [x, y, z] = [f64::from(x), f64::from(y), f64::from(z)];
@@ -141,18 +154,18 @@ fn draw_probes(race: &Race, system: &crate::system::owner::System, ui: &Ui) {
     let size = ui.current_font_size() / 4.0;
     for n in 0..race.shared.car().probe_count.get().min(0x40) as usize {
         let (x, y, z) = (
-            wk.probe_x[n].get() as i32,
-            wk.probe_y[n].get() as i32,
-            wk.probe_z[n].get() as i32,
+            wk.probe_x[n] as i32,
+            wk.probe_y[n] as i32,
+            wk.probe_z[n] as i32,
         );
         let Some(p) = place([x, y, z]) else {
             continue;
         };
-        let found = wk.probe_found[n].get() != 0;
-        if found && let Some(g) = place([x, wk.probe_ground_height[n].get() as i32, z]) {
+        let found = wk.probe_found[n] != 0;
+        if found && let Some(g) = place([x, wk.probe_ground_height[n] as i32, z]) {
             list.add_line(p, g, [1.0, 1.0, 0.0, 1.0]).build();
         }
-        let colour = if found && (wk.probe_height[n].get() as i32) <= 0 {
+        let colour = if found && (wk.probe_height[n] as i32) <= 0 {
             [1.0, 0.2, 0.2, 1.0]
         } else if n < 4 {
             [0.2, 1.0, 0.2, 1.0]
@@ -259,7 +272,7 @@ pub fn build(o: &Owners<'static>, ui: &Ui) {
                     body(ui, || crate::debug::kstar::tab(race, o.scene, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Switches") {
-                    body(ui, || crate::debug::switches::tab(race, o.scene, o.system, ui));
+                    body(ui, || crate::debug::switches::tab(race, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Rivals") {
                     body(ui, || rivals(crate::strings::append_string_by_id::StringOwners::of(*o), &race.physics, ui));
@@ -298,7 +311,7 @@ fn screens(saves: &crate::saves::owner::Saves, ui: &Ui) {
         ui.same_line();
     }
     ui.new_line();
-    if ui.button("Car specifications (0x4AA1A3)") {
+    if ui.button("Car specifications") {
         crate::debug::screens::ask_cspecs();
     }
 }
@@ -379,7 +392,12 @@ fn group_table(ui: &Ui, o: &Owners<'static>, group: &Group, wanted: &str) {
     column("Bar", 1.5);
     column("Original", 1.2);
     ui.table_headers_row();
-    for row in group.rows.iter().filter(|r| wanted_row(r, wanted)) {
+    for (number, row) in group
+        .rows
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| wanted_row(r, wanted))
+    {
         let value = row.value(o);
         ui.table_next_row();
         ui.table_next_column();
@@ -389,7 +407,7 @@ fn group_table(ui: &Ui, o: &Owners<'static>, group: &Group, wanted: &str) {
         ui.table_next_column();
         if row.bar {
             let v = f32::from_bits(value);
-            let _id = ui.push_id(row.at);
+            let _id = ui.push_id(number);
             ui.progress_bar(v / 100.0)
                 .size([-1.0, 0.0])
                 .overlay_text("")
@@ -400,11 +418,11 @@ fn group_table(ui: &Ui, o: &Owners<'static>, group: &Group, wanted: &str) {
         if ui.is_item_hovered() {
             let hex = format!("{value:08x}");
             ui.tooltip_text(if row.place == (0, 0) {
-                format!("IDA {:#08x}; {hex}", row.at)
+                hex
             } else {
                 format!(
-                    "IDA {:#08x}; {hex}; at ({}, {}) on the original's page",
-                    row.at, row.place.0, row.place.1
+                    "{hex}; at ({}, {}) on the developers' page",
+                    row.place.0, row.place.1
                 )
             });
         }
@@ -485,7 +503,7 @@ const HISTORY: usize = 240;
 fn take_readings(system: &crate::system::owner::System, t: &mut Timings) {
     let now = Counts {
         at: std::time::Instant::now(),
-        frame: crate::platform::frame_counters(),
+        frame: crate::shell::frame::frame_counters(),
         stages: crate::debug::timing::counts(),
         ticks: crate::debug::timing::ticks(),
     };
@@ -496,7 +514,7 @@ fn take_readings(system: &crate::system::owner::System, t: &mut Timings) {
         let ms = now.at.duration_since(then.at).as_secs_f32() * 1000.0;
         push(&mut t.frames, ms);
         let ease = |shown: &mut f32, new: f32| *shown += (new - *shown) * SMOOTHING;
-        let screen = crate::platform::screen_pixels(system).max(1) as f32;
+        let screen = crate::shell::frame::screen_pixels(system).max(1) as f32;
         for (n, shown) in t.frame.iter_mut().enumerate() {
             let d = now.frame[n].wrapping_sub(then.frame[n]) as f32;
             ease(
@@ -555,7 +573,7 @@ fn profiler(o: &Owners<'static>, ui: &Ui) {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     take_readings(o.system, &mut t);
-    let fps = shared.switches.get().frame_rate.get();
+    let fps = shared.switches.borrow().frame_rate;
     ui.text(format!("Frame rate (the game's, over 16 frames): {fps:.1}"));
     ui.same_line();
     ui.checkbox("Each part in the graph", &mut t.each);
@@ -683,52 +701,12 @@ fn profiler(o: &Owners<'static>, ui: &Ui) {
             ("Mode's bits", format!("{:08x}", state.sound_mode.get())),
         ],
     );
-    // The developers' profile page's items. The developers' switch is 1 by default, changed only by
-    // a key of their handler, which nothing calls; that handler is also all that masks the
-    // processor's features into the SSE, 3DNow and MMX switches, so "Game uses" stays at none.
-    let names = |flags: [(&'static str, Option<u32>); 3]| {
-        let on: Vec<&str> = flags
-            .iter()
-            .filter(|(_, v)| v.is_some_and(|v| v != 0))
-            .map(|(name, _)| *name)
-            .collect();
-        if on.is_empty() {
-            "none".to_owned()
-        } else {
-            on.join(", ")
-        }
-    };
     section(
         "Machine",
-        &[
-            (
-                "Course memory",
-                format!("{} KiB", course.lists.get().course_bytes_total.get() >> 10),
-            ),
-            (
-                "Processor has",
-                names([
-                    ("MMX", Some(o.system.machine().has_mmx.get())),
-                    ("3DNow!", Some(o.system.machine().has_3dnow.get())),
-                    ("SSE", Some(o.system.machine().has_sse.get())),
-                ]),
-            ),
-            (
-                "Game uses",
-                names([
-                    ("MMX", Some(o.scene.draw_switches.get().use_mmx.get())),
-                    ("3DNow!", Some(o.scene.draw_switches.get().use_3dnow.get())),
-                    (
-                        "SSE",
-                        Some(u32::from(o.scene.draw_switches.get().use_sse.is_set())),
-                    ),
-                ]),
-            ),
-            (
-                "Developers' extensions switch",
-                figure(EXTENSIONS.load(Relaxed), Shown::Whole),
-            ),
-        ],
+        &[(
+            "Course memory",
+            format!("{} KiB", course.lists.borrow().course_bytes_total >> 10),
+        )],
     );
 }
 
@@ -781,28 +759,28 @@ const DUMPS: [(&str, &str, DumpWord, usize, usize); 4] = [
     (
         "League: the ten records' names (g_leagueNames)",
         "`race::copy_league_table` fills them; `physics::compare_split_times` reads them.",
-        |race, n| race.course.league().names[n].get(),
+        |race, n| race.course.league().names[n],
         1,
         10,
     ),
     (
         "League: kept times, sixteen rows of ten (g_leagueRows)",
         "A row a split, a column a record; hundredths of a second.",
-        |race, n| race.course.league().rows[n].get(),
+        |race, n| race.course.league().rows[n],
         10,
         16,
     ),
     (
-        "Car 1's times at the splits (unk_75B02C)",
+        "Car 1's times at the splits",
         "Noted at each split; kept in the player's +0x20C after the race; hundredths of a second.",
-        |race, n| race.shared.state.results.results[0].data.get_u32(4 * n),
+        |race, n| race.shared.state.results.results[0].data[n].get(),
         1,
         16,
     ),
     (
-        "Car 2's times at the splits (unk_75B09C)",
+        "Car 2's times at the splits",
         "As car 1's.",
-        |race, n| race.shared.state.results.results[1].data.get_u32(4 * n),
+        |race, n| race.shared.state.results.results[1].data[n].get(),
         1,
         16,
     ),
@@ -819,9 +797,9 @@ fn dump_row(race: &Race, word: DumpWord, columns: usize, row: usize) -> String {
 fn dumps(race: &Race, ui: &Ui) {
     if ui.button("Write the four to the log") {
         for (name, _, word, columns, rows) in DUMPS {
-            crate::logfile::program_log::log(name);
+            crate::program_log::log(name);
             for row in 0..rows {
-                crate::logfile::program_log::log(&dump_row(race, word, columns, row));
+                crate::program_log::log(&dump_row(race, word, columns, row));
             }
         }
     }
@@ -860,13 +838,13 @@ fn rivals(so: crate::strings::append_string_by_id::StringOwners<'_>, physics: &P
         let mut name = Vec::new();
         let _ = crate::strings::append_string_by_id::append_string_by_id(
             so,
-            physics.split_tables().rival_names[n].get(),
+            physics.split_tables().rival_names[n].to_file(),
             &mut |run| name.extend_from_slice(run),
         );
         ui.text(name.iter().map(|&b| char::from(b)).collect::<String>());
         ui.table_next_column();
-        ui.text(time(physics.split_tables().rival_scaled[n].get()));
+        ui.text(time(physics.split_tables().rival_scaled[n]));
         ui.table_next_column();
-        ui.text(time(physics.split_tables().rival_times[n].get()));
+        ui.text(time(physics.split_tables().rival_times[n]));
     }
 }

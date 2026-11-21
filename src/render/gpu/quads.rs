@@ -9,20 +9,20 @@ use crate::platform::ffi::sdl_gpu::{
 };
 use sdl3_sys::everything::*;
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(apple))]
 const QUAD_VERT: ShaderCode = ShaderCode {
     spirv: include_bytes!("../shaders/quad.vert.spv"),
 };
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(apple))]
 const QUAD_FRAG: ShaderCode = ShaderCode {
     spirv: include_bytes!("../shaders/quad.frag.spv"),
 };
-#[cfg(target_os = "macos")]
+#[cfg(apple)]
 const QUAD_VERT: ShaderCode = ShaderCode {
     spirv: include_bytes!("../shaders/quad.vert.spv"),
     msl: include_bytes!("../shaders/quad.vert.msl"),
 };
-#[cfg(target_os = "macos")]
+#[cfg(apple)]
 const QUAD_FRAG: ShaderCode = ShaderCode {
     spirv: include_bytes!("../shaders/quad.frag.spv"),
     msl: include_bytes!("../shaders/quad.frag.msl"),
@@ -67,6 +67,20 @@ impl Prepared {
     }
 }
 
+impl Quads {
+    /// Everything of the 2D quads' released on `device`.
+    pub(super) fn release(&self, device: sdl_gpu::Device) {
+        device.release_texture(self.atlas);
+        device.release_pipeline(self.pipeline);
+        if !self.vertices.is_none() {
+            device.release_buffer(self.vertices);
+        }
+        if !self.transfer.is_none() {
+            device.release_transfer(self.transfer);
+        }
+    }
+}
+
 impl Gpu {
     /// The atlas, the pipeline and the buffers, made the first time something is to be drawn.
     fn ensure_quads(&mut self) -> Result<(), String> {
@@ -96,7 +110,11 @@ impl Gpu {
         };
         let pipeline = self
             .device
-            .create_pipeline(vertex_shader, fragment_shader, &spec)?;
+            .create_pipeline(vertex_shader, fragment_shader, &spec);
+        // The pipeline keeps what it needs of them.
+        self.device.release_shader(vertex_shader);
+        self.device.release_shader(fragment_shader);
+        let pipeline = pipeline?;
         let atlas = self.make_texture(ATLAS_SIDE, ATLAS_SIDE, SDL_GPU_TEXTUREUSAGE_SAMPLER)?;
         self.quads = Some(Quads {
             atlas,

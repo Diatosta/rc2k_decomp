@@ -5,9 +5,8 @@
 //! has its top bit set, it is tinted by `race::tint_to_mud_colour`, the top byte set, and put back
 //! (`race::put_mud_texel`).
 //!
-//! See `race/mud.rs`. Callers: `race::throw_mud_texel` (twice). Refuses a texture past 3 (the
-//! map would be read past its 64 KB) and no mud, before anything; what `put_mud_texel` refuses
-//! (`scratch` put back).
+//! See `race/mud.rs`. Refuses a texture past 3 (the map would be read past its 64 KB) and no mud,
+//! before anything; what `put_mud_texel` refuses (`scratch` put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::race::mud_texel::mud_texel;
@@ -18,12 +17,13 @@ use crate::race::tint_to_mud_colour::tint_to_mud_colour;
 
 /// The place (x, y) of number `n` (its low 16 bits).
 pub fn shuffled_place(race: &Race, n: u32) -> (u32, u32) {
-    let word: u16 = race.engine_tables().shuffled_words[(n & 0xFFFF) as usize].get();
+    let word: u16 =
+        crate::math::engine_tables::shuffled_word(race.engine_tables(), (n & 0xFFFF) as usize);
     rc2k_core::race::mud::shuffled_place(word)
 }
 
 /// The texture worked on, or the refusal (also without the mud).
-pub fn texture_and_mud(
+pub(super) fn texture_and_mud(
     shared: &RaceShared,
     mud: &crate::memory::owned::Owned<Vec<u8>>,
 ) -> Result<u32, Refused> {
@@ -38,7 +38,7 @@ pub fn texture_and_mud(
 }
 
 /// The mud's strength for texture `n` at (x, y).
-pub fn strength_at(
+pub(super) fn strength_at(
     mud: &crate::memory::owned::Owned<Vec<u8>>,
     n: u32,
     x: u32,

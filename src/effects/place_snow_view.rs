@@ -7,34 +7,22 @@
 //! It shares no variable with `place_rain_view`.
 
 use crate::effects::place_rain_view::{ViewPlace, place_view_with};
-use crate::effects::rain::Weather;
-use crate::errors::Refused;
+use crate::effects::rain_store::Weather;
 use crate::math::x87;
 
-/// The snow's view variables.
-fn second(weather: &Weather) -> ViewPlace<'_> {
-    let (s, l) = (&weather.snow, &weather.snow_light);
-    ViewPlace {
-        point: &s.point,
+pub(super) fn place_snow_view(weather: &Weather) {
+    let height = weather.snow_light.borrow().height;
+    let mut snow = weather.snow.borrow_mut();
+    let s = &mut *snow;
+    place_view_with(ViewPlace {
+        point: &mut s.point,
         start_z: 0x8_0000,
         place: &s.view_place,
         matrix: &s.view_matrix,
-        out: &s.view,
-        height: l.height.get(),
-        matrix_copy: &s.matrix_copy,
-    }
-}
-
-pub fn place_snow_view(weather: &Weather) -> Result<(), Refused> {
-    let second = second(weather);
-    let snow = &weather.snow;
-    place_view_with(&second)?;
-    for cell in &snow.cleared {
-        cell.set(0);
-    }
-    let z = x87::from_int(snow.point[2].get() as i32);
-    for cell in &snow.filled {
-        cell.set(z);
-    }
-    Ok(())
+        out: &mut s.view,
+        height,
+        matrix_copy: &mut s.matrix_copy,
+    });
+    s.cleared = [0; 8];
+    s.filled = [x87::from_int(s.point[2] as i32); 4];
 }

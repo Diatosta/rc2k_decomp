@@ -3,82 +3,83 @@
 //! choices (`sound::revs_sound`, `throttle_sound`, `speed_sound` and `car_slot_sounds`).
 
 use crate::Invalid;
+use crate::audio::voices::{BASE_SAMPLES, PLAYER_COPIES};
 
 /// A sound object's dwords the engine works on (what goes in and what comes out), with their
 /// offsets in the object; the game crate takes them from the object and puts them back.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Engine {
-    /// +0x10: a new revs reading came.
+    /// A new revs reading came.
     pub new_revs: u32,
-    /// +0x14: the revs.
+    /// The revs.
     pub revs: u32,
-    /// +0x18: the throttle.
+    /// The throttle.
     pub throttle: u32,
-    /// +0x20: the physics' gear-changed flag.
+    /// The physics' gear-changed flag.
     pub gear_event: u32,
-    /// +0x24: 1 in neutral.
+    /// 1 in neutral.
     pub no_gear: u32,
-    /// +0x94 / +0x98: the times of the last two readings.
+    /// The times of the last two readings.
     pub reading_times: [u32; 2],
-    /// +0x9C / +0xA0: their revs.
+    /// Their revs.
     pub reading_revs: [u32; 2],
-    /// +0xE8: the gear.
+    /// The gear.
     pub gear: u32,
-    /// +0xEC: the gear when it last changed.
+    /// The gear when it last changed.
     pub last_gear: u32,
-    /// +0xF0: set with a gear change.
+    /// Set with a gear change.
     pub gear_notice: u32,
-    /// +0xF4: a hold-off, counted down to 0.
+    /// A hold-off, counted down to 0.
     pub countdown: u32,
-    /// +0xF8: the back-fire wait flag.
+    /// The back-fire wait flag.
     pub wait_flag: u32,
-    /// +0xFC: the last direction.
+    /// The last direction.
     pub last_direction: u32,
-    /// +0x10C: the engine's state (0 no revs, 1 up to 1000, 2, 3 cut).
+    /// The engine's state (0 no revs, 1 up to 1000, 2, 3 cut).
     pub state: u32,
-    /// +0x110: the last state.
+    /// The last state.
     pub last_state: u32,
-    /// +0x118: follows the throttle.
+    /// Follows the throttle.
     pub smooth_throttle: u32,
-    /// +0x11C: the gap between the throttle and `smooth_throttle`.
+    /// The gap between the throttle and `smooth_throttle`.
     pub throttle_lead: u32,
-    /// +0x128: the turns going up.
+    /// The turns going up.
     pub turns_up: u32,
-    /// +0x12C: the throttle's direction (0 level, 1 up, 2 down).
+    /// The throttle's direction (0 level, 1 up, 2 down).
     pub direction: u32,
-    /// +0x130: the turns going down.
+    /// The turns going down.
     pub turns_down: u32,
-    /// +0x1C4: the sound of the timed slot the throttle's drop arms.
+    /// The sound of the timed slot the throttle's drop arms.
     pub drop_sound: u32,
-    /// +0x1C8: that slot's start flag.
+    /// That slot's start flag.
     pub drop_start: u32,
-    /// +0x1E0: the back-fire slot's start flag.
+    /// The back-fire slot's start flag.
     pub backfire_start: u32,
-    /// +0x1E4: that slot's playing flag.
+    /// That slot's playing flag.
     pub backfire_playing: u32,
-    /// +0x1EC: that slot's volume.
+    /// That slot's volume.
     pub backfire_volume: u32,
-    /// +0x1F4: the back-fires' wait, counted down.
+    /// The back-fires' wait, counted down.
     pub backfire_wait: u32,
-    /// +0x1FC: the gear change slot's start flag.
+    /// The gear change slot's start flag.
     pub gear_slot_start: u32,
 }
 
-/// The request's place for the timed sounds: the object's +0x2C .. +0x34 less its +0x38 .. +0x40,
+/// The request's place for the timed sounds: the object's first place less its second place,
 /// each stored as an `f32` (one rounding of an exact `f64` difference).
 pub fn place_behind(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [0, 1, 2].map(|n| (f64::from(a[n]) - f64::from(b[n])) as f32)
 }
 
-/// The gear change's pitch factor: the request's factor (+0x20) times the object's +0x210, as an
+/// The gear change's pitch factor: the request's factor times the object's pitch, as an
 /// `f32`.
 pub fn gear_pitch(factor: f32, pitch: f32) -> f32 {
     (f64::from(factor) * f64::from(pitch)) as f32
 }
 
 /// Kind bits: the gear change's cue, the back-fires.
-pub const GEAR_CUE: u32 = 0x2000;
-pub const BACK_FIRES: u32 = 0x1000;
+pub(crate) const GEAR_CUE: u32 = 0x2000;
+pub(crate) const BACK_FIRES: u32 = 0x1000;
 
 /// The revs extrapolated, worked out before anything is written: the readings' rise over their gap
 /// (held to 1000) times the time since the last, or None without one (a new reading, the revs held,
@@ -124,8 +125,8 @@ pub fn readings(o: &mut Engine, clock: u32, change: Option<u32>) {
 }
 
 /// The state, the throttle followed, the gear and the back-fires (after the pitch inputs). `kind`
-/// reads the sound kind's flags (+0). Returns the gear change's cue: Some(clock & 0xF) when its
-/// pitch (+0x210) is to be set.
+/// reads the sound kind's flags. Returns the gear change's cue: Some(clock & 0xF) when its
+/// pitch is to be set.
 pub fn state(o: &mut Engine, kind: impl Fn() -> u32, clock: u32) -> Option<u32> {
     o.last_state = o.state;
     o.state = match o.revs {
@@ -235,7 +236,7 @@ fn back_fires(o: &mut Engine, kind: &impl Fn() -> u32, clock: u32) {
     }
 }
 
-/// `+0x104`: the throttle as a float over 256: `from_int`'s bits with the exponent less 8
+/// The throttle as a float over 256: `from_int`'s bits with the exponent less 8
 /// (none for 0).
 pub fn over_256(float_bits: u32) -> u32 {
     if float_bits & 0x7FFF_FFFF != 0 {
@@ -245,16 +246,29 @@ pub fn over_256(float_bits: u32) -> u32 {
     }
 }
 
+/// The engine sound of a player's car whose object's offset is `offset` (the player's number),
+/// from the base sound of the set: the first two players' are the base and the next sample
+/// record, each further pair's the copies of those two in a block of its own
+/// (`PLAYER_COPIES`), so that each car's engine has a voice of its own.
+pub fn player_sound(offset: u32, base: u32) -> u32 {
+    match offset {
+        0 | 1 => base.wrapping_add(offset),
+        _ => BASE_SAMPLES
+            .wrapping_add((offset / 2 - 1).wrapping_mul(PLAYER_COPIES))
+            .wrapping_add(base)
+            .wrapping_add(offset & 1),
+    }
+}
+
 /// `sound::revs_sound`: the sound of a car whose object's +0 is `object`, from the base
 /// sound of its set: a computer's car (+0 negative) has two (bit 0 of +0), a player's
-/// one each (+0 is the car's).
+/// `player_sound`.
 pub fn revs_sound_number(object: u32, base: u32) -> u32 {
-    let n = if (object as i32) < 0 {
-        object & 1
+    if (object as i32) < 0 {
+        (object & 1).wrapping_add(base)
     } else {
-        object
-    };
-    n.wrapping_add(base)
+        player_sound(object, base)
+    }
 }
 
 /// A computer's car (its object's +0 negative): no throttle or speed sound.
@@ -268,8 +282,8 @@ pub fn revs_stopped(state: u32) -> bool {
     state == 0 || state == 3
 }
 
-/// `sound::speed_sound`: the sound is stopped in engine state 0 or 1, in neutral (+0x24
-/// 1), while held off (+0xF4) or off the ground (+0xAC); each asked in that order, only
+/// `sound::speed_sound`: the sound is stopped in engine state 0 or 1, in neutral
+/// (1), while held off or off the ground; each asked in that order, only
 /// while the ones before did not stop it.
 pub fn speed_stopped(
     state: u32,
@@ -281,8 +295,8 @@ pub fn speed_stopped(
 }
 
 /// `sound::car_slot_sounds`: the object's timed slots played at the car's place, in
-/// order (the first four only for a car whose +0xC is 0); then the one at +0x220 at the
-/// place +0x214.
+/// order (the first four only for a car whose own-view flag is 0); then the last slot at the
+/// car's second place.
 pub fn placed_slots(own_view: bool) -> Vec<u32> {
     let mut slots = Vec::new();
     if own_view {
@@ -295,6 +309,21 @@ pub fn placed_slots(own_view: bool) -> Vec<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn players_sounds() {
+        assert_eq!(player_sound(0, 0x10), 0x10);
+        assert_eq!(player_sound(1, 0x10), 0x11);
+        assert_eq!(player_sound(2, 0x10), BASE_SAMPLES + 0x10);
+        assert_eq!(player_sound(3, 0x10), BASE_SAMPLES + 0x11);
+        assert_eq!(player_sound(4, 0x10), BASE_SAMPLES + PLAYER_COPIES + 0x10);
+        assert_eq!(
+            player_sound(7, 0x10),
+            BASE_SAMPLES + 2 * PLAYER_COPIES + 0x11
+        );
+        assert_eq!(revs_sound_number(0xFFFF_FFFF, 0x20), 0x21);
+        assert_eq!(revs_sound_number(3, 0x20), BASE_SAMPLES + 0x21);
+    }
+
     #[test]
     fn revs() {
         let mut o = Engine {
@@ -358,7 +387,7 @@ mod tests {
     #[test]
     fn engine_sounds() {
         assert_eq!(revs_sound_number(0x8000_0003, 10), 11);
-        assert_eq!(revs_sound_number(5, 10), 15);
+        assert_eq!(revs_sound_number(1, 10), 11);
         assert!(computers(0xFFFF_FFFF) && !computers(0));
         assert!(revs_stopped(3) && !revs_stopped(1));
         assert!(speed_stopped(1, || unreachable!(), || 0, || 0));

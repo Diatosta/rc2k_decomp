@@ -10,11 +10,10 @@
 
 use crate::errors::Refused;
 use crate::memory::session::Dword;
-use rc2k_core::fatal::Context;
 
 // ---- game data ----
 
-pub const PALETTE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE_23;
+pub(super) const PALETTE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE_23;
 pub const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING_23;
 
 // ---- the list screens' variables (`menu::list_*`) ----
@@ -22,7 +21,7 @@ pub const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HE
 // ---- small pieces ----
 
 /// `rep movsb` of `n` bytes, forwards (the places do not overlap).
-pub fn movsb(
+pub(super) fn movsb(
     to: impl Into<crate::memory::place::BytePlace>,
     from: impl Into<crate::memory::place::BytePlace>,
     n: u32,
@@ -88,7 +87,7 @@ pub fn log_hex(value: u32, newline: bool) {
 }
 
 /// A number logged at the given level, with a line end.
-pub fn log_int_nl(value: u32, level: u8) {
+pub(super) fn log_int_nl(value: u32, level: u8) {
     crate::logfile::log_int::log_int(value as i32, true, level);
 }
 
@@ -101,7 +100,7 @@ pub fn zero(at: impl Into<crate::memory::place::BytePlace>, length: u32) -> Resu
 
 /// `CoCreateInstance` (`net::dplay::create_instance`): the object into `out` (0 when none
 /// is made), its result.
-pub fn co_create(class: &[u8; 16], interface: &[u8; 16], out: &Dword) -> u32 {
+pub(super) fn co_create(class: &[u8; 16], interface: &[u8; 16], out: &Dword) -> u32 {
     match crate::net::dplay::create_instance(class, interface) {
         Ok(made) => {
             out.set(made);
@@ -114,20 +113,20 @@ pub fn co_create(class: &[u8; 16], interface: &[u8; 16], out: &Dword) -> u32 {
     }
 }
 
-/// `screens::run_frame` with the frame `frame` (`platform::run_frame_now`: the window's
+/// `screens::run_frame` with the frame `frame` (`shell::frame::run_frame_now`: the window's
 /// messages, then the frame unless the game is quitting).
 pub fn run_frame<T>(
     o: crate::owners::Owners<'static>,
     frame: impl FnOnce() -> Result<T, Refused>,
 ) -> Result<(), Refused> {
-    match crate::platform::run_frame_now(o, frame) {
+    match crate::shell::frame::run_frame_now(o, frame) {
         Some(done) => done.map(|_| ()),
         None => Ok(()),
     }
 }
 
 /// `menu::list_take_key`: the key.
-pub fn list_key(
+pub(super) fn list_key(
     list_state: &crate::menu::list_state::ListState,
     input: &crate::input::owner::Input,
 ) -> Result<u8, Refused> {
@@ -135,16 +134,23 @@ pub fn list_key(
 }
 
 /// A list screen's other keys: a screenshot (R, when they are on), the lexicon.
-pub fn other_key(o: crate::owners::Owners<'static>, key: u8) -> Result<(), Refused> {
+pub(super) fn other_key(o: crate::owners::Owners<'static>, key: u8) -> Result<(), Refused> {
     if o.gfx.shots.on.get() != 0 && key == 0x52 {
         crate::gfx::take_screenshot::take_screenshot(o.gfx, o.system)?;
     }
-    crate::strings::maybe_compile_lexicon::maybe_compile_lexicon(o.input, o.strings, o.system)
+    crate::language::maybe_compile_lexicon::maybe_compile_lexicon(
+        o.input.devices.keys_down.get(0x4E),
+        o.strings,
+        &o.system.work().files,
+    )
 }
 
-/// `gfx::lock_surface`: whether it is locked.
-pub fn lock_surface(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner::System) -> bool {
-    crate::platform::lock_surface(gfx, system) >= 1
+/// The surface locked, or `None` when it could not be (see `gfx::with_locked_surface`).
+pub fn lock_surface<'a>(
+    gfx: &'a crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Option<crate::gfx::with_locked_surface::LockedSurface<'a>> {
+    crate::gfx::with_locked_surface::lock(gfx, system)
 }
 
 /// `gfx::copy_picture_to_surface`.
@@ -185,25 +191,16 @@ pub const fn fatal(code: u32) -> crate::errors::FatalError {
     crate::errors::FatalError { code, message: "" }
 }
 
-// ---- DirectPlay's callbacks (`stdcall`, their arguments on the stack) ----
+// ---- the session layer's callbacks ----
 
-/// Runs a callback where DirectPlay calls it: a refused
-/// input ends the program with its reason (there is no game code to run in its place), a
-/// fatal error is raised.
-pub fn callback_entry(name: &str, ral: u32, rust: impl FnOnce() -> Result<u32, Refused>) -> u32 {
+/// Runs a callback where the session layer calls it and gives its answer: a refused input
+/// ends the program with its reason, a fatal error is raised (and answers 0 if it comes back).
+pub(super) fn callback_entry(name: &str, rust: impl FnOnce() -> Result<u32, Refused>) -> u32 {
     match rust() {
-        Ok(eax) => eax,
-        Err(Refused::BadInput(why)) => {
-            crate::standalone::finish(&format!("{name} ({ral:#x}) refused: {}", why.0), 1)
-        }
-        Err(Refused::Fatal(error)) => {
-            crate::logfile::program_log::log(&format!(
-                "{name}: raises fatal error {:#x} {:?}",
-                error.code, error.message
-            ));
-            let r = Context::default();
-            crate::fatal::raise::raise(error, &r);
-            r.eax
+        Ok(answer) => answer,
+        Err(e) => {
+            crate::fatal::raise::refused(name, e);
+            0
         }
     }
 }

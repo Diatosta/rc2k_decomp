@@ -92,7 +92,10 @@ fn leak<T>(value: T) -> &'static T {
 /// `make` must build its result fresh and keep no other handle on it, so that the thread that
 /// joins the builder is the result's only user (a closure that is `Send` and holds no shared
 /// handle to what it makes).
-pub fn on_big_stack<R: 'static>(stack: usize, make: impl FnOnce() -> R + Send + 'static) -> R {
+pub(super) fn on_big_stack<R: 'static>(
+    stack: usize,
+    make: impl FnOnce() -> R + Send + 'static,
+) -> R {
     /// A value made on a thread that has ended.
     struct Made<R>(R);
     #[allow(

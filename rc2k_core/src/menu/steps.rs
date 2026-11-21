@@ -75,8 +75,9 @@ pub fn kept_controller(c: u32, count: u32) -> u32 {
     if c > count { 0 } else { c }
 }
 
+#[cfg(test)]
 /// What the two dead zones leave of 100, and whether a third may grow (above 10, signed).
-pub fn dead_zone_room(a: u32, b: u32) -> (u32, bool) {
+pub(crate) fn dead_zone_room(a: u32, b: u32) -> (u32, bool) {
     let room = 100u32.wrapping_sub(a).wrapping_sub(b);
     (room, room as i32 > 10)
 }

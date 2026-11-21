@@ -32,6 +32,7 @@ pub const SCREEN: Screen = Screen {
         later_callback: Some(FrameRoutine::Inspection),
         ..Frames::DEFAULT
     },
+    invites: false,
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.inspection_area.id(),

@@ -1,7 +1,5 @@
 //! Applies the 7 contact records as torques (`physics::apply_torques`), only when `contact_step`
 //! is 0.
-//!
-//! Caller: `physics::car_physics_step`, after `physics::apply_contact_forces`, every physics step.
 
 use crate::errors::Refused;
 use crate::physics::apply_torques::apply_torques;
@@ -9,10 +7,12 @@ use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::tables_store::ForceRecord;
 use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
+use std::cell::RefCell;
 const COUNT: usize = 7;
 
 /// The Rust core, the switch given, `run` doing the records (`apply_torques`).
-pub fn apply_contact_torques_with<'a>(
+fn apply_contact_torques_with<'a>(
     switch: u32,
     records: &'a [ForceRecord],
     run: impl FnOnce(&'a [ForceRecord]) -> Result<(), Refused>,
@@ -23,14 +23,15 @@ pub fn apply_contact_torques_with<'a>(
     run(records)
 }
 
-pub fn apply_contact_torques(
+pub(super) fn apply_contact_torques(
+    numbers: &Numbers,
     tables: &PhysicsTables,
-    contact: &ContactWork,
+    contact: &RefCell<ContactWork>,
     car: &Car,
 ) -> Result<(), Refused> {
     apply_contact_torques_with(
         tables.contact_step.get(),
         &tables.contacts[..COUNT],
-        |records| apply_torques(tables, contact, car, records),
+        |records| apply_torques(numbers, contact, car, records),
     )
 }

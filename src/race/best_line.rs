@@ -3,11 +3,13 @@
 //! shares. `best_line` reads the loaded course and returns everything as a `BestLine`;
 //! `store_best_line` writes it into the race's tables.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::memory::session::{PlainDword, PlainFloat};
+use crate::race::best_line_store::{Along, BestLine, CameraSet, Leftovers, MapPlace};
+use crate::race::checkpoints_store::Checkpoints;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
@@ -63,70 +65,7 @@ impl Step {
     }
 }
 
-/// One set of replay cameras.
-#[derive(Clone, Default, PartialEq, Eq, Debug)]
-pub struct CameraSet {
-    /// The camera faces, at most 0x400.
-    pub faces: Vec<u32>,
-    /// Each checkpoint's nearest camera (empty without cameras).
-    pub nearest: Vec<u32>,
-}
-
-/// What the work leaves in the variables others read (None: never written).
-#[derive(Clone, Default, PartialEq, Eq, Debug)]
-pub struct Leftovers {
-    /// The scene's scratch word.
-    pub scratch: Option<u32>,
-}
-
-/// A checkpoint's place on the map.
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct MapPlace {
-    pub checkpoint: u32,
-    pub x: u32,
-    pub y: u32,
-}
-
-/// What a line of two checkpoints or more has besides its chain.
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Along {
-    /// The (place, angle) writes of the angles table, in write order.
-    pub angles: Vec<(u32, u32)>,
-    /// Each checkpoint's count of checks.
-    pub check_counts: Vec<u32>,
-    /// The distance along the line at each checkpoint; the last is the line's length.
-    pub distances: Vec<u32>,
-    /// How many map anchors the line has.
-    pub map_anchors: u32,
-    /// Each mapped checkpoint's place on the map.
-    pub map: Vec<MapPlace>,
-    /// The two replay camera sets.
-    pub cameras: [CameraSet; 2],
-    /// The share of the line on each of the 16 surfaces, whole numbers.
-    pub surface_shares: [u32; 16],
-}
-
-/// The best line of the loaded course.
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct BestLine {
-    /// The face kind of the line's faces for the stage's direction.
-    pub line_face_kind: u32,
-    /// The faces of that kind, the chain first (all of them in the order the faces come when
-    /// there are fewer than two).
-    pub faces: Vec<u32>,
-    /// The chain's length (0 with fewer than two faces): the line's face total and the
-    /// checkpoint count.
-    pub checkpoint_count: u32,
-    /// The last checkpoint's number: the count less 1 (None, and the table keeps its value, with
-    /// fewer than two line faces).
-    pub last_checkpoint: Option<u32>,
-    /// The rest, when there are two checkpoints or more.
-    pub along: Option<Along>,
-    /// What the work leaves in the variables.
-    pub leftovers: Leftovers,
-}
-
-/// A face's first point: its number (field +4).
+/// A face's first point: its number (the face's point 0).
 fn point_of(race: &Race, face: u32) -> Result<u32, BadInput> {
     crate::race::course_places::face_field(race.course.reads(), face, 4)
 }
@@ -149,7 +88,7 @@ fn point_xz(race: &Race, n: u32) -> Result<[u32; 2], BadInput> {
 fn sort_checkpoints(race: &Race, kind: u8) -> Result<(Vec<u32>, Option<u32>), Refused> {
     use rc2k_core::race::checkpoints::chain;
     let course = &race.course;
-    let n: u32 = course.course.get().course_face_count.get();
+    let n: u32 = course.course.borrow().course_face_count;
     if n == 0 || n >= MOST_FACES {
         return Err(BadInput("no faces, or 0x100000 or more").into());
     }
@@ -184,7 +123,7 @@ fn checkpoint_angles(
     faces: &[u32],
     left: &RefCell<Leftovers>,
 ) -> Result<Vec<(u32, u32)>, Refused> {
-    let numbers = race.course.numbers.get();
+    let numbers = race.course.numbers;
     let (half, scale) = (numbers.half.get(), numbers.k65536.get());
     let trap = Trap::new();
     let (writes, _) = rc2k_core::race::best_line::link_angles(
@@ -268,7 +207,7 @@ fn map_segment(
         ground[0] as i32,
         ground[1] as i32,
     );
-    let numbers = race.course.numbers.get();
+    let numbers = race.course.numbers;
     let (half, unit) = (numbers.half.get(), numbers.k65536.get());
     let map_angle =
         (x87::angle_scaled5_to_int(on_map[0] as i32, on_map[1] as i32, half, unit) as u32) << 2;
@@ -352,7 +291,7 @@ fn replay_cameras(
     left: &RefCell<Leftovers>,
 ) -> Result<CameraSet, Refused> {
     let course = &race.course;
-    let total: u32 = course.course.get().course_face_count.get();
+    let total: u32 = course.course.borrow().course_face_count;
     if total == 0 || total >= MOST_FACES {
         return Err(BadInput("no faces, or 0x100000 or more").into());
     }
@@ -415,7 +354,7 @@ fn add_surface_share(
     if weight == 0 {
         return;
     }
-    let numbers = race.course.numbers.get();
+    let numbers = race.course.numbers;
     let [a, b, c] = [
         numbers.k256.get(),
         numbers.quarter.get(),
@@ -427,14 +366,14 @@ fn add_surface_share(
     );
 }
 
-/// The share of the line on each surface (whole numbers): for each checkpoint whose face's +0x3C
-/// names a face, that face's two textures add their four surfaces, the second weighted by the
-/// face's blend bytes (+0x22 .. +0x25) and the first by what is left of 0x100.
+/// The share of the line on each surface (whole numbers): for each checkpoint whose face links
+/// another face, that face's two textures add their four surfaces, the second weighted by the
+/// face's corner blend bytes and the first by what is left of 0x100.
 fn surface_shares(race: &Race, faces: &[u32]) -> Result<[u32; 16], Refused> {
     let course = &race.course;
     let count = faces.len() as i32;
     let shares: [PlainFloat; 16] = std::array::from_fn(|_| PlainFloat::new(0.0));
-    let face_count: u32 = course.course.get().course_face_count.get();
+    let face_count: u32 = course.course.borrow().course_face_count;
     let info_byte = |info: u32, offset: u32| -> Result<u32, BadInput> {
         Ok(crate::scene::polygon::texture_info_byte(race.polygon_tables(), info, offset)?.into())
     };
@@ -466,14 +405,9 @@ fn surface_shares(race: &Race, faces: &[u32]) -> Result<[u32; 16], Refused> {
         let second = face_byte(0x21)?;
         // `surface_kinds` is indexed by the texture info's kind byte, 0 .. 3 in every record of
         // the shipped texture info files; a byte past them is refused.
-        let kind: u32 = race
-            .shared
-            .view
-            .get()
-            .surface_kinds
+        let kind: u32 = *crate::race::view_store::SURFACE_KINDS
             .get(info_byte(second, 0x2C)? as usize)
-            .ok_or(BadInput("a texture's surface kind past the four kinds"))?
-            .get();
+            .ok_or(BadInput("a texture's surface kind past the four kinds"))?;
         let second_weight = rc2k_core::race::best_line::second_weight(blend, second as u8, kind);
         let first_weight = rc2k_core::race::best_line::first_weight(second_weight);
         add_four(face_byte(1)?, first_weight)?;
@@ -538,25 +472,24 @@ pub fn best_line(race: &Race, step: &mut dyn FnMut(Step)) -> Result<BestLine, Re
 }
 
 /// Entry `n` of a checkpoint table set to `value`; refused past the table's end.
-fn write_n(table: &[PlainDword], n: u32, value: u32) -> Result<(), BadInput> {
-    table
-        .get(n as usize)
-        .ok_or(BadInput("a checkpoint number past its table"))?
-        .set(value);
+fn write_n(table: &mut [u32], n: u32, value: u32) -> Result<(), BadInput> {
+    *table
+        .get_mut(n as usize)
+        .ok_or(BadInput("a checkpoint number past its table"))? = value;
     Ok(())
 }
 
 /// Writes the best line into the race's tables.
-pub fn store_best_line(
+fn store_best_line(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     line: &BestLine,
 ) -> Result<(), Refused> {
     let vars = race.shared.vars.get();
-    let tables = race.checkpoints();
+    let mut tables = race.shared.checkpoints.borrow_mut();
     vars.line_face_kind.set(line.line_face_kind);
     for (k, &face) in line.faces.iter().enumerate() {
-        write_n(&tables.checkpoint_faces, k as u32, face)?;
+        write_n(&mut tables.checkpoint_faces, k as u32, face)?;
     }
     vars.line_face_total.set(line.checkpoint_count);
     vars.checkpoint_count.set(line.checkpoint_count);
@@ -565,29 +498,27 @@ pub fn store_best_line(
     }
     if let Some(along) = &line.along {
         for &(place, angle) in &along.angles {
-            write_n(&tables.angles, place, angle)?;
+            write_n(&mut tables.angles, place, angle)?;
         }
         for (k, &count) in along.check_counts.iter().enumerate() {
-            write_n(&tables.check_counts, k as u32, count)?;
+            write_n(&mut tables.check_counts, k as u32, count)?;
         }
         for (k, &distance) in along.distances.iter().enumerate() {
-            write_n(&tables.distances, k as u32, distance)?;
+            write_n(&mut tables.distances, k as u32, distance)?;
         }
-        tables
-            .line_length
-            .set(along.distances[along.distances.len() - 1]);
+        tables.line_length = along.distances[along.distances.len() - 1];
         vars.map_anchor_count.set(along.map_anchors);
         for place in &along.map {
-            write_n(&tables.map_x, place.checkpoint, place.x)?;
-            write_n(&tables.map_y, place.checkpoint, place.y)?;
+            write_n(&mut tables.map_x, place.checkpoint, place.x)?;
+            write_n(&mut tables.map_y, place.checkpoint, place.y)?;
         }
         for (set, cameras) in cameras().iter().zip(&along.cameras) {
             for (e, &face) in cameras.faces.iter().enumerate() {
-                write_n((set.list)(race), e as u32, face)?;
+                write_n((set.list)(&mut tables), e as u32, face)?;
             }
             (set.count)(&race.shared).set(cameras.faces.len() as u32);
             for (c, &nearest) in cameras.nearest.iter().enumerate() {
-                write_n((set.nearest)(race), c as u32, nearest)?;
+                write_n((set.nearest)(&mut tables), c as u32, nearest)?;
             }
         }
         for (cell, &share) in vars.surface_shares.iter().zip(&along.surface_shares) {
@@ -596,7 +527,7 @@ pub fn store_best_line(
     }
     let left = &line.leftovers;
     if let Some(scratch) = left.scratch {
-        scene.drawing.scene.get().scratch.set(scratch);
+        scene.draw_work_mut().scratch = scratch;
     }
     Ok(())
 }
@@ -604,23 +535,23 @@ pub fn store_best_line(
 /// Where a replay camera set's tables are.
 #[derive(Clone, Copy)]
 struct Cameras {
-    list: for<'a> fn(&'a Race) -> &'a [PlainDword],
+    list: for<'a> fn(&'a mut Checkpoints) -> &'a mut [u32],
     count: for<'a> fn(&'a RaceShared) -> &'a PlainDword,
-    nearest: for<'a> fn(&'a Race) -> &'a [PlainDword],
+    nearest: for<'a> fn(&'a mut Checkpoints) -> &'a mut [u32],
 }
 
 /// The two sets, "replaycam1" and "replaycam2" in the log.
 fn cameras() -> [Cameras; 2] {
     [
         Cameras {
-            list: |race| &race.checkpoints().replay_cameras_1,
+            list: |tables| &mut tables.replay_cameras_1,
             count: |shared| &shared.vars.get().replay_camera_counts[0],
-            nearest: |race| &race.checkpoints().nearest_camera_1,
+            nearest: |tables| &mut tables.nearest_camera_1,
         },
         Cameras {
-            list: |race| &race.checkpoints().replay_cameras_2,
+            list: |tables| &mut tables.replay_cameras_2,
             count: |shared| &shared.vars.get().replay_camera_counts[1],
-            nearest: |race| &race.checkpoints().nearest_camera_2,
+            nearest: |tables| &mut tables.nearest_camera_2,
         },
     ]
 }
@@ -630,18 +561,21 @@ const RULE: &std::ffi::CStr = c"---------------------------------";
 /// Builds the stage's best line, stores it and keeps it for `store_loaded_best_line`, logging as
 /// it goes: a rule, each step's word, "best line completed", the summary and a rule.
 /// `line_place` and `line_fraction` end at 0.
-pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub(super) fn build_best_line(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     use crate::logfile::log_int::log_int;
     let text =
         |at: &std::ffi::CStr, newline: bool| crate::logfile::log_write::log_nul(&at, newline, 1);
     text(RULE, true);
     let line = best_line(race, &mut |step| {
-        crate::race::load_times::mark(step.mark());
+        crate::logfile::load_times::mark(step.mark());
         if let Some(word) = step.word() {
             text(word, false);
         }
     })?;
-    crate::race::load_times::mark("best_line store");
+    crate::logfile::load_times::mark("best_line store");
     store_best_line(race, scene, &line)?;
     *race
         .course
@@ -649,7 +583,7 @@ pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
         .best_line
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(line);
-    crate::race::load_times::mark("best_line summary");
+    crate::logfile::load_times::mark("best_line summary");
     text(c"best line completed", true);
     let summary = [
         (c"dir", race.shared.work.get().stage_direction.get()),
@@ -690,15 +624,14 @@ pub fn store_loaded_best_line(
 
 /// `line_place` and `line_fraction` end at 0 after a line is built.
 fn reset_line_lights(scene: &crate::scene::owner::Scene) {
-    let lights = &scene.lights;
-    lights.state.get().line_place.set(0);
-    lights.state.get().line_fraction.set(0);
+    scene.line_and_shake_mut().line_place = 0;
+    scene.line_and_shake_mut().line_fraction = 0;
 }
 
 /// Runs `check` with a synthetic course held: `faces` and `points` (x, y, z words), the stage's
 /// counts and layout set, everything put back after.
 #[cfg(test)]
-pub fn with_course<R>(
+pub(super) fn with_course<R>(
     faces: &[[u8; 64]],
     points: &[[i32; 3]],
     check: impl FnOnce(&Race) -> R,
@@ -714,23 +647,21 @@ pub fn with_course<R>(
     let data = &race.course.stage.course;
     crate::race::course_places::take(data, &face_bytes, &[]).unwrap();
     crate::race::scene_points::take(data, &point_bytes).unwrap();
-    let before = (
-        race.course.course.get().course_face_count.get(),
-        race.course.course.get().scene_point_count.get(),
-    );
-    race.course
-        .course
-        .get()
-        .course_face_count
-        .set(faces.len() as u32);
-    race.course
-        .course
-        .get()
-        .scene_point_count
-        .set(points.len() as u32);
+    let before = {
+        let counts = race.course.course.borrow();
+        (counts.course_face_count, counts.scene_point_count)
+    };
+    {
+        let mut counts = race.course.course.borrow_mut();
+        counts.course_face_count = faces.len() as u32;
+        counts.scene_point_count = points.len() as u32;
+    }
     let result = check(race);
-    race.course.course.get().course_face_count.set(before.0);
-    race.course.course.get().scene_point_count.set(before.1);
+    {
+        let mut counts = race.course.course.borrow_mut();
+        counts.course_face_count = before.0;
+        counts.scene_point_count = before.1;
+    }
     crate::race::course_places::give_back(data);
     crate::race::scene_points::give_back(data);
     result

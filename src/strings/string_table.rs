@@ -9,12 +9,12 @@ use rc2k_core::strings::table::StringTable;
 /// The ids of the texts the game keeps in its own variables (the pointer table indexed by the id):
 /// The build notice, the screens' text buffers, the drive rows, the installer's languages and the
 /// credits.
-pub const MADE_TEXT_IDS: core::ops::Range<u32> = 0x1000..0x1040;
+const MADE_TEXT_IDS: core::ops::Range<u32> = 0x1000..0x1040;
 
 /// Which made text it is: the variable holding it and the text's number in that variable. The text
 /// runs on to its NUL inside the variable, which may be past the field it starts in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum MadeText {
+pub enum MadeText {
     /// The build notice's first text, its second, and the second's second line.
     Notice(NoticeLine),
     /// The stage headings, by number.
@@ -30,7 +30,7 @@ enum MadeText {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum NoticeLine {
+pub enum NoticeLine {
     First,
     Second,
     SecondTail,
@@ -76,66 +76,36 @@ impl MadeText {
     }
 
     /// The variable's buffers from the one the made texts are counted from, in the order they
-    /// follow one another: a text runs on past its field into the next.
+    /// follow one another: a text runs on past its field into the next. Each text is the
+    /// buffers' of one of the two owners; `None` when neither holds it.
     fn chain<'a>(
         self,
-        menus: &'a crate::menu::owner::Menus,
-        install: &'a crate::install::owner::Install,
-    ) -> Vec<&'a dyn Run> {
-        match self {
-            MadeText::Notice(_) => {
-                let notice = &menus.panels.notice;
-                vec![&notice.notice_first, &notice.notice_second]
-            }
-            MadeText::StageHeading(_) | MadeText::PageNumber(_) => {
-                let text = &menus.text_buffers;
-                vec![
-                    &text.stage_heading,
-                    &text.caption,
-                    &text.title,
-                    &text.number_text,
-                    &text.stage_result_value,
-                    &text.page_numbers,
-                ]
-            }
-            MadeText::DriveRow(_) => {
-                vec![
-                    &install.drive_rows.drive_rows,
-                    &install.drive_rows._gap_52a49f,
-                ]
-            }
-            MadeText::Language(_) => {
-                let names = &install.names;
-                vec![
-                    &names.languages,
-                    &names._gap_51c2ee,
-                    &names.lang_cfg,
-                    &names._gap_51c378,
-                    &names.room_by_mode,
-                    &names._tail,
-                ]
-            }
-            MadeText::Credit(_) => {
-                let vars = &install.vars;
-                vec![
-                    &vars.credits_a,
-                    &vars.clio_car_name,
-                    &vars.credits_b,
-                    &vars._tail,
-                ]
-            }
-        }
+        menus: &'a dyn MadeTextBuffers,
+        install: &'a dyn MadeTextBuffers,
+    ) -> Option<Vec<&'a dyn Run>> {
+        menus.chain(self).or_else(|| install.chain(self))
     }
+}
+
+/// An owner of the variables some made texts live in (the menus' notice and text buffers, the
+/// installer's rows, names and credits): the front end implements it, so that building the
+/// texts does not depend on it.
+pub trait MadeTextBuffers {
+    /// The buffers of `text` from the one it is counted from, in memory order; `None` when
+    /// `text` is not in this owner's variables.
+    fn chain(&self, text: MadeText) -> Option<Vec<&dyn Run>>;
 }
 
 /// The text of the made text `id`, up to its NUL (left out).
 pub fn made_text(
-    menus: &crate::menu::owner::Menus,
-    install: &crate::install::owner::Install,
+    menus: &dyn MadeTextBuffers,
+    install: &dyn MadeTextBuffers,
     id: u32,
 ) -> Result<Vec<u8>, BadInput> {
     let place = made_place(id)?;
-    let chain = place.chain(menus, install);
+    let chain = place
+        .chain(menus, install)
+        .ok_or(BadInput("a made text in no owner's variables"))?;
     text_across(&chain, place.offset(&chain))
 }
 
@@ -163,11 +133,11 @@ fn text_across(buffers: &[&dyn Run], offset: usize) -> Result<Vec<u8>, BadInput>
 
 /// The text in the driver names' block at byte `slot` (a driver name's slot value), up to its NUL
 /// (left out).
-pub fn driver_name_text(
+pub(super) fn driver_name_text(
     strings: &crate::strings::owner::Strings,
     slot: u32,
 ) -> Result<Vec<u8>, BadInput> {
-    use crate::settings::read_driver_names::NAMES_SIZE;
+    use crate::strings::owner::NAMES_SIZE;
     let names = &strings.drivers.names;
     let mut text = Vec::new();
     for at in slot as usize..NAMES_SIZE {
@@ -181,7 +151,7 @@ pub fn driver_name_text(
 
 /// The offset in `drivers.names` of the name of driver-name id `id` (`POINTER_IDS`), 0 for none:
 /// The pointer slot each id has.
-pub fn driver_name_slot(
+pub(super) fn driver_name_slot(
     strings: &crate::strings::owner::Strings,
     id: u32,
 ) -> Result<u32, BadInput> {
@@ -193,8 +163,8 @@ pub fn driver_name_slot(
     Ok(strings.drivers.names.get_u32(4 * slot))
 }
 
-/// The lexicon's room: where `strings::compile_lexicon` puts the table.
-pub const LEXICON_ROOM: usize = rc2k_core::strings::lexicon::TABLE_ROOM;
+/// The lexicon's room: where `language::compile_lexicon` puts the table.
+pub(super) const LEXICON_ROOM: usize = rc2k_core::strings::lexicon::TABLE_ROOM;
 
 /// The lexicon's room, all of it.
 pub fn lexicon_bytes(strings: &crate::strings::owner::Strings) -> Result<Vec<u8>, BadInput> {
@@ -327,7 +297,7 @@ mod tests {
             MadeText::Language(_) => ('M', 0x38e),
             MadeText::Credit(_) => ('V', 0x13c),
         };
-        let chain = place.chain(o.menus, o.install);
+        let chain = place.chain(o.menus, o.install).unwrap();
         (holder, first_byte + place.offset(&chain))
     }
 
@@ -348,7 +318,7 @@ mod tests {
         let o = crate::test_support::own::owners();
         let place = made_place(0x1004).unwrap();
         assert_eq!(place, MadeText::StageHeading(1));
-        let chain = place.chain(o.menus, o.install);
+        let chain = place.chain(o.menus, o.install).unwrap();
         assert_eq!(place.offset(&chain), chain[0].len());
         assert!(std::ptr::addr_eq(
             chain[1],

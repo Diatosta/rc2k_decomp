@@ -25,11 +25,12 @@ pub struct SampleFile {
     pub frames: u32,
 }
 
+crate::memory::cells::plain_record!(SampleFile = 0x20);
 const _: () = assert!(std::mem::size_of::<SampleFile>() == 0x20);
 
 /// Reads and parses a sample file into `buffer`: true when a sample was found. The
 /// data's id goes in `out`.
-pub fn read_sample(
+pub(super) fn read_sample(
     state: &AudioOwn,
     path: &[u8],
     buffer: crate::audio::sample_data::Buffer,
@@ -97,7 +98,7 @@ pub fn flags(table: &[PlainDword; 4]) -> rc2k_core::audio::samples::FormatBitTab
 }
 
 /// The game's: the work buffer and the sample file.
-pub fn read_sample_in_game(state: &AudioOwn, path: &[u8]) -> Result<bool, Refused> {
+pub(super) fn read_sample_in_game(state: &AudioOwn, path: &[u8]) -> Result<bool, Refused> {
     read_sample(
         state,
         path,
@@ -108,7 +109,7 @@ pub fn read_sample_in_game(state: &AudioOwn, path: &[u8]) -> Result<bool, Refuse
 }
 
 /// The voice of `count` from `voices` whose `data_key` is the record's (0: none).
-pub fn find_shared_voice(audio: &AudioThread, record: &SampleRecord, count: u32) -> u32 {
+pub(super) fn find_shared_voice(audio: &AudioThread, record: &SampleRecord, count: u32) -> u32 {
     rc2k_core::audio::voices::find_shared(
         &mut GamePool::new(audio),
         count,
@@ -143,9 +144,9 @@ pub fn fill_voice(
         shared,
         &from_file,
         sound_mode & 0x1_0000 != 0,
-        // The record's level (`audio::store::VolumeLevel`).
+        // The record's level (`audio::sample_records::VolumeLevel`).
         |factor| {
-            crate::audio::store::volume_level(audio, factor).unwrap_or_else(|e| {
+            crate::audio::sample_records::volume_level(audio, factor).unwrap_or_else(|e| {
                 failed.set(failed.get().or(Some(e)));
                 0
             })

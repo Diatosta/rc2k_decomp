@@ -47,8 +47,8 @@ pub fn computer_drives(
 }
 
 /// A pedal's top and step.
-pub const PEDAL_TOP: u32 = 0x100;
-pub const PEDAL_STEP: u32 = 0x10;
+pub(crate) const PEDAL_TOP: u32 = 0x100;
+pub(crate) const PEDAL_STEP: u32 = 0x10;
 
 /// `pedal_inputs`' pedal: by keys stepped toward the top (input set) or 0, held there by
 /// the sign of the steps; else the input itself.
@@ -84,13 +84,13 @@ pub fn handbrake(input: u32, switch: impl FnOnce() -> u32) -> u32 {
 }
 
 /// When the reset key counts: the start timer past 0x320 (by the sign).
-pub const RESET_FROM: u32 = 0x320;
+pub(crate) const RESET_FROM: u32 = 0x320;
 /// The reset key's bit, the steps it is held for and the notice shown meanwhile.
 pub const RESET_KEY: u32 = 0x80;
-pub const RESET_STEPS: u32 = 100;
+pub(crate) const RESET_STEPS: u32 = 100;
 pub const RESET_NOTICE: u32 = 0xCD;
-/// The time penalty, less the stuck count (+0x1E8).
-pub const RESET_PENALTY: u32 = 0x2BC;
+/// The time penalty, less the car's stuck count.
+pub(crate) const RESET_PENALTY: u32 = 0x2BC;
 
 /// Whether the start timer is past `RESET_FROM`.
 pub fn reset_counts(timer: u32) -> bool {

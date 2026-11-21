@@ -32,6 +32,9 @@ pub trait PictureSurface {
     fn defer_background(&mut self) -> bool {
         false
     }
+    /// Notes the picture as the menu's background for the wash beside a menu's frame, if this
+    /// surface is the screen (`render::wash`); `rows` rows of `row_bytes` bytes.
+    fn note_wash(&mut self, _rows: u32, _row_bytes: usize) {}
 }
 
 /// The game's own.
@@ -42,7 +45,7 @@ pub struct GameSurface<'a>(
 
 impl PictureSurface for GameSurface<'_> {
     fn locked(&self) -> bool {
-        self.0.locked.surface.is_set()
+        self.0.locked.surface.get() != 0
     }
     fn lock(&mut self) -> bool {
         // Locked.
@@ -67,8 +70,25 @@ impl PictureSurface for GameSurface<'_> {
     fn pictures(&self) -> &Pictures {
         &self.0.pictures
     }
+    fn note_wash(&mut self, rows: u32, row_bytes: usize) {
+        let Some(target) = crate::d3d::device::screen(self.1.session.screen.get()) else {
+            return;
+        };
+        if self.pixels() == target.pixels
+            && target.bits == 32
+            && self.row_gap() == 0
+            && row_bytes == target.pitch
+        {
+            crate::render::wash::note_buffer(
+                &self.0.pictures.buffers,
+                self.0.pictures.picture.buffer.get(),
+                rows,
+                row_bytes,
+            );
+        }
+    }
     fn defer_background(&mut self) -> bool {
-        let Some(target) = crate::platform::direct3d::screen(self.1.session.screen.get()) else {
+        let Some(target) = crate::d3d::device::screen(self.1.session.screen.get()) else {
             return false;
         };
         let whole_rows = self.row_gap() == 0 && self.row_dwords() as usize * 4 == target.pitch;
@@ -104,6 +124,7 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
         }
         return Err(why);
     }
+    surface.note_wash(rows, row_bytes);
     if surface.defer_background() {
         note_background(surface, to, rows, row_bytes);
         if !was_locked {

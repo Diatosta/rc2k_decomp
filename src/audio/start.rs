@@ -1,7 +1,7 @@
-//! Probes the sound device at the audio thread's start and chooses the two sound modes: A3D2
-//! tried, DirectSound opened, its caps read; unless that fails or the caps say emulated, the
+//! Probes the sound device at the audio thread's start and chooses the two sound modes:
+//! DirectSound opened, its caps read; unless that fails or the caps say emulated, the
 //! primary made, a probe voice made through `make_buffer` and released, and the 3D / EAX / voice
-//! manager abilities noted for the race mode. Not opened: A3D2's race mode with A3D2, else both
+//! manager abilities noted for the race mode. Not opened: both
 //! modes 0. Unless both modes are kept, the race mode is the probe's and at once the menu's (the
 //! probe thrown away: a game slip kept). Then `audio::choose_modes`, "AUD: Using
 //! modes" logged and the device closed.
@@ -9,7 +9,7 @@
 use crate::audio::own::AudioThread;
 use crate::errors::Refused;
 
-const USING_MODES_TEXT: &std::ffi::CStr = c"AUD: Using modes"; // "AUD: Using modes"
+const USING_MODES_TEXT: &std::ffi::CStr = c"AUD: Using modes";
 
 /// False when there is no race mode.
 pub fn start(
@@ -17,26 +17,16 @@ pub fn start(
     system: &'static crate::system::owner::System,
 ) -> Result<bool, Refused> {
     use crate::audio::sound_device as sd;
-    use rc2k_core::audio::device::{
-        A3D2_MODE, CAPS_EMULATED, Fact, MENU_MODE, modes_kept, probed_race_mode,
-    };
-    crate::audio::a3d::open_a3d2(&audio.state)?;
-    audio.state.has_a3d2.set(audio.state.use_a3d.get());
-    crate::audio::a3d::close_a3d2(&audio.state);
+    use rc2k_core::audio::device::{CAPS_EMULATED, Fact, MENU_MODE, modes_kept, probed_race_mode};
     // The race mode found.
     let mut found = MENU_MODE;
     audio.state.sound_mode.set(MENU_MODE | 0x190_0000);
     let mut to_log = false;
     if !sd::open_sound_in_game(&audio.state, system, 0)? {
-        if audio.state.has_a3d2.get() == 1 {
-            found = A3D2_MODE;
-        } else {
-            audio.state.menu_sound_mode.set(0);
-            audio.state.race_sound_mode.set(0);
-            to_log = true;
-        }
+        audio.state.menu_sound_mode.set(0);
+        audio.state.race_sound_mode.set(0);
+        to_log = true;
     } else {
-        audio.state.a3d_splash_kept.set(audio.state.a3d_ready.get());
         let flags = || audio.state.sound_caps.get_u32(4);
         if sd::read_caps(&audio.state)? && flags() & CAPS_EMULATED == 0 {
             crate::audio::primary::make_primary(audio, system)?;
@@ -61,14 +51,13 @@ pub fn start(
             )?;
             crate::audio::release_eax::release_eax(&audio.state);
             crate::audio::release_voice_manager::release_voice_manager(&audio.state);
-            crate::audio::release_voice::release_voice_in_game(&audio.state, voice);
+            crate::audio::release_voice::release_voice(&audio.state, voice);
             crate::audio::mixer_set_up::close_way(audio, system, audio.state.sound_mode.get())?;
             sd::release_primary(&audio.state);
             found = probed_race_mode(|fact| match fact {
                 Fact::CapsFlags => flags(),
                 Fact::FreeHardware => audio.state.sound_caps.get_u32(0x14),
                 Fact::Has3d => audio.state.has_3d.get(),
-                Fact::HasA3d2 => audio.state.has_a3d2.get(),
                 Fact::VoiceManagerOn => audio.state.voice_manager_on.get(),
                 Fact::Free3d => audio.state.sound_caps.get_u32(0x3C),
                 Fact::HasEax => audio.state.has_eax.get(),

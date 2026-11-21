@@ -1,8 +1,8 @@
-//! `scene::load_front_end_objects_logged`: `scene::load_front_end_objects`, then its log: a
-//! rule, "Front end objects loaded", "total points" the object point count, "total pointmem"
+//! `scene::load_front_end_objects_logged`: `scene::load_front_end_objects`, then its log: a rule,
+//! "Front end objects loaded", "total points" the object point count, "total pointmem"
 //! `ObjectWork.point_memory_total`, "total faces" `ObjectTables.face_count`, "total facemem"
-//! `ObjectWork.face_memory_total` (each label without a line's end, its value in hex8 with
-//! one), a rule. Caller: `scene::set_up_front_end_scene`.
+//! `ObjectWork.face_memory_total` (each label without a line's end, its value in hex8 with one), a
+//! rule.
 
 use crate::errors::Refused;
 use crate::logfile::log_hex8::log_hex8;
@@ -15,16 +15,14 @@ const RULE_2: &std::ffi::CStr = c"===========================";
 type Total = (&'static std::ffi::CStr, fn(&Scene) -> u32);
 const TOTALS: [Total; 4] = [
     (c"total points", |scene| {
-        scene.objects.tables.get().point_count.get()
+        scene.objects.tables.borrow().point_count
     }),
     (c"total pointmem", |scene| {
-        scene.object_work().point_memory_total.get()
+        scene.object_work().point_memory_total
     }),
-    (c"total faces", |scene| {
-        scene.objects.tables.get().face_count.get()
-    }),
+    (c"total faces", |scene| scene.texture_levels().face_count),
     (c"total facemem", |scene| {
-        scene.object_work().face_memory_total.get()
+        scene.object_work().face_memory_total
     }),
 ];
 

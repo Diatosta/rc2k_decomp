@@ -1,0 +1,22 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct main0_out
+{
+    float4 m_103 [[color(0)]];
+};
+
+fragment main0_out main0(texture2d<float> _27 [[texture(0)]], sampler _27Smplr [[sampler(0)]], float4 gl_FragCoord [[position]])
+{
+    main0_out out = {};
+    int2 _20 = int2(gl_FragCoord.xy) * int2(2);
+    float3 _61 = (((_27.read(uint2(_20), 0).xyz + _27.read(uint2((_20 + int2(1, 0))), 0).xyz) + _27.read(uint2((_20 + int2(0, 1))), 0).xyz) + _27.read(uint2((_20 + int2(1))), 0).xyz) * 0.25;
+    float _69 = _61.x;
+    float _75 = _61.y;
+    float _81 = _61.z;
+    out.m_103 = float4((((128.0 - (37.797000885009765625 * _69)) - (74.2030029296875 * _75)) + (112.0 * _81)) * 0.0039215688593685626983642578125, (((128.0 + (112.0 * _69)) - (93.78600311279296875 * _75)) - (18.214000701904296875 * _81)) * 0.0039215688593685626983642578125, 0.0, 1.0);
+    return out;
+}
+

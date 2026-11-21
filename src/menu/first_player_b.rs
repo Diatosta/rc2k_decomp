@@ -2,8 +2,7 @@
 //! standings table B (`menu::standings::first_player`); none: the fatal error 0x8070A0AF
 //! "Unable to locate player (find1stplayer)".
 //!
-//! Callers: the event code. Refuses a table without its end entry, before anything; raises the
-//! fatal error.
+//! Refuses a table without its end entry, before anything; raises the fatal error.
 
 use crate::errors::Refused;
 use crate::menu::standings::*;

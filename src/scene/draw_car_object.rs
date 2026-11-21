@@ -14,7 +14,6 @@
 //! run its `run` (`menu::table_routes`).
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::write_all;
 use crate::menu::owner::{Menus, Screens};
 use crate::race::owner_shared::RaceShared;
 use crate::scene::assign_kind_textures::assign_kind_textures;
@@ -22,7 +21,7 @@ use crate::scene::carousel_pictures::update;
 use crate::scene::clear_depth_buffer::clear_depth_buffer;
 use crate::scene::draw_carousel_entry::{ENTRIES, find_object_of_kind};
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
-use crate::scene::load_slot_textures::load_slot_textures_in_game;
+use crate::scene::load_slot_textures::load_slot_textures;
 use crate::scene::map_texture_places::map_texture_places;
 
 // ---- game data ----
@@ -44,11 +43,14 @@ pub fn picked(car: u32, count: u32) -> [u32; 4] {
 /// Picks the carousel's four pictures around the car shown.
 pub fn pick_pictures(menus: &Menus, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let screens = &menus.screens;
-    if screens.carousel.menu.get() != 0xB {
+    if screens.carousel.read().menu != 0xB {
         return Ok(());
     }
-    let entries = picked(screens.event.shown.car.get(), screens.carousel.count.get());
-    write_all(&screens.carousel.pictures.wanted, entries);
+    let entries = picked(
+        screens.event.read().shown.car,
+        screens.carousel.read().count,
+    );
+    screens.carousel.write().pictures.wanted = entries;
     update(menus, scene, entries)?;
     Ok(())
 }
@@ -62,24 +64,24 @@ pub fn draw_shown_car(
     draw: &mut dyn FnMut() -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let car: u32 = screens.event.shown.car.get();
+    let car: u32 = screens.event.read().shown.car;
     if car >= ENTRIES {
         return Err(BadInput("a car shown past the carousel's kinds").into());
     }
-    let clock: u32 = shared.physics_tables.get().scene_clock.get();
-    object_place.angles[1].set((clock << 3) & 0xFFFF);
-    object_place.place[2].set(screens.carousel.z.get());
-    let kind = screens.carousel.kinds[car as usize].get();
-    screens.carousel.kind.set(kind);
+    let clock: u32 = shared.run().scene_clock;
+    object_place.borrow_mut().angles[1] = (clock << 3) & 0xFFFF;
+    object_place.borrow_mut().place[2] = screens.carousel.read().z;
+    let kind = screens.carousel.read().kinds[car as usize];
+    screens.carousel.write().kind = kind;
     let object = find_object_of_kind(kind, scene);
-    cars.object_number.set(object);
+    cars.borrow_mut().object_number = object;
     draw()
 }
 
 /// Nothing on a page other than the first, else its six calls in order.
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
     let (scene, race, menus, system) = (o.scene, o.race, o.menus, o.system);
-    if menus.screens.event.shown.car_page.get() != 0 {
+    if menus.screens.event.read().shown.car_page != 0 {
         return Ok(());
     }
     let scratch = o.scene.scratch.front_end();
@@ -92,8 +94,8 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
     assign_kind_textures(scene)?;
     pick_pictures(menus, scene)?;
     map_texture_places(scene);
-    load_slot_textures_in_game(&race.frame, scene)?;
-    scene.lights.state.get().draw_mode.set(0u32);
+    load_slot_textures(&race.frame, scene)?;
+    scene.light_work_mut().draw_mode = 0;
     // The front end's 3D draws on a slot of its own.
     let ctx = crate::race::view_scratch::DrawCtx::new(
         race,
@@ -103,7 +105,7 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
         o.scene.scratch.game_scratch(),
         crate::scene::workers::DrawReads::on_game_thread(crate::scene::workers::LentOwners::of(o)),
     );
-    let _held = ctx.view.matrices.hold(ctx.reads.matrices, ctx.part);
+    let _held = crate::scene::view_matrices::hold(&ctx.view.matrices, ctx.reads.matrices, ctx.part);
     draw_shown_car(
         &race.shared,
         &ctx.view.cars,

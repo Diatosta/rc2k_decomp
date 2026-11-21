@@ -3,17 +3,20 @@
 //! pages; `display_rows`: the display page's figures named and grouped; `imgui_sdl`: ImGui on
 //! SDL; `wear_page`: the display page's surface names and reads.
 
-pub mod check_hash;
 #[cfg(debug_ui)]
-pub mod imgui_sdl;
+pub(crate) mod imgui_sdl;
 /// No debug UI in the 32-bit build (Dear ImGui's crate has no such Windows target).
 #[cfg(not(debug_ui))]
 pub mod imgui_sdl {
     /// The key does nothing but say so.
     pub fn toggle() -> bool {
-        crate::logfile::program_log::log("debug: no debug UI in the 32-bit build");
+        crate::program_log::log("debug: no debug UI in the 32-bit build");
         false
     }
+
+    /// Nothing to let go.
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld swaps nothing
+    pub fn renderer_going() {}
 
     /// No event taken.
     pub fn event(_event: &sdl3_sys::everything::SDL_Event) -> bool {
@@ -28,13 +31,13 @@ pub mod imgui_sdl {
     }
 
     /// Never open.
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld has neither
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld has neither
     pub fn is_open() -> bool {
         false
     }
 
     /// Nothing drawn.
-    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld has neither
+    #[cfg_attr(handheld, allow(dead_code))] // the handheld has neither
     pub fn draw(
         _owners: &crate::owners::Owners<'static>,
         _renderer: crate::platform::ffi::sdl::Renderer,
@@ -43,33 +46,33 @@ pub mod imgui_sdl {
     }
 }
 #[cfg(debug_ui)]
-pub mod dev_front_end;
+mod dev_front_end;
 #[cfg(debug_ui)]
-pub mod display_rows;
+mod display_rows;
 #[cfg(debug_ui)]
-pub mod dyno;
+mod dyno;
 #[cfg(debug_ui)]
-pub mod effects_page;
+mod effects_page;
 #[cfg(debug_ui)]
-pub mod frame_figures;
+mod frame_figures;
 #[cfg(debug_ui)]
-pub mod gpu_cuts;
+mod gpu_cuts;
 #[cfg(debug_ui)]
-pub mod kstar;
-pub mod overlay;
+mod kstar;
+pub(crate) mod overlay;
 #[cfg(debug_ui)]
-pub mod players;
+mod players;
 #[cfg(debug_ui)]
-pub mod row_cells;
-pub mod screens;
+mod row_cells;
+pub(crate) mod screens;
 #[cfg(debug_ui)]
-pub mod switches;
-pub mod timing;
+mod switches;
+pub(crate) mod timing;
 #[cfg(debug_ui)]
-pub mod ui;
+mod ui;
 #[cfg(debug_ui)]
-pub mod ui_plot;
+mod ui_plot;
 #[cfg(debug_ui)]
-pub mod watch_rows;
+mod watch_rows;
 #[cfg(debug_ui)]
-pub mod wear_page;
+mod wear_page;

@@ -4,17 +4,17 @@
 //! 0x1AC once and clears it: a beep each whole second of the last eight). `time_left` is in
 //! hundredths of a second (the arcade race's clock: `race::panel_neighbours` shows it times 10).
 //!
-//! Caller: `physics::race_timers`. Refuses what `set_flag` refuses.
+//! Refuses what `set_flag` refuses.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::physics::listed_car_flags::set_flag;
-use crate::race::frame_store::FrameWork;
+use crate::race::frame_store::FrameWorkStore;
 use crate::race::work_store::RaceWork;
 use rc2k_core::physics::start::{CarStart, StartCount};
 
 pub fn count_down_start(
-    frame_work: &FrameWork,
+    frame_work: &FrameWorkStore,
     work: &RaceWork,
     car: &Car,
     sound: &crate::sound::owner::Sound,
@@ -30,7 +30,11 @@ pub fn count_down_start(
         StartCount::Counted { beep, .. } => {
             car.time_left.set(c.countdown);
             if beep {
-                set_flag(frame_work, work, &sound.race.stage.get().once[1])?;
+                set_flag(
+                    frame_work,
+                    work,
+                    &mut sound.race.stage.get().borrow_mut().once[1],
+                )?;
             }
             Ok(())
         }

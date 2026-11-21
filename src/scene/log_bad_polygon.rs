@@ -1,17 +1,16 @@
 //! `scene::log_bad_polygon`: a polygon Direct3D was not given, dumped to the log at level 1:
 //! "videox" the screen's width, "videoy" the screen's height (twice), "r" "l" "b" "t" the clip
 //! edges (two decimals), "donezcut" `PolygonWork.depth_clipped`, "donesuth"
-//! `PolygonWork.screen_clipped`, "cuttest" `PolygonWork.polygon_clip_mask` (with a line's end;
-//! then the mask 0), "tpage" the texture page (hex8), "points" the polygon's vertex count;
-//! "polynum" the current course face, or with the drawing-object flag 1 "objdraw" the current
-//! object and "objfaced" the face number; a line's end. Then with vertices, each (0x20 bytes):
-//! "pt" its number, "x" +0, "yzuwv" +4, "zuwv" +8, "uwv" +0x18, "wv" +0xC, "v" +0x1C (floats,
-//! two decimals; the labels are the tails of one string), "co" +0x10 and "sp" +0x14 (hex8), a
-//! line's end; and a last line's end. Caller: `scene::show_bad_polygon`. Refuses (before
-//! anything) more than 64 vertices.
+//! `PolygonWork.screen_clipped`, "cuttest" `PolygonWork.polygon_clip_mask` (with a line's end; then
+//! the mask 0), "tpage" the texture page (hex8), "points" the polygon's vertex count; "polynum" the
+//! current course face, or with the drawing-object flag 1 "objdraw" the current object and
+//! "objfaced" the face number; a line's end. Then with vertices, each (eight dwords): "pt" its
+//! number, "x" dword 0, "yzuwv" dword 1, "zuwv" dword 2, "uwv" dword 6, "wv" dword 3, "v" dword 7
+//! (floats, two decimals; the labels are the tails of one string), "co" dword 4 and "sp" dword 5
+//! (hex8), a line's end; and a
+//! last line's end. Refuses (before anything) more than 64 vertices.
 
 use crate::errors::BadInput;
-use crate::memory::cells::Store;
 
 /// A value as the dump shows it.
 #[derive(Clone, Copy)]
@@ -38,45 +37,45 @@ const HEAD: [(&std::ffi::CStr, Value); 10] = [
     (c"videoy", |_, screen| Shown::Hex8(screen.height.get())), // "videoy"
     (c"videoy", |_, screen| Shown::Hex8(screen.height.get())), // "videoy"
     (c"r", |view, _| {
-        Shown::Float(view.polygon.window.clip_screen[3].get())
+        Shown::Float(view.polygon.window.borrow().clip_screen[3])
     }),
     (c"l", |view, _| {
-        Shown::Float(view.polygon.window.clip_screen[2].get())
+        Shown::Float(view.polygon.window.borrow().clip_screen[2])
     }),
     (c"b", |view, _| {
-        Shown::Float(view.polygon.window.clip_screen[1].get())
+        Shown::Float(view.polygon.window.borrow().clip_screen[1])
     }),
     (c"t", |view, _| {
-        Shown::Float(view.polygon.window.clip_screen[0].get())
+        Shown::Float(view.polygon.window.borrow().clip_screen[0])
     }),
     (c"donezcut", |view, _| {
-        Shown::Int(view.polygon.depth_clipped.get() as i32)
+        Shown::Int(view.polygon.scalars.borrow().depth_clipped as i32)
     }),
     (c"donesuth", |view, _| {
-        Shown::Int(view.polygon.screen_clipped.get() as i32)
+        Shown::Int(view.polygon.scalars.borrow().screen_clipped as i32)
     }),
     (c"cuttest", |view, _| {
-        Shown::IntNewline(view.polygon.polygon_clip_mask.get() as i32)
+        Shown::IntNewline(view.polygon.scalars.borrow().polygon_clip_mask as i32)
     }),
 ];
 const AFTER: [(&std::ffi::CStr, Value); 2] = [
     (c"tpage", |view, _| {
-        Shown::Hex8(view.polygon.texture_page.get())
+        Shown::Hex8(view.polygon.scalars.borrow().texture_page)
     }),
     (c"points", |view, _| {
-        Shown::Int(view.polygon.polygon_vertex_count.get() as i32)
+        Shown::Int(view.polygon.scalars.borrow().polygon_vertex_count as i32)
     }),
 ];
 const POLYGON_NUMBER: [(&std::ffi::CStr, Value); 1] = [(c"polynum", |view, _| {
-    Shown::Int(view.face.course_face.get() as i32)
+    Shown::Int(view.face.borrow().course_face as i32)
 })];
 const OBJECT: [(&std::ffi::CStr, Value); 2] = [
     // The view's whose polygon this is (every polygon work is a view slot's).
     (c"objdraw", |view, _| {
-        Shown::Int(view.cars.object_number.get() as i32)
+        Shown::Int(view.cars.borrow().object_number as i32)
     }),
     (c"objfaced", |view, _| {
-        Shown::Int(view.face.face_number.get() as i32)
+        Shown::Int(view.face.borrow().face_number as i32)
     }),
 ];
 /// How a vertex's dword is shown.
@@ -97,16 +96,16 @@ const VERTEX: [(&std::ffi::CStr, Part, u32); 8] = [
     (c"co", Part::Hex8, 0x10), // "co"
     (c"sp", Part::Hex8, 0x14), // "sp"
 ];
-const PT: &std::ffi::CStr = c"pt"; // "pt"
+const PT: &std::ffi::CStr = c"pt";
 
 /// The dump of the `polygon_vertex_count` vertices at `vertices` (at most 64, held to the
 /// vertex buffer: the longest read is the last vertex's 0x20 bytes of its 0x800).
 pub fn log_bad_polygon(
     view: &crate::race::view_scratch::ViewScratch,
     screen: &crate::memory::session::Screen,
-    vertices: &dyn Store,
+    vertices: &[crate::d3d::vertices_store::Vertex],
 ) -> Result<(), BadInput> {
-    let count: u32 = view.polygon.polygon_vertex_count.get();
+    let count: u32 = view.polygon.scalars.borrow().polygon_vertex_count;
     if count > MOST {
         return Err(BadInput("more than 64 vertices"));
     }
@@ -114,8 +113,8 @@ pub fn log_bad_polygon(
         write(label);
         log(at(view, screen));
     }
-    view.polygon.polygon_clip_mask.set(0u32);
-    let object = view.object.drawing_object.get() == 1;
+    view.polygon.scalars.borrow_mut().polygon_clip_mask = 0u32;
+    let object = view.object.borrow().drawing_object == 1;
     let tail: &[(&std::ffi::CStr, Value)] = if object { &OBJECT } else { &POLYGON_NUMBER };
     for &(label, at) in AFTER.iter().chain(tail) {
         write(label);
@@ -126,17 +125,15 @@ pub fn log_bad_polygon(
         return Ok(());
     }
     for n in 0..count {
-        let mut words = [0u8; 0x20];
-        vertices.load(0x20 * n as usize, &mut words)?;
+        let words = vertices
+            .get(n as usize)
+            .ok_or(BadInput("a vertex past the buffer"))?
+            .words();
         write(PT);
         log(Shown::Int(n as i32));
         for (label, part, offset) in VERTEX {
             write(label);
-            let dword = u32::from_le_bytes(
-                words[offset as usize..offset as usize + 4]
-                    .try_into()
-                    .unwrap(),
-            );
+            let dword = words[offset as usize / 4];
             log(match part {
                 Part::Float => Shown::Float(f32::from_bits(dword)),
                 Part::Hex8 => Shown::Hex8(dword),

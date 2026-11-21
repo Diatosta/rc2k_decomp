@@ -3,7 +3,10 @@
 
 use crate::errors::Refused;
 use crate::race::viewer_screen_store::NetTexts;
-pub fn settings_link(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<(), Refused> {
+pub(super) fn settings_link(
+    o: crate::owners::Owners<'static>,
+    lines: &NetTexts,
+) -> Result<(), Refused> {
     let net = o.net;
     if crate::net::find_connections::find_connections(net, o.strings, lines)? {
         let chosen = crate::net::choose_connection::choose_connection(o)?;

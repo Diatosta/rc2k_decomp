@@ -22,17 +22,16 @@
 //!
 //! The x87 runs are plain Rust over `X` (`math/x87_float.rs`); the integer steps are Rust.
 //!
-//! Callers: `physics::car_physics_step`, `drive::simple_car_step`. Refuses no faces, a table index
-//! (`tyre_kind`) past 5 (before anything) and a surface past 15 (what was written by then is put
-//! back).
+//! Refuses no faces, a table index (`tyre_kind`) past 5 (before anything) and a surface past 15
+//! (what was written by then is put back).
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
-use crate::math::x87_float::int;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::to_int;
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::math::x87_float::{int, ld, st};
 use crate::physics::car_store::Car;
-use crate::physics::contact_store::ContactWork;
+use crate::physics::contact_store::ProbeLists;
+use crate::physics::figures::SURFACE_TABLES;
 use crate::physics::flip_cell_index::flip_cell_index;
 use crate::physics::step_families::WheelInputs;
 use crate::physics::tables_store::Surface;
@@ -43,7 +42,7 @@ use std::cmp::Ordering;
 
 /// Byte `offset` of texture info `n`.
 fn info_byte(
-    tables: &crate::scene::polygon_store::PolygonTables,
+    tables: crate::scene::polygon_store::PolygonTablesRef,
     n: u32,
     offset: u32,
 ) -> Result<u32, Refused> {
@@ -52,15 +51,9 @@ fn info_byte(
     )?))
 }
 
-/// `v[c]` x 65536 rounded through `scratch` (`v` one of the probe shares).
-fn share_bit(
-    course: &Course,
-    v: &[PlainFloat; 64],
-    c: u32,
-    scene: &crate::scene::owner::Scene,
-) -> u32 {
-    x87_1(course, v, c as usize, scene);
-    scene.drawing.scene.get().scratch.get()
+/// `v[c]` x 65536 rounded to a whole number (`v` one of the probe shares).
+fn share_bit(numbers: &Numbers, v: &[f32; 64], c: u32) -> u32 {
+    x87_1(numbers, v, c as usize)
 }
 
 /// Everything the function reads that the checks need, refused as said.
@@ -77,8 +70,6 @@ fn check(course: &Course, car: &Car) -> Result<(), Refused> {
 /// The steps (a refusal may come after some are written: `wheel_surfaces` puts them
 /// back).
 fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let drawing = &scene.drawing;
-    let contact = c.contact;
     check(c.course, c.car)?;
     for point in 0..5u32 {
         let cc = point as usize;
@@ -91,54 +82,55 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
             )?))
         };
         let t1 = face_byte(1)?;
-        let mut edx = share_bit(c.course, &contact.probe_share_v, point, scene);
-        let mut ebx = share_bit(c.course, &contact.probe_share_u, point, scene);
-        edx = (edx >> 15) & 1;
-        ebx = (ebx >> 15) & 1;
-        if contact.probe_face_flip[cc].get() == 1 {
-            edx ^= 1;
-            ebx ^= 1;
+        let probes = c.probes.borrow();
+        let mut share_v = share_bit(&c.course.numbers, &probes.probe_share_v, point);
+        let mut share_u = share_bit(&c.course.numbers, &probes.probe_share_u, point);
+        share_v = (share_v >> 15) & 1;
+        share_u = (share_u >> 15) & 1;
+        if probes.probe_face_flip[cc] == 1 {
+            share_v ^= 1;
+            share_u ^= 1;
         }
-        let (_, _, d1) = flip_cell_index(face_byte(0)?, ebx, edx);
+        let (_, _, d1) = flip_cell_index(face_byte(0)?, share_u, share_v);
         c.tables.surface_firsts[cc].set(d1);
-        let (_, _, d2) = flip_cell_index(face_byte(0x20)?, ebx, edx);
+        let (_, _, d2) = flip_cell_index(face_byte(0x20)?, share_u, share_v);
         c.tables.surface_seconds[cc].set(d2);
         {
             let e = c.tables.surface_firsts[cc].get();
             c.car.wheel_surface_a[cc].set(info_byte(
-                &c.shared.buffers.reads.get().polygon_tables,
+                c.shared.buffers.polygon_tables(),
                 t1,
                 e.wrapping_add(0x10),
             )?);
             c.car.wheel_cell_a_byte18[cc].set(info_byte(
-                &c.shared.buffers.reads.get().polygon_tables,
+                c.shared.buffers.polygon_tables(),
                 t1,
                 e.wrapping_add(0x18),
             )?);
             c.car.wheel_cell_a_byte14[cc].set(info_byte(
-                &c.shared.buffers.reads.get().polygon_tables,
+                c.shared.buffers.polygon_tables(),
                 t1,
                 e.wrapping_add(0x14),
             )?);
             let t2 = face_byte(0x21)?;
             let e2 = c.tables.surface_seconds[cc].get();
             c.car.wheel_surface_b[cc].set(info_byte(
-                &c.shared.buffers.reads.get().polygon_tables,
+                c.shared.buffers.polygon_tables(),
                 t2,
                 e2.wrapping_add(0x10),
             )?);
             c.car.wheel_cell_b_byte18[cc].set(info_byte(
-                &c.shared.buffers.reads.get().polygon_tables,
+                c.shared.buffers.polygon_tables(),
                 t2,
                 e2.wrapping_add(0x18),
             )?);
             c.car.wheel_cell_b_byte14[cc].set(info_byte(
-                &c.shared.buffers.reads.get().polygon_tables,
+                c.shared.buffers.polygon_tables(),
                 t2,
                 e2.wrapping_add(0x14),
             )?);
             c.car.wheel_surface_blend[cc].set(0.0);
-            let kind_index = info_byte(&c.shared.buffers.reads.get().polygon_tables, t2, 0x2C)?;
+            let kind_index = info_byte(c.shared.buffers.polygon_tables(), t2, 0x2C)?;
             // The index is a byte: past the four kinds it reads on (a slip kept as is).
             let kind = c.view.surface_kind(kind_index as usize)?;
             if kind != 5
@@ -146,15 +138,15 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
                 && c.car.wheel_surface_b[cc].get() != 0
                 && face_byte(0x21)? != 0
             {
-                let (x, y, z) = if contact.probe_face_flip[cc].get() == 1 {
+                let (x, y, z) = if probes.probe_face_flip[cc] == 1 {
                     (face_byte(0x25)?, face_byte(0x24)?, face_byte(0x23)?)
                 } else {
                     (face_byte(0x22)?, face_byte(0x23)?, face_byte(0x24)?)
                 };
-                drawing.scene.get().surface_point[0].set(x);
-                drawing.scene.get().surface_point[1].set(y.wrapping_sub(x));
-                drawing.scene.get().surface_point[2].set(z.wrapping_sub(x));
-                x87_2(contact, c.numbers, c.car, cc, scene);
+                scene.draw_work_mut().surface_point[0] = x;
+                scene.draw_work_mut().surface_point[1] = y.wrapping_sub(x);
+                scene.draw_work_mut().surface_point[2] = z.wrapping_sub(x);
+                x87_2(&probes, c.numbers, c.car, cc, scene);
             }
             if crate::race::course_places::face_number(c.course.reads(), f)?.switches() & 0x1000
                 != 0
@@ -186,8 +178,8 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
             x87_4(
                 c.shared,
                 c.numbers,
-                &c.tables.surface_tables[ps..],
-                &c.tables.surface_tables[pd..],
+                &SURFACE_TABLES[ps..],
+                &SURFACE_TABLES[pd..],
                 k as usize,
             );
             x87_5_grips(c.shared, esi, edi, cc);
@@ -197,7 +189,7 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
             }
         }
     }
-    x87_6(c.shared);
+    x87_6(c.numbers, c.shared);
     for point in 0..5usize {
         let hard = |s: u32| matches!(s, 1 | 2 | 3 | 0xC);
         let on =
@@ -242,31 +234,30 @@ pub fn wheel_surfaces(
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [scratch] = [t + c * 4] * [k65536]`
-fn x87_1(course: &Course, t: &[PlainFloat; 64], c: usize, scene: &crate::scene::owner::Scene) {
-    let t0 = t[c].ld();
-    let t1 = course.numbers.get().k65536.ld();
+/// `int [result] = [t + c * 4] * [k65536]`
+fn x87_1(numbers: &Numbers, t: &[f32; 64], c: usize) -> u32 {
+    let t0 = ld(t[c]);
+    let t1 = numbers.k65536.ld();
     let t2 = t0 * t1;
-    scene.drawing.scene.get().scratch.set(to_int(t2) as u32);
+    to_int(t2) as u32
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables named below (`[name]`: a
 /// float; `int [..]`: a whole number; `ext [..]`: 80 bits): A long formula, covered by the tests.
 fn x87_2(
-    contact: &ContactWork,
+    probes: &ProbeLists,
     numbers: &Numbers,
     car: &Car,
     c: usize,
     scene: &crate::scene::owner::Scene,
 ) {
-    let drawing = &scene.drawing;
-    let t0 = int(drawing.scene.get().surface_point[1].get() as i32);
-    let t1 = contact.probe_share_u[c].ld();
+    let t0 = int(scene.draw_work().surface_point[1] as i32);
+    let t1 = ld(probes.probe_share_u[c]);
     let t2 = t0 * t1;
-    let t3 = int(drawing.scene.get().surface_point[2].get() as i32);
-    let t4 = contact.probe_share_v[c].ld();
+    let t3 = int(scene.draw_work().surface_point[2] as i32);
+    let t4 = ld(probes.probe_share_v[c]);
     let t5 = t3 * t4;
-    let t6 = int(drawing.scene.get().surface_point[0].get() as i32);
+    let t6 = int(scene.draw_work().surface_point[0] as i32);
     let t7 = t5 + t6;
     let t8 = t2 + t7;
     let t9 = numbers.k256.ld();
@@ -293,9 +284,9 @@ fn x87_3(shared: &RaceShared, s: &Surface, d: &Surface, c: usize) {
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn x87_4(shared: &RaceShared, numbers: &Numbers, s: &[PlainDword], d: &[PlainDword], k: usize) {
-    let t6 = int(s[k + 1].get() as i32);
-    let t7 = int(s[k + 7].get() as i32);
+fn x87_4(shared: &RaceShared, numbers: &Numbers, s: &[u32], d: &[u32], k: usize) {
+    let t6 = int(s[k + 1] as i32);
+    let t7 = int(s[k + 7] as i32);
     let t8 = t7 - t6;
     let t9 = shared.car().surface_blend.ld();
     let t10 = t8 * t9;
@@ -303,8 +294,8 @@ fn x87_4(shared: &RaceShared, numbers: &Numbers, s: &[PlainDword], d: &[PlainDwo
     let t12 = numbers.hundredth_a.ld();
     let t13 = t11 * t12;
     shared.physics_tables.get().surface_scales[0].st(t13);
-    let t14 = int(d[k + 1].get() as i32);
-    let t15 = int(d[k + 7].get() as i32);
+    let t14 = int(d[k + 1] as i32);
+    let t15 = int(d[k + 7] as i32);
     let t16 = t15 - t14;
     let t17 = shared.car().surface_blend.ld();
     let t18 = t16 * t17;
@@ -398,7 +389,7 @@ fn x87_5_blends(shared: &RaceShared, s: &Surface, d: &Surface, c: usize) {
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn x87_6(shared: &RaceShared) {
+fn x87_6(numbers: &Numbers, shared: &RaceShared) {
     let t0 = shared.physics_tables.get().wheel_loads[0].ld();
     let t1 = shared.physics_tables.get().wheel_loads[1].ld();
     let t2 = t0 + t1;
@@ -406,42 +397,41 @@ fn x87_6(shared: &RaceShared) {
     let t4 = t2 + t3;
     let t5 = shared.physics_tables.get().wheel_loads[3].ld();
     let t6 = t4 + t5;
-    let t7 = shared.physics_tables.get().wheel_load_scale.ld();
+    let t7 = numbers.wheel_load_scale.ld();
     let t8 = t6 * t7;
     shared.physics_tables.get().wheel_load.st(t8);
 }
 
 /// One straight x87 run as plain Rust over `X`.
 fn x87_7(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) {
-    let drawing = &scene.drawing;
     let t0 = c.car.ground_bump_scale.ld();
     let t1 = c.tables.handling[6].ld();
     let t2 = t0 * t1;
     c.car.ground_bump_scale.st(t2);
-    let t3 = c.tables.surface_blend[0].ld();
-    let t4 = c.tables.surface_blend[2].ld();
+    let t3 = c.numbers.surface_blend[0].ld();
+    let t4 = c.numbers.surface_blend[2].ld();
     let t5 = t3 - t4;
     let t6 = c.car.surface_blend.ld();
     let t7 = t5 * t6;
-    let t8 = c.tables.surface_blend[2].ld();
+    let t8 = c.numbers.surface_blend[2].ld();
     let t9 = t7 + t8;
-    drawing.scene.get().surface_point[0].st(t9);
-    let t10 = c.tables.surface_blend[1].ld();
-    let t11 = c.tables.surface_blend[3].ld();
+    scene.draw_work_mut().surface_point[0] = st(t9);
+    let t10 = c.numbers.surface_blend[1].ld();
+    let t11 = c.numbers.surface_blend[3].ld();
     let t12 = t10 - t11;
     let t13 = c.car.surface_blend.ld();
     let t14 = t12 * t13;
-    let t15 = c.tables.surface_blend[3].ld();
+    let t15 = c.numbers.surface_blend[3].ld();
     let t16 = t14 + t15;
-    drawing.scene.get().surface_point[1].st(t16);
-    let t17 = drawing.scene.get().surface_point[1].ld();
-    let t18 = drawing.scene.get().surface_point[0].ld();
+    scene.draw_work_mut().surface_point[1] = st(t16);
+    let t17 = ld(scene.draw_work().surface_point[1]);
+    let t18 = ld(scene.draw_work().surface_point[0]);
     let t19 = t17 - t18;
     let t20 = int(c.car.suspension_stiffness.get() as i32);
     let t21 = c.numbers.k256.ld();
     let t22 = t20 / t21;
     let t23 = t19 * t22;
-    let t24 = drawing.scene.get().surface_point[0].ld();
+    let t24 = ld(scene.draw_work().surface_point[0]);
     let t25 = t23 + t24;
     c.tables.surface_softness.st(t25);
     let t26 = c.tables.surface_blends[4].ld();
@@ -455,532 +445,4 @@ fn x87_7(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) {
 }
 
 #[cfg(test)]
-mod reference_vectors {
-    use super::*;
-    use crate::scene::x87_mem::view;
-    use crate::test_support::own::race;
-    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
-
-    /// The dwords of a test buffer a run with index `k` reads (`k + 8` of them).
-    fn table(base: usize, k: usize) -> &'static [PlainDword] {
-        // SAFETY: the buffer holds the offsets up to `k * 4 + 0x1C` and 16 bytes more,
-        // lent for the run and aligned for its cells.
-        unsafe {
-            std::slice::from_raw_parts(
-                crate::test_support::vectors::block_vectors::at(base) as *const PlainDword,
-                k + 8,
-            )
-        }
-    }
-
-    fn blocks() -> Vec<Block> {
-        vec![
-            Block {
-                name: "wheel_surfaces line 68 idx c=0",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[(0, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Value(0),
-                    Operand::RaceBlock {
-                        reads: &[(0x1C5D98, In::F)],
-                        writes: &[(0x22400C, Out::I)],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    x87_1(
-                        &crate::test_support::own::race().course,
-                        view(a[0], 0),
-                        a[1],
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "wheel_surfaces line 68 idx c=1",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[(4, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Value(1),
-                    Operand::RaceBlock {
-                        reads: &[(0x1C5D98, In::F)],
-                        writes: &[(0x22400C, Out::I)],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    x87_1(
-                        &crate::test_support::own::race().course,
-                        view(a[0], 0),
-                        a[1],
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "wheel_surfaces line 68 idx c=4",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[(0x10, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Value(4),
-                    Operand::RaceBlock {
-                        reads: &[(0x1C5D98, In::F)],
-                        writes: &[(0x22400C, Out::I)],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    x87_1(
-                        &crate::test_support::own::race().course,
-                        view(a[0], 0),
-                        a[1],
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "wheel_surfaces line 134 idx c=0",
-                operands: vec![
-                    Operand::RaceBlock {
-                        reads: &[
-                            (0x1C5E2C, In::F),
-                            (0x224040, In::I),
-                            (0x224044, In::I),
-                            (0x224048, In::I),
-                            (0x2D2A14, In::F),
-                            (0x2D2B14, In::F),
-                        ],
-                        writes: &[(0x31A984, Out::F)],
-                    },
-                    Operand::Value(0),
-                ],
-                ulps: 0,
-                plain: |a| {
-                    x87_2(
-                        crate::test_support::own::race().physics.contact.get(),
-                        crate::test_support::own::race().course.numbers.get(),
-                        crate::test_support::own::race().shared.car(),
-                        a[1],
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "wheel_surfaces line 134 idx c=1",
-                operands: vec![
-                    Operand::RaceBlock {
-                        reads: &[
-                            (0x1C5E2C, In::F),
-                            (0x224040, In::I),
-                            (0x224044, In::I),
-                            (0x224048, In::I),
-                            (0x2D2A18, In::F),
-                            (0x2D2B18, In::F),
-                        ],
-                        writes: &[(0x31A988, Out::F)],
-                    },
-                    Operand::Value(1),
-                ],
-                ulps: 0,
-                plain: |a| {
-                    x87_2(
-                        crate::test_support::own::race().physics.contact.get(),
-                        crate::test_support::own::race().course.numbers.get(),
-                        crate::test_support::own::race().shared.car(),
-                        a[1],
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "wheel_surfaces line 134 idx c=4",
-                operands: vec![
-                    Operand::RaceBlock {
-                        reads: &[
-                            (0x1C5E2C, In::F),
-                            (0x224040, In::I),
-                            (0x224044, In::I),
-                            (0x224048, In::I),
-                            (0x2D2A24, In::F),
-                            (0x2D2B24, In::F),
-                        ],
-                        writes: &[(0x31A994, Out::F)],
-                    },
-                    Operand::Value(4),
-                ],
-                ulps: 0,
-                plain: |a| {
-                    x87_2(
-                        crate::test_support::own::race().physics.contact.get(),
-                        crate::test_support::own::race().course.numbers.get(),
-                        crate::test_support::own::race().shared.car(),
-                        a[1],
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "wheel_surfaces line 161 idx c=0",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[(0x28, In::F), (0x2C, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Buffer {
-                        reads: &[(0x28, In::F), (0x2C, In::F)],
-                        writes: &[],
-                    },
-                    Operand::RaceBlock {
-                        reads: &[(0x31A984, In::F)],
-                        writes: &[(0x2142C0, Out::F), (0x31A920, Out::F)],
-                    },
-                    Operand::Value(0),
-                ],
-                ulps: 0,
-                plain: |a| x87_3(&race().shared, view(a[0], 0), view(a[1], 0), a[3]),
-            },
-            Block {
-                name: "wheel_surfaces line 161 idx c=1",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[(0x28, In::F), (0x2C, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Buffer {
-                        reads: &[(0x28, In::F), (0x2C, In::F)],
-                        writes: &[],
-                    },
-                    Operand::RaceBlock {
-                        reads: &[(0x31A988, In::F)],
-                        writes: &[(0x2142C4, Out::F), (0x31A924, Out::F)],
-                    },
-                    Operand::Value(1),
-                ],
-                ulps: 0,
-                plain: |a| x87_3(&race().shared, view(a[0], 0), view(a[1], 0), a[3]),
-            },
-            Block {
-                name: "wheel_surfaces line 161 idx c=4",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[(0x28, In::F), (0x2C, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Buffer {
-                        reads: &[(0x28, In::F), (0x2C, In::F)],
-                        writes: &[],
-                    },
-                    Operand::RaceBlock {
-                        reads: &[(0x31A994, In::F)],
-                        writes: &[(0x2142D0, Out::F), (0x31A930, Out::F)],
-                    },
-                    Operand::Value(4),
-                ],
-                ulps: 0,
-                plain: |a| x87_3(&race().shared, view(a[0], 0), view(a[1], 0), a[3]),
-            },
-            Block {
-                name: "wheel_surfaces line 178 idx k=0",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[(0, In::I), (4, In::I), (0x1C, In::I)],
-                        writes: &[],
-                    },
-                    Operand::RaceBlock {
-                        reads: &[(0x1C5CFC, In::F), (0x31A258, In::F)],
-                        writes: &[(0x21411C, Out::F), (0x214120, Out::F)],
-                    },
-                    Operand::Buffer {
-                        reads: &[(0, In::I), (4, In::I), (0x1C, In::I)],
-                        writes: &[],
-                    },
-                    Operand::Value(0),
-                ],
-                ulps: 0,
-                plain: |a| {
-                    x87_4(
-                        &race().shared,
-                        race().course.numbers.get(),
-                        table(a[0], a[3]),
-                        table(a[2], a[3]),
-                        a[3],
-                    );
-                },
-            },
-            Block {
-                name: "wheel_surfaces line 178 idx k=1",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[(0, In::I), (8, In::I), (0x20, In::I)],
-                        writes: &[],
-                    },
-                    Operand::RaceBlock {
-                        reads: &[(0x1C5CFC, In::F), (0x31A258, In::F)],
-                        writes: &[(0x21411C, Out::F), (0x214120, Out::F)],
-                    },
-                    Operand::Buffer {
-                        reads: &[(0, In::I), (8, In::I), (0x20, In::I)],
-                        writes: &[],
-                    },
-                    Operand::Value(1),
-                ],
-                ulps: 0,
-                plain: |a| {
-                    x87_4(
-                        &race().shared,
-                        race().course.numbers.get(),
-                        table(a[0], a[3]),
-                        table(a[2], a[3]),
-                        a[3],
-                    );
-                },
-            },
-            Block {
-                name: "wheel_surfaces line 178 idx k=4",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[(0, In::I), (0x14, In::I), (0x2C, In::I)],
-                        writes: &[],
-                    },
-                    Operand::RaceBlock {
-                        reads: &[(0x1C5CFC, In::F), (0x31A258, In::F)],
-                        writes: &[(0x21411C, Out::F), (0x214120, Out::F)],
-                    },
-                    Operand::Buffer {
-                        reads: &[(0, In::I), (0x14, In::I), (0x2C, In::I)],
-                        writes: &[],
-                    },
-                    Operand::Value(4),
-                ],
-                ulps: 0,
-                plain: |a| {
-                    x87_4(
-                        &race().shared,
-                        race().course.numbers.get(),
-                        table(a[0], a[3]),
-                        table(a[2], a[3]),
-                        a[3],
-                    );
-                },
-            },
-            Block {
-                name: "wheel_surfaces line 201 idx c=0",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[
-                            (4, In::F),
-                            (8, In::F),
-                            (0xC, In::F),
-                            (0x10, In::F),
-                            (0x14, In::F),
-                            (0x20, In::F),
-                            (0x24, In::F),
-                        ],
-                        writes: &[],
-                    },
-                    Operand::RaceBlock {
-                        reads: &[
-                            (0x21411C, In::F),
-                            (0x214120, In::F),
-                            (0x214BB4, In::F),
-                            (0x214BB8, In::F),
-                            (0x214BBC, In::F),
-                            (0x31A984, In::F),
-                        ],
-                        writes: &[
-                            (0x214284, Out::F),
-                            (0x214298, Out::F),
-                            (0x2142AC, Out::F),
-                            (0x2146C0, Out::F),
-                            (0x2146D4, Out::F),
-                            (0x2146E8, Out::F),
-                            (0x2146FC, Out::F),
-                        ],
-                    },
-                    Operand::Buffer {
-                        reads: &[
-                            (4, In::F),
-                            (8, In::F),
-                            (0xC, In::F),
-                            (0x10, In::F),
-                            (0x14, In::F),
-                            (0x20, In::F),
-                            (0x24, In::F),
-                        ],
-                        writes: &[],
-                    },
-                    Operand::Value(0),
-                ],
-                ulps: 0,
-                plain: |a| x87_5(&race().shared, view(a[0], 0), view(a[2], 0), a[3]),
-            },
-            Block {
-                name: "wheel_surfaces line 201 idx c=1",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[
-                            (4, In::F),
-                            (8, In::F),
-                            (0xC, In::F),
-                            (0x10, In::F),
-                            (0x14, In::F),
-                            (0x20, In::F),
-                            (0x24, In::F),
-                        ],
-                        writes: &[],
-                    },
-                    Operand::RaceBlock {
-                        reads: &[
-                            (0x21411C, In::F),
-                            (0x214120, In::F),
-                            (0x214BB4, In::F),
-                            (0x214BB8, In::F),
-                            (0x214BBC, In::F),
-                            (0x31A988, In::F),
-                        ],
-                        writes: &[
-                            (0x214288, Out::F),
-                            (0x21429C, Out::F),
-                            (0x2142B0, Out::F),
-                            (0x2146C4, Out::F),
-                            (0x2146D8, Out::F),
-                            (0x2146EC, Out::F),
-                            (0x214700, Out::F),
-                        ],
-                    },
-                    Operand::Buffer {
-                        reads: &[
-                            (4, In::F),
-                            (8, In::F),
-                            (0xC, In::F),
-                            (0x10, In::F),
-                            (0x14, In::F),
-                            (0x20, In::F),
-                            (0x24, In::F),
-                        ],
-                        writes: &[],
-                    },
-                    Operand::Value(1),
-                ],
-                ulps: 0,
-                plain: |a| x87_5(&race().shared, view(a[0], 0), view(a[2], 0), a[3]),
-            },
-            Block {
-                name: "wheel_surfaces line 201 idx c=4",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[
-                            (4, In::F),
-                            (8, In::F),
-                            (0xC, In::F),
-                            (0x10, In::F),
-                            (0x14, In::F),
-                            (0x20, In::F),
-                            (0x24, In::F),
-                        ],
-                        writes: &[],
-                    },
-                    Operand::RaceBlock {
-                        reads: &[
-                            (0x21411C, In::F),
-                            (0x214120, In::F),
-                            (0x214BB4, In::F),
-                            (0x214BB8, In::F),
-                            (0x214BBC, In::F),
-                            (0x31A994, In::F),
-                        ],
-                        writes: &[
-                            (0x214294, Out::F),
-                            (0x2142A8, Out::F),
-                            (0x2142BC, Out::F),
-                            (0x2146D0, Out::F),
-                            (0x2146E4, Out::F),
-                            (0x2146F8, Out::F),
-                            (0x21470C, Out::F),
-                        ],
-                    },
-                    Operand::Buffer {
-                        reads: &[
-                            (4, In::F),
-                            (8, In::F),
-                            (0xC, In::F),
-                            (0x10, In::F),
-                            (0x14, In::F),
-                            (0x20, In::F),
-                            (0x24, In::F),
-                        ],
-                        writes: &[],
-                    },
-                    Operand::Value(4),
-                ],
-                ulps: 0,
-                plain: |a| x87_5(&race().shared, view(a[0], 0), view(a[2], 0), a[3]),
-            },
-            Block {
-                name: "wheel_surfaces line 258",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[
-                        (0x213FEC, In::F),
-                        (0x214284, In::F),
-                        (0x214288, In::F),
-                        (0x21428C, In::F),
-                        (0x214290, In::F),
-                    ],
-                    writes: &[(0x214268, Out::F)],
-                }],
-                ulps: 0,
-                plain: |_| x87_6(&race().shared),
-            },
-            Block {
-                name: "wheel_surfaces line 299",
-                operands: vec![Operand::RaceBlock {
-                    reads: &[
-                        (0x1C5E2C, In::F),
-                        (0x213F5C, In::F),
-                        (0x213F60, In::F),
-                        (0x213F64, In::F),
-                        (0x213F68, In::F),
-                        (0x2146D0, In::F),
-                        (0x2146E4, In::F),
-                        (0x2146F8, In::F),
-                        (0x21470C, In::F),
-                        (0x214C04, In::F),
-                        (0x224040, In::F),
-                        (0x224044, In::F),
-                        (0x31A00C, In::I),
-                        (0x31A038, In::F),
-                        (0x31A258, In::F),
-                    ],
-                    writes: &[
-                        (0x214230, Out::F),
-                        (0x214760, Out::F),
-                        (0x214764, Out::F),
-                        (0x223DA8, Out::F),
-                        (0x223DAC, Out::F),
-                        (0x224040, Out::F),
-                        (0x224044, Out::F),
-                        (0x31A038, Out::F),
-                    ],
-                }],
-                ulps: 0,
-                plain: |_| {
-                    x87_7(
-                        &crate::physics::step_inputs::StepInputs::of(race()).wheels(),
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-        ]
-    }
-
-    #[test]
-    fn x87_blocks_matches_the_assembly() {
-        sparse("physics.wheel_surfaces", &blocks(), 550, 100);
-    }
-}
+mod tests;

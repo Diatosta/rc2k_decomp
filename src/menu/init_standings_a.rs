@@ -1,7 +1,8 @@
-//! `menu::init_standings_a`: the 200 entries of standings table A emptied: +0
-//! and +4 -1, +8 .. +0x10 0, +0x14 / +0x18 3600370 (a time beyond any), +0x1C 0.
+//! `menu::init_standings_a`: the 200 entries of standings table A emptied: `first`
+//! and `player` -1, `nation`, `name_id` and `car` 0, `key` / `rally_time` 3600370 (a time beyond
+//! any), `group` 0.
 //!
-//! Callers: two of the game's. Refuses a null table, before anything.
+//! Refuses a null table, before anything.
 use crate::errors::Refused;
 use crate::menu::standings::*;
 

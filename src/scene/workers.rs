@@ -17,273 +17,28 @@
 //! (`draw_aside`, the view's own car: `race::car_part`), on a scratch of its own behind a
 //! mutex, from the part's render states as the piece was handed aside; its drawing is put in
 //! at its place in the part's order, as `draw_parts` puts a part's after the earlier ones.
+//!
+//! A list inside a part whose entries do not depend on each other (the course's sorted faces)
+//! can be drawn in runs over the drawing threads the parts and the piece aside leave idle
+//! (`list_runs`), each run on a scratch and a copy of the view of its own, put together in
+//! the list's order.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::part_cell::{PartCell, PartTurn};
-use crate::memory::session::GameThread;
-use crate::race::view_scratch::{PART_SLOTS, ViewScratch};
-use std::cell::Cell;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Condvar, Mutex, OnceLock};
-
-/// The most drawing threads, the game's own one with them.
-pub const COUNT: usize = 4;
-
-thread_local! {
-    /// The running thread's copy: 0 unless it is one of the drawing threads.
-    static INDEX: Cell<usize> = const { Cell::new(0) };
-}
-
-/// The running thread's copy number.
-#[inline(always)]
-pub fn index() -> usize {
-    INDEX.get()
-}
-
-/// What a drawing part makes for itself before reading (see the module's header): neither
-/// copied in nor merged, each part's work on its own (the replays' every flush the same as on
-/// one thread).
-pub struct PartScratch {
-    /// The polygon vertex buffer (`d3d::vertices_store`).
-    pub vertices: crate::d3d::vertices_store::PolygonVertices,
-    /// The polygon work: the entries, their lists, the clipper's pool
-    /// (`scene::polygon_store`).
-    pub polygon: crate::scene::polygon_store::PolygonWork,
-    /// The point records, a cache of the points' projections (`scene::point_records`).
-    pub records: crate::scene::point_records::Records,
-    /// Which records have been written since they were last forgotten
-    /// (`scene::point_records::Written`).
-    pub records_written: crate::scene::point_records::Written,
-    /// Whether the point records are taken (`scene::point_records::take`), set for every part
-    /// on the game's thread between scopes.
-    pub records_taken: crate::memory::session::PlainFlag,
-    /// The held matrix columns while a part other than the first is drawn
-    /// (`scene::view_matrices::Held`), from the list's start.
-    pub columns: crate::scene::view_matrices::OwnColumns,
-    /// The scene points past the count while the part is drawn in a run
-    /// (`race::scene_points::OwnPoints`).
-    pub points: crate::race::scene_points::OwnPoints,
-    /// The render states' and the current texture's cache (`d3d::render_cache::OwnCache`):
-    /// part 0's is always in use, the others' while their run is drawn.
-    pub cache: crate::d3d::render_cache::OwnCache,
-    /// Where such a part first set each state (`d3d::run_states::OwnRun`).
-    pub run: crate::d3d::run_states::OwnRun,
-    /// The drawing it has noted (`platform::direct3d::Noted`): the first part's what the game's
-    /// thread flushes, the others' put after it at their runs' ends. Behind a mutex: it is
-    /// reached by the game's thread (`platform::direct3d::game_part`) as well as by the part's own.
-    pub noted: crate::platform::direct3d::Noted,
-    /// Whether a race is on (`race::numbers_store::Numbers::in_race`) as the parts of a
-    /// drawing scope read it, set from the store before the scope opens (`draw_parts`): the
-    /// GPU draws only then. Read through `in_race`.
-    pub in_race: crate::memory::session::PlainFlag,
-    /// The screen's width, height and bits per pixel (`session::Screen`) as the parts of a
-    /// drawing scope read them for the noted drawing, set from the store before the scope
-    /// opens (`draw_parts`), as `in_race` is. Read by `platform::direct3d`.
-    pub screen_size: [crate::memory::session::PlainDword; 3],
-}
-
-impl PartScratch {
-    /// The scratch of part 0 (`first`: its render cache in use from the start) or another part,
-    /// zeroed.
-    const fn new(first: bool) -> Self {
-        Self {
-            vertices: crate::d3d::vertices_store::PolygonVertices::new(),
-            polygon: crate::scene::polygon_store::PolygonWork::new(),
-            records: crate::scene::point_records::new_records(),
-            records_written: crate::scene::point_records::new_written(),
-            records_taken: crate::memory::session::PlainFlag::new(false),
-            columns: crate::scene::view_matrices::OwnColumns::new(),
-            points: crate::race::scene_points::OwnPoints::new(),
-            cache: if first {
-                crate::d3d::render_cache::OwnCache::first()
-            } else {
-                crate::d3d::render_cache::OwnCache::new()
-            },
-            run: crate::d3d::run_states::OwnRun::new(),
-            noted: crate::platform::direct3d::Noted::new(),
-            in_race: crate::memory::session::PlainFlag::new(false),
-            screen_size: [const { crate::memory::session::PlainDword::new(0) }; 3],
-        }
-    }
-}
-
-// A part's scratch is handed from one thread to the next (`PartCell`'s proof needs `Send`).
-const _: () = {
-    const fn assert_send<T: Send>() {}
-    assert_send::<PartScratch>();
+use crate::memory::draw_order::{
+    ASIDE_INDEX, COUNT, DrawScope, begin_list, ended, set_aside_turn, set_index,
 };
+use crate::memory::part_cell::PartTurn;
+use crate::race::view_scratch::ViewScratch;
+use crate::scene::scratch_store::{DrawingScratch, PartScratch};
+use std::cell::Cell;
+use std::sync::atomic::AtomicUsize;
+use std::sync::{Mutex, OnceLock};
 
-/// Every scratch the drawing works on, held by the scene (`Scene::scratch`) and reached through
-/// it: the parts' (`PartScratch`), the view slots' (`ViewScratch`), the front end's, and the copies
-/// the car drawn aside works on.
-///
-/// Run `n` of a drawing scope claims part `n` and its view slot (`draw_parts`); the game's thread
-/// reaches part 0, the front end's slot and (with no scope open) the others without a claim.
-pub struct DrawingScratch {
-    parts: [PartCell<PartScratch>; COUNT],
-    /// The scratch a piece drawn aside draws on: one piece at a time, its thread holding the lock
-    /// for its run (`draw_aside`), so it is reached by one thread at a time with no `unsafe`.
-    aside: Mutex<PartScratch>,
-    /// The race's view slots: the two players' views, then their mirrors. Each is claimed by the
-    /// run that draws it, or reached by the game's thread.
-    views: [PartCell<ViewScratch>; PART_SLOTS],
-    /// The front end's 3D (the menus' objects and carousel; the HUD, the loading bar and the
-    /// effects draw on its polygon work): the game's thread's alone, never drawn by a part.
-    front_end: GameThread<ViewScratch>,
-    /// The copy of the view the car drawn aside works on (`race::car_part`): the thread drawing the
-    /// car holds the lock for its run, the view's thread to copy into it and merge from it.
-    car_view: Mutex<ViewScratch>,
-    /// The view as it was when the car's copy was made: what the copy changed since is merged.
-    taken: GameThread<ViewScratch>,
-    /// The slot of the view that last drew a course face (`race::face_work`), `usize::MAX` for
-    /// none yet. Written by every drawing thread.
-    last_face_view: AtomicUsize,
-}
-
-impl DrawingScratch {
-    /// Every scratch in its first state.
-    pub const fn new() -> Self {
-        Self {
-            parts: [
-                PartCell::new(PartScratch::new(true)),
-                PartCell::new(PartScratch::new(false)),
-                PartCell::new(PartScratch::new(false)),
-                PartCell::new(PartScratch::new(false)),
-            ],
-            aside: Mutex::new(PartScratch::new(false)),
-            views: [
-                PartCell::new(ViewScratch::new(0)),
-                PartCell::new(ViewScratch::new(1)),
-                PartCell::new(ViewScratch::new(2)),
-                PartCell::new(ViewScratch::new(3)),
-            ],
-            front_end: GameThread::new(ViewScratch::new(4)),
-            car_view: Mutex::new(ViewScratch::new(0)),
-            taken: GameThread::new(ViewScratch::new(0)),
-            last_face_view: AtomicUsize::new(usize::MAX),
-        }
-    }
-
-    /// Every part's scratch, on the game's thread with no drawing scope open (so no run holds
-    /// one): what a clear of the point records reaches.
-    pub fn all_parts_on_game_thread(&self) -> impl Iterator<Item = &PartScratch> {
-        debug_assert!(
-            !in_scope(),
-            "every part's scratch reached inside a drawing scope"
-        );
-        self.parts.iter().map(PartCell::on_game_thread)
-    }
-
-    /// The first part's scratch, on the game's thread (inside a drawing scope, run 0 is that
-    /// thread): what everything drawn outside the parts (the overlays, the HUD, the front end)
-    /// works on, and what the platform's flush and the render states' cache reach. The other
-    /// parts' are handed to their runs (`PartRun`).
-    pub fn game_scratch(&self) -> &PartScratch {
-        debug_assert_eq!(index(), 0, "the game's scratch on a drawing part");
-        self.parts[0].on_game_thread()
-    }
-
-    /// Part `n`'s scratch for the run whose `turn` it is, until the scope ends.
-    fn claim_part<'s>(&'s self, n: usize, turn: &PartTurn<'s>) -> &'s PartScratch {
-        self.parts[n].claim(turn)
-    }
-
-    /// View slot `slot` (below `PART_SLOTS`) for the run whose `turn` it is, until the scope
-    /// ends.
-    fn claim_view<'s>(&'s self, slot: usize, turn: &PartTurn<'s>) -> &'s ViewScratch {
-        self.views[slot].claim(turn)
-    }
-
-    /// The scope ending: the parts and the slots are the game's thread's again.
-    fn end_claims(&self, ending: &DrawScope<'_>) {
-        for part in &self.parts {
-            part.end_claim(ending);
-        }
-        for view in &self.views {
-            view.end_claim(ending);
-        }
-    }
-
-    /// Slot `n` (below `SLOT_COUNT`), on the game's thread.
-    pub fn slot(&self, n: usize) -> &ViewScratch {
-        match self.views.get(n) {
-            Some(view) => view.on_game_thread(),
-            None => self.front_end(),
-        }
-    }
-
-    /// Player `car`'s view's working state, on the game's thread (the parts are handed theirs).
-    pub fn main_view(&self, car: usize) -> &ViewScratch {
-        self.views[car].on_game_thread()
-    }
-
-    /// Player `car`'s mirror's working state, on the game's thread.
-    pub fn mirror(&self, car: usize) -> &ViewScratch {
-        self.views[2 + car].on_game_thread()
-    }
-
-    /// The front end's 3D's working state, on the game's thread.
-    pub fn front_end(&self) -> &ViewScratch {
-        self.front_end.get()
-    }
-
-    /// The front end's polygon work: the HUD's, the loading bar's, the frame's set-up and the
-    /// effects', which draw outside any view's pipeline.
-    pub fn front_end_polygon(&self) -> &crate::scene::polygon_work::PolygonWork {
-        &self.front_end().polygon
-    }
-
-    /// The copy of the view the car drawn aside works on, locked.
-    pub fn car_view(&self) -> std::sync::MutexGuard<'_, ViewScratch> {
-        self.car_view
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-    }
-
-    /// The view as it was when the car's copy was made (the game's thread's).
-    pub fn taken(&self) -> &ViewScratch {
-        self.taken.get()
-    }
-
-    /// The scratch a piece drawn aside draws on, locked.
-    fn aside(&self) -> std::sync::MutexGuard<'_, PartScratch> {
-        self.aside
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-    }
-
-    /// The view in slot `slot` is drawing a face.
-    pub fn note_face_drawn(&self, slot: usize) {
-        self.last_face_view.store(slot, Ordering::Relaxed);
-    }
-
-    /// The slot of the view that last drew a course face, if any has.
-    pub fn last_face_view(&self) -> Option<usize> {
-        match self.last_face_view.load(Ordering::Relaxed) {
-            usize::MAX => None,
-            slot => Some(slot),
-        }
-    }
-}
-
-impl Default for DrawingScratch {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+mod list_runs;
+pub use list_runs::{draw_list_in_runs, list_runs_wanted};
 
 // ---- the stores the parts read ----
 
-/// Whether a drawing scope is open (`DrawScope`): the parts are being drawn.
-static IN_SCOPE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// Whether the parts of a drawing are being drawn: between `draw_parts`' start of the parts
-/// and the end of the last (`session::DrawShared::get` is not taken then).
-pub fn in_scope() -> bool {
-    IN_SCOPE.load(std::sync::atomic::Ordering::Relaxed)
-}
-
-// r40course
 /// Whether a race is on (`race::numbers_store::Numbers::in_race`), as part `part`'s drawing
 /// reads it: its own copy (`set_game_part_racing` for the game's part, `draw_parts` for every
 /// part when a scope opens).
@@ -307,32 +62,6 @@ pub fn set_game_part_screen(scratch: &DrawingScratch, width: u32, height: u32, b
         .zip([width, height, bits])
     {
         cell.set(figure);
-    }
-}
-// end r40course
-
-/// The parts of one drawing being drawn (`draw_parts`): opened on the game's thread before
-/// the first part starts, ended once every part has ended. The stores lent to the parts
-/// (`session::PhaseRead`) borrow it, so none outlives it. Only `draw_parts` opens one.
-pub struct DrawScope<'o> {
-    /// The scratch whose parts and slots the runs claim, freed when the scope ends.
-    scratch: &'o DrawingScratch,
-}
-
-impl<'o> DrawScope<'o> {
-    fn open(scratch: &'o DrawingScratch) -> Self {
-        crate::memory::session::assert_game_thread();
-        let was = IN_SCOPE.swap(true, std::sync::atomic::Ordering::Relaxed);
-        debug_assert!(!was, "a drawing scope opened inside another");
-        Self { scratch }
-    }
-}
-
-impl Drop for DrawScope<'_> {
-    fn drop(&mut self) {
-        crate::memory::session::end_lending();
-        self.scratch.end_claims(self);
-        IN_SCOPE.store(false, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
@@ -363,72 +92,62 @@ impl<'a> LentOwners<'a> {
 pub struct Lent<'s> {
     /// The scratch the drawing works on (`Scene::scratch`).
     scratch: &'s DrawingScratch,
-    light_tables:
-        crate::memory::session::PhaseRead<'s, crate::scene::light_tables_store::LightTables>,
+    light_tables: crate::memory::session::PlainRead<crate::scene::light_tables_store::LightTables>,
     // The scene's other drawing stores.
-    light_work: crate::memory::session::PhaseRead<'s, crate::scene::light_work_store::LightWork>,
-    draw_switches:
-        crate::memory::session::PhaseRead<'s, crate::scene::draw_switches_store::DrawSwitches>,
+    /// The lights' work variables as the scope opened.
+    light_work: crate::scene::light_work_store::LightWork,
+    /// The draw switches as the scope opened.
+    draw_switches: crate::scene::draw_switches_store::DrawSwitches,
     object_tables:
-        crate::memory::session::PhaseRead<'s, crate::scene::object_tables_store::ObjectTables>,
-    object_slots:
-        crate::memory::session::PhaseRead<'s, crate::scene::object_slots_store::ObjectTables>,
-    kind_textures:
-        crate::memory::session::PhaseRead<'s, crate::scene::kind_texture_store::KindTextureTables>,
-    texture_places:
-        crate::memory::session::PhaseRead<'s, crate::scene::texture_places_store::TexturePlaces>,
-    light_state: crate::memory::session::PhaseRead<'s, crate::scene::light_store::LightState>,
+        crate::memory::session::PlainRead<crate::scene::object_tables_store::ObjectKinds>,
+    object_slots: crate::memory::session::PlainRead<crate::scene::object_slots_store::SlotShapes>,
+    kind_textures: crate::memory::session::PlainRead<crate::scene::kind_texture_store::KindSlots>,
+    place_slots: crate::memory::session::PlainRead<crate::scene::texture_places_store::PlaceSlots>,
     // The scene's draw variables.
-    scene_draw: crate::memory::session::PhaseRead<'s, crate::scene::draw_store::SceneDraw>,
+    scene_draw: crate::memory::session::PlainRead<crate::scene::draw_store::SceneDraw>,
     // The race's stores.
-    level_grid: crate::memory::session::PhaseRead<'s, crate::race::level_grid_store::LevelGrid>,
-    ground_probe:
-        crate::memory::session::PhaseRead<'s, crate::physics::ground_probe_store::GroundProbe>,
-    shadow_skids:
-        crate::memory::session::PhaseRead<'s, crate::race::shadow_skids_store::ShadowSkids>,
-    lights_and_gear:
-        crate::memory::session::PhaseRead<'s, crate::race::groups_store::LightsAndGear>,
-    finish: crate::memory::session::PhaseRead<'s, crate::drive::finish_store::Finish>,
-    // The frame's work and the panel and overlay.
-    frame_work: crate::memory::session::PhaseRead<'s, crate::race::frame_store::FrameWork>,
+    /// The ground probe's mark as the scope opened.
+    ground_probe: crate::physics::ground_probe_store::GroundProbe,
+    /// The scene's clock as the scope opened.
+    scene_clock: u32,
+    shadow_skids: crate::memory::session::ArcRead<crate::race::shadow_skids_store::ShadowSkids>,
+    light_records: crate::memory::session::ArcRead<crate::race::light_records_store::LightRecords>,
+    /// The finish state's "no place" switch as the frame began.
+    no_place: u32,
+    // The frame's work and the panel.
+    frame_work: crate::memory::session::PlainRead<crate::race::frame_store::FrameWork>,
     frame_cars: &'s crate::race::frame_view::FrameCars,
-    panel_and_overlay:
-        crate::memory::session::PhaseRead<'s, crate::race::groups_store::PanelAndOverlay>,
+    panel: crate::memory::session::PlainRead<crate::race::panel_store::Panel>,
     // The cars' blocks and the view variables.
     car_blocks: crate::memory::session::PhaseRead<'s, crate::race::blocks_store::CarBlocks>,
+    car_parts: crate::memory::session::PhaseRead<'s, crate::race::car_parts_store::CarParts>,
     view_and_records:
         crate::memory::session::PhaseRead<'s, crate::race::groups_store::ViewAndRecords>,
-    // The system's screen and the processor's MMX flag.
+    // The system's screen.
     screen: crate::memory::session::PhaseRead<'s, crate::memory::session::Screen>,
-    has_mmx: bool,
     net_race: &'s rc2k_core::net::net_race::NetRaceSlot,
     // The course's groups.
-    course_lists:
-        crate::memory::session::PhaseRead<'s, crate::race::course_lists_store::CourseLists>,
-    stage_prefs: crate::memory::session::PhaseRead<'s, crate::race::prefs_store::StagePrefs>,
-    course_work: crate::memory::session::PhaseRead<'s, crate::race::course_store::CourseWork>,
-    stage: &'s crate::race::stage_data::StageData,
-    kind_records:
-        crate::memory::session::PhaseRead<'s, crate::race::kind_records_store::KindRecords>,
-    numbers: crate::memory::session::PhaseRead<'s, crate::race::numbers_store::Numbers>,
-    // The race owner's shared group (lane r41shared).
-    switches: crate::memory::session::PhaseRead<'s, crate::race::switches_store::FrameSwitches>,
-    vars: crate::memory::session::PhaseRead<'s, crate::race::vars_store::RaceVars>,
-    view: crate::memory::session::PhaseRead<'s, crate::race::view_store::RaceView>,
+    course_lists: crate::memory::session::PlainRead<crate::race::course_lists_store::CourseLists>,
+    stage_prefs: crate::memory::session::ArcRead<crate::race::prefs_store::StagePrefs>,
+    course_work: crate::memory::session::PlainRead<crate::race::course_store::CourseWork>,
+    stage: &'s crate::race::stage_data_store::StageData,
+    kind_records: crate::memory::session::PlainRead<crate::race::kind_records_store::KindRecords>,
+    numbers: &'s crate::race::numbers_store::Numbers,
+    number_vars: crate::memory::session::PlainRead<crate::race::numbers_store::NumberVars>,
+    switches: crate::memory::session::PlainRead<crate::race::switches_store::FrameSwitches>,
+    checkpoints: crate::memory::session::ArcRead<crate::race::checkpoints_store::Checkpoints>,
+    vars: crate::race::vars_store::DrawnVars,
+    view: crate::race::view_store::DrawnView,
     work: crate::memory::session::PhaseRead<'s, crate::race::work_store::RaceWork>,
     physics_tables:
         crate::memory::session::PhaseRead<'s, crate::physics::tables_store::PhysicsTables>,
     // The frame's matrices and the physics' contact work.
-    matrices: crate::memory::session::PhaseRead<'s, crate::race::matrices_store::SceneMatrices>,
-    contact: crate::memory::session::PhaseRead<'s, crate::physics::contact_store::ContactWork>,
+    matrices: crate::memory::session::PlainRead<crate::race::matrices_store::SceneMatrices>,
+    lit_faces: crate::memory::session::PlainRead<crate::physics::lit_faces_store::LitFaces>,
     // The race's buffers the parts read.
-    buffers: crate::memory::session::PhaseRead<'s, crate::race::buffers_store::BufferReads>,
-}
-
-/// Whether the processor has MMX and the game uses it: fixed at start-up, so one value for
-/// every part of a drawing.
-fn has_mmx(system: &crate::system::owner::System) -> bool {
-    system.machine().has_mmx.get() != 0
+    faces: crate::memory::session::ArcRead<crate::scene::faces_store::Faces>,
+    polygon_tables: crate::memory::session::ArcRead<crate::scene::polygon_store::PolygonTables>,
+    engine_tables: crate::memory::session::ArcRead<crate::math::engine_tables::EngineTables>,
 }
 
 impl<'s> Lent<'s> {
@@ -442,104 +161,120 @@ impl<'s> Lent<'s> {
         } = owners;
         Self {
             scratch: &scene.scratch,
-            light_tables: PhaseRead::lend(&scene.light_tables, scope),
+            light_tables: crate::memory::session::PlainRead::lend(&scene.light_tables, scope),
             // The scene's other drawing stores.
-            light_work: PhaseRead::lend(&scene.lights.work, scope),
-            draw_switches: PhaseRead::lend(&scene.draw_switches, scope),
-            object_tables: PhaseRead::lend(&scene.objects.tables, scope),
-            object_slots: PhaseRead::lend(&scene.objects.slots, scope),
-            kind_textures: PhaseRead::lend(&scene.textures.kinds, scope),
-            texture_places: PhaseRead::lend(&scene.textures.places, scope),
-            light_state: PhaseRead::lend(&scene.lights.state, scope),
+            light_work: *scene.light_work(),
+            draw_switches: *scene.draw_switches(),
+            object_tables: crate::memory::session::PlainRead::lend(&scene.objects.tables, scope),
+            object_slots: crate::memory::session::PlainRead::lend(&scene.objects.slots, scope),
+            kind_textures: crate::memory::session::PlainRead::lend(&scene.textures.kinds, scope),
+            place_slots: crate::memory::session::PlainRead::lend(
+                &scene.textures.place_slots,
+                scope,
+            ),
             // The scene's draw variables.
-            scene_draw: PhaseRead::lend(&scene.drawing.scene, scope),
+            scene_draw: crate::memory::session::PlainRead::lend(&scene.drawing.scene, scope),
             // The race's stores.
-            level_grid: PhaseRead::lend(&race.course.level_grid, scope),
-            ground_probe: PhaseRead::lend(&race.physics.ground_probe, scope),
-            shadow_skids: PhaseRead::lend(&race.frame.shadow_skids, scope),
-            lights_and_gear: PhaseRead::lend(&race.frame.lights_and_gear, scope),
-            finish: PhaseRead::lend(&race.replay.finish, scope),
-            // The frame's work and the panel and overlay.
-            frame_work: PhaseRead::lend(&race.frame.frame_work, scope),
+            ground_probe: *race.physics.ground_probe().borrow(),
+            scene_clock: race.shared.run().scene_clock,
+            shadow_skids: crate::memory::session::ArcRead::lend(&race.frame.shadow_skids, scope),
+            light_records: crate::memory::session::ArcRead::lend(&race.frame.light_records, scope),
+            no_place: race.replay.no_place(),
+            // The frame's work and the panel.
+            frame_work: crate::memory::session::PlainRead::lend(&race.frame.frame_work, scope),
             frame_cars: &race.frame.cars,
-            panel_and_overlay: PhaseRead::lend(&race.frame.panel_and_overlay, scope),
+            panel: crate::memory::session::PlainRead::lend(&race.frame.panel, scope),
             // The cars' blocks and the view variables.
             car_blocks: PhaseRead::lend(&race.shared.car_blocks, scope),
+            car_parts: PhaseRead::lend(&race.shared.car_parts, scope),
             view_and_records: PhaseRead::lend(&race.frame.view_and_records, scope),
-            // The system's screen and the processor's MMX flag.
+            // The system's screen.
             screen: PhaseRead::lend(&system.session.screen, scope),
-            has_mmx: has_mmx(system),
             net_race: &net.race_slot,
             // The course's groups.
-            course_lists: PhaseRead::lend(&race.course.lists, scope),
-            stage_prefs: PhaseRead::lend(&race.course.stage_prefs, scope),
-            course_work: PhaseRead::lend(&race.course.course, scope),
+            course_lists: crate::memory::session::PlainRead::lend(&race.course.lists, scope),
+            stage_prefs: crate::memory::session::ArcRead::lend(&race.course.stage_prefs, scope),
+            course_work: crate::memory::session::PlainRead::lend(&race.course.course, scope),
             stage: &race.course.stage,
-            kind_records: PhaseRead::lend(race.course.kind_records_store(), scope),
-            numbers: PhaseRead::lend(&race.course.numbers, scope),
-            // The race owner's shared group (lane r41shared).
-            switches: PhaseRead::lend(&race.shared.switches, scope),
-            vars: PhaseRead::lend(&race.shared.vars, scope),
-            view: PhaseRead::lend(&race.shared.view, scope),
+            kind_records: crate::memory::session::PlainRead::lend(
+                race.course.kind_records(),
+                scope,
+            ),
+            numbers: &race.course.numbers,
+            number_vars: crate::memory::session::PlainRead::lend(&race.course.number_vars, scope),
+            switches: crate::memory::session::PlainRead::lend(&race.shared.switches, scope),
+            checkpoints: crate::memory::session::ArcRead::lend(&race.shared.checkpoints, scope),
+            vars: race.shared.vars.get().drawn(),
+            view: race.shared.view.get().drawn(),
             work: PhaseRead::lend(&race.shared.work, scope),
             physics_tables: PhaseRead::lend(&race.shared.physics_tables, scope),
             // The frame's matrices and the physics' contact work.
-            matrices: PhaseRead::lend(&race.frame.matrices, scope),
-            contact: PhaseRead::lend(&race.physics.contact, scope),
+            matrices: crate::memory::session::PlainRead::lend(&race.frame.matrices, scope),
+            lit_faces: crate::memory::session::PlainRead::lend(&race.physics.lit_faces, scope),
             // The race's buffers the parts read.
-            buffers: PhaseRead::lend(&race.shared.buffers.reads, scope),
+            faces: crate::memory::session::ArcRead::lend(&race.shared.buffers.faces, scope),
+            polygon_tables: crate::memory::session::ArcRead::lend(
+                &race.shared.buffers.polygon_tables,
+                scope,
+            ),
+            engine_tables: crate::memory::session::ArcRead::lend(
+                &race.shared.buffers.engine_tables,
+                scope,
+            ),
         }
     }
 
     /// The stores as the part on the calling thread reads them.
     fn reads(&self) -> DrawReads<'_> {
         DrawReads {
-            light_tables: &self.light_tables,
+            light_tables: (&self.light_tables).into(),
             // The scene's other drawing stores.
-            light_work: &self.light_work,
-            draw_switches: &self.draw_switches,
-            object_tables: &self.object_tables,
-            object_slots: &self.object_slots,
-            kind_textures: &self.kind_textures,
-            texture_places: &self.texture_places,
-            light_state: &self.light_state,
+            light_work: self.light_work,
+            draw_switches: self.draw_switches,
+            object_tables: (&self.object_tables).into(),
+            object_slots: (&self.object_slots).into(),
+            kind_textures: (&self.kind_textures).into(),
+            place_slots: (&self.place_slots).into(),
             // The scene's draw variables.
-            scene_draw: &self.scene_draw,
+            scene_draw: *self.scene_draw,
             // The race's stores.
-            level_grid: &self.level_grid,
-            ground_probe: &self.ground_probe,
-            shadow_skids: &self.shadow_skids,
-            lights_and_gear: &self.lights_and_gear,
-            finish: &self.finish,
-            // The frame's work and the panel and overlay.
-            frame_work: &self.frame_work,
+            ground_probe: self.ground_probe,
+            scene_clock: self.scene_clock,
+            shadow_skids: (&self.shadow_skids).into(),
+            light_records: (&self.light_records).into(),
+            no_place: self.no_place,
+            // The frame's work and the panel.
+            frame_work: (&self.frame_work).into(),
             frame_cars: self.frame_cars,
-            panel_and_overlay: &self.panel_and_overlay,
+            panel: (&self.panel).into(),
             // The cars' blocks and the view variables.
             car_blocks: &self.car_blocks,
+            car_parts: &self.car_parts,
             view_and_records: &self.view_and_records,
-            // The system's screen and the processor's MMX flag.
+            // The system's screen.
             screen: &self.screen,
-            has_mmx: self.has_mmx,
             net_race: self.net_race,
             // The course's groups.
-            course_lists: &self.course_lists,
-            stage_prefs: &self.stage_prefs,
-            course_work: &self.course_work,
+            course_lists: (&self.course_lists).into(),
+            stage_prefs: (&self.stage_prefs).into(),
+            course_work: (&self.course_work).into(),
             stage: self.stage,
-            kind_records: &self.kind_records,
-            numbers: &self.numbers,
-            // The race owner's shared group (lane r41shared).
-            switches: &self.switches,
-            vars: &self.vars,
-            view: &self.view,
+            kind_records: (&self.kind_records).into(),
+            numbers: self.numbers,
+            number_vars: (&self.number_vars).into(),
+            switches: (&self.switches).into(),
+            checkpoints: (&self.checkpoints).into(),
+            vars: crate::race::vars_store::DrawnVarsRef::Copy(&self.vars),
+            view: crate::race::view_store::DrawnViewRef::Copy(&self.view),
             work: &self.work,
             physics_tables: &self.physics_tables,
             // The frame's matrices and the physics' contact work.
-            matrices: &self.matrices,
-            contact: &self.contact,
+            matrices: (&self.matrices).into(),
+            lit_faces: (&self.lit_faces).into(),
             // The race's buffers the parts read.
-            buffers: &self.buffers,
+            faces: (&self.faces).into(),
+            polygon_tables: (&self.polygon_tables).into(),
+            engine_tables: (&self.engine_tables).into(),
         }
     }
 }
@@ -550,87 +285,86 @@ impl<'s> Lent<'s> {
 #[derive(Clone, Copy)]
 pub struct DrawReads<'a> {
     /// The lighting's colour tables (`scene::owner::Scene::light_tables`).
-    pub light_tables: &'a crate::scene::light_tables_store::LightTables,
+    pub light_tables: crate::scene::light_tables_store::LightTablesRef<'a>,
     // The scene's other drawing stores.
-    /// The lights' work variables (`scene::owner::Lights::work`).
-    pub light_work: &'a crate::scene::light_work_store::LightWork,
-    /// The draw switches (`scene::owner::Scene::draw_switches`).
-    pub draw_switches: &'a crate::scene::draw_switches_store::DrawSwitches,
+    /// The lights' work variables (`scene::owner::Scene::light_work`).
+    pub light_work: crate::scene::light_work_store::LightWork,
+    /// The draw switches (`scene::owner::Scene::draw_switches`), as they were when the reads were made.
+    pub draw_switches: crate::scene::draw_switches_store::DrawSwitches,
     /// The object tables (`scene::owner::Objects::tables`).
-    pub object_tables: &'a crate::scene::object_tables_store::ObjectTables,
+    pub object_tables: crate::scene::object_tables_store::ObjectKindsRef<'a>,
     /// The object slots (`scene::owner::Objects::slots`).
-    pub object_slots: &'a crate::scene::object_slots_store::ObjectTables,
+    pub object_slots: crate::scene::object_slots_store::SlotShapesRef<'a>,
     /// The kinds' texture tables (`scene::owner::Textures::kinds`).
-    pub kind_textures: &'a crate::scene::kind_texture_store::KindTextureTables,
-    /// The texture places (`scene::owner::Textures::places`).
-    pub texture_places: &'a crate::scene::texture_places_store::TexturePlaces,
-    /// The light state (`scene::owner::Lights::state`).
-    pub light_state: &'a crate::scene::light_store::LightState,
+    pub kind_textures: crate::scene::kind_texture_store::KindSlotsRef<'a>,
+    /// Each place's slot and the video textures' count (`scene::owner::Textures::place_slots`).
+    pub place_slots: crate::scene::texture_places_store::PlaceSlotsRef<'a>,
     // The scene's draw variables.
     /// The scene's draw variables (`scene::owner::Drawing::scene`): the polygons' alpha, the
-    /// fade and clip factors, the mirror picture's texture, the `v3driverfix` setting.
-    pub scene_draw: &'a crate::scene::draw_store::SceneDraw,
+    /// fade and clip factors, the mirror picture's texture, as they were when the reads were made.
+    pub scene_draw: crate::scene::draw_store::SceneDraw,
     // The race's stores (`race::owner::Race`).
-    /// The level grid's depth shift (`race::owner_course::Course::level_grid`).
-    pub level_grid: &'a crate::race::level_grid_store::LevelGrid,
-    /// The ground probe's mark (`race::owner_physics::Physics::ground_probe`).
-    pub ground_probe: &'a crate::physics::ground_probe_store::GroundProbe,
+    /// The ground probe's mark (`race::owner_physics::Physics::ground_probe`), as it was when the reads were made.
+    pub ground_probe: crate::physics::ground_probe_store::GroundProbe,
+    /// The scene's clock (`race::owner_shared::RaceShared::run`), as it was when the reads were made.
+    pub scene_clock: u32,
     /// The skid marks' links and points (`race::owner_frame::Frame::shadow_skids`).
-    pub shadow_skids: &'a crate::race::shadow_skids_store::ShadowSkids,
-    /// The models' light records and the gear figures after them
-    /// (`race::owner_frame::Frame::lights_and_gear`).
-    pub lights_and_gear: &'a crate::race::groups_store::LightsAndGear,
-    /// The finish routine's variables (`race::owner_replay::Replay::finish`).
-    pub finish: &'a crate::drive::finish_store::Finish,
-    // The frame's work and the panel and overlay.
+    pub shadow_skids: crate::race::shadow_skids_store::ShadowSkidsRef<'a>,
+    /// The models' light records (`race::owner_frame::Frame::light_records`).
+    pub light_records: crate::race::light_records_store::LightRecordsRef<'a>,
+    /// The finish state's "no place" switch (`race::owner_replay::Replay::no_place`).
+    pub no_place: u32,
+    // The frame's work and the panel.
     /// The frame's draw work (`race::owner_frame::Frame::frame_work`).
-    pub frame_work: &'a crate::race::frame_store::FrameWork,
+    pub frame_work: crate::race::frame_store::FrameWorkRef<'a>,
     /// The cars' snapshot for this frame's drawing (`race::frame_view`).
     pub frame_cars: &'a crate::race::frame_view::FrameCars,
-    /// The hud's panel and the race's overlay (`race::owner_frame::Frame::panel_and_overlay`).
-    pub panel_and_overlay: &'a crate::race::groups_store::PanelAndOverlay,
+    /// The hud's panel (`race::owner_frame::Frame::panel`).
+    pub panel: crate::race::panel_store::PanelRef<'a>,
     // The cars' blocks and the view variables.
     /// The cars' blocks (`race::owner_replay::Replay::car_blocks`).
     pub car_blocks: &'a crate::race::blocks_store::CarBlocks,
+    /// What the drawing keeps of each car (`race::owner_shared::RaceShared::car_parts`).
+    pub car_parts: &'a crate::race::car_parts_store::CarParts,
     /// The shared view variables and the view records
     /// (`race::owner_frame::Frame::view_and_records`).
     pub view_and_records: &'a crate::race::groups_store::ViewAndRecords,
-    // The system's screen and the processor's MMX flag.
+    // The system's screen.
     /// The screen's figures (`system::owner::Session::screen`).
     pub screen: &'a crate::memory::session::Screen,
-    /// Whether the processor has MMX and the game uses it (`Machine::has_mmx`, set once at
-    /// start-up before any drawing): the lighting's colour paths.
-    pub has_mmx: bool,
     /// The network game's slot: whether one is on, this machine's car and the players' count
     /// (`net::owner::Net::race_slot`), read live: the receiving thread can end the game.
     pub net_race: &'a rc2k_core::net::net_race::NetRaceSlot,
     // The course's groups.
     /// The course's lists and work tables: the face-key factors, the root tables, the object
     /// points and point records (`race::owner_course::Course::lists`).
-    pub course_lists: &'a crate::race::course_lists_store::CourseLists,
+    pub course_lists: crate::race::course_lists_store::CourseListsRef<'a>,
     /// The stage's prefs and scene settings: colours, fog, sun and sky, the face tables
     /// (`race::owner_course::Course::stage_prefs`).
-    pub stage_prefs: &'a crate::race::prefs_store::StagePrefs,
+    pub stage_prefs: crate::race::prefs_store::StagePrefsRef<'a>,
     /// The course's data and the scene's state: the records, faces and scene points and their
     /// counts, the flat depth (`race::owner_course::Course::course`).
-    pub course_work: &'a crate::race::course_store::CourseWork,
+    pub course_work: crate::race::course_store::CourseWorkRef<'a>,
     /// The loaded stage's tables (`race::owner_course::Course::stage`).
-    pub stage: &'a crate::race::stage_data::StageData,
+    pub stage: &'a crate::race::stage_data_store::StageData,
     /// The course kinds' first and last records (`race::owner_course::Course::kind_records`).
-    pub kind_records: &'a crate::race::kind_records_store::KindRecords,
+    pub kind_records: crate::race::kind_records_store::KindRecordsRef<'a>,
     /// The game's numbers: its float constants, the replay's mode, `in_race`, the grip change
     /// (`race::owner_course::Course::numbers`).
     pub numbers: &'a crate::race::numbers_store::Numbers,
-    // The race owner's shared group (lane r41shared).
+    /// The replay's mode and `in_race` (`race::owner_course::Course::number_vars`).
+    pub number_vars: crate::race::numbers_store::NumberVarsRef<'a>,
     /// The frame switches (`race::owner_shared::RaceShared::switches`): the scene set-up flag,
     /// the mask kind, the marker object.
-    pub switches: &'a crate::race::switches_store::FrameSwitches,
+    pub switches: crate::race::switches_store::FrameSwitchesRef<'a>,
+    /// The checkpoint tables (`race::owner_shared::RaceShared::checkpoints`).
+    pub checkpoints: crate::race::checkpoints_store::CheckpointsRef<'a>,
     /// The race's variables (`race::owner_shared::RaceShared::vars`): the settings the drawing
     /// reads (run kind, split, the settings words), the mud texture's state, the fade figures.
-    pub vars: &'a crate::race::vars_store::RaceVars,
+    pub vars: crate::race::vars_store::DrawnVarsRef<'a>,
     /// The race's view and face work (`race::owner_shared::RaceShared::view`): the players
     /// and views, their cars, the face tables.
-    pub view: &'a crate::race::view_store::RaceView,
+    pub view: crate::race::view_store::DrawnViewRef<'a>,
     /// The race's work variables (`race::owner_shared::RaceShared::work`): the cars' block
     /// handles, the number textures, the loose parts' slots, the credits flag.
     pub work: &'a crate::race::work_store::RaceWork,
@@ -640,18 +374,21 @@ pub struct DrawReads<'a> {
     // The frame's matrices and the physics' contact work.
     /// The frame's matrices (`race::owner_frame::Frame::matrices`): the identity and the work
     /// matrices the views are made from, the fourth columns the views hold from.
-    pub matrices: &'a crate::race::matrices_store::SceneMatrices,
-    /// The physics' contact work (`race::owner_physics::Physics::contact`): the lit faces the
-    /// lamps are gathered from.
-    pub contact: &'a crate::physics::contact_store::ContactWork,
+    pub matrices: crate::race::matrices_store::SceneMatricesRef<'a>,
+    /// The physics' lit faces (`race::owner_physics::Physics::lit_faces`): the lamps are gathered
+    /// from them.
+    pub lit_faces: crate::physics::lit_faces_store::LitFacesRef<'a>,
     // The race's buffers the parts read.
-    /// The polygon tables (the textures' records, the objects' materials), the faces, the
-    /// checkpoints and the engine tables (`race::buffers_store::Buffers::reads`).
-    pub buffers: &'a crate::race::buffers_store::BufferReads,
+    /// The objects' faces (`race::buffers_store::Buffers::faces`).
+    pub faces: crate::scene::faces_store::FacesRef<'a>,
+    /// The polygon tables: the textures' records, the objects' materials
+    /// (`race::buffers_store::Buffers::polygon_tables`).
+    pub polygon_tables: crate::scene::polygon_store::PolygonTablesRef<'a>,
+    /// The engine tables (`race::buffers_store::Buffers::engine_tables`).
+    pub engine_tables: crate::math::engine_tables::EngineTablesRef<'a>,
 }
 
 impl<'a> DrawReads<'a> {
-    // r40course
     /// The course's drawing stores as one value (`race::owner_course::CourseReads`).
     pub fn course(&self) -> crate::race::owner_course::CourseReads<'a> {
         crate::race::owner_course::CourseReads {
@@ -659,11 +396,11 @@ impl<'a> DrawReads<'a> {
             lists: self.course_lists,
             stage_prefs: self.stage_prefs,
             numbers: self.numbers,
+            number_vars: self.number_vars,
             kind_records: self.kind_records,
             stage: self.stage,
         }
     }
-    // end r40course
 
     /// The stores from their owners: on the game's thread, outside a drawing scope (the
     /// views drawn one after another, the overlays, the menus' objects).
@@ -675,67 +412,130 @@ impl<'a> DrawReads<'a> {
             net,
         } = owners;
         Self {
-            light_tables: scene.light_tables.get(),
+            light_tables: crate::scene::light_tables_store::LightTablesRef::Store(
+                &scene.light_tables,
+            ),
             // The scene's other drawing stores.
-            light_work: scene.lights.work.get(),
-            draw_switches: scene.draw_switches.get(),
-            object_tables: scene.objects.tables.get(),
-            object_slots: scene.objects.slots.get(),
-            kind_textures: scene.textures.kinds.get(),
-            texture_places: scene.textures.places.get(),
-            light_state: scene.lights.state.get(),
+            light_work: *scene.light_work(),
+            draw_switches: *scene.draw_switches(),
+            object_tables: crate::scene::object_tables_store::ObjectKindsRef::Store(
+                &scene.objects.tables,
+            ),
+            object_slots: crate::scene::object_slots_store::SlotShapesRef::Store(
+                &scene.objects.slots,
+            ),
+            kind_textures: crate::scene::kind_texture_store::KindSlotsRef::Store(
+                &scene.textures.kinds,
+            ),
+            place_slots: crate::scene::texture_places_store::PlaceSlotsRef::Store(
+                &scene.textures.place_slots,
+            ),
             // The scene's draw variables.
-            scene_draw: scene.drawing.scene.get(),
+            scene_draw: *scene.drawing.scene.borrow(),
             // The race's stores.
-            level_grid: race.course.level_grid.get(),
-            ground_probe: race.physics.ground_probe.get(),
-            shadow_skids: race.frame.shadow_skids.get(),
-            lights_and_gear: race.frame.lights_and_gear.get(),
-            finish: race.replay.finish.get(),
-            // The frame's work and the panel and overlay.
-            frame_work: race.frame.frame_work.get(),
+            ground_probe: *race.physics.ground_probe().borrow(),
+            scene_clock: race.shared.run().scene_clock,
+            shadow_skids: crate::race::shadow_skids_store::ShadowSkidsRef::Store(
+                &race.frame.shadow_skids,
+            ),
+            light_records: race.light_records(),
+            no_place: race.replay.no_place(),
+            // The frame's work and the panel.
+            frame_work: (&race.frame.frame_work).into(),
             frame_cars: &race.frame.cars,
-            panel_and_overlay: race.frame.panel_and_overlay.get(),
+            panel: (&race.frame.panel).into(),
             // The cars' blocks and the view variables.
             car_blocks: race.shared.car_blocks.get(),
+            car_parts: race.shared.car_parts.get(),
             view_and_records: race.frame.view_and_records.get(),
-            // The system's screen and the processor's MMX flag.
+            // The system's screen.
             screen: system.session.screen.get(),
-            has_mmx: has_mmx(system),
             net_race: &net.race_slot,
             // The course's groups.
-            course_lists: race.course.lists.get(),
-            stage_prefs: race.course.stage_prefs.get(),
-            course_work: race.course.course.get(),
+            course_lists: crate::race::course_lists_store::CourseListsRef::Store(
+                &race.course.lists,
+            ),
+            stage_prefs: crate::race::prefs_store::StagePrefsRef::Store(&race.course.stage_prefs),
+            course_work: crate::race::course_store::CourseWorkRef::Store(&race.course.course),
             stage: &race.course.stage,
-            kind_records: race.course.kind_records(),
-            numbers: race.course.numbers.get(),
-            // The race owner's shared group (lane r41shared).
-            switches: race.shared.switches.get(),
-            vars: race.shared.vars.get(),
-            view: race.shared.view.get(),
+            kind_records: crate::race::kind_records_store::KindRecordsRef::Store(
+                race.course.kind_records(),
+            ),
+            numbers: &race.course.numbers,
+            number_vars: crate::race::numbers_store::NumberVarsRef::Store(&race.course.number_vars),
+            switches: crate::race::switches_store::FrameSwitchesRef::Store(&race.shared.switches),
+            checkpoints: race.shared.checkpoints(),
+            vars: crate::race::vars_store::DrawnVarsRef::Store(race.shared.vars.get()),
+            view: crate::race::view_store::DrawnViewRef::Store(race.shared.view.get()),
             work: race.shared.work.get(),
             physics_tables: race.shared.physics_tables.get(),
             // The frame's matrices and the physics' contact work.
-            matrices: race.frame.matrices.get(),
-            contact: race.physics.contact.get(),
+            matrices: (&race.frame.matrices).into(),
+            lit_faces: (&race.physics.lit_faces).into(),
             // The race's buffers the parts read.
-            buffers: race.shared.buffers.reads.get(),
+            faces: race.shared.buffers.faces(),
+            polygon_tables: race.shared.buffers.polygon_tables(),
+            engine_tables: race.shared.buffers.engine_tables(),
         }
     }
 }
 
 // ---- the runs ----
 
-/// The rear-view mirror drawn beside its view (`draw_beside`, `race::draw_race_scene`): on a
-/// machine of two cores or more, drawing and sounding the same as one after the other.
-/// `RC2K_MIRROR_BESIDE=0` turns it off, any other value on.
-pub fn mirror_beside() -> bool {
-    static ON: OnceLock<bool> = OnceLock::new();
-    *ON.get_or_init(|| match std::env::var_os("RC2K_MIRROR_BESIDE") {
-        Some(v) => v != "0",
-        None => std::thread::available_parallelism().map_or(1, usize::from) >= 2,
+/// The most parts of a frame that can be drawn at once on this machine: its cores, up to the
+/// drawing copies. The pool is sized for it, whatever the page asks for.
+pub fn most_threads() -> usize {
+    // Asked once: the question reads the process's cgroup files each time on Android and Linux
+    // (about a tenth of a race frame's time on a phone when asked every frame).
+    static MOST: OnceLock<usize> = OnceLock::new();
+    *MOST.get_or_init(|| {
+        std::thread::available_parallelism()
+            .map_or(1, usize::from)
+            .min(COUNT)
     })
+}
+
+/// How many parts of a frame may be drawn at once, as chosen (0: not chosen, the most). Read
+/// at each frame, so a change takes effect at the next one.
+static THREADS: AtomicUsize = AtomicUsize::new(0);
+
+/// The choice in the options file: none for "as many as there are".
+pub fn chosen_threads() -> Option<u32> {
+    match THREADS.load(std::sync::atomic::Ordering::Relaxed) {
+        0 => None,
+        n => Some(n as u32),
+    }
+}
+
+/// Chooses how many parts may be drawn at once (`None`: the most). A number past the most the
+/// machine has is the most.
+pub fn set_threads(chosen: Option<u32>) {
+    THREADS.store(
+        chosen.map_or(0, |n| (n.max(1) as usize).min(most_threads())),
+        std::sync::atomic::Ordering::Relaxed,
+    );
+}
+
+/// How many parts of a frame may be drawn at once now: 1 is one after another.
+/// `RC2K_MIRROR_BESIDE=0` makes it 1 when nothing was chosen.
+pub fn threads() -> usize {
+    static ENV_OFF: OnceLock<bool> = OnceLock::new();
+    match THREADS.load(std::sync::atomic::Ordering::Relaxed) {
+        0 if *ENV_OFF
+            .get_or_init(|| std::env::var_os("RC2K_MIRROR_BESIDE").is_some_and(|v| v == "0")) =>
+        {
+            1
+        }
+        0 => most_threads(),
+        n => n.min(most_threads()),
+    }
+}
+
+/// The rear-view mirror drawn beside its view (`draw_beside`, `race::draw_race_scene`): when two
+/// parts may be drawn at once (`threads`), drawing and sounding the same as one after the
+/// other. `RC2K_MIRROR_BESIDE=0` turns it off, any other value on.
+pub fn mirror_beside() -> bool {
+    threads() >= 2
 }
 
 /// Whether parts are being drawn beside each other (`draw_beside`): a list inside one of them
@@ -755,14 +555,13 @@ fn serial() -> bool {
     *ON.get_or_init(|| std::env::var_os("RC2K_DRAW_SERIAL").is_some())
 }
 
-/// The other drawing threads: with `mirror_beside`, one fewer than the cores, up to the
-/// copies (the mirror beside its view uses one: the handheld at 25 to 30 frames a second; the
+/// The other drawing threads: one fewer than the most parts that can be drawn at once
+/// (`most_threads`; the pages' choice limits the parts drawn, not the pool), up to the copies (the mirror beside its view uses one: the handheld at 25 to 30 frames a second; the
 /// players' views and mirrors beside each other up to three).
 fn pool() -> Option<&'static rayon::ThreadPool> {
     static POOL: OnceLock<Option<rayon::ThreadPool>> = OnceLock::new();
     POOL.get_or_init(|| {
-        let cores = std::thread::available_parallelism().map_or(1, usize::from);
-        let all = if mirror_beside() { cores.min(COUNT) } else { 1 };
+        let all = most_threads();
         (all > 1)
             .then(|| {
                 rayon::ThreadPoolBuilder::new()
@@ -774,44 +573,6 @@ fn pool() -> Option<&'static rayon::ThreadPool> {
             .flatten()
     })
     .as_ref()
-}
-
-/// The runs of the list being drawn that have ended (by run number). A static, with `BESIDE`,
-/// `IN_SCOPE` and the aside turn: they are the drawing threads' own coordination, read by code
-/// that holds no context (`math::next_random`'s wait for the earlier runs, `session::DrawShared`'s
-/// check), and they hold no drawing data.
-static ENDED: Mutex<[bool; COUNT]> = Mutex::new([false; COUNT]);
-static ENDED_CHANGED: Condvar = Condvar::new();
-
-fn ended(n: usize) {
-    let mut e = ENDED
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    e[n] = true;
-    ENDED_CHANGED.notify_all();
-}
-
-/// Waits until the runs before this thread's have ended: what must be done in the list's
-/// order (the random numbers, `math::next_random`) is then done after them, as by one
-/// thread. Nothing to wait for on the game's thread (run 0) or outside a list.
-pub fn wait_for_earlier_runs() {
-    let n = index();
-    if n == 0 {
-        return;
-    }
-    if n == ASIDE_INDEX {
-        // A piece drawn aside (`draw_aside`): after what its part draws before it.
-        wait_for_aside_turn();
-        return;
-    }
-    let mut e = ENDED
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    while e[..n].iter().any(|&done| !done) {
-        e = ENDED_CHANGED
-            .wait(e)
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-    }
 }
 
 /// `first` drawn on the game's thread and `second` beside it on a drawing thread, each from
@@ -894,8 +655,8 @@ pub fn players_beside() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();
     *ON.get_or_init(|| match std::env::var_os("RC2K_PLAYERS_BESIDE") {
         Some(v) => v != "0",
-        None => mirror_beside(),
-    })
+        None => true,
+    }) && threads() >= 4.min(most_threads()).max(2)
 }
 
 /// Parts 0 .. `slots.len()` of a drawing (`part`), part 0 on the game's thread and each other on a
@@ -921,16 +682,13 @@ fn draw_parts(
     let cache_start = crate::d3d::render_cache::current(first_cache);
     // The held matrix columns likewise (`scene::view_matrices::Held`), in the race's
     // matrices; every part, the first too, holds its own while the scope is open.
-    let point_count = owners.race.course.course.get().scene_point_count.get();
+    let point_count = owners.race.course.course.borrow().scene_point_count;
     let matrices = &owners.race.frame.matrices;
-    let columns_start = crate::scene::view_matrices::columns(matrices.get());
-    *ENDED
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = [false; COUNT];
+    let columns_start = crate::scene::view_matrices::columns(&matrices.borrow());
+    begin_list();
     let control = crate::math::x87::control_word();
-    // r40course
     // Whether a race is on, as the parts' noted drawing reads it inside the scope (`in_race`).
-    let racing = owners.race.course.numbers.get().in_race.is_set();
+    let racing = owners.race.course.in_race();
     let screen = owners.system.session.screen.get();
     let screen_size = [screen.width.get(), screen.height.get(), screen.bits.get()];
     for scratch in scratch_owner.all_parts_on_game_thread() {
@@ -939,7 +697,7 @@ fn draw_parts(
             cell.set(figure);
         }
     }
-    // end r40course The parts are drawn from here until every one has ended: the draw-shared stores
+    // The parts are drawn from here until every one has ended: the draw-shared stores
     // lent.
     let scope = DrawScope::open(scratch_owner);
     let lent = Lent::new(&scope, owners);
@@ -947,7 +705,7 @@ fn draw_parts(
     let scope_ref = &scope;
     // Run `n` of the others, on the thread it is called on, with its own noted drawing.
     let other = |n: usize| {
-        INDEX.set(n);
+        set_index(n);
         let turn = PartTurn::new(scope_ref, n);
         let scratch = scratch_owner.claim_part(n, &turn);
         let view = scratch_owner.claim_view(slots[n], &turn);
@@ -968,8 +726,8 @@ fn draw_parts(
         let columns = crate::scene::view_matrices::end_part(scratch).unwrap_or(columns_start);
         ended(n);
         scratch.points.end_run();
-        let noted = crate::platform::direct3d::take_noted(scratch);
-        INDEX.set(0);
+        let noted = crate::d3d::device::take_noted(scratch);
+        set_index(0);
         OtherRun {
             result,
             noted,
@@ -1032,7 +790,7 @@ fn draw_parts(
     drop(scope);
     let (first, first_columns) = first;
     // Part 0's held columns go into the store before anything runs on the game's thread.
-    crate::scene::view_matrices::merge_columns(matrices.get(), &columns_start, &first_columns);
+    crate::scene::view_matrices::merge_columns(matrices, &columns_start, &first_columns);
     let mut result = first;
     // Part 0 is put back: what follows it draws on the game's thread, every part ended.
     if result.is_ok() {
@@ -1043,17 +801,17 @@ fn draw_parts(
         // Its fans before it set a state draw with what the earlier runs left.
         let carried = crate::d3d::run_states::carried(first_cache);
         crate::d3d::run_states::patch(&mut run.noted.commands, &run.states, &carried);
-        crate::platform::direct3d::put_noted(scratch_owner.game_scratch(), run.noted);
+        crate::d3d::device::put_noted(scratch_owner.game_scratch(), run.noted);
         crate::d3d::run_states::carry(first_cache, &run.states, &cache_start);
-        crate::scene::view_matrices::merge_columns(matrices.get(), &columns_start, &run.columns);
+        crate::scene::view_matrices::merge_columns(matrices, &columns_start, &run.columns);
         if result.is_ok() {
             // What it draws takes the merged states.
-            crate::platform::direct3d::forget_states(scratch_owner.game_scratch());
+            crate::d3d::device::forget_states(scratch_owner.game_scratch());
             result = after(n + 1);
         }
     }
     // The game's thread drew run 0 with its own states: the next fan takes the merged ones.
-    crate::platform::direct3d::forget_states(scratch_owner.game_scratch());
+    crate::d3d::device::forget_states(scratch_owner.game_scratch());
     result
 }
 
@@ -1081,7 +839,7 @@ pub fn car_part() -> bool {
 /// be drawn aside: the car part on and a drawing thread for it, or the parts drawn one after
 /// another (`RC2K_DRAW_SERIAL`).
 pub fn car_part_wanted() -> bool {
-    car_part() && (pool().is_some() || serial())
+    car_part() && ((threads() >= 2 && pool().is_some()) || serial())
 }
 
 /// What a part may hand a piece of its own drawing to (`draw_aside`): the drawing threads (none
@@ -1091,6 +849,9 @@ pub fn car_part_wanted() -> bool {
 pub struct Helper<'a> {
     pool: Option<&'a rayon::ThreadPool>,
     lent: &'a Lent<'a>,
+    /// How many drawing threads the part may use at once besides its own: the pool's without
+    /// the other parts' (with `RC2K_DRAW_SERIAL`, as many as a list has runs' scratches).
+    spare: usize,
 }
 
 impl<'a> Helper<'a> {
@@ -1106,40 +867,18 @@ impl<'a> Helper<'a> {
             return None;
         }
         match pool {
-            Some(p) if p.current_num_threads() >= parts => Some(Self {
+            Some(p) if p.current_num_threads() >= parts && threads() > parts => Some(Self {
                 pool: Some(p),
                 lent,
+                spare: p.current_num_threads().min(threads() - 1) + 1 - parts,
             }),
-            None if serial() => Some(Self { pool: None, lent }),
+            None if serial() => Some(Self {
+                pool: None,
+                lent,
+                spare: crate::memory::draw_order::LIST_RUNS,
+            }),
             _ => None,
         }
-    }
-}
-
-/// The run number of a piece drawn aside (`INDEX` on its thread): past the parts'.
-const ASIDE_INDEX: usize = COUNT;
-
-/// Whether the part drawing a piece aside has come to the piece's place in its drawing
-/// (`Aside::join`): what the piece must do in the drawing's order (`wait_for_earlier_runs`)
-/// waits for it.
-static ASIDE_TURN: Mutex<bool> = Mutex::new(false);
-static ASIDE_TURN_CHANGED: Condvar = Condvar::new();
-
-fn set_aside_turn(reached: bool) {
-    *ASIDE_TURN
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = reached;
-    ASIDE_TURN_CHANGED.notify_all();
-}
-
-fn wait_for_aside_turn() {
-    let mut reached = ASIDE_TURN
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    while !*reached {
-        reached = ASIDE_TURN_CHANGED
-            .wait(reached)
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
     }
 }
 
@@ -1161,6 +900,8 @@ pub struct AsideRun {
     pub result: Result<(), Refused>,
     pub noted: crate::render::CommandList,
     states: crate::d3d::run_states::RunStates,
+    /// The held matrix columns it left, if it held any.
+    columns: Option<crate::scene::view_matrices::Columns>,
 }
 
 /// The piece drawn on `scratch` (on the thread that holds it) from `start`.
@@ -1181,13 +922,14 @@ fn run_aside(
     crate::scene::view_matrices::set_part_columns(scratch, start.columns);
     let result = piece(scratch, reads);
     let states = crate::d3d::run_states::end_run(scratch);
-    crate::scene::view_matrices::end_part(scratch);
+    let columns = crate::scene::view_matrices::end_part(scratch);
     scratch.points.end_run();
-    let noted = crate::platform::direct3d::take_noted(scratch);
+    let noted = crate::d3d::device::take_noted(scratch);
     AsideRun {
         result,
         noted,
         states,
+        columns,
     }
 }
 
@@ -1238,7 +980,7 @@ impl Aside<'_> {
         if crate::d3d::run_states::drew_before_texture(&run.noted.commands, &run.states)
             && !crate::d3d::render_cache::same_texture(&now, &self.start.cache)
         {
-            crate::logfile::program_log::log(
+            crate::program_log::log(
                 "workers: a piece drawn aside drew before setting its texture (not as one thread)",
             );
         }
@@ -1252,7 +994,7 @@ impl Aside<'_> {
             std::ptr::eq(self.part, self.scratch.game_scratch()),
             "a piece drawn aside of a part other than the first"
         );
-        crate::platform::direct3d::put_noted(self.part, run.noted);
+        crate::d3d::device::put_noted(self.part, run.noted);
         crate::d3d::run_states::carry_set(&self.part.cache, &run.states);
         // The point records it wrote, as the part would have them after it; the piece's own
         // set back to 0 for the next piece.
@@ -1261,7 +1003,7 @@ impl Aside<'_> {
             crate::scene::point_records::put_written(&scratch, self.part);
             crate::scene::point_records::clear_written(&scratch);
         }
-        crate::platform::direct3d::forget_states(self.part);
+        crate::d3d::device::forget_states(self.part);
         run.result
     }
 
@@ -1344,12 +1086,12 @@ pub fn draw_aside<'a, R>(
     let begin = &aside.start;
     pool.in_place_scope(|s| {
         s.spawn(move |_| {
-            INDEX.set(ASIDE_INDEX);
+            set_index(ASIDE_INDEX);
             let run = {
                 let scratch = lent.scratch.aside();
                 run_aside(&scratch, begin, lent.reads(), piece)
             };
-            INDEX.set(0);
+            set_index(0);
             let _ = send.send(run);
         });
         let _turn = GiveTurn;

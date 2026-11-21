@@ -2,8 +2,8 @@
 //! key is ((z >> 21) << 11) + (x >> 21), looked up by `physics::find_course_record`; nothing when
 //! none is found.
 //!
-//! Caller: `physics::face_contacts_around`, for nine cells. Refuses what `find_course_record`
-//! and `record_face_contacts` refuse (what was written is put back).
+//! Refuses what `find_course_record` and `record_face_contacts` refuse (what was written is put
+//! back).
 
 use crate::errors::Refused;
 use crate::physics::find_course_record::find_course_record;

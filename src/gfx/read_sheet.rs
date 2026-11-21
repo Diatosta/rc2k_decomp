@@ -70,7 +70,7 @@ fn read_rows(stream: &mut Stream, gfx: &crate::gfx::owner::Gfx) -> Result<bool, 
 }
 
 /// Returns whether the picture was read.
-pub fn read_pcx_indexed(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<bool, BadInput> {
+fn read_pcx_indexed(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<bool, BadInput> {
     on_stream(path, |stream| read_rows(stream, gfx))
 }
 

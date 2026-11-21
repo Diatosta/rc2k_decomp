@@ -1,20 +1,21 @@
 //! One car's state from its block (0xFE0 bytes) into its record (`car_records[n]`, read by the
 //! drawing and the sounds) and back: the sound object's request flag and a countdown, two levels
-//! from block +0x2B4 / +0x2B8 (`level_from`, `four`, held to 0 .. 7), the car file's light
-//! record, the block handles at record +0x24 / +0x28, about eighty fields moved (`MOVES`, the
-//! wheels' four each; four cleared by the block's switches, a part only when block +0xA34 is
-//! set), and three arrays into the block (+0x700 with its 0x80000000 entries filled from the next
+//! from the block's `engine_heat` / `engine_damage` (`level_from`, `four`, held to 0 .. 7), the car file's light
+//! record, the block handles in the record, about eighty fields moved (`MOVES`, the
+//! wheels' four each; four cleared by the block's switches, a part only when the block's `contact_found` is
+//! set), and three arrays into the block (`part_wake_counts` with its 0x80000000 entries filled from the next
 //! real one). Refuses (before anything) a car file number above 0x21 (past the light records).
 
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87::compare_full;
 use crate::math::x87_float as bh;
+use crate::memory::session::Cell32;
 use crate::physics::car_store::Car;
 use crate::race::effects_settings_store::CarEffects;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
-use crate::sound::store::SoundObject;
+use crate::sound::store::SoundObjectCell;
 use rc2k_core::drive::sharing;
 
 use crate::memory::session::{PlainDword, PlainFloat};
@@ -25,7 +26,7 @@ type RecordWord = fn(&CarEffects) -> &PlainDword;
 /// A float field of a car block.
 type BlockFloat = fn(&Car) -> &PlainFloat;
 /// A field of a light record.
-type LightField = fn(&LightRecord) -> &PlainDword;
+type LightField = fn(&LightRecord) -> &u32;
 
 /// A field of a car block moved into the same kind of field of the effects' record: a whole
 /// number (a surface kind, flags) or a float.
@@ -33,6 +34,11 @@ type LightField = fn(&LightRecord) -> &PlainDword;
 enum Move {
     Word(RecordWord, fn(&Car) -> &PlainDword),
     Float(fn(&CarEffects) -> &PlainFloat, BlockFloat),
+    /// A float of a vector the block keeps whole.
+    Part(
+        fn(&CarEffects) -> &PlainFloat,
+        fn(&Car) -> crate::memory::plain_floats::PlainWord<'_>,
+    ),
 }
 
 impl Move {
@@ -41,6 +47,7 @@ impl Move {
         match self {
             Move::Word(r, b) => r(o).set(b(car).get()),
             Move::Float(r, b) => r(o).set(b(car).get()),
+            Move::Part(r, b) => r(o).set(f32::from_bits(b(car).bits())),
         }
     }
 }
@@ -112,8 +119,8 @@ const MOVES_B: [Move; 9] = [
     Move::Float(rec!(4, chance), blk!(wheel_surface_blend[4])),
     Move::Word(rec!(4, kind), blk!(wheel_surface_a[4])),
     Move::Word(rec!(4, under_kind), blk!(wheel_surface_b[4])),
-    Move::Float(rec!(4, local_velocity_x), blk!(velocity[0])),
-    Move::Float(rec!(4, local_velocity_z), blk!(velocity[2])),
+    Move::Part(rec!(4, local_velocity_x), |c| c.velocity.cell_at(0)),
+    Move::Part(rec!(4, local_velocity_z), |c| c.velocity.cell_at(2)),
 ];
 
 /// The block's eight slot figures: the seven parts' damage figures and the first of the saved
@@ -138,11 +145,11 @@ fn light_record(race: &Race, car: &Car) -> Result<u32, Refused> {
 
 /// The Rust core: block `car`, record `o` (the marks' car record), sound object `p`, the
 /// scratch dword `scratch`.
-pub fn share_car_state_at(
+fn share_car_state_at(
     race: &Race,
     car: &Car,
     o: &CarEffects,
-    p: &SoundObject,
+    p: &SoundObjectCell,
     scratch: &PlainDword,
 ) -> Result<(), Refused> {
     let n = light_record(race, car)?;
@@ -150,10 +157,10 @@ pub fn share_car_state_at(
         o.reset_wait.set(1);
         car.reset_marker.set(count);
     }
-    o.gear_notice.set(p.gear_notice.get());
-    p.gear_notice.set(0);
-    let from = race.shared.view.get().level_from.get();
-    let step = race.course.numbers.get().four.get();
+    o.gear_notice.set(p.borrow().gear_notice);
+    p.borrow_mut().gear_notice = 0;
+    let from = crate::race::view_store::LEVEL_FROM.get();
+    let step = race.course.numbers.four.get();
     for (level, gauge) in o.levels.iter().zip([&car.engine_heat, &car.engine_damage]) {
         level.set(0);
         if compare_full(gauge.bits(), from) & 0x100 == 0 {
@@ -163,9 +170,9 @@ pub fn share_car_state_at(
         }
     }
     o.tag.set(car.light_colour.get());
-    let light = &race.light_records().records[n as usize];
+    let light = race.light_records().read(|l| l.records[n as usize].clone());
     for (r, l) in LIGHT_MOVES {
-        r(o).set(l(light).get());
+        r(o).set(*l(&light));
     }
     o.set_block(race.shared.car_blocks().handle_of(car));
     o.engine_speed.set(x87::loaded(&car.engine_speed));
@@ -176,8 +183,8 @@ pub fn share_car_state_at(
     for (records, first) in QUADS {
         let (a, bb, c) = (
             first(car).get(),
-            car.local_velocity[0].get(),
-            car.local_velocity[2].get(),
+            car.local_velocity.at(0),
+            car.local_velocity.at(2),
         );
         for wheel in records {
             let w = &o.records[wheel];
@@ -221,7 +228,7 @@ pub fn share_car_state_at(
             .size
             .set(f32::from_bits(car.contact_value.get()));
     }
-    for (cell, mark) in o.factors.iter().zip(&car.impact_octant_marks) {
+    for (cell, mark) in o.factors.iter().zip(car.impact_octant_marks.floats()) {
         cell.set(mark.get());
     }
     let kept_from = o.face_sums.each_ref().map(PlainDword::get);
@@ -244,7 +251,7 @@ pub fn share_car_state(
     race: &Race,
     block: &Car,
     record: &CarEffects,
-    sound: &SoundObject,
+    sound: &SoundObjectCell,
 ) -> Result<(), Refused> {
     share_car_state_at(
         race,
@@ -263,7 +270,7 @@ mod tests {
         bytes_1999, car_with_1999_bytes, load_1999, offset_1999,
     };
     use crate::race::effects_settings_store::EFFECTS_SETTINGS;
-    use crate::race::light_records_store::LIGHT_RECORDS;
+    use crate::race::light_records_store::LightRecords;
 
     fn rec_off(o: &CarEffects, f: RecordWord) -> usize {
         core::ptr::from_ref(f(o)).addr() - core::ptr::from_ref(o).addr()
@@ -283,6 +290,7 @@ mod tests {
                 core::ptr::from_ref(r(o)).addr(),
                 core::ptr::from_ref(b(c)).addr(),
             ),
+            Move::Part(r, b) => (core::ptr::from_ref(r(o)).addr(), b(c).addr()),
         };
         (r - core::ptr::from_ref(o).addr(), offset_1999(c, b))
     }
@@ -322,7 +330,8 @@ mod tests {
     fn the_tables_sit_where_the_original_moved_them() {
         let o = &EFFECTS_SETTINGS.cars[0];
         let car = &crate::test_support::own::race().car_blocks().cars[0];
-        let light = &LIGHT_RECORDS.records[0];
+        let records = LightRecords::new();
+        let light = &records.records[0];
         let lbase = core::ptr::from_ref(light).addr();
         let lights = [(0x14, 0x34), (0x18, 0x38), (0xC, 0x2C), (0x10, 0x30)];
         for ((r, l), (ro, lo)) in LIGHT_MOVES.into_iter().zip(lights) {

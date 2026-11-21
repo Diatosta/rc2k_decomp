@@ -24,7 +24,11 @@ impl NameTable {
 
 /// Name `index` of `table` (without a NUL, as `strings::str_append_indexed` appends it)
 /// added to `out`. Refused past the table.
-pub fn push_name(table: &Owned<NameTable>, index: u32, out: &mut Vec<u8>) -> Result<(), Refused> {
+pub(super) fn push_name(
+    table: &Owned<NameTable>,
+    index: u32,
+    out: &mut Vec<u8>,
+) -> Result<(), Refused> {
     let name = table
         .with(|t| t.names.get(index as usize).cloned())?
         .ok_or(BadInput("an installer name past its table"))?;

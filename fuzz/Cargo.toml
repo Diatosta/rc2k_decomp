@@ -68,3 +68,38 @@ path = "fuzz_targets/language.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "mpeg1_video"
+path = "fuzz_targets/mpeg1_video.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "mp2"
+path = "fuzz_targets/mp2.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "indeo4"
+path = "fuzz_targets/indeo4.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "net_wire"
+path = "fuzz_targets/net_wire.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "tailscale"
+path = "fuzz_targets/tailscale.rs"
+test = false
+doc = false
+bench = false

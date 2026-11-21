@@ -10,7 +10,7 @@ pub struct CaseTable {
 
 impl CaseTable {
     /// ASCII's letters only (the table before the language's own pairs are added).
-    pub fn ascii() -> Self {
+    pub(crate) fn ascii() -> Self {
         CaseTable {
             lower: std::array::from_fn(|c| (c as u8).to_ascii_lowercase()),
         }

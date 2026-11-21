@@ -23,7 +23,7 @@ use crate::scene::assign_menu_textures::assign_menu_textures;
 use crate::scene::clear_depth_buffer::clear_depth_buffer;
 use crate::scene::draw_carousel_entry::{ENTRIES, OWN, find_object_of_kind, own_place};
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
-use crate::scene::load_slot_textures::load_slot_textures_in_game;
+use crate::scene::load_slot_textures::load_slot_textures;
 use crate::scene::map_texture_places::map_texture_places;
 
 // ---- game data ----
@@ -38,32 +38,32 @@ pub fn draw_highlighted(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let item = screens.loop_flags.item.get().wrapping_sub(1);
+    let item = screens.loop_flags.read().item.wrapping_sub(1);
     if item >= ENTRIES {
         return Err(BadInput("a highlighted item of 0 or past the carousel's kinds").into());
     }
-    let kind = screens.carousel.kinds[item as usize].get();
+    let kind = screens.carousel.read().kinds[item as usize];
     let own = (kind as i32 > 0x258).then(|| kind.wrapping_sub(0x259));
     if own.is_some_and(|own| own >= OWN) {
         return Err(BadInput("a kind past the records of the kinds' own places").into());
     }
-    let clock: u32 = shared.physics_tables.get().scene_clock.get();
-    object_place.angles[1].set((clock << 3) & 0xFFFF);
-    object_place.place[2].set(screens.carousel.z.get());
-    object_place.place[0].set(0u32);
+    let clock: u32 = shared.run().scene_clock;
+    object_place.borrow_mut().angles[1] = (clock << 3) & 0xFFFF;
+    object_place.borrow_mut().place[2] = screens.carousel.read().z;
+    object_place.borrow_mut().place[0] = 0u32;
     if let Some(own) = own {
         let [size, y, angle] = own_place(&menus.lists, own)?;
-        object_place.size.set(size);
+        object_place.borrow_mut().size = size;
         if y != u32::MAX {
-            object_place.place[1].set(y);
+            object_place.borrow_mut().place[1] = y;
         }
         if angle != u32::MAX {
-            object_place.angles[0].set(angle);
+            object_place.borrow_mut().angles[0] = angle;
         }
     }
-    screens.carousel.kind.set(kind);
+    screens.carousel.write().kind = kind;
     let object = find_object_of_kind(kind, scene);
-    cars.object_number.set(object);
+    cars.borrow_mut().object_number = object;
     draw()
 }
 
@@ -80,8 +80,8 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
     assign_kind_textures(scene)?;
     assign_menu_textures(&menus.screens.carousel, scene)?;
     map_texture_places(scene);
-    load_slot_textures_in_game(&race.frame, scene)?;
-    scene.lights.state.get().draw_mode.set(0u32);
+    load_slot_textures(&race.frame, scene)?;
+    scene.light_work_mut().draw_mode = 0;
     // The front end's 3D draws on a slot of its own.
     let ctx = crate::race::view_scratch::DrawCtx::new(
         race,
@@ -91,7 +91,7 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
         o.scene.scratch.game_scratch(),
         crate::scene::workers::DrawReads::on_game_thread(crate::scene::workers::LentOwners::of(o)),
     );
-    let _held = ctx.view.matrices.hold(ctx.reads.matrices, ctx.part);
+    let _held = crate::scene::view_matrices::hold(&ctx.view.matrices, ctx.reads.matrices, ctx.part);
     draw_highlighted(
         &race.shared,
         menus,

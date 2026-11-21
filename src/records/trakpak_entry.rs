@@ -11,12 +11,12 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::records::stages_store::{Piece, RecordRef, StageTables, TrackEntry, TrackField};
 
-pub fn loaded_pack_id(stages: &StageTables) -> u32 {
+fn loaded_pack_id(stages: &StageTables) -> u32 {
     stages.trak_pak.pack_id.get()
 }
 
 /// Reported when a record belongs to another track pack.
-pub const INVALID_HEADER: FatalError = FatalError {
+const INVALID_HEADER: FatalError = FatalError {
     code: 0x8070_DA00,
     message: "Invalid TrakPak Header",
 };
@@ -52,17 +52,17 @@ impl Track {
         }
     }
 
-    /// +0x00: the track's name (a string id).
+    /// The track's name (a string id).
     pub fn name(self, stages: &StageTables) -> Result<u32, BadInput> {
         self.get(stages, TrackField::Name)
     }
 
-    /// +0x0C: the stage's length.
+    /// The stage's length.
     pub fn length(self, stages: &StageTables) -> Result<u32, BadInput> {
         self.get(stages, TrackField::Length)
     }
 
-    /// +0x34: the stage number.
+    /// The stage number.
     pub fn stage(self, stages: &StageTables) -> Result<u32, BadInput> {
         self.get(stages, TrackField::Stage)
     }

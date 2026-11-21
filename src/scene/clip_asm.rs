@@ -1,231 +1,258 @@
-//! The x87 arithmetic of the clippers, in plain Rust over `X` (`math/x87_float.rs`). The
-//! operations keep their order, with their operands in a `Work` block instead of the game's
-//! entries, records and work variables (a store that a later one overwrites unread is left
-//! out). A byte loaded through `SceneDraw.scratch` is in the block as a whole number already.
-//! The tests compare against recorded vectors (`data/vectors`).
+//! The x87 arithmetic of the clippers, in plain Rust over `X` (`math/x87_float.rs`): where the
+//! segment between two points crosses a screen x or y edge or a depth edge, and the new point's
+//! record fields and entry values there. The operations keep their order. The tests compare
+//! against recorded vectors (`data/vectors`).
 
-use crate::math::x87_float::X;
-use crate::scene::x87_mem::{Base, cells, fild, fistp, fld, fstp};
+use crate::math::x87_float::{X, int, ld, stf, to_int};
 
-/// The block the arithmetic works in, in dwords. Offsets: 0 the first point's record, 0x20 the
-/// second's, 0x40 and 0x88 their entries, 0xD0 and 0xE4 the entries' five bytes (+0x18, +0x19,
-/// +0x1A, +0x20, +0x21) as dwords, 0xF8 the work variables `SceneDraw.clip_work[0]` ..
-/// `SceneDraw.clip_work[11]`, 0x128 `SceneDraw.clip_out_words[0]` .. `SceneDraw.clip_out_words[4]`,
-/// 0x13C `SceneDraw.scratch`, 0x140 `SceneDraw.clip_plane`.
-pub type Work = [u32; 0x51];
-pub const RECORD_A: usize = 0x00;
-pub const RECORD_B: usize = 0x20;
-pub const ENTRY_A: usize = 0x40;
-pub const ENTRY_B: usize = 0x88;
-pub const BYTES_A: usize = 0xD0;
-pub const BYTES_B: usize = 0xE4;
-pub const OUT_1: usize = 0xF8;
-pub const OUT_2: usize = 0x128;
-pub const CHECKED: usize = 0x13C;
-pub const PLANE: usize = 0x140;
-
-/// Cuts at a screen x edge.
-pub fn cut_at_x(w: &mut Work) {
-    cut_axis(cells(w), X_AXIS);
+/// What a clipper interpolates of one polygon vertex: its point record's fields and its
+/// entry's texture floats and five bytes.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct CutPoint {
+    /// The place on the screen.
+    pub screen_x: f32,
+    pub screen_y: f32,
+    /// The place in the view; the third is the depth.
+    pub view: [f32; 3],
+    /// The record's first three whole numbers (whole numbers in the record, read as numbers).
+    pub whole: [i32; 3],
+    /// The entry's four texture coordinates.
+    pub texture: [f32; 4],
+    /// The entry's light, fog and amount bytes as whole numbers, in the entry's order.
+    pub bytes: [i32; 5],
 }
 
-/// Cuts at a screen y edge.
-pub fn cut_at_y(w: &mut Work) {
-    cut_axis(cells(w), Y_AXIS);
+impl CutPoint {
+    /// A point from the clip's work variables: twelve dwords (screen x and y, the place in
+    /// the view, the three whole numbers, the texture coordinates) and five (the bytes, in
+    /// the order the clip's cut stores them).
+    pub fn from_out_words(out_1: [u32; 12], out_2: [u32; 5]) -> CutPoint {
+        let float = |k: usize| f32::from_bits(out_1[k]);
+        CutPoint {
+            screen_x: float(0),
+            screen_y: float(1),
+            view: [float(2), float(3), float(4)],
+            whole: [out_1[5] as i32, out_1[6] as i32, out_1[7] as i32],
+            texture: [float(8), float(9), float(10), float(11)],
+            bytes: BYTE_SLOTS.map(|slot| out_2[slot] as i32),
+        }
+    }
+
+    /// The work variables' words, as `from_out_words` takes them.
+    pub fn out_words(&self) -> ([u32; 12], [u32; 5]) {
+        let mut out_1 = [0u32; 12];
+        out_1[0] = self.screen_x.to_bits();
+        out_1[1] = self.screen_y.to_bits();
+        for k in 0..3 {
+            out_1[2 + k] = self.view[k].to_bits();
+            out_1[5 + k] = self.whole[k] as u32;
+        }
+        for k in 0..4 {
+            out_1[8 + k] = self.texture[k].to_bits();
+        }
+        let mut out_2 = [0u32; 5];
+        for (byte, slot) in self.bytes.into_iter().zip(BYTE_SLOTS) {
+            out_2[slot] = byte as u32;
+        }
+        (out_1, out_2)
+    }
 }
 
-/// Where a clipper finds the axis it cuts on, as byte offsets into the block: the edge value
-/// (and the slot where the other axis' edge value is stored), the cut axis' float in each
-/// point's record, and the other axis' float in each record.
+/// Where the clip's work variables hold each of the five bytes.
+const BYTE_SLOTS: [usize; 5] = [2, 3, 4, 0, 1];
+
+/// One cut: the segment's two end points, the plane's depth, and the new point. On the way
+/// in `made` holds the edge's value (its screen x for `cut_at_x`, its screen y for
+/// `cut_at_y`) and, besides what the cut writes, the leftovers of the cut before; on the way
+/// out the fields the cut makes.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Cut {
+    pub first: CutPoint,
+    pub second: CutPoint,
+    pub made: CutPoint,
+    /// The depth edge's whole number (`cut_at_depth`).
+    pub plane: i32,
+    /// The cut's fraction along the segment: as a whole number after a screen cut, as float
+    /// bits after a depth cut.
+    pub scratch: u32,
+}
+
+/// The screen axis a cut is made on.
 #[derive(Clone, Copy)]
-struct Axis {
-    edge: usize,
-    other_edge: usize,
-    a: usize,
-    b: usize,
-    other_a: usize,
-    other_b: usize,
+enum Axis {
+    X,
+    Y,
 }
 
-const X_AXIS: Axis = Axis {
-    edge: 0xF8,
-    other_edge: 0xFC,
-    a: 0x0C,
-    b: 0x2C,
-    other_a: 0x1C,
-    other_b: 0x3C,
-};
-const Y_AXIS: Axis = Axis {
-    edge: 0xFC,
-    other_edge: 0xF8,
-    a: 0x1C,
-    b: 0x3C,
-    other_a: 0x0C,
-    other_b: 0x2C,
-};
+impl CutPoint {
+    /// The coordinate on the cut axis, and on the other axis.
+    fn on(&self, axis: Axis) -> f32 {
+        match axis {
+            Axis::X => self.screen_x,
+            Axis::Y => self.screen_y,
+        }
+    }
 
-/// Cuts the segment between the two points at the edge of one axis: the fraction along it
-/// (`SceneDraw.scratch` takes it rounded), every interpolated record field and entry byte, and
-/// the other axis' edge value.
-fn cut_axis(w: impl Base, axis: Axis) {
-    let depth_a = fld(w, 0x18);
-    let depth_b = fld(w, 0x38);
-    let edge = fld(w, axis.edge);
-    let along_a = fld(w, axis.a);
-    let along_b = fld(w, axis.b);
-    let t4 = edge * (depth_a - depth_b);
-    let t8 = -(depth_a * along_a);
-    let t9 = t8 + t4;
-    let t12 = depth_b * along_b;
-    let t13 = t12 + t9;
-    let t14 = fld(w, axis.edge);
-    let t15 = fld(w, axis.b);
-    let t18 = fld(w, 0x38) * (t15 - t14);
-    let fraction = t18 / t13;
-    interpolate_cut(w, fraction);
-    let span = fld(w, axis.b) - fld(w, axis.a);
-    let from_edge = fld(w, axis.a) - fld(w, axis.edge);
-    let other_a = fld(w, axis.other_a);
-    let other_span = fld(w, axis.other_b) - other_a;
-    let t104 = other_span * -from_edge;
-    let t105 = t104 / span;
-    fstp(w, axis.other_edge, t105 + other_a);
+    fn off(&self, axis: Axis) -> f32 {
+        match axis {
+            Axis::X => self.screen_y,
+            Axis::Y => self.screen_x,
+        }
+    }
 }
 
-/// The part every clipper shares: the cut point's record fields (floats and integers), the
-/// entry's floats and the five entry bytes, each `a + (b - a) * fraction`, then the fraction
-/// itself as an integer in `SceneDraw.scratch`.
-fn interpolate_cut(w: impl Base, fraction: X) {
-    for (from, to, store) in [
-        (0x30, 0x10, 0x100),
-        (0x34, 0x14, 0x104),
-        (0x38, 0x18, 0x108),
-    ] {
-        let a = fld(w, from);
-        let b = fld(w, to);
-        fstp(w, store, a + (b - a) * fraction);
+impl Cut {
+    /// Cuts at a screen x edge.
+    pub fn cut_at_x(&mut self) {
+        self.cut_at_screen_edge(Axis::X);
     }
-    for (from, to, store) in [
-        (0x20, 0x00, 0x10C),
-        (0x24, 0x04, 0x110),
-        (0x28, 0x08, 0x114),
-    ] {
-        let a = fild(w, from);
-        let b = fild(w, to);
-        fistp(w, store, a + (b - a) * fraction);
+
+    /// Cuts at a screen y edge.
+    pub fn cut_at_y(&mut self) {
+        self.cut_at_screen_edge(Axis::Y);
     }
-    for (from, to, store) in [
-        (0x90, 0x48, 0x118),
-        (0x94, 0x4C, 0x11C),
-        (0x98, 0x50, 0x120),
-        (0x9C, 0x54, 0x124),
-    ] {
-        let a = fld(w, from);
-        let b = fld(w, to);
-        fstp(w, store, a + (b - a) * fraction);
+
+    /// Cuts the segment between the two points at the edge of one axis: the fraction along
+    /// it (`scratch` takes it rounded), every interpolated record field and entry byte, and
+    /// the other axis' edge value.
+    fn cut_at_screen_edge(&mut self, axis: Axis) {
+        let (first, second) = (self.first, self.second);
+        let depth_first = ld(first.view[2]);
+        let depth_second = ld(second.view[2]);
+        let edge = ld(self.made.on(axis));
+        let along_first = ld(first.on(axis));
+        let along_second = ld(second.on(axis));
+        let edge_term = edge * (depth_first - depth_second);
+        let first_term = -(depth_first * along_first);
+        let sum = first_term + edge_term;
+        let second_term = depth_second * along_second;
+        let denominator = second_term + sum;
+        let numerator = depth_second * (along_second - edge);
+        let fraction = numerator / denominator;
+        self.interpolate_from_second_to_first(fraction);
+        let span = along_second - along_first;
+        let from_edge = along_first - edge;
+        let other_first = ld(first.off(axis));
+        let other_span = ld(second.off(axis)) - other_first;
+        let other_edge = (other_span * -from_edge) / span;
+        let other_edge = stf(other_edge + other_first);
+        match axis {
+            Axis::X => self.made.screen_y = other_edge,
+            Axis::Y => self.made.screen_x = other_edge,
+        }
     }
-    for (from, to, store) in [
-        (0xE4, 0xD0, 0x130),
-        (0xE8, 0xD4, 0x134),
-        (0xEC, 0xD8, 0x138),
-        (0xF0, 0xDC, 0x128),
-        (0xF4, 0xE0, 0x12C),
-    ] {
-        let a = fild(w, from);
-        let b = fild(w, to);
-        fistp(w, store, a + (b - a) * fraction);
+
+    /// The part every screen cut shares: the cut point's record fields (floats and whole
+    /// numbers), the entry's floats and the five entry bytes, each
+    /// `second + (first - second) * fraction`, then the fraction itself as a whole number in
+    /// `scratch`.
+    fn interpolate_from_second_to_first(&mut self, fraction: X) {
+        let (first, second) = (self.first, self.second);
+        let made = &mut self.made;
+        for k in 0..3 {
+            made.view[k] = stf(blend(ld(second.view[k]), ld(first.view[k]), fraction));
+        }
+        for k in 0..3 {
+            made.whole[k] = to_int(blend(int(second.whole[k]), int(first.whole[k]), fraction));
+        }
+        for k in 0..4 {
+            made.texture[k] = stf(blend(ld(second.texture[k]), ld(first.texture[k]), fraction));
+        }
+        for k in 0..5 {
+            made.bytes[k] = to_int(blend(int(second.bytes[k]), int(first.bytes[k]), fraction));
+        }
+        self.scratch = to_int(fraction) as u32;
     }
-    fistp(w, 0x13C, fraction);
+
+    /// Cuts at a depth edge: the new point's view x and y, texture and bytes, its depth the
+    /// plane's, and the fraction (as float bits) in `scratch`.
+    pub fn cut_at_depth(&mut self) {
+        let (first, second) = (self.first, self.second);
+        let plane = int(self.plane);
+        let fraction = (plane - ld(first.view[2])) / (ld(second.view[2]) - ld(first.view[2]));
+        let made = &mut self.made;
+        for k in 0..2 {
+            made.view[k] = stf(blend(ld(first.view[k]), ld(second.view[k]), fraction));
+        }
+        made.view[2] = stf(plane);
+        for k in 0..4 {
+            made.texture[k] = stf(blend(ld(first.texture[k]), ld(second.texture[k]), fraction));
+        }
+        for k in 0..5 {
+            made.bytes[k] = to_int(blend(int(first.bytes[k]), int(second.bytes[k]), fraction));
+        }
+        self.scratch = stf(fraction).to_bits();
+    }
 }
 
-/// Cuts at a depth edge.
-pub fn cut_at_depth(w: &mut Work) {
-    cut_depth(cells(w));
-}
-
-fn cut_depth(w: impl Base) {
-    let t0 = fild(w, 0x140);
-    let t1 = fld(w, 0x18);
-    let t2 = t0 - t1;
-    let t3 = fld(w, 0x38);
-    let t4 = fld(w, 0x18);
-    let t5 = t3 - t4;
-    let t6 = t2 / t5;
-    let t7 = fld(w, 0x10);
-    let t8 = fld(w, 0x30);
-    let t9 = t8 - t7;
-    let t10 = t9 * t6;
-    let t11 = t7 + t10;
-    fstp(w, 0x100, t11);
-    let t12 = fld(w, 0x14);
-    let t13 = fld(w, 0x34);
-    let t14 = t13 - t12;
-    let t15 = t14 * t6;
-    let t16 = t12 + t15;
-    fstp(w, 0x104, t16);
-    let t17 = fild(w, 0x140);
-    fstp(w, 0x108, t17);
-    let t18 = fld(w, 0x48);
-    let t19 = fld(w, 0x90);
-    let t20 = t19 - t18;
-    let t21 = t20 * t6;
-    let t22 = t18 + t21;
-    fstp(w, 0x118, t22);
-    let t23 = fld(w, 0x4C);
-    let t24 = fld(w, 0x94);
-    let t25 = t24 - t23;
-    let t26 = t25 * t6;
-    let t27 = t23 + t26;
-    fstp(w, 0x11C, t27);
-    let t28 = fld(w, 0x50);
-    let t29 = fld(w, 0x98);
-    let t30 = t29 - t28;
-    let t31 = t30 * t6;
-    let t32 = t28 + t31;
-    fstp(w, 0x120, t32);
-    let t33 = fld(w, 0x54);
-    let t34 = fld(w, 0x9C);
-    let t35 = t34 - t33;
-    let t36 = t35 * t6;
-    let t37 = t33 + t36;
-    fstp(w, 0x124, t37);
-    let t38 = fild(w, 0xD0);
-    let t39 = fild(w, 0xE4);
-    let t40 = t39 - t38;
-    let t41 = t40 * t6;
-    let t42 = t38 + t41;
-    fistp(w, 0x130, t42);
-    let t43 = fild(w, 0xD4);
-    let t44 = fild(w, 0xE8);
-    let t45 = t44 - t43;
-    let t46 = t45 * t6;
-    let t47 = t43 + t46;
-    fistp(w, 0x134, t47);
-    let t48 = fild(w, 0xD8);
-    let t49 = fild(w, 0xEC);
-    let t50 = t49 - t48;
-    let t51 = t50 * t6;
-    let t52 = t48 + t51;
-    fistp(w, 0x138, t52);
-    let t53 = fild(w, 0xDC);
-    let t54 = fild(w, 0xF0);
-    let t55 = t54 - t53;
-    let t56 = t55 * t6;
-    let t57 = t53 + t56;
-    fistp(w, 0x128, t57);
-    let t58 = fild(w, 0xE0);
-    let t59 = fild(w, 0xF4);
-    let t60 = t59 - t58;
-    let t61 = t60 * t6;
-    let t62 = t58 + t61;
-    fistp(w, 0x12C, t62);
-    fstp(w, 0x13C, t6);
+/// `from + (to - from) * fraction`.
+fn blend(from: X, to: X, fraction: X) -> X {
+    from + (to - from) * fraction
 }
 
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
     use crate::test_support::vectors::{Differential, Kind, Rng, differential};
+
+    /// The recorded blocks' layout, in dwords: a point's record (0), its entry (0x40 bytes
+    /// on) and its five entry bytes (0xD0 bytes on) for the first point, the same at 0x20,
+    /// 0x88 and 0xE4 for the second; then the work variables at 0xF8 (twelve), 0x128 (five),
+    /// the scratch at 0x13C and the plane at 0x140.
+    const POINTS: [(usize, usize, usize); 2] = [(0x00, 0x48, 0xD0), (0x20, 0x90, 0xE4)];
+    const OUT_1: usize = 0xF8;
+    const OUT_2: usize = 0x128;
+    const SCRATCH: usize = 0x13C;
+    const PLANE: usize = 0x140;
+
+    fn point_of(w: &[u32; 0x51], (record, texture, bytes): (usize, usize, usize)) -> CutPoint {
+        let (record, texture, bytes) = (record / 4, texture / 4, bytes / 4);
+        let float = |k: usize| f32::from_bits(w[k]);
+        CutPoint {
+            screen_x: float(record + 3),
+            screen_y: float(record + 7),
+            view: [float(record + 4), float(record + 5), float(record + 6)],
+            whole: [w[record] as i32, w[record + 1] as i32, w[record + 2] as i32],
+            texture: [
+                float(texture),
+                float(texture + 1),
+                float(texture + 2),
+                float(texture + 3),
+            ],
+            bytes: std::array::from_fn(|k| w[bytes + k] as i32),
+        }
+    }
+
+    /// Writes into `w` what a cut changes: the new point and the scratch.
+    fn write_made(w: &mut [u32; 0x51], cut: &Cut) {
+        let (out_1, out_2) = cut.made.out_words();
+        w[OUT_1 / 4..OUT_1 / 4 + 12].copy_from_slice(&out_1);
+        w[OUT_2 / 4..OUT_2 / 4 + 5].copy_from_slice(&out_2);
+        w[SCRATCH / 4] = cut.scratch;
+    }
+
+    fn cut_of(w: &[u32; 0x51]) -> Cut {
+        let out_1: [u32; 12] = w[OUT_1 / 4..OUT_1 / 4 + 12].try_into().unwrap();
+        let out_2: [u32; 5] = w[OUT_2 / 4..OUT_2 / 4 + 5].try_into().unwrap();
+        Cut {
+            first: point_of(w, POINTS[0]),
+            second: point_of(w, POINTS[1]),
+            made: CutPoint::from_out_words(out_1, out_2),
+            plane: w[PLANE / 4] as i32,
+            scratch: w[SCRATCH / 4],
+        }
+    }
+
+    /// Runs one cut over the block as the vectors recorded it.
+    fn run(cells: &[std::cell::Cell<u32>], cut: impl FnOnce(&mut Cut)) {
+        let mut w: [u32; 0x51] = std::array::from_fn(|k| cells[k].get());
+        let mut cut_state = cut_of(&w);
+        cut(&mut cut_state);
+        write_made(&mut w, &cut_state);
+        for (cell, word) in cells.iter().zip(w) {
+            cell.set(word);
+        }
+    }
     /// A block: the records' first three, the entries' five bytes and the plane are whole
     /// numbers, floats elsewhere.
     fn fill(rng: &mut Rng, m: &mut [u32; 0x51]) {
@@ -250,7 +277,7 @@ mod reference_vectors {
             seed: 30,
             kinds: [Kind::Float; 0x51],
             fill: &fill,
-            plain: &|c| cut_axis(c, X_AXIS),
+            plain: &|c| run(c, Cut::cut_at_x),
         };
         differential(test);
     }
@@ -263,7 +290,7 @@ mod reference_vectors {
             seed: 31,
             kinds: [Kind::Float; 0x51],
             fill: &fill,
-            plain: &|c| cut_axis(c, Y_AXIS),
+            plain: &|c| run(c, Cut::cut_at_y),
         };
         differential(test);
     }
@@ -276,7 +303,7 @@ mod reference_vectors {
             seed: 32,
             kinds: [Kind::Float; 0x51],
             fill: &fill,
-            plain: &|c| cut_depth(c),
+            plain: &|c| run(c, Cut::cut_at_depth),
         };
         differential(test);
     }

@@ -81,6 +81,7 @@ pub const SCREEN: Screen = Screen {
         on_refusal: &[Step::Call(Callee::LoadServiceBackground)],
         ..Asking::DEFAULT
     }),
+    invites: false,
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.service_area.id(),

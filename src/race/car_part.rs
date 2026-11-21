@@ -28,7 +28,7 @@ use crate::race::view_scratch::{DrawCtx, ViewScratch};
 /// car's lights' bit, which the view's cars' state already holds (`race::car_light_modes`).
 pub fn own_car(ctx: &DrawCtx<'_>) -> Option<u32> {
     use rc2k_core::race::lights::lights_on;
-    if ctx.reads.switches.scene_set_up.get() == 0 {
+    if ctx.reads.switches.scene_set_up() == 0 {
         return None;
     }
     let n = ctx
@@ -36,18 +36,18 @@ pub fn own_car(ctx: &DrawCtx<'_>) -> Option<u32> {
         .view
         .drawn_view_car(ctx.view.drawn_view(ctx.race))
         .ok()?;
-    if n >= ctx.reads.view.race_cars.get() || !ctx.reads.work.has_car_block(n as usize) {
+    if n >= ctx.reads.view.race_cars() || !ctx.reads.work.has_car_block(n as usize) {
         return None;
     }
     let block = ctx.reads.work.block_number(n as usize).ok()?;
-    lights_on(ctx.view.cars.state_of(block).ok()?.get()).then_some(n)
+    lights_on(ctx.view.cars.borrow().state_of(block).ok()?).then_some(n)
 }
 
 /// Whether the view's sort list (`lists.sort_entries`, its first `count`) holds a course face
 /// `race::draw_list_entry` draws with the texture filter's switches set to 0 after it (kind
 /// 0xFF or below 0x10): the car's entry, after the whole sort list, then finds them at 0. A
 /// face whose kind cannot be read answers no (the list's drawing refuses it, as before).
-pub fn filter_cleared(
+pub(super) fn filter_cleared(
     ctx: &DrawCtx<'_>,
     entries: &[crate::memory::session::PlainDword],
     count: u32,
@@ -75,7 +75,7 @@ pub struct CarAside<'a, 'b> {
 /// Car `number` (`own_car`) drawn aside of the view `ctx` draws, from its state now with the
 /// texture filter's switches at 0 (`filter_cleared`), while `rest` draws on; `rest` puts the
 /// car's drawing at its entry (`CarAside`).
-pub fn draw_with_car_aside<'a, R>(
+pub(super) fn draw_with_car_aside<'a, R>(
     helper: crate::scene::workers::Helper<'a>,
     ctx: &DrawCtx<'a>,
     number: u32,
@@ -84,9 +84,10 @@ pub fn draw_with_car_aside<'a, R>(
     {
         let copy = ctx.scene.scratch.car_view();
         copy.copy_drawing_from(ctx.view);
-        for cell in filter_switches(&copy) {
-            cell.set(0);
-        }
+        let mut scalars = copy.polygon.scalars.borrow_mut();
+        scalars.smooth = 0;
+        scalars.plain_first = 0;
+        scalars.plain_second = 0;
     }
     ctx.scene.scratch.taken().copy_drawing_from(ctx.view);
     let DrawCtx {
@@ -112,41 +113,33 @@ pub fn draw_with_car_aside<'a, R>(
         };
         draw_car(&ctx, number)
     });
-    let point_count = ctx.reads.course_work.scene_point_count.get();
+    let point_count = ctx.reads.course_work.get().scene_point_count;
     crate::scene::workers::draw_aside(helper, ctx.part, point_count, piece, |aside| {
         rest(&CarAside { aside, number })
     })
 }
 
-/// The texture filter's switches (`scene::choose_texture`).
-fn filter_switches(view: &ViewScratch) -> [&crate::memory::session::PlainDword; 3] {
-    [
-        &view.polygon.smooth,
-        &view.polygon.plain_first,
-        &view.polygon.plain_second,
-    ]
+/// The count a piece of the view's drawing adds to (cars drawn): its own added to what the view
+/// counted meanwhile, where the other cells take the piece's value.
+pub(crate) fn counted(view: &ViewScratch) -> u32 {
+    view.cars.borrow().cars_drawn
 }
 
-/// The counts the car adds to (cars drawn, polygons drawn whole and split): its own added to
-/// what the view counted meanwhile, where the other cells take the car's value.
-fn counts(view: &ViewScratch) -> [&crate::memory::session::PlainDword; 3] {
-    [
-        &view.cars.cars_drawn,
-        &view.object.whole_polygon_count,
-        &view.object.split_polygon_count,
-    ]
+/// The count set (see `counted`).
+pub(crate) fn set_counted(view: &ViewScratch, cars: u32) {
+    view.cars.borrow_mut().cars_drawn = cars;
 }
 
 /// The car's depth entry drawn (`race::draw_list_entry`'s car).
 fn draw_car(ctx: &DrawCtx<'_>, number: u32) -> Result<(), Refused> {
     crate::race::car_draw::draw_car_entry(ctx, number)?;
-    ctx.view.light.view_kind.set(0u32);
+    ctx.view.light.borrow_mut().view_kind = 0u32;
     Ok(())
 }
 
 impl CarAside<'_, '_> {
     /// The car's depth entry's second word (`race::add_car_depth_entry`), the top bit clear.
-    pub fn entry_word(&self) -> u32 {
+    pub(super) fn entry_word(&self) -> u32 {
         self.number + 0x200_0000
     }
 
@@ -155,15 +148,9 @@ impl CarAside<'_, '_> {
         let run = self.aside.join()?;
         let copy = ctx.scene.scratch.car_view();
         let taken = ctx.scene.scratch.taken();
-        let counted: [u32; 3] = std::array::from_fn(|k| {
-            counts(ctx.view)[k]
-                .get()
-                .wrapping_add(counts(&copy)[k].get().wrapping_sub(counts(taken)[k].get()))
-        });
+        let cars = counted(ctx.view).wrapping_add(counted(&copy).wrapping_sub(counted(taken)));
         ctx.view.merge_drawing(&copy, taken);
-        for (cell, n) in counts(ctx.view).into_iter().zip(counted) {
-            cell.set(n);
-        }
+        set_counted(ctx.view, cars);
         drop(copy);
         self.aside.put(run)
     }

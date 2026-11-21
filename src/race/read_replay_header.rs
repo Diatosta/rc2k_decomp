@@ -3,13 +3,12 @@
 //! stage, the game mode, the players, the cars and their kinds (into the car blocks too), the two
 //! game-over flags (`targets`); then twelve of them are logged, each as its name and its value
 //! (`NAMES`).
-//!
-//! Callers: `race::viewer_load_stage`.
 
 use crate::memory::session::DwordLike;
 use crate::race::owner::Race;
-use crate::race::race_end::{header_cell, setting_cell};
+use crate::race::race_end::{header_word, setting_cell};
 use rc2k_core::race::replay::{HEADER_SETTINGS, Setting, read_logged};
+use rc2k_core::race::replay_v2::MAX_CARS;
 
 /// The race's places a header setting goes back to, in order (a kind into its block and into
 /// `race_car_kinds`).
@@ -45,16 +44,24 @@ fn log_text(text: &std::ffi::CStr, newline: bool) {
     crate::logfile::log_write::log_nul(text.to_bytes(), newline, 1);
 }
 
-pub fn read_replay_header(race: &Race) {
+pub(super) fn read_replay_header(race: &Race) {
     // Logic in `rc2k_core::race::replay::{HEADER_SETTINGS, read_logged}`.
     log_text(TITLE, true);
     for s in HEADER_SETTINGS {
         for to in targets(race, s) {
-            to.set(header_cell(race, s).get());
+            to.set(header_word(race, s));
+        }
+    }
+    // The header names four cars' models; a replay of the own format names every car's in its
+    // extension, and the cars after the fourth are built from those.
+    if let Some(ext) = race.replay.v2().lock().ext.as_ref() {
+        for (n, car) in ext.cars.iter().enumerate().take(MAX_CARS) {
+            race.shared.vars.get().race_car_kinds[n].set(car.kind);
+            race.car_blocks().cars[n].car_kind.set(car.kind);
         }
     }
     for (&text, &s) in NAMES.iter().zip(read_logged()) {
         log_text(text, false);
-        crate::logfile::log_int::log_int(header_cell(race, s).get() as i32, true, 1);
+        crate::logfile::log_int::log_int(header_word(race, s) as i32, true, 1);
     }
 }

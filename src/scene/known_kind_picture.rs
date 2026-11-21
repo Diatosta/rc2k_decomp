@@ -9,5 +9,5 @@ use crate::race::kind_store::KindTables;
 pub fn known_kind_picture(tables: &KindTables, place: u32) -> u32 {
     // Logic: `rc2k_core::scene::kinds::known_place`.
     let place = rc2k_core::scene::kinds::known_place(place);
-    tables.known_kind_pictures[place].get()
+    tables.known_kind_pictures[place]
 }

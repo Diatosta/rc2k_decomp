@@ -23,7 +23,9 @@ use crate::errors::BadInput;
 use crate::input::guids::EffectGuid;
 use crate::input::types::{Controller, ForceEffect, InputDevice};
 use crate::memory::cells::ZeroCells;
-use crate::memory::session::{Byte, Bytes, Dword, Float, PlainBytes, PlainDword};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::{Byte, Bytes, ConstFloat, Dword, PlainDword};
+use std::cell::Cell;
 
 // ---- the devices ----
 
@@ -31,7 +33,7 @@ use crate::memory::session::{Byte, Bytes, Dword, Float, PlainBytes, PlainDword};
 pub const KEYS: usize = 0x80;
 
 /// The input thread's and the settings' variables.
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::ZeroCells)]
 pub struct Devices {
     /// The input thread's last tick (ms).
     pub last_tick: Dword,
@@ -45,7 +47,7 @@ pub struct Devices {
     pub joy_dead_zone: Dword,
     /// `joyupperdz`: its end zone.
     pub joy_end_zone: Dword,
-    /// `alt2axcode`: its +0x1C.
+    /// `alt2axcode`: its `axis_pick`.
     pub alt_axes_code: Dword,
     /// `noforcefeedback`.
     pub no_force_feedback: Dword,
@@ -93,26 +95,30 @@ pub struct Devices {
     /// The force-feedback effects' parameter rows (16 bytes each).
     pub effect_rows: [[Dword; 4]; 14],
     /// The two records, by handle (`DEVICE_TAG | n`, never changed; 0 none).
-    pub input_devices: [Dword; 2],
-    pub records: [InputDevice; 2],
+    pub input_devices: [Dword; 4],
+    pub records: [InputDevice; 4],
     pub controller_count: Dword,
     pub controllers: [Controller; 16],
     pub input_command: Dword,
     /// Three GUIDs the effect slots point at.
     pub guids: Bytes<0x30>,
+    /// The race's players as the device commands see them: written by the game's thread before
+    /// it posts the race's "create controls" command, read by the input thread (which does not
+    /// reach the race's view).
+    pub race_players: Dword,
 }
 
 const EFFECTS: usize = 6;
 
-/// The six effects of a record, in order: the change function (`input::effect_N_change`), the
-/// kind wanted (1 constant, 3 periodic, 4 condition) and the GUID wanted.
-const EFFECT_KINDS: [(u32, u32, EffectGuid); EFFECTS] = [
-    (0x409708, 4, EffectGuid::Spring),
-    (0x4097FA, 3, EffectGuid::Sine),
-    (0x409754, 3, EffectGuid::Sine),
-    (0x4097B4, 1, EffectGuid::ConstantForce),
-    (0x409871, 4, EffectGuid::Damper),
-    (0x4098BF, 1, EffectGuid::ConstantForce),
+/// The six effects of a record, in order: the kind wanted (1 constant, 3 periodic, 4 condition)
+/// and the GUID wanted.
+const EFFECT_KINDS: [(u32, EffectGuid); EFFECTS] = [
+    (4, EffectGuid::Spring),
+    (3, EffectGuid::Sine),
+    (3, EffectGuid::Sine),
+    (1, EffectGuid::ConstantForce),
+    (4, EffectGuid::Damper),
+    (1, EffectGuid::ConstantForce),
 ];
 
 /// A device record as the game starts it: the force feedback at 75 with the dead and end zones
@@ -122,9 +128,9 @@ const fn record(controller: u32) -> InputDevice {
     let mut effects = [const { ForceEffect::ZERO }; EFFECTS];
     let mut k = 0;
     while k < EFFECTS {
-        let (change, kind, wanted) = EFFECT_KINDS[k];
+        let (kind, wanted) = EFFECT_KINDS[k];
         effects[k] = ForceEffect {
-            change: Dword::new(change),
+            change: Dword::new(k as u32),
             kind: Dword::new(kind),
             wanted: Dword::new(wanted.handle()),
             ..ForceEffect::ZERO
@@ -189,9 +195,15 @@ impl Devices {
             alt_axes_code: Dword::new(u32::MAX),
             ff_gain: Dword::new(u32::MAX),
             effect_rows: effect_rows(),
-            input_devices: [Dword::new(DEVICE_TAG), Dword::new(DEVICE_TAG | 1)],
-            records: [record(0), record(1)],
+            input_devices: [
+                Dword::new(DEVICE_TAG),
+                Dword::new(DEVICE_TAG | 1),
+                Dword::new(DEVICE_TAG | 2),
+                Dword::new(DEVICE_TAG | 3),
+            ],
+            records: [record(0), record(1), record(2), record(3)],
             guids: Bytes::new(INTERFACE_GUIDS),
+            race_players: Dword::new(1),
             ..ZeroCells::ZERO
         }
     }
@@ -245,10 +257,10 @@ impl Devices {
 }
 
 /// A device record by handle: `DEVICE_TAG | n` for `records[n]`.
-pub const DEVICE_TAG: u32 = 0xCE00_0000;
+const DEVICE_TAG: u32 = 0xCE00_0000;
 
 /// The record a handle names (`None` for 0). A value that is no handle ends the program.
-pub fn device_of(devices: &Devices, handle: u32) -> Option<&InputDevice> {
+pub(super) fn device_of(devices: &Devices, handle: u32) -> Option<&InputDevice> {
     if handle == 0 {
         return None;
     }
@@ -263,41 +275,26 @@ pub fn device_of(devices: &Devices, handle: u32) -> Option<&InputDevice> {
 
 // ---- the keyboard ----
 
-/// The yes/no key, the built-in layout and the dead keys.
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+/// The built-in layout and the dead keys.
 pub struct Keyboard {
-    /// 1 = the key comes from the caller.
-    pub yes_no_key_given: PlainDword,
-    /// The built-in layout's five pointers (nothing reads them: `input::layouts`
-    /// copies the tables below).
-    pub _built_in_layout: [PlainDword; 5],
     /// One bit per key; the keys set type nothing.
     pub silent_keys: [PlainDword; 4],
     /// The dead keys' list {dead key, base, plain result, shifted result}.
-    pub compose: PlainBytes<0x6C>,
+    pub compose: PlainBuffer<0x6C>,
     /// The built-in layout's plain table.
-    pub plain: PlainBytes<0x80>,
+    pub plain: PlainBuffer<0x80>,
     /// Its shifted table.
-    pub shifted: PlainBytes<0x80>,
+    pub shifted: PlainBuffer<0x80>,
     /// Its key names' table.
-    pub key_names: PlainBytes<0x100>,
+    pub key_names: PlainBuffer<0x100>,
     pub _unused_826c: PlainDword,
-    /// The axes' rest values (6 dwords, taken by `input::axis_moved`).
-    pub axes_rest: [PlainDword; 6],
 }
 
 impl Keyboard {
     pub const fn new() -> Self {
         use crate::memory::cells::ZeroCells;
-        use crate::memory::session::{PlainBytes, PlainDword, with_runs};
+        use crate::memory::session::{PlainDword, with_runs};
         Self {
-_built_in_layout: {
-let mut v: [PlainDword; 5] = ZeroCells::ZERO;
-v[1] = PlainDword::new(0x4F806C); // a game address nothing reads
-v[2] = PlainDword::new(0x4F80EC); // a game address nothing reads
-v[4] = PlainDword::new(0x4F816C); // a game address nothing reads
-v
-},
 silent_keys: {
 let mut v: [PlainDword; 4] = ZeroCells::ZERO;
 v[0] = PlainDword::new(0x20000000);
@@ -306,51 +303,49 @@ v[2] = PlainDword::new(96);
 v[3] = PlainDword::new(18);
 v
 },
-compose: PlainBytes::new(with_runs::<108>(&[(0, b"\x01a\xe1\xc1\x01e\xe9\xc9\x01i\xed\xcd\x01o\xf3\xd3\x01u\xfa\xda\x01y\xfd\xdd\x04a\xe0\xc0\x04e\xe8\xc8\x04i\xec\xcc\x04o\xf2\xd2\x04u\xf9\xd9\x02a\xe2\xc2\x02e\xea\xca\x02i\xee\xce\x02o\xf4\xd4\x02u\xfb\xdb\x06a\xe4\xc4\x06e\xeb\xcb\x06i\xef\xcf\x06o\xf6\xd6\x06u\xfc\xdc\x06y\x9f\xff\x03a\xe5\xc5\x05a\xe3\xc3\x05o\xf5\xd5\x05n\xf1\xd1")])),
-plain: PlainBytes::new(with_runs::<128>(&[(2, b"1234567890-=\x00\x00qwertyuiop[]\x00\x00asdfghjkl;'`\x00#zxcvbnm,./\x00*\x00 "), (74, b"-\x00\x00\x00+\x00\x00\x00\x00\x00\x00\x00\\"), (98, b"/")])),
-shifted: PlainBytes::new(with_runs::<128>(&[(2, b"!\"\xa3$%^&*()_+\x00\x00QWERTYUIOP{}\x00\x00ASDFGHJKL:@\xac\x00~ZXCVBNM<>?\x00*\x00 "), (71, b"789-456+1230.\x00\x00|"), (98, b"/")])),
-key_names: PlainBytes::new(with_runs::<256>(&[(2, b"\x05\x00\x06\x00\x07\x00\x08\x00\x09\x00\x0a\x00\x0b\x00\x0c\x00\x0d\x00\x0e\x00\x0f\x00\x10\x00\x11\x00\x12\x00\x13\x00\x14\x00\x15\x00\x16\x00\x17\x00\x18\x00\x19\x00\x1a\x00\x1b\x00\x1c\x00\x1d\x00\x1e\x00\x1f\x00 \x00!\x00\"\x00#\x00$\x00%\x00&\x00'\x00(\x00)\x00*\x00+\x00,\x00-\x00.\x00/\x000\x001\x002\x003\x004\x005\x006\x007\x008\x009\x00:\x00;\x00<\x00=\x00>\x00?\x00@\x00A\x00B\x00C\x00D\x00E\x00F\x00G\x00H\x00I\x00J\x00K\x00L\x00M\x00N\x00O\x00P\x00Q\x00R\x00S\x00T\x00U\x00V\x00W\x00X\x00\x00\x00Y\x00Z\x00["), (192, b"\\\x00]\x00^\x00_\x00`\x00a\x00b\x00c\x00d\x00e\x00f\x00g\x00h\x00i\x00j\x00\x00\x00k\x00l")])),
-..ZeroCells::ZERO
+compose: PlainBuffer::new(with_runs::<108>(&[(0, b"\x01a\xe1\xc1\x01e\xe9\xc9\x01i\xed\xcd\x01o\xf3\xd3\x01u\xfa\xda\x01y\xfd\xdd\x04a\xe0\xc0\x04e\xe8\xc8\x04i\xec\xcc\x04o\xf2\xd2\x04u\xf9\xd9\x02a\xe2\xc2\x02e\xea\xca\x02i\xee\xce\x02o\xf4\xd4\x02u\xfb\xdb\x06a\xe4\xc4\x06e\xeb\xcb\x06i\xef\xcf\x06o\xf6\xd6\x06u\xfc\xdc\x06y\x9f\xff\x03a\xe5\xc5\x05a\xe3\xc3\x05o\xf5\xd5\x05n\xf1\xd1")])),
+plain: PlainBuffer::new(with_runs::<128>(&[(2, b"1234567890-=\x00\x00qwertyuiop[]\x00\x00asdfghjkl;'`\x00#zxcvbnm,./\x00*\x00 "), (74, b"-\x00\x00\x00+\x00\x00\x00\x00\x00\x00\x00\\"), (98, b"/")])),
+shifted: PlainBuffer::new(with_runs::<128>(&[(2, b"!\"\xa3$%^&*()_+\x00\x00QWERTYUIOP{}\x00\x00ASDFGHJKL:@\xac\x00~ZXCVBNM<>?\x00*\x00 "), (71, b"789-456+1230.\x00\x00|"), (98, b"/")])),
+key_names: PlainBuffer::new(with_runs::<256>(&[(2, b"\x05\x00\x06\x00\x07\x00\x08\x00\x09\x00\x0a\x00\x0b\x00\x0c\x00\x0d\x00\x0e\x00\x0f\x00\x10\x00\x11\x00\x12\x00\x13\x00\x14\x00\x15\x00\x16\x00\x17\x00\x18\x00\x19\x00\x1a\x00\x1b\x00\x1c\x00\x1d\x00\x1e\x00\x1f\x00 \x00!\x00\"\x00#\x00$\x00%\x00&\x00'\x00(\x00)\x00*\x00+\x00,\x00-\x00.\x00/\x000\x001\x002\x003\x004\x005\x006\x007\x008\x009\x00:\x00;\x00<\x00=\x00>\x00?\x00@\x00A\x00B\x00C\x00D\x00E\x00F\x00G\x00H\x00I\x00J\x00K\x00L\x00M\x00N\x00O\x00P\x00Q\x00R\x00S\x00T\x00U\x00V\x00W\x00X\x00\x00\x00Y\x00Z\x00["), (192, b"\\\x00]\x00^\x00_\x00`\x00a\x00b\x00c\x00d\x00e\x00f\x00g\x00h\x00i\x00j\x00\x00\x00k\x00l")])),
+_unused_826c: PlainDword::new(0),
 }
     }
 }
 
 /// The mouse's position, clicks and buttons.
-#[derive(rc2k_derive::Cells)]
 pub struct Mouse {
     /// The mouse's x and y (signed).
-    pub x: PlainDword,
-    pub y: PlainDword,
+    pub x: Cell<u32>,
+    pub y: Cell<u32>,
     /// Last frame's x and y.
-    pub last_x: PlainDword,
-    pub last_y: PlainDword,
+    pub last_x: Cell<u32>,
+    pub last_y: Cell<u32>,
     /// The left and right clicks.
-    pub left_click: PlainDword,
-    pub right_click: PlainDword,
+    pub left_click: Cell<u32>,
+    pub right_click: Cell<u32>,
     /// The buttons' bits (bit 0 left, bit 1 right).
-    pub buttons: PlainDword,
-    pub left_button: PlainDword,
-    pub right_button: PlainDword,
+    pub buttons: Cell<u32>,
+    pub left_button: Cell<u32>,
+    pub right_button: Cell<u32>,
 }
 
 impl Mouse {
     pub const fn new() -> Self {
         Mouse {
-            x: PlainDword::new(0),
-            y: PlainDword::new(0),
-            last_x: PlainDword::new(0),
-            last_y: PlainDword::new(0),
-            left_click: PlainDword::new(0),
-            right_click: PlainDword::new(0),
-            buttons: PlainDword::new(0),
-            left_button: PlainDword::new(0),
-            right_button: PlainDword::new(0),
+            x: Cell::new(0),
+            y: Cell::new(0),
+            last_x: Cell::new(0),
+            last_y: Cell::new(0),
+            left_click: Cell::new(0),
+            right_click: Cell::new(0),
+            buttons: Cell::new(0),
+            left_button: Cell::new(0),
+            right_button: Cell::new(0),
         }
     }
 }
 
 /// The force-feedback effects' clock, surface kinds and constants.
-#[derive(rc2k_derive::Cells)]
 pub struct ForceFeedback {
     /// The force-feedback effects' last clock.
     pub last_time: Dword,
@@ -359,15 +354,15 @@ pub struct ForceFeedback {
     /// The effects run in a race.
     pub race_on: Dword,
     /// A surface's effect kind, 16 of them.
-    pub surface_effect_kinds: [Dword; 16],
+    pub surface_effect_kinds: [u32; 16],
     /// 10.0.
-    pub effect_ten: Float,
+    pub effect_ten: ConstFloat,
     /// 162.97.
-    pub effect_angle_scale: Float,
+    pub effect_angle_scale: ConstFloat,
     /// 256.0.
-    pub effect_full: Float,
+    pub effect_full: ConstFloat,
     /// 0.1.
-    pub effect_tenth: Float,
+    pub effect_tenth: ConstFloat,
 }
 
 impl ForceFeedback {
@@ -377,28 +372,26 @@ impl ForceFeedback {
             rate: Dword::new(0),
             steps: Dword::new(0),
             race_on: Dword::new(0),
-            surface_effect_kinds: [
-                Dword::new(0),
-                Dword::new(1),
-                Dword::new(2),
-                Dword::new(3),
-                Dword::new(6),
-                Dword::new(9),
-                Dword::new(4),
-                Dword::new(0xD),
-                Dword::new(0xC),
-                Dword::new(8),
-                Dword::new(0xA),
-                Dword::new(7),
-                Dword::new(0xB),
-                Dword::new(0),
-                Dword::new(0),
-                Dword::new(0),
-            ],
-            effect_ten: Float::new(10.0),
-            effect_angle_scale: Float::new(162.97466),
-            effect_full: Float::new(256.0),
-            effect_tenth: Float::new(0.1),
+            surface_effect_kinds: [0, 1, 2, 3, 6, 9, 4, 0xD, 0xC, 8, 0xA, 7, 0xB, 0, 0, 0],
+            effect_ten: ConstFloat::new(10.0),
+            effect_angle_scale: ConstFloat::new(162.97466),
+            effect_full: ConstFloat::new(256.0),
+            effect_tenth: ConstFloat::new(0.1),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The row the surface effect falls back to with the engine's vibration off shakes with no
+    /// magnitude at either end of the speed blend and has periods to blend (a period of 0 is a
+    /// division the effect refuses).
+    #[test]
+    fn the_silent_row_has_no_magnitude() {
+        let row = EFFECT_ROWS[rc2k_core::input::feedback::SILENT_KIND as usize];
+        assert_eq!((row[0], row[2]), (0, 0));
+        assert!(row[1] != 0 && row[3] != 0);
     }
 }

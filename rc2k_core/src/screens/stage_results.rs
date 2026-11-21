@@ -1,4 +1,4 @@
-//! The time trial stage results page: ten rows of name, result and rank with the car's and
+//! The time trial stage results page: up to ten rows of name, result and rank with the car's and
 //! flag's sprites, then the fastest line.
 
 use crate::Invalid;
@@ -20,14 +20,8 @@ pub enum Font {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// The rank.
-    Rank,
-    /// The seal code's y.
-    Scratch,
     /// The first row's time.
     FirstTime,
-    /// A row's gap.
-    Gap,
     /// The row's y after its rank.
     RowY,
 }
@@ -61,7 +55,7 @@ pub fn stage_results<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     seal_mode: bool,
     show_hours: bool,
-    rows: &[Entry<S::Text>; 10],
+    rows: &[Entry<S::Text>],
     seal_code: &mut dyn FnMut(u32, u32) -> Vec<u8>,
     fastest: &Fastest<S::Text>,
 ) -> Result<(), S::Error> {
@@ -69,14 +63,12 @@ pub fn stage_results<S: Screen<Font = Font, Work = Work>>(
     let mut first = 0;
     for (n, e) in rows.iter().enumerate() {
         let rank = n as u32 + 1;
-        s.keep(Work::Rank, rank);
         y = s.text(Font::Rows, e.name, 0xF0, y)?.y;
         if seal_mode {
             let code = seal_code(e.seal.0, e.seal.1);
             if code.is_empty() {
                 return Err(Invalid("an empty seal code").into());
             }
-            s.keep(Work::Scratch, y as u32);
             for (n, &c) in code.iter().enumerate() {
                 s.store(Buffer::Cells, &[c, 0, 0, 0])?;
                 s.draw(Font::Small, Buffer::Cells, 0x20A + 0xE * n as i32, y)?;
@@ -88,7 +80,6 @@ pub fn stage_results<S: Screen<Font = Font, Work = Work>>(
                 s.keep(Work::FirstTime, first);
             } else {
                 let gap = e.time.wrapping_sub(first);
-                s.keep(Work::Gap, gap);
                 y = s.string(Font::Rows, 0x579, 0x276, y)?.y;
                 s.time_line(Font::Small, &time(gap, show_hours), 0x2EE, y)?;
             }
@@ -182,7 +173,7 @@ mod tests {
 
     #[test]
     fn page() {
-        let rows = std::array::from_fn(|n| Entry {
+        let rows: [Entry<u32>; 10] = std::array::from_fn(|n| Entry {
             name: n as u32,
             nation: n as u32,
             car: 0x19,
@@ -205,14 +196,32 @@ mod tests {
             &fastest,
         )
         .unwrap();
-        assert_eq!(s.0[1], "Rows n0 0xf0 0xf0");
-        assert!(s.0.contains(&"keep Gap 100".to_string()));
+        assert_eq!(s.0[0], "Rows n0 0xf0 0xf0");
         assert!(s.0.contains(&"sprite 0x5c 0x1cc 0xf1".to_string()));
         assert_eq!(s.0.last().unwrap(), "Rows \"99\\0\" 0x262 0x1f1");
         let mut s = Record::default();
         let mut code = |a: u32, _| format!("C{a}").into_bytes();
         stage_results(&mut s, true, false, &rows, &mut code, &fastest).unwrap();
-        assert_eq!(s.0[3], "Small \"C\\0\\0\\0\" 0x20a 0xf1");
-        assert_eq!(s.0[4], "Small \"0\\0\\0\\0\" 0x218 0xf1");
+        assert_eq!(s.0[1], "Small \"C\\0\\0\\0\" 0x20a 0xf1");
+        assert_eq!(s.0[2], "Small \"0\\0\\0\\0\" 0x218 0xf1");
+        // A list that ends early: its rows, then the fastest line.
+        let mut s = Record::default();
+        stage_results(
+            &mut s,
+            false,
+            false,
+            &rows[..2],
+            &mut |_, _| unreachable!(),
+            &fastest,
+        )
+        .unwrap();
+        assert_eq!(
+            s.0.iter()
+                .filter(|l| l.starts_with("sprite 0x5c 0x1cc"))
+                .count(),
+            2
+        );
+        assert!(!s.0.iter().any(|l| l.contains("n2 ")));
+        assert_eq!(s.0.last().unwrap(), "Rows \"99\\0\" 0x262 0x1f1");
     }
 }

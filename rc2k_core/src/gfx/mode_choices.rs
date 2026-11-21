@@ -7,7 +7,7 @@
 //! third choice's bits.
 
 /// The most modes the list holds.
-pub const ROOM: u32 = 16;
+pub const ROOM: u32 = 64;
 /// The limit on a size's place taken; a place past the list reads 16 x the place beyond it
 /// (kept).
 pub const PLACE_LIMIT: u32 = 0x1000;
@@ -55,12 +55,18 @@ pub fn third_key(race_mode: u32) -> u32 {
     race_mode & 0xF_0000
 }
 
-/// The size's place of the mode in use (`current`, by its low 12 bits; 0 when none matches). The
+/// The bits that tell one listed mode from another: the size and pixel kind (the low 12 bits) and
+/// the number of a size beyond the game's table (the top byte, see `CUSTOM_SHIFT`).
+pub const SAME_SIZE: u32 = 0xFF00_0FFF;
+/// Where a mode with a size beyond the game's table holds that size's number (from 1).
+pub const CUSTOM_SHIFT: u32 = 24;
+
+/// The size's place of the mode in use (`current`, by its size bits; 0 when none matches). The
 /// caller stores it and then `race_place`'s result over it.
 pub fn in_use_place(modes: &[u32], current: u32) -> u32 {
     modes
         .iter()
-        .position(|&m| (m ^ current) & 0xFFF == 0)
+        .position(|&m| (m ^ current) & SAME_SIZE == 0)
         .unwrap_or(0) as u32
 }
 
@@ -68,7 +74,10 @@ pub fn in_use_place(modes: &[u32], current: u32) -> u32 {
 /// from its table (`third`, asked only when found: the entry's value less 1, not below 0);
 /// not found, both 0.
 pub fn race_place(modes: &[u32], race_mode: u32, third: impl FnOnce() -> u32) -> (u32, u32) {
-    match modes.iter().position(|&m| m & 0xFFF == race_mode & 0xFFF) {
+    match modes
+        .iter()
+        .position(|&m| m & SAME_SIZE == race_mode & SAME_SIZE)
+    {
         Some(n) => (n as u32, (third() as i32).wrapping_sub(1).max(0) as u32),
         None => (0, 0),
     }

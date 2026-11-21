@@ -5,8 +5,8 @@
 //! five builds with `gfx::build_glyphs`, a new table for each: `files\d\fnt\pal_00.pcx` (a sheet
 //! without glyphs: its palette becomes the 256 pixels at the palettes' place, and is kept as
 //! components at `palette_sheet`), `fnt13_00.pcx`, `fnt21_00.pcx`, `fnt23_00.pcx`, `fnt27_00.pcx`;
-//! `end_glyph_tables`. Then 125 stores: each font object's palette (+0x14: the palettes' place plus
-//! the offset of its sixteen colours) and glyph table (+0x18), as listed in `HUNG`. A font that
+//! `end_glyph_tables`. Then 125 stores: each font object's `palette` (the palettes' place plus
+//! the offset of its sixteen colours) and `glyph_table`, as listed in `HUNG`. A font that
 //! measures (mode 4) gets a palette too, which `text::draw_text` then uses as its line counter. A
 //! refusal from one of the steps leaves the work half done; none can come with the game's own
 //! files.
@@ -18,11 +18,10 @@ use crate::gfx::glyph_tables::{
     begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
 };
 use crate::gfx::owner::Gfx;
-use crate::memory::cells::Store;
-use crate::memory::session::PlainDword;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
 use crate::strings::owner::Strings;
 use crate::system::owner::System;
+use std::cell::Cell;
 
 /// The variables a store of `HUNG` reads: `FONTS.palettes` (FontBlock.palettes: 256 pixels, the
 /// fonts' palettes; 0 = the fonts are not built) and the four glyph tables' places.
@@ -36,7 +35,7 @@ enum Source {
 }
 
 impl Source {
-    fn cell(self, gfx: &Gfx) -> &PlainDword {
+    fn cell(self, gfx: &Gfx) -> &Cell<u32> {
         let fonts = &gfx.fonts;
         match self {
             Source::Palettes => &fonts.font_block.palettes,
@@ -47,9 +46,8 @@ impl Source {
         }
     }
 }
-const PALETTE_BYTES: usize = 0x400;
 /// The four font sheets and where each one's table is kept.
-fn font_sheets(gfx: &Gfx) -> [(&'static [u8], &PlainDword); 4] {
+fn font_sheets(gfx: &Gfx) -> [(&'static [u8], &Cell<u32>); 4] {
     let fonts = &gfx.fonts;
     use crate::gfx::texts::{FNT13, FNT21, FNT23, FNT27};
     [
@@ -226,9 +224,15 @@ fn tables(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> 
     gfx.fonts.font_block.font27_glyphs.set(vars.table.get());
     palette_to_pixels(palettes.get(), gfx, system)?;
     // The palette sheet is a copy of the decoder's palette (256 dwords).
-    let mut palette = [0u8; PALETTE_BYTES];
-    gfx.pictures.decoder.palette.load(0, &mut palette)?;
-    gfx.fonts.font_block.palette_sheet.store(0, &palette)?;
+    for (sheet, decoded) in gfx
+        .fonts
+        .font_block
+        .palette_sheet
+        .iter()
+        .zip(&gfx.pictures.decoder.palette)
+    {
+        sheet.set(decoded.get());
+    }
     for (sheet, kept) in font_sheets(gfx) {
         begin_glyph_table(&gfx.fonts, vars, list)?;
         build_glyphs(vars, sheet, list, gfx, system, strings)?;
@@ -240,9 +244,9 @@ fn tables(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> 
 
 /// 0x400 bytes carved off `list` for a palette: its place in `gfx::glyph_store`, or 0 when the list
 /// has no room.
-pub fn palette_place(
+pub(super) fn palette_place(
     fonts: &crate::gfx::owner::FontStores,
-    list: &crate::memory::ListCells,
+    list: &crate::memory::PlainList,
 ) -> Result<u32, Refused> {
     Ok(match take_from_list(list, 0x400)? {
         Some(_) => crate::gfx::glyph_store::new_palette(fonts, list)?,
@@ -257,7 +261,7 @@ fn hung_value(gfx: &Gfx, variable: Source, plus: u32) -> u32 {
 
 /// Builds the fonts the caller's owners hold.
 pub fn build_fonts_in(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> {
-    if gfx.fonts.font_block.palettes.is_set() {
+    if gfx.fonts.font_block.palettes.get() != 0 {
         return Err(FatalError {
             code: 0x80A4_8020,
             message: "",

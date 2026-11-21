@@ -26,7 +26,7 @@ fn first_car(race: &Race) -> &Car {
 const ERROR_ENTRIES: usize = 0x100;
 const GROUP_COUNT: usize = 32;
 /// The lights' table: 0x22 models of 12 lights of 3 dwords.
-const LIGHTS_LEN: usize = 0x1320;
+const LIGHTS_LEN: usize = crate::race::lights_store::LIGHTS_BYTES;
 const VIEW_NAMES: [&str; 52] = [
     "bumper",
     "bonnet",
@@ -124,23 +124,18 @@ static SUN: AtomicBool = AtomicBool::new(false);
 /// The last place kept.
 static KEPT: Mutex<usize> = Mutex::new(0);
 
-/// The game's own cell of group `g`'s entry in the car's face table (the first of a table the
-/// face code indexes by group, on past its one named cell).
-fn group_cell(scene: &Scene, g: usize) -> &crate::memory::session::PlainDword {
-    let switches = scene.draw_switches.get();
-    match g.checked_sub(1) {
-        None => &switches.group_table,
-        Some(k) => &switches.unknown_38[k],
-    }
+/// Group `g`'s entry in the car's face table, to write in the scene's draw switches.
+fn set_group(scene: &Scene, g: usize, value: u32) {
+    scene.draw_switches_mut().group_table[g] = value;
 }
 
 /// The error list's dword `offset` bytes into entry `n`.
 fn kept(race: &Race, n: usize, offset: usize) -> u32 {
-    race.frame.error_list().list.get_u32(0x20 * n + offset)
+    race.frame.error_list().get_u32(0x20 * n + offset)
 }
 
 fn set_kept(race: &Race, n: usize, offset: usize, v: u32) {
-    race.frame.error_list().list.set_u32(0x20 * n + offset, v);
+    race.frame.error_list_mut().set_u32(0x20 * n + offset, v);
 }
 
 /// The fixed-point (16.16) figure with a drag; true when changed.
@@ -186,18 +181,17 @@ pub fn tab(race: &Race, scene: &Scene, ui: &Ui) {
         if ui.checkbox("Mark the sun's point on the screen", &mut on) {
             SUN.store(on, Relaxed);
         }
+        let sun = *scene.scratch.main_view(0).polygon.sun.borrow();
         ui.text(format!(
             "On the screen: {}; at ({}, {})",
-            scene.scratch.main_view(0).polygon.sun.on_screen.get(),
-            scene.scratch.main_view(0).polygon.sun.hit[0].get() as i32,
-            scene.scratch.main_view(0).polygon.sun.hit[1].get() as i32
+            sun.on_screen, sun.hit[0] as i32, sun.hit[1] as i32
         ));
     }
 }
 
 /// The mode value itself: only 5 and 8 change what the game draws.
 fn mode_choice(shared: &RaceShared, ui: &Ui) {
-    let now = shared.switches.get().mask_kind.get();
+    let now = shared.switches.borrow().mask_kind;
     ui.text("The game's own mode:");
     for (name, mode) in [
         ("Off", 0),
@@ -206,7 +200,7 @@ fn mode_choice(shared: &RaceShared, ui: &Ui) {
     ] {
         ui.same_line();
         if ui.radio_button_bool(name, now == mode) {
-            shared.switches.get().mask_kind.set(mode);
+            shared.switches.borrow_mut().mask_kind = mode;
         }
     }
 }
@@ -215,20 +209,19 @@ fn mode_choice(shared: &RaceShared, ui: &Ui) {
 fn groups(scene: &Scene, ui: &Ui) {
     ui.text_disabled("Takes effect with the game's mode at 5; all start unticked (no car)");
     if ui.button("Tick all") {
-        (0..GROUP_COUNT).for_each(|g| group_cell(scene, g).set(1));
+        (0..GROUP_COUNT).for_each(|g| set_group(scene, g, 1));
     }
     ui.same_line();
     if ui.button("Untick all") {
-        (0..GROUP_COUNT).for_each(|g| group_cell(scene, g).set(0));
+        (0..GROUP_COUNT).for_each(|g| set_group(scene, g, 0));
     }
     for g in 0..GROUP_COUNT {
         if g % 8 != 0 {
             ui.same_line();
         }
-        let cell = group_cell(scene, g);
-        let mut on = cell.get() != 0;
+        let mut on = scene.draw_switches().group_table[g] != 0;
         if ui.checkbox(format!("{g:2}"), &mut on) {
-            cell.set(u32::from(on));
+            set_group(scene, g, u32::from(on));
         }
     }
 }
@@ -258,7 +251,7 @@ fn camera(race: &Race, ui: &Ui) {
     }
 }
 
-/// Mode 7: the places kept: 0x20 bytes each: view, x, y, z, heading, .. in use at +0x1C.
+/// Mode 7: the places kept: each with its view, x, y, z, heading, .. and an in-use flag.
 fn kept_places(race: &Race, ui: &Ui) {
     let mut last = KEPT
         .lock()
@@ -268,8 +261,8 @@ fn kept_places(race: &Race, ui: &Ui) {
         if let Some(n) = (0..ERROR_ENTRIES).find(|&n| kept(race, n, 0x1C) == 0) {
             let car = first_car(race);
             set_kept(race, n, 0, car.camera_view.get());
-            for (k, place) in car.position.iter().enumerate() {
-                set_kept(race, n, 4 + 4 * k, place.get());
+            for (k, place) in car.position.bits().into_iter().enumerate() {
+                set_kept(race, n, 4 + 4 * k, place);
             }
             set_kept(race, n, 0x10, car.car_heading.get());
             set_kept(race, n, 0x1C, 1);
@@ -292,8 +285,8 @@ fn kept_places(race: &Race, ui: &Ui) {
         if ui.button("Go") {
             // The car put there.
             let car = first_car(race);
-            for (k, place) in car.position.iter().enumerate() {
-                place.set(kept(race, n, 4 + 4 * k));
+            for k in 0..3 {
+                car.position.set_bits_at(k, kept(race, n, 4 + 4 * k));
             }
             car.car_heading.set(kept(race, n, 0x10));
             car.camera_view.set(kept(race, n, 0));
@@ -327,7 +320,7 @@ fn lights(race: &Race, ui: &Ui) {
     }
     ui.text_disabled("One place a pair: the left light is the right's x negated");
     // The model's table is 0x22 models long; a model past it shows nothing.
-    let table = &race.course.lights_data().lights;
+    let table = &mut race.course.lights_table_mut();
     let base = (kind * 12 + light) * 12;
     for (k, label) in ["xoff", "yoff", "zoff"].iter().enumerate() {
         let at = base + 4 * k;
@@ -338,13 +331,15 @@ fn lights(race: &Race, ui: &Ui) {
             table.set_u32(at, v as u32);
         }
         // The place where `car_light_flares` reads it.
-        frame.frame_work.get().part_place[k].set(if readable { table.get_u32(at) } else { 0 });
+        frame.frame_work.borrow_mut().part_place[k] = if readable { table.get_u32(at) } else { 0 };
     }
 }
 
 /// A checkpoint's place: the first point of its face.
 fn checkpoint_place(race: &Race, n: usize) -> Option<[i32; 3]> {
-    let face = race.checkpoints().checkpoint_faces.get(n)?.get();
+    let face = race
+        .checkpoints()
+        .read(|t| t.checkpoint_faces.get(n).copied())?;
     let point = crate::race::course_places::face_field::<u32>(race.course.reads(), face, 4).ok()?;
     let place = crate::race::scene_points::point_number(
         race.course.reads(),
@@ -414,8 +409,8 @@ fn course_map(race: &Race, ui: &Ui) {
         .thickness(1.5)
         .build();
     let car = to(
-        f64::from(first_car(race).position[0].get() as i32),
-        f64::from(first_car(race).position[2].get() as i32),
+        f64::from(first_car(race).position.bits_at(0) as i32),
+        f64::from(first_car(race).position.bits_at(2) as i32),
     );
     list.add_circle(car, 4.0, [1.0, 0.2, 0.2, 1.0])
         .filled(true)
@@ -423,20 +418,20 @@ fn course_map(race: &Race, ui: &Ui) {
 }
 
 /// What goes over the picture (once a UI frame).
-pub fn over_picture(
+pub(super) fn over_picture(
     system: &crate::system::owner::System,
     scene: &crate::scene::owner::Scene,
     ui: &Ui,
 ) {
-    if !SUN.load(Relaxed) || scene.scratch.main_view(0).polygon.sun.on_screen.get() == 0 {
+    let sun = *scene.scratch.main_view(0).polygon.sun.borrow();
+    if !SUN.load(Relaxed) || sun.on_screen == 0 {
         return;
     }
     let [w, h] = ui.io().display_size();
-    let (width, height) = crate::platform::screen_size(system);
+    let (width, height) = crate::shell::frame::screen_size(system);
     let at = [
-        scene.scratch.main_view(0).polygon.sun.hit[0].get() as i32 as f32 * w / width.max(1) as f32,
-        scene.scratch.main_view(0).polygon.sun.hit[1].get() as i32 as f32 * h
-            / height.max(1) as f32,
+        sun.hit[0] as i32 as f32 * w / width.max(1) as f32,
+        sun.hit[1] as i32 as f32 * h / height.max(1) as f32,
     ];
     let size = ui.current_font_size() / 2.0;
     ui.get_foreground_draw_list()

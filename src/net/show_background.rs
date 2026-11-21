@@ -5,10 +5,10 @@ use crate::errors::Refused;
 use crate::net::lobby::{copy_picture, draw_string};
 
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
-pub fn show_background(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn show_background(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (gfx, system, net) = (o.gfx, o.system, o.net);
     crate::gfx::load_picture::load_picture_with(&crate::gfx::texts::CHATZONE, gfx, system)?;
-    crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
+    crate::gfx::convert_picture::convert_picture_now_in(gfx)?;
     gfx.pictures
         .picture
         .flags
@@ -32,6 +32,6 @@ pub fn show_background(o: crate::owners::Owners<'static>) -> Result<(), Refused>
         gfx,
     )?;
     copy_picture(gfx, system)?;
-    crate::platform::show_frame_now(o);
+    crate::shell::frame::show_frame_now(o);
     Ok(())
 }

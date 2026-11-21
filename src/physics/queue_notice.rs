@@ -35,7 +35,7 @@ pub fn store(car: &Car, was: &NoticeQueue, now: &NoticeQueue) {
     set_changed(&car.notice_count, was.count, now.count);
 }
 
-pub fn queue_notice(car: &Car, notice: u32, rank: u32, value: u32) -> Result<(), Refused> {
+pub(super) fn queue_notice(car: &Car, notice: u32, rank: u32, value: u32) -> Result<(), Refused> {
     let was = load(car);
     let mut q = was;
     q.queue(car.option_bits.get(), notice, rank, value)?;

@@ -13,7 +13,7 @@ use crate::memory::owned::Owned;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
 /// The buffer holds a whole screen: 800 x 600 pixels of four bytes.
-pub const PICTURE_DWORDS: usize = 0x75300;
+pub(super) const PICTURE_DWORDS: usize = 0x75300;
 
 /// The picture's width, height and row length set (`rc2k_core::gfx::picture_size`).
 pub fn set_size(pictures: &Pictures, size: rc2k_core::gfx::picture_size::PictureSize) {
@@ -91,7 +91,7 @@ fn owned(buffers: &PictureBuffers, handle: u32) -> Result<&Owned<Vec<u8>>, BadIn
 pub fn take(
     buffers: &PictureBuffers,
     which: Buffer,
-    list: &crate::memory::ListCells,
+    list: &impl crate::memory::HeldList,
     bytes: u32,
 ) -> Result<u32, Refused> {
     let memory = vec![0u8; crate::memory::owned::block_len(bytes)];
@@ -129,8 +129,8 @@ pub fn with_picture<R>(pictures: &Pictures, f: impl FnOnce(&mut [u8]) -> R) -> R
 }
 
 /// Whether a picture buffer is set (`PICTURE.buffer` not 0).
-pub fn has_picture(pictures: &Pictures) -> bool {
-    pictures.picture.buffer.is_set()
+pub(super) fn has_picture(pictures: &Pictures) -> bool {
+    pictures.picture.buffer.get() != 0
 }
 
 /// `len` bytes of buffer `handle` from byte `at`; refused past its end.
@@ -160,8 +160,22 @@ pub fn write_bytes(
     .ok_or(BadInput("a write past the picture buffer"))
 }
 
+/// `bytes` into a buffer's bytes at `at`; false (nothing written) past its end.
+pub fn put(buffer: &mut [u8], at: usize, bytes: &[u8]) -> bool {
+    match at
+        .checked_add(bytes.len())
+        .and_then(|end| buffer.get_mut(at..end))
+    {
+        Some(to) => {
+            to.copy_from_slice(bytes);
+            true
+        }
+        None => false,
+    }
+}
+
 /// `bytes` into a buffer's bytes at `at`, a decoder's write: past the end it ends the game.
-pub fn put_or_end(buffer: &mut [u8], at: usize, bytes: &[u8]) {
+pub(super) fn put_or_end(buffer: &mut [u8], at: usize, bytes: &[u8]) {
     match at
         .checked_add(bytes.len())
         .and_then(|end| buffer.get_mut(at..end))
@@ -182,7 +196,7 @@ mod tests {
     fn a_buffer_is_taken_read_and_given_back() {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         let list = &memory;
         let buffers = &PictureBuffers::new();
         let n = take(buffers, Buffer::Key, list, 0x100).unwrap();
@@ -202,7 +216,7 @@ mod tests {
     fn the_change_counter_moves_on_writes_and_not_on_reads() {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         let buffers = &PictureBuffers::new();
         let n = take(buffers, Buffer::Key, &memory, 0x100).unwrap();
         let before = generation(buffers, n).unwrap();
@@ -222,22 +236,57 @@ mod tests {
         crate::memory::with_figures(|f| *f = figures);
     }
 
+    /// The picture records' values and the registry's picture stores, kept to be put back: the
+    /// records are plain fields, so the registry does not walk them.
+    struct KeptPictureState {
+        decoder: Vec<u32>,
+        pcx: Vec<u32>,
+        picture: Vec<u32>,
+        png_file: Vec<u32>,
+        png_header: Vec<u32>,
+        planes: Vec<u8>,
+        registry: crate::test_support::state::Snapshot,
+    }
+
+    impl KeptPictureState {
+        fn take() -> Self {
+            let gfx = crate::test_support::own::gfx();
+            KeptPictureState {
+                decoder: gfx.pictures.decoder.values(),
+                pcx: gfx.pictures.pcx.values(),
+                picture: gfx.pictures.picture.values(),
+                png_file: gfx.png.file.values(),
+                png_header: gfx.png.header.values(),
+                planes: gfx.pictures.planes.read().to_vec(),
+                registry: crate::test_support::state::Snapshot::of(&[
+                    "owners.gfx.pictures.showing",
+                    "owners.gfx.png.setting",
+                ]),
+            }
+        }
+
+        fn restore(&self) {
+            let gfx = crate::test_support::own::gfx();
+            gfx.pictures.decoder.set_values(&self.decoder);
+            gfx.pictures.pcx.set_values(&self.pcx);
+            gfx.pictures.picture.set_values(&self.picture);
+            gfx.png.file.set_values(&self.png_file);
+            gfx.png.header.set_values(&self.png_header);
+            gfx.pictures
+                .planes
+                .write_at(0, &self.planes, "kept planes")
+                .unwrap();
+            self.registry.restore();
+        }
+    }
+
     #[test]
     fn a_pcx_file_is_decoded_into_the_picture_buffer() {
         let pictures = &crate::test_support::own::gfx().pictures;
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let kept = crate::test_support::state::Snapshot::of(&[
-            "owners.gfx.pictures.decoder",
-            "owners.gfx.pictures.pcx",
-            "owners.gfx.pictures.picture",
-            "owners.gfx.pictures.planes",
-            "owners.gfx.pictures.showing",
-            "owners.gfx.png.file",
-            "owners.gfx.png.header",
-            "owners.gfx.png.setting",
-        ]);
-        let memory = crate::memory::ListCells::empty();
+        let kept = KeptPictureState::take();
+        let memory = crate::memory::PlainList::empty();
         let list = &memory;
         pictures
             .picture
@@ -353,17 +402,8 @@ mod tests {
         let pictures = &crate::test_support::own::gfx().pictures;
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let kept = crate::test_support::state::Snapshot::of(&[
-            "owners.gfx.pictures.decoder",
-            "owners.gfx.pictures.pcx",
-            "owners.gfx.pictures.picture",
-            "owners.gfx.pictures.planes",
-            "owners.gfx.pictures.showing",
-            "owners.gfx.png.file",
-            "owners.gfx.png.header",
-            "owners.gfx.png.setting",
-        ]);
-        let memory = crate::memory::ListCells::empty();
+        let kept = KeptPictureState::take();
+        let memory = crate::memory::PlainList::empty();
         let list = &memory;
         pictures
             .picture
@@ -393,11 +433,8 @@ mod tests {
         let pictures = &crate::test_support::own::gfx().pictures;
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let kept = crate::test_support::state::Snapshot::of(&[
-            "owners.gfx.pictures.picture",
-            "owners.gfx.png.header",
-        ]);
-        let memory = crate::memory::ListCells::empty();
+        let kept = KeptPictureState::take();
+        let memory = crate::memory::PlainList::empty();
         let list = &memory;
         pictures
             .picture

@@ -13,7 +13,7 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, List, Screen, ScreenFlag, Step};
 
 fn set_first_item(menus: &Menus) -> Result<(), Refused> {
-    let title = if menus.screens.state.menus.which_title.is_set() {
+    let title = if menus.screens.state.read().menus.which_title {
         0x138
     } else {
         0x139
@@ -24,7 +24,7 @@ fn set_first_item(menus: &Menus) -> Result<(), Refused> {
         .overall_rally_results
         .id()
         .items(&menus.tables.menus)[0]
-        .string
+        .string_id()
         .set(title);
 
     Ok(())

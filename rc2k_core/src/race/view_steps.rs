@@ -43,7 +43,7 @@ pub fn mirror_on(on: u32, off: u32) -> bool {
 }
 
 /// The texture slots there are.
-pub const TEXTURE_SLOTS: u32 = 0x400;
+pub(crate) const TEXTURE_SLOTS: u32 = 0x400;
 
 /// Refused: a slot to forget outside the table.
 pub fn check_slots(slots: &[u32]) -> Result<(), Invalid> {
@@ -67,15 +67,12 @@ pub struct PictureCopy {
     pub from_pitch: u32,
     /// Bytes from a row's start to the next's in the destination.
     pub to_pitch: u32,
-    /// Two bytes a pixel in the source (else four).
-    pub from_16_bit: bool,
     /// Two bytes a pixel in the destination (else four).
     pub to_16_bit: bool,
 }
 
 /// What the copy reads and writes (pixels by place) and the formats' conversions.
 pub trait Surfaces {
-    fn read16(&mut self, at: u32) -> u16;
     fn read32(&mut self, at: u32) -> u32;
     fn write16(&mut self, at: u32, v: u16);
     fn write32(&mut self, at: u32, v: u32);
@@ -85,24 +82,17 @@ pub trait Surfaces {
     fn pixel(&mut self, components: u32) -> u32;
 }
 
-/// The mirror picture copy: each pixel taken apart, made opaque and put together in the
-/// destination's format. Kept slip: the last pixel's bits carry from pixel to pixel
-/// (`carried` first) and a 16-bit source pixel replaces only their low half.
-pub fn copy_picture(c: &PictureCopy, from: u32, to: u32, carried: u32, s: &mut impl Surfaces) {
+/// The mirror picture copy: each pixel of the source (the screen's, four bytes) taken apart,
+/// made opaque and put together in the destination's format.
+pub fn copy_picture(c: &PictureCopy, from: u32, to: u32, s: &mut impl Surfaces) {
     let (mut read_at, mut write_at) = (from, to);
-    let mut pixel = carried;
     for _ in 0..c.height {
         let (row_from, row_to) = (read_at, write_at);
         for _ in 0..c.width {
-            if c.from_16_bit {
-                pixel = (pixel & 0xFFFF_0000) | s.read16(read_at) as u32;
-                read_at = read_at.wrapping_add(2);
-            } else {
-                pixel = s.read32(read_at);
-                read_at = read_at.wrapping_add(4);
-            }
-            let components = s.components(pixel);
-            pixel = s.pixel(components | 0xFF00_0000);
+            let from = s.read32(read_at);
+            let components = s.components(from);
+            read_at = read_at.wrapping_add(4);
+            let pixel = s.pixel(components | 0xFF00_0000);
             if c.to_16_bit {
                 s.write16(write_at, pixel as u16);
                 write_at = write_at.wrapping_add(2);
@@ -240,9 +230,6 @@ mod tests {
     }
 
     impl Surfaces for Test {
-        fn read16(&mut self, at: u32) -> u16 {
-            u16::from_le_bytes([self.mem[at as usize], self.mem[at as usize + 1]])
-        }
         fn read32(&mut self, at: u32) -> u32 {
             u32::from_le_bytes(self.mem[at as usize..at as usize + 4].try_into().unwrap())
         }
@@ -270,21 +257,16 @@ mod tests {
             height: 2,
             from_pitch: 8,
             to_pitch: 8,
-            from_16_bit: true,
             to_16_bit: false,
         };
-        copy_picture(&c, 0, 32, 0xABCD_0000, &mut t);
-        // The first pixel: 0x0100 under 0xABCD's high half.
-        let first = (0xABCD_0100u32.rotate_left(8) | 0xFF00_0000) ^ 0x0F0F;
-        assert_eq!(t.read32(32), first);
-        // The second keeps the first's high half.
-        let second = (((first & 0xFFFF_0000) | 0x0302).rotate_left(8) | 0xFF00_0000) ^ 0x0F0F;
-        assert_eq!(t.read32(36), second);
+        copy_picture(&c, 0, 32, &mut t);
+        let made = |pixel: u32| (pixel.rotate_left(8) | 0xFF00_0000) ^ 0x0F0F;
+        assert_eq!(t.read32(32), made(0x0302_0100));
+        assert_eq!(t.read32(36), made(0x0706_0504));
         // The next row from its pitch: the source's 8th byte on.
-        let third = (((second & 0xFFFF_0000) | 0x0908).rotate_left(8) | 0xFF00_0000) ^ 0x0F0F;
-        assert_eq!(t.read32(40), third);
+        assert_eq!(t.read32(40), made(0x0B0A_0908));
         let untouched = t.mem.clone();
-        copy_picture(&PictureCopy { height: 0, ..c }, 4, 8, 0, &mut t);
+        copy_picture(&PictureCopy { height: 0, ..c }, 4, 8, &mut t);
         assert_eq!(t.mem, untouched);
     }
 }

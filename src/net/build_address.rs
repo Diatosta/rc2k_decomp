@@ -10,7 +10,11 @@ use crate::net::lobby::log_bytes;
 use crate::net::owner::Net;
 use crate::race::viewer_screen_store::{NetTexts, texts};
 use rc2k_core::net::address::{self, Provider};
-pub fn build_address(net: &Net, lines: &NetTexts, connection_number: u32) -> Result<bool, Refused> {
+pub(super) fn build_address(
+    net: &Net,
+    lines: &NetTexts,
+    connection_number: u32,
+) -> Result<bool, Refused> {
     let (vars, link) = (&net.vars, &net.link);
     log_bytes(&lines.text(texts::NET_DPCA), true, 2);
     if link.lobby() == 0 {
@@ -21,20 +25,10 @@ pub fn build_address(net: &Net, lines: &NetTexts, connection_number: u32) -> Res
     net.address().address.set(0);
     net.address().address_size.set(0);
     vars.receiver.posting.set(0);
-    let provider = address::provider(|which| -> Result<bool, Refused> {
-        let known = if which == Provider::Ipx {
-            &crate::net::store::SP_IPX
-        } else {
-            &crate::net::store::SP_TCPIP
-        };
-        Ok(*known == guid)
+    let provider = address::provider(|_| -> Result<bool, Refused> {
+        Ok(crate::net::store::SP_TCPIP == guid)
     })?;
     match provider {
-        Provider::Ipx => add_address_element(
-            net,
-            &crate::net::store::AID_SERVICE_PROVIDER,
-            &crate::net::store::SP_IPX,
-        ),
         Provider::TcpIp => {
             add_address_element(
                 net,

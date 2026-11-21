@@ -12,24 +12,27 @@ use crate::physics::step_families::CameraGroundInputs;
 
 /// One probe at (x, z) from the face kept at `slot`; true when found (the face found
 /// kept there).
-pub fn probe_at(
+pub(super) fn probe_at(
     c: &CameraGroundInputs<'_>,
     x: u32,
     z: u32,
     slot: &PlainDword,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
-    c.course.course.get().ground_face_last.set(slot.get());
-    c.ground.ground_x.set(x);
-    c.ground.ground_z.set(z);
+    {
+        let mut search = c.search.borrow_mut();
+        search.last = slot.get();
+        search.x = x;
+        search.z = z;
+    }
     {
         crate::physics::count_ground_probe::count_ground_probe(
-            c.camera, c.probe, c.ground, c.course, scene,
+            c.camera, c.probe, c.search, c.course,
         )
     }?;
-    if c.ground.ground_found.get() == 0 {
+    let search = c.search.borrow();
+    if search.found == 0 {
         return Ok(false);
     }
-    slot.set(c.course.course.get().ground_slot.get());
+    slot.set(search.slot);
     Ok(true)
 }

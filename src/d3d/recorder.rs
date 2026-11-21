@@ -16,6 +16,13 @@ struct Recording {
 }
 
 thread_local! {
+    #[cfg_attr(
+        target_os = "android",
+        allow(
+            clippy::missing_const_for_thread_local,
+            reason = "clippy reports an initializer that is already const when building for Android"
+        )
+    )]
     static RECORDING: RefCell<Option<Recording>> = const { RefCell::new(None) };
 }
 

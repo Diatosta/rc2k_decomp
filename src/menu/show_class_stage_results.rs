@@ -13,17 +13,17 @@ use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use rc2k_core::menu::results_pages::{Page, held_figure};
 
-pub fn show_class_stage_results(
+pub(super) fn show_class_stage_results(
     champ: &ChampView,
     event: &EventState,
     class: u32,
     entry: &Entry,
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
-    event.shown.class.set(class);
+    event.write().shown.class = class;
     let found = crate::menu::first_player_a::first_player_a(class, tables)?;
     let count = held_figure(Page::ClassStage, found.figure);
-    champ.rows.count.set(count);
+    champ.write().rows.count = count;
     crate::menu::first_page_stage::first_page_stage(champ);
     crate::menu::stage_range_caption::stage_range_caption(champ, &entry.menus.text_buffers)?;
     run_screen(ScreenId::ClassStageResults, entry)?;

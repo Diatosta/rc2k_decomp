@@ -26,6 +26,7 @@ pub struct TextureFormat {
     pub dd: [u32; 8],
 }
 
+crate::memory::cells::plain_record!(TextureFormat = 3 * 4 + 5 * 4 + 8 * 4);
 /// A texture's record, 0x78 bytes (the system and video textures).
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -52,6 +53,7 @@ pub struct TextureRecord {
     pub material_handle: u32,
 }
 
+crate::memory::cells::plain_record!(TextureRecord = (5 + 9 + 9 + 7) * 4);
 impl TextureRecord {
     /// The record's dwords, in the game's order.
     const fn words(&self) -> [u32; 30] {
@@ -100,7 +102,6 @@ impl TextureRecord {
 /// A texture record kept as dwords (a pool's cell): read and written whole as
 /// `Shared<TextureRecord>` was, through its cells.
 #[repr(transparent)]
-#[derive(rc2k_derive::Cells)]
 pub struct RecordCell([Dword; 30]);
 
 /// A record's dwords as a run.
@@ -203,7 +204,6 @@ impl TextureFormat {
 
 /// A pixel kind's description kept as dwords (as `RecordCell`).
 #[repr(transparent)]
-#[derive(rc2k_derive::Cells)]
 pub struct FormatCell([Dword; 16]);
 
 /// A description's dwords as a run.
@@ -241,7 +241,6 @@ impl FormatCell {
 
 /// A pool of texture records (the system's or the video's) and how many are made.
 #[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells)]
 pub struct Pool {
     /// The textures made (`Textures.system.count` / `Textures.video.count`), at most `TEXTURES`.
     pub count: Dword,
@@ -251,7 +250,6 @@ pub struct Pool {
 
 /// The 3D card's tables and the textures' records.
 #[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells)]
 pub struct Textures {
     /// 1 while the textures being made are of the alpha kind.
     pub alpha_kind: Dword,
@@ -311,7 +309,7 @@ const fn pool() -> Pool {
 /// A texture format by handle: `FORMAT_TAG | n` for `descriptions[n]`, 0 none.
 pub const FORMAT_TAG: u32 = 0xCC00_0000;
 /// The handle for `descriptions[index]`.
-pub const fn format_of(index: u32) -> u32 {
+const fn format_of(index: u32) -> u32 {
     assert!(index < 5);
     FORMAT_TAG | index
 }
@@ -417,7 +415,7 @@ impl<'a> Record<'a> {
         self.0.get()
     }
 
-    pub fn set_keeps_alpha(&self, keeps: u32) {
+    fn set_keeps_alpha(&self, keeps: u32) {
         self.0.update(|record| record.keeps_alpha = keeps);
     }
 
@@ -524,8 +522,8 @@ pub fn halvings_apart(
     .map_err(|which| fatal(codes[which as usize]))
 }
 
-/// With the record's +0x5C at 1: the second picture (`path`, 0 for none) read and copied `KEPT`
-/// bytes on, or, if there is none or it cannot be read, +0x5C made 0.
+/// With the record's `keeps_alpha` at 1: the second picture (`path`, 0 for none) read and copied
+/// `KEPT` bytes on, or, if there is none or it cannot be read, `keeps_alpha` made 0.
 pub fn keep_second_picture(
     record: &Record,
     path: Option<&dyn crate::memory::session::TextPlace>,

@@ -3,7 +3,7 @@
 //! turn (feed while playing; stopped after it: stop, and for the music the next tune); 3 the
 //! volume of what plays; any other plays (stop first if playing; nothing for a volume <= 0, for
 //! no music, and a stop for no path or tune). Music tunes: the file is the music path with the
-//! tune's two last digits at +0xE; tune 0xA is 10 + the tune turn for the first turn (counted on,
+//! tune's two last digits at byte 14; tune 0xA is 10 + the tune turn for the first turn (counted on,
 //! 0 .. 5) whose file exists. When a tune stops, the next tune is played, and it is never cleared
 //! there: the second tune repeats (kept). Fixed: a turn past 5 starts from 0, and after `RETRIES`
 //! plays in a row that stop at their first feed the music stops ("The music can hang the sound",
@@ -30,7 +30,7 @@ struct GamePlayer<'a> {
 #[derive(Clone, Copy)]
 enum StreamPath<'a> {
     /// The music's path buffer.
-    Music(&'a crate::memory::session::PlainBytes<24>),
+    Music(&'a crate::memory::plain_buffer::PlainBuffer<24>),
     /// A sample name in the sound set (its text, read from the names' table).
     Name(&'a [u8]),
 }
@@ -38,7 +38,9 @@ enum StreamPath<'a> {
 impl StreamPath<'_> {
     fn text(self) -> Result<Vec<u8>, crate::errors::BadInput> {
         match self {
-            StreamPath::Music(field) => crate::files::cstring(field, "a stream's path"),
+            StreamPath::Music(field) => {
+                crate::memory::session::TextPlace::text(field, "a stream's path")
+            }
             StreamPath::Name(text) => Ok(text.to_vec()),
         }
     }
@@ -74,8 +76,7 @@ impl rc2k_core::audio::streams::Player for GamePlayer<'_> {
         self.with(|s| feed_stream(state, s)).map(|_| ())
     }
     fn stop(&mut self) -> Result<(), Refused> {
-        let state = self.state;
-        self.with(|s| stop_stream(state, s))
+        self.with(stop_stream)
     }
     fn apply_volume(&mut self) -> Result<(), Refused> {
         set_stream_volume(self.state, &self.player.get())
@@ -91,11 +92,12 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer<'_> {
         }
     }
     fn exists(&mut self) -> Result<bool, Refused> {
-        let path = crate::files::cstring(&self.state.music_path, "a tune's path")?;
+        let path =
+            crate::memory::session::TextPlace::text(&self.state.music_path, "a tune's path")?;
         Ok(crate::files::file_exists::file_exists(&path)?)
     }
     fn gave_up(&mut self, tune: u32) {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "audio: tune {tune:#x}: {} plays in a row stopped at their first feed; the music stopped",
             rc2k_core::audio::streams::RETRIES
         ));
@@ -103,7 +105,7 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer<'_> {
 }
 
 /// `audio::stream_command` on the player at `player`. `name` is the sample name's key
-/// (`audio::store::name_key`), 0 with none (a stop).
+/// (`SampleName::key`), 0 with none (a stop).
 pub fn stream_command(
     audio: &AudioThread,
     name: u32,
@@ -112,7 +114,10 @@ pub fn stream_command(
 ) -> Result<(), Refused> {
     let text = match name {
         0 => None,
-        _ => Some(crate::audio::store::name_in(&audio.sample_names, name)?),
+        _ => Some(crate::audio::sample_records::name_in(
+            &audio.sample_names,
+            name,
+        )?),
     };
     let path = text.as_deref().map(StreamPath::Name);
     let mut p = GamePlayer {

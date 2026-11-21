@@ -59,7 +59,12 @@ fn with_gui<T>(f: impl FnOnce(&mut Gui) -> T) -> Option<T> {
         if gui.is_none() {
             let mut context = Context::create();
             // In the game's `var` folder, beside its other saved files.
-            let ini = crate::platform::beside_log("var").join("imgui.ini");
+            let ini =
+                crate::platform::beside_log(&crate::files::instance::path(b"var").map_or_else(
+                    || "var".to_string(),
+                    |p| String::from_utf8_lossy(&p).replace('\\', "/"),
+                ))
+                .join("imgui.ini");
             let _ = context.set_ini_filename(Some(ini));
             let io = context.io_mut();
             io.set_config_flags(io.config_flags() | ConfigFlags::DOCKING_ENABLE);
@@ -72,9 +77,7 @@ fn with_gui<T>(f: impl FnOnce(&mut Gui) -> T) -> Option<T> {
             let consumer = match context.create_synchronous_renderer_consumer() {
                 Ok(consumer) => consumer,
                 Err(why) => {
-                    crate::logfile::program_log::log(&format!(
-                        "debug: ImGui has no renderer: {why}"
-                    ));
+                    crate::program_log::log(&format!("debug: ImGui has no renderer: {why}"));
                     return None;
                 }
             };
@@ -170,6 +173,19 @@ pub fn event(event: &SDL_Event) -> bool {
     .unwrap_or(false)
 }
 
+/// The window's renderer is about to be destroyed (the 3D's renderer is swapped): the UI's
+/// textures are destroyed with it and the UI is made again, on the new one, when it is next
+/// drawn.
+pub fn renderer_going() {
+    GUI.with(|gui| {
+        if let Some(gui) = gui.borrow_mut().take() {
+            for (_, texture) in gui.textures {
+                texture.sdl.destroy();
+            }
+        }
+    });
+}
+
 /// The debug UI drawn on `renderer` (after the game's frame, before the present).
 pub fn draw(owners: &crate::owners::Owners<'static>, renderer: Renderer, window: Window) {
     let open = OPEN.load(Ordering::Relaxed);
@@ -209,7 +225,7 @@ pub fn draw(owners: &crate::owners::Owners<'static>, renderer: Renderer, window:
         crate::debug::ui::build(owners, frame.ui());
         let pending = frame.render(&gui.consumer);
         if let Err(why) = render(&mut gui.textures, renderer, pending) {
-            crate::logfile::program_log::log(&format!("debug: the UI not drawn: {why}"));
+            crate::program_log::log(&format!("debug: the UI not drawn: {why}"));
         }
     });
 }
@@ -302,6 +318,11 @@ fn render(
         .reconcile_texture_feedback(feedback)
         .map_err(|e| e.to_string())?;
     let data = frame.draw_data();
+    // The textures by the number ImGui carries for each: a draw command names one of them.
+    let by_id: HashMap<u64, &SdlTexture> = textures
+        .values()
+        .map(|texture| (texture.sdl.id(), &texture.sdl))
+        .collect();
     let origin = data.display_pos();
     let scale = data.framebuffer_scale();
     for list in data.draw_lists() {
@@ -350,15 +371,17 @@ fn render(
             if first >= vertices.len() {
                 return Err("a draw command past its vertices".into());
             }
+            // Zero is "no texture"; any other number must be one of ours.
+            let id = cmd_params.texture_id.id();
+            let texture = if id == 0 {
+                None
+            } else if let Some(&texture) = by_id.get(&id) {
+                Some(texture)
+            } else {
+                return Err("a draw command names a texture that was not made".into());
+            };
             renderer.set_clip_rect(Some(&clip));
-            renderer.draw_geometry(
-                cmd_params.texture_id.id(),
-                &xy,
-                &colours,
-                vertices,
-                first,
-                index,
-            );
+            renderer.draw_geometry(texture, &xy, &colours, vertices, first, index);
         }
     }
     renderer.set_clip_rect(None);

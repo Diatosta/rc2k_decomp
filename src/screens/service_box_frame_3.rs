@@ -5,7 +5,7 @@ use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::screens::service_boxes::{ORANGE, cell_frame};
 
-pub fn service_box_frame_3(o: Owners<'static>) -> Result<(), Refused> {
+pub(super) fn service_box_frame_3(o: Owners<'static>) -> Result<(), Refused> {
     let installed = o.menus.service.setups[1].installed.get();
     if installed < 6 {
         cell_frame(o, 0x193, 0x37, installed, ORANGE)?;

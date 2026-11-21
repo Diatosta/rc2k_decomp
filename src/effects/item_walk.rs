@@ -18,7 +18,7 @@ pub struct Walk {
 /// until `is_free` (given an item's offset) says yes. The cursor steps by whole items (only
 /// its own writes move it); one off that grid is refused as `off_grid`, as it would read past
 /// the items.
-pub fn walk_to_free(
+pub(super) fn walk_to_free(
     mut cursor: u32,
     items: u32,
     item_len: u32,

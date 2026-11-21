@@ -5,7 +5,7 @@
 //!
 //! The face's see-through value starts at 0x100, then five tests (in
 //! `rc2k_core::scene::face_tests::dropped`) can each drop the face ("its group" is the low
-//! five bits of the face's byte +7):
+//! five bits of the face's `group`):
 //! 1. Only outside a race: the object's kind is looked for among the known object kinds,
 //!    as an entry or as an entry plus 1 (`scene::find_object_kind`); if it is there, two
 //!    group numbers of that kind's light record become the hidden groups, and a face of
@@ -16,19 +16,18 @@
 //!    set in the second mask; then by which group it is: the lone group is dropped while its
 //!    mask is off, the hidden groups while `groups_which` is 1, the other groups while it
 //!    is 0.
-//! 3. A face with bits 2 or 3 of its byte +8 set, while the object is fading: dropped if
+//! 3. A face with bits 2 or 3 of its `flags` set, while the object is fading: dropped if
 //!    the fade value is 0, else that is its see-through value.
-//! 4. A face of kind (byte +6) 0x1C is dropped outside a race, or if its byte +0xB is 0 or
+//! 4. A face of `kind` 0x1C is dropped outside a race, or if its `extra` is 0 or
 //!    above 6, or if the wake count of that car part is 0x80000000 or under 10; a face of
-//!    another kind than 0 is dropped unless its byte +0xB is the kind byte the car's marks
+//!    another kind than 0 is dropped unless its `extra` is the kind byte the car's marks
 //!    hold for it (`scene::car_marks`).
 //! 5. Dropped if `scene::face_faces_away`.
 //!
-//! A face that is left and has a vertex gets its key (`scene::face_sort_key`) and the next
-//! entry of the list: its number, the key plus bit 30 unless bit 0 of its byte +8 is set,
-//! the polygon's `entry_third` and the see-through value. One caller, `scene::list_object_faces`.
-//! Refuses an object's number or a list's length past their tables, no block for kind 0x1C,
-//! and what its parts refuse.
+//! A face that is left and has a vertex gets its key (`scene::face_sort_key`) and the next entry of
+//! the list: its number, the key plus bit 30 unless bit 0 of its `flags` is set, the polygon's
+//! `entry_third` and the see-through value. Refuses an object's number or a list's length past
+//! their tables, no block for kind 0x1C, and what its parts refuse.
 
 use crate::errors::{BadInput, Refused};
 use crate::scene::face_faces_away::face_faces_away;
@@ -55,82 +54,80 @@ struct GameFace<'a>(
 
 impl FaceWorld for GameFace<'_> {
     fn in_race(&self) -> bool {
-        self.7.numbers.in_race.is_set()
+        self.7.number_vars.in_race()
     }
     fn object(&self) -> u32 {
-        self.4.object_number.get()
+        self.4.borrow().object_number
     }
     fn object_kind(&self, object: u32) -> u32 {
         self.7.object_tables.object_kind(object)
     }
     fn known_kind(&self, place: usize) -> u32 {
-        self.0.kind_tables().known_object_kinds[place].get()
+        self.0.kind_tables().known_object_kinds[place]
     }
     fn kind_groups(&self, place: usize) -> [u32; 2] {
         // Groups 6 and 7 of the kind's light record.
         self.1.keep(
             self.0
                 .light_records()
-                .records
-                .get(place)
-                .map(|record| [record.groups[6].get(), record.groups[7].get()])
+                .read(|l| {
+                    l.records
+                        .get(place)
+                        .map(|record| [record.groups[6], record.groups[7]])
+                })
                 .ok_or(crate::errors::BadInput("a kind's record")),
         )
     }
     fn hidden_groups(&self) -> [u32; 2] {
-        crate::memory::session::read_first(&self.4.group_masks[13..15])
+        let masks = self.4.borrow().group_masks;
+        [masks[13], masks[14]]
     }
     fn set_hidden_groups(&mut self, groups: [u32; 2]) {
-        crate::memory::session::write_first(&self.4.group_masks[13..15], &groups);
+        self.4.borrow_mut().group_masks[13..15].copy_from_slice(&groups);
     }
     fn other_groups(&self) -> [u32; 2] {
-        [15, 16].map(|k| self.4.group_masks[k].get())
+        [15, 16].map(|k| self.4.borrow().group_masks[k])
     }
+    // The mask asked for here is the groups of the parts still on the car, not the face group mask.
+    #[allow(clippy::misnamed_getters)]
     fn group_mask(&self) -> u32 {
-        self.4.shown_groups.get()
+        self.4.borrow().shown_groups
     }
     fn mask_kind(&self) -> u32 {
-        self.7.switches.mask_kind.get()
+        self.7.switches.mask_kind()
     }
     fn group_table(&self, group: u32) -> u32 {
-        let draw_switches = self.7.draw_switches;
+        let draw_switches = &self.7.draw_switches;
         // The table is the group word and the 71 cells after it (the developers' front end's
         // switches); a face's group is its byte & 0x1F.
-        let cell = match group.checked_sub(1) {
-            None => Some(&draw_switches.group_table),
-            Some(k) => draw_switches.unknown_38.get(k as usize),
-        };
-        self.1
-            .keep(
-                cell.map(crate::memory::session::PlainDword::get)
-                    .ok_or(crate::errors::BadInput(
-                        "a face's group past the groups' table",
-                    )),
-            )
+        let word = draw_switches.group_table.get(group as usize).copied();
+        self.1.keep(word.ok_or(crate::errors::BadInput(
+            "a face's group past the groups' table",
+        )))
     }
     fn no_second_mask(&self) -> u32 {
         self.5.camera_switch_active.get()
     }
     fn second_mask(&self) -> u32 {
-        self.4.group_mask.get()
+        self.4.borrow().group_mask
     }
     fn lone_group(&self) -> u32 {
-        self.4.group_masks[17].get()
+        self.4.borrow().group_masks[17]
     }
     fn lone_group_on(&self) -> u32 {
-        self.7.light_work.marks_mask.get()
+        self.7.light_work.marks_mask
     }
     fn groups_which(&self) -> u32 {
-        self.4.groups_which.get()
+        self.4.borrow().groups_which
     }
     fn see_through_on(&self) -> u32 {
-        self.3.fading.get()
+        self.3.borrow().fading
     }
     fn see_through_value(&self) -> u32 {
-        self.3.fade[0].get()
+        self.3.borrow().fade[0]
     }
     fn set_see_through(&mut self, value: u32) {
-        self.3.see_through.set(value);
+        self.3.borrow_mut().see_through = value;
     }
     fn line_value(&self, extra: u32) -> Result<u32, rc2k_core::Invalid> {
         {
@@ -138,7 +135,7 @@ impl FaceWorld for GameFace<'_> {
             if which >= BLOCKS || !self.7.work.has_car_block(which as usize) {
                 return Err(rc2k_core::Invalid("no block for a face of kind 0x1C"));
             }
-            // The core asks for 1 ..= 6: the six parts' wake counts, after `state_bits`.
+            // The core asks for 1 ..= 6: the six parts' wake counts.
             crate::race::owner_shared::RaceShared::race_car_or_end_in(
                 self.7.work,
                 self.7.car_blocks,
@@ -157,7 +154,7 @@ impl FaceWorld for GameFace<'_> {
 
 /// The face's bytes the tests read.
 fn face_bytes(
-    object_faces: &crate::scene::object_faces::ObjectFaces,
+    object_faces: &crate::scene::object_faces_store::ObjectFaces,
     face: usize,
 ) -> Result<(Face, u32), BadInput> {
     let b: [u8; 0xC] = object_faces.array(face as u32)?;
@@ -187,7 +184,7 @@ pub fn list_object_face(
     if list.len() as u32 >= LIST_ROOM {
         return Err(BadInput("no room in the list of faces").into());
     }
-    ctx.view.object.see_through.set(0x100u32);
+    ctx.view.object.borrow_mut().see_through = 0x100u32;
     let (bytes, count) = face_bytes(&ctx.reads.stage.object_faces, face)?;
     let mut world = GameFace(
         race,
@@ -213,8 +210,8 @@ pub fn list_object_face(
     if count as i32 <= 0 {
         return Ok(());
     }
-    ctx.view.polygon.polygon_vertex_count.set(count);
-    ctx.view.polygon.face_sort_key.set(0u32);
+    ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = count;
+    ctx.view.polygon.scalars.borrow_mut().face_sort_key = 0u32;
     face_sort_key(
         &ctx.view.polygon,
         ctx.part,
@@ -225,12 +222,12 @@ pub fn list_object_face(
     )?;
     // The list has room for all 0x1000 entries the check allows (fixed: "An object with many
     // faces writes over the object tables" in `wiki/Fixed-bugs.md`).
-    let key = listed_key(bytes, ctx.view.polygon.face_sort_key.get());
+    let key = listed_key(bytes, ctx.view.polygon.scalars.borrow().face_sort_key);
     list.push([
-        ctx.view.face.face_number.get(),
+        ctx.view.face.borrow().face_number,
         key,
-        ctx.view.polygon.entry_third.get(),
-        ctx.view.object.see_through.get(),
+        ctx.view.polygon.scalars.borrow().entry_third,
+        ctx.view.object.borrow().see_through,
     ]);
     Ok(())
 }

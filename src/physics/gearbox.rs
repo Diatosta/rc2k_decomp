@@ -1,7 +1,7 @@
 //! The gearbox: `physics::gearbox_step` and what it runs, `physics::manual_gearbox`,
 //! `physics::auto_gearbox`, `physics::pick_start_gear`. This file holds the steps they share,
 //! on the work car's gear fields (`physics/gearing.rs`). The steps return only what the flow
-//! uses (`physics::car_physics_step`, `physics::test_drive_run`).
+//! uses (`physics::car_physics_step`, `physics::acceleration_run`).
 //!
 //! The shift points `LightsAndGear.gear.shift_up_point` .. `shift_ratio_figure`, `rev_limit`
 //! and `idle_engine_speed` are set at run time (0 in the file); the tests set them.
@@ -26,8 +26,9 @@ pub fn below(a: impl crate::math::x87::Flt, b: impl crate::math::x87::Flt) -> bo
 }
 
 /// The common end of a change: `drive_cut_steps` from the tables, the hold 20, both change words 1.
-pub fn settle(car: &Car, tables: &PhysicsTables) {
-    car.drive_cut_steps.set(tables.drive_cut_steps.get());
+pub fn settle(car: &Car) {
+    car.drive_cut_steps
+        .set(crate::physics::figures::DRIVE_CUT_STEPS);
     car.gear_change_hold
         .set(rc2k_core::physics::gear_shifts::HOLD);
     car.gear_changed.set(1);
@@ -35,14 +36,14 @@ pub fn settle(car: &Car, tables: &PhysicsTables) {
 }
 
 /// Neutral, then `settle`.
-pub fn neutral(car: &Car, tables: &PhysicsTables) {
+pub fn neutral(car: &Car) {
     car.gear.set(0);
-    settle(car, tables);
+    settle(car);
 }
 
 /// `gear_bit`: true when the gear cannot be taken.
 pub fn bit(car: &Car, gear: i32) -> Result<bool, Refused> {
-    Ok({ gear_bit(car, gear) }?.carry)
+    gear_bit(car, gear)
 }
 
 /// `wheels_from_revs`.
@@ -58,7 +59,7 @@ pub fn revs(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<(), 
 }
 
 /// `revs_from_speed`.
-pub fn revs_speed(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
+pub(super) fn revs_speed(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
     { revs_from_speed_at(&GearPlaces::game(car, tables)) }?;
     Ok(())
 }

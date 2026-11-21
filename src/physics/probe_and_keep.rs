@@ -1,51 +1,25 @@
-//! `physics::probe_ground`, then its three whole-number lists (x, y, z; 0xC0 dwords) and the probe
+//! `physics::probe_ground`, then its x and z whole-number lists and the probe
 //! points' faces (`probe_point_face`, 0x40 dwords) are copied: the probe lists as they were before
-//! the step (`saved_probe_x` ..), read by `crossed_edge_contact`.
+//! the step (`saved_probe_x`, `saved_probe_z`), read by `crossed_edge_contact`.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses what `probe_ground` refuses
-//! (nothing written).
+//! Refuses what `probe_ground` refuses (nothing written).
 
 use crate::errors::Refused;
-use crate::physics::probe_ground::probe_ground_at;
+use crate::physics::probe_ground::probe_ground;
 use crate::physics::step_families::GroundInputs;
 
 /// The steps.
-pub fn probe_and_keep_at(
-    c: &GroundInputs<'_>,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
-    let contact = c.contact;
-    probe_ground_at(
-        &crate::physics::probe_ground::ProbeInputs::of_ground(c),
-        c.car,
-        scene.draw_switches.get(),
-        &crate::physics::ground_query::GroundQuery::of_physics(
-            c.ground,
-            c.probe,
-            c.course.course.get(),
-            &crate::race::scene_points::no_own(),
-        ),
-        c.contact,
-        &scene.drawing.scene.get().scratch,
-    )?;
-    for k in 0..64 {
-        contact.saved_probe_x[k].set(contact.probe_x[k].get());
-    }
-    for k in 0..64 {
-        contact.saved_probe_y[k].set(contact.probe_y[k].get());
-    }
-    for k in 0..64 {
-        contact.saved_probe_z[k].set(contact.probe_z[k].get());
-    }
+fn probe_and_keep_at(c: &GroundInputs<'_>) -> Result<(), Refused> {
+    probe_ground(c, c.car)?;
+    let mut probes = c.probes.borrow_mut();
+    probes.saved_probe_x = probes.probe_x;
+    probes.saved_probe_z = probes.probe_z;
     for k in 0..0x40 {
-        contact.saved_probe_faces[k].set(c.car.probe_point_face[k].get());
+        probes.saved_probe_faces[k] = c.car.probe_point_face[k].get();
     }
     Ok(())
 }
 
-pub fn probe_and_keep(
-    c: &GroundInputs<'_>,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
-    probe_and_keep_at(c, scene)
+pub(super) fn probe_and_keep(c: &GroundInputs<'_>) -> Result<(), Refused> {
+    probe_and_keep_at(c)
 }

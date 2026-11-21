@@ -3,10 +3,7 @@
 //! clocks the key thread and the menus keep.
 //!
 //! Each dword is an atomic (`Dword`, plain loads and stores: the audio, key and network threads
-//! read them without a lock). The blocks keep a fixed field order, so that an address taken of a
-//! field is the field's place and a walk from one variable to its neighbour reads the same
-//! neighbour (the vendor text of the processor, three dwords; the surface format, six dwords; the
-//! Windows version record).
+//! read them without a lock).
 
 #![allow(unsafe_code)]
 
@@ -20,6 +17,17 @@ pub struct Dword(AtomicU32);
 impl Dword {
     pub const fn new(value: u32) -> Self {
         Self(AtomicU32::new(value))
+    }
+
+    /// A row of cells holding `values`, in order (a store's starting table).
+    pub const fn array<const N: usize>(values: [u32; N]) -> [Self; N] {
+        let mut cells: [Self; N] = [const { Self::new(0) }; N];
+        let mut i = 0;
+        while i < N {
+            cells[i] = Self::new(values[i]);
+            i += 1;
+        }
+        cells
     }
 
     pub fn get(&self) -> u32 {
@@ -89,14 +97,6 @@ pub fn write_first<C: Cell32>(cells: &[C], values: &[u32]) {
     }
 }
 
-/// Stores `values` into the first cells of a run of dwords (the rest keep their values).
-pub fn write_prefix<C: Cell32>(cells: &[C], values: &[u32]) {
-    assert!(values.len() <= cells.len());
-    for (cell, &value) in cells.iter().zip(values) {
-        cell.set_bits(value);
-    }
-}
-
 /// One of the game's floats: an atomic cell holding its bits.
 #[repr(transparent)]
 pub struct Float(AtomicU32);
@@ -158,69 +158,6 @@ impl Int {
     pub fn atomic(&self) -> &AtomicU32 {
         &self.0
     }
-}
-
-/// Cell `n` of `cells`. Past the table's end it gives what follows, but only inside `holder`, the
-/// store or record holding the table; beyond that the next thing in memory is another static, so
-/// that is refused.
-#[cfg(test)]
-pub fn read_on_in<H: crate::memory::cells::ByteView, C: Cell32>(
-    holder: &H,
-    cells: &[C],
-    n: usize,
-    what: &str,
-) -> Result<u32, crate::errors::BadInput> {
-    match cells.get(n) {
-        Some(cell) => Ok(cell.bits()),
-        None => {
-            let mut bytes = [0; 4];
-            on_in(holder, cells, n, what, |at| {
-                crate::memory::cells::load_cells(holder, at, &mut bytes)
-            })?;
-            Ok(u32::from_le_bytes(bytes))
-        }
-    }
-}
-
-/// `read_on_in`'s write.
-#[cfg(test)]
-pub fn write_on_in<H: crate::memory::cells::ByteView, C: Cell32>(
-    holder: &H,
-    cells: &[C],
-    n: usize,
-    v: u32,
-    what: &str,
-) -> Result<(), crate::errors::BadInput> {
-    match cells.get(n) {
-        Some(cell) => {
-            cell.set_bits(v);
-            Ok(())
-        }
-        None => on_in(holder, cells, n, what, |at| {
-            crate::memory::cells::store_cells(holder, at, &v.to_le_bytes())
-        }),
-    }
-}
-
-/// `access` on dword `n` of `cells`, placed from `holder`'s first byte (refused, and logged,
-/// when that is not inside `holder`).
-#[cfg(test)]
-fn on_in<H, C>(
-    holder: &H,
-    cells: &[C],
-    n: usize,
-    what: &str,
-    access: impl FnOnce(usize) -> Result<(), crate::errors::BadInput>,
-) -> Result<(), crate::errors::BadInput> {
-    let at = (cells.as_ptr() as usize)
-        .wrapping_sub(std::ptr::from_ref(holder) as usize)
-        .wrapping_add(n.wrapping_mul(4));
-    access(at).inspect_err(|_| {
-        crate::logfile::program_log::log(&format!(
-            "pointers: {what}: dword {n} at +{at:#x}, outside its holder of {:#x} bytes",
-            size_of::<H>()
-        ));
-    })
 }
 
 /// A run of 32-bit values in a record: one cell, an array of runs, or the dwords of a buffer of
@@ -299,7 +236,7 @@ fn locate<'a>(
         }
         rest -= run.count();
     }
-    crate::logfile::program_log::log(&format!(
+    crate::memory::host_hooks::log(&format!(
         "pointers: {what}: dword {n}, past the {} dwords listed",
         n - rest
     ));
@@ -359,11 +296,6 @@ impl<T: Cell32 + ?Sized> Cell32 for &T {
     fn set_bits(&self, bits: u32) {
         (**self).set_bits(bits);
     }
-}
-
-/// The byte `n` of `cells` (a table of bytes held as dwords, little-endian), if inside.
-pub fn byte_of<C: Cell32>(cells: &[C], n: usize) -> Option<u8> {
-    cells.get(n / 4).map(|c| c.bits().to_le_bytes()[n % 4])
 }
 
 impl Cell32 for Dword {
@@ -553,7 +485,7 @@ impl<const N: usize> Bytes<N> {
         match offset.checked_add(len) {
             Some(end) if end <= N => Ok(()),
             _ => {
-                crate::logfile::program_log::log(&format!(
+                crate::memory::host_hooks::log(&format!(
                     "session: {what}: {len} bytes at {offset:#x} of a {N:#x}-byte buffer"
                 ));
                 Err(crate::errors::BadInput("past the end of a buffer"))
@@ -565,7 +497,7 @@ impl<const N: usize> Bytes<N> {
 /// A dword at an address that is not a multiple of 4 (the audio block's has-3D flag): four
 /// byte atomics, as `Bytes`.
 #[repr(transparent)]
-pub struct Loose([AtomicU8; 4]);
+pub(super) struct Loose([AtomicU8; 4]);
 
 impl Loose {
     pub const fn new(value: u32) -> Self {
@@ -627,10 +559,20 @@ impl<T: Copy> Plain<T> {
 #[repr(transparent)]
 pub struct PlainDword(Cell<u32>);
 
-#[allow(dead_code, reason = "the next stores to flip (M3) use it")]
 impl PlainDword {
     pub const fn new(value: u32) -> Self {
         Self(Cell::new(value))
+    }
+
+    /// A row of cells holding `values`, in order (a store's starting table).
+    pub const fn array<const N: usize>(values: [u32; N]) -> [Self; N] {
+        let mut cells: [Self; N] = [const { Self::new(0) }; N];
+        let mut i = 0;
+        while i < N {
+            cells[i] = Self::new(values[i]);
+            i += 1;
+        }
+        cells
     }
 
     pub fn get(&self) -> u32 {
@@ -670,15 +612,66 @@ impl PlainDword {
     }
 }
 
+/// A float constant: its bits, fixed when the program is built and never written (a plain value,
+/// so a store of constants is `Copy` and needs no lending to the drawing parts). Read the way a
+/// float cell is: `get`, `bits`, `ld`, and as an operand of the float helpers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct ConstFloat(u32);
+
+impl ConstFloat {
+    pub const fn new(value: f32) -> Self {
+        Self(value.to_bits())
+    }
+
+    pub const fn from_bits(bits: u32) -> Self {
+        Self(bits)
+    }
+
+    pub fn get(&self) -> f32 {
+        f32::from_bits(self.0)
+    }
+
+    pub fn bits(&self) -> u32 {
+        self.0
+    }
+
+    /// Loaded as the x87 loads a dword float.
+    pub(crate) fn ld(&self) -> crate::math::x87_float::X {
+        crate::math::x87_float::ld(self.0)
+    }
+}
+
 /// A `Float` only the game's thread reaches, holding its bits.
 #[repr(transparent)]
 pub struct PlainFloat(Cell<u32>);
 
-#[allow(dead_code, reason = "the next stores to flip (M3) use it")]
 impl PlainFloat {
     /// A cell holding `value`.
     pub const fn new(value: f32) -> Self {
         Self(Cell::new(value.to_bits()))
+    }
+
+    /// A row of cells holding `values`, in order (a store's starting table).
+    pub const fn array<const N: usize>(values: [f32; N]) -> [Self; N] {
+        let mut cells: [Self; N] = [const { Self::new(0.0) }; N];
+        let mut i = 0;
+        while i < N {
+            cells[i] = Self::new(values[i]);
+            i += 1;
+        }
+        cells
+    }
+
+    /// A row of cells holding the floats whose bits are `values`, in order.
+    pub const fn bits_array<const N: usize>(values: [u32; N]) -> [Self; N] {
+        let mut cells: [Self; N] = [const { Self::new(0.0) }; N];
+        let mut i = 0;
+        while i < N {
+            cells[i] = Self::from_bits(values[i]);
+            i += 1;
+        }
+        cells
     }
 
     /// From the float's bits (the starting values are given as bits).
@@ -716,7 +709,6 @@ impl PlainFloat {
 #[repr(transparent)]
 pub struct PlainFlag(Cell<u32>);
 
-#[allow(dead_code, reason = "the next stores to flip (M3) use it")]
 impl PlainFlag {
     pub const fn new(value: bool) -> Self {
         Self(Cell::new(value as u32))
@@ -769,6 +761,16 @@ impl Cell32 for PlainDword {
     fn set_bits(&self, bits: u32) {
         plain_written(&self.0);
         self.0.set(bits);
+    }
+}
+
+/// A plain dword cell as a game variable's cell (what the Rust codes' `Cells` take).
+impl Cell32 for Cell<u32> {
+    fn bits(&self) -> u32 {
+        self.get()
+    }
+    fn set_bits(&self, bits: u32) {
+        self.set(bits);
     }
 }
 
@@ -941,7 +943,7 @@ impl<const N: usize> PlainBytes<N> {
         match offset.checked_add(len) {
             Some(end) if end <= N => Ok(()),
             _ => {
-                crate::logfile::program_log::log(&format!(
+                crate::memory::host_hooks::log(&format!(
                     "session: {what}: {len} bytes at {offset:#x} of a {N:#x}-byte buffer"
                 ));
                 Err(crate::errors::BadInput("past the end of a buffer"))
@@ -994,6 +996,15 @@ impl DwordLike for PlainDword {
     }
 }
 
+impl DwordLike for Cell<u32> {
+    fn get(&self) -> u32 {
+        Cell::get(self)
+    }
+    fn set(&self, value: u32) {
+        Cell::set(self, value);
+    }
+}
+
 /// A signed cell read and written as a number, shared (`Int`) or the game thread's
 /// (`PlainInt`); its bits through `Cell32`.
 pub trait IntLike: Cell32 {
@@ -1016,30 +1027,6 @@ impl IntLike for PlainInt {
     }
     fn set(&self, value: i32) {
         PlainInt::set(self, value);
-    }
-}
-
-/// A flag cell, shared (`Flag`) or the game thread's (`PlainFlag`).
-pub trait FlagLike {
-    fn is_set(&self) -> bool;
-    fn set(&self, value: bool);
-}
-
-impl FlagLike for Flag {
-    fn is_set(&self) -> bool {
-        Flag::is_set(self)
-    }
-    fn set(&self, value: bool) {
-        Flag::set(self, value);
-    }
-}
-
-impl FlagLike for PlainFlag {
-    fn is_set(&self) -> bool {
-        PlainFlag::is_set(self)
-    }
-    fn set(&self, value: bool) {
-        PlainFlag::set(self, value);
     }
 }
 
@@ -1168,7 +1155,7 @@ impl<T> DrawShared<T> {
     /// The store, on the game's thread outside a drawing scope (debug builds check both).
     pub fn get(&self) -> &T {
         debug_assert!(
-            !crate::scene::workers::in_scope(),
+            !crate::memory::draw_order::in_scope(),
             "a drawing store reached by its owner while the parts read it (take the part's reads)"
         );
         self.0.get()
@@ -1191,7 +1178,7 @@ impl<'s, T: crate::memory::cells::Cells> PhaseRead<'s, T> {
     /// (`plain_written` then stops at a write into them) until the scope ends.
     pub(crate) fn lend(
         store: &'s DrawShared<T>,
-        scope: &'s crate::scene::workers::DrawScope,
+        scope: &'s crate::memory::draw_order::DrawScope,
     ) -> Self {
         let _ = scope;
         #[cfg(debug_assertions)]
@@ -1252,6 +1239,155 @@ impl<T> std::ops::Deref for PhaseRead<'_, T> {
 // outlives its run; a `get` taken before the scope and held into it (it is a plain `&T`: the
 // scope's code takes none).
 unsafe impl<T: crate::memory::cells::Cells> Sync for PhaseRead<'_, T> {}
+
+/// A drawing store that is a plain record (no cells): held by the game's thread in a `RefCell`,
+/// read and written there outside a drawing scope, and lent to the drawing parts as a copy
+/// (`PlainRead`).
+pub struct DrawPlain<T>(GameThread<std::cell::RefCell<T>>);
+
+impl<T> DrawPlain<T> {
+    pub const fn new(value: T) -> Self {
+        Self(GameThread::new(std::cell::RefCell::new(value)))
+    }
+
+    /// The record, read, on the game's thread outside a drawing scope.
+    pub fn borrow(&self) -> std::cell::Ref<'_, T> {
+        debug_assert!(
+            !crate::memory::draw_order::in_scope(),
+            "a drawing store reached by its owner while the parts read it (take the part's reads)"
+        );
+        self.0.get().borrow()
+    }
+
+    /// The record, to write, on the game's thread outside a drawing scope: no other borrow may
+    /// be held.
+    pub fn borrow_mut(&self) -> std::cell::RefMut<'_, T> {
+        debug_assert!(
+            !crate::memory::draw_order::in_scope(),
+            "a drawing store written while the parts read it"
+        );
+        self.0.get().borrow_mut()
+    }
+}
+
+/// A `DrawPlain` store lent to the parts of one drawing scope: a copy of the record as it stood
+/// when the scope opened. The parts read the copy (a plain `&T`, `Sync` because `T` is), so no
+/// thread can meet the game's thread's `RefCell`, and nothing is lent by address: a write to the
+/// store during the scope is stopped by `DrawPlain::borrow_mut` in debug builds and would not
+/// reach the parts in release builds. It is made only where the scope is opened
+/// (`scene::workers::Lent`), on the game's thread.
+pub struct PlainRead<T>(Box<T>);
+
+impl<T: Clone> PlainRead<T> {
+    /// A copy of `store`'s record for the scope's parts.
+    pub(crate) fn lend(store: &DrawPlain<T>, scope: &crate::memory::draw_order::DrawScope) -> Self {
+        let _ = scope;
+        // Not `borrow`: the scope is open (the record is copied here, not written).
+        Self(Box::new(store.0.get().borrow().clone()))
+    }
+}
+
+impl<T> std::ops::Deref for PlainRead<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.0
+    }
+}
+
+/// A drawing store that is a large plain record the game's thread rarely writes: held like
+/// `DrawPlain`, but as an `Arc`, so lending it to a drawing scope (`ArcRead`) clones the pointer,
+/// not the record. A write (`borrow_mut`) copies the record only if a lent `Arc` is still alive
+/// (`Arc::make_mut`), so a lent copy never changes.
+///
+/// The `Arc` is made on first use from `make` (an `Arc` cannot be made in a `static`'s initialiser).
+pub struct DrawArc<T> {
+    make: fn() -> T,
+    arc: GameThread<std::cell::RefCell<Option<std::sync::Arc<T>>>>,
+}
+
+impl<T> DrawArc<T> {
+    pub const fn new(make: fn() -> T) -> Self {
+        Self {
+            make,
+            arc: GameThread::new(std::cell::RefCell::new(None)),
+        }
+    }
+
+    /// The `Arc`, made if it is not yet.
+    fn shared(&self) -> std::cell::RefMut<'_, std::sync::Arc<T>> {
+        std::cell::RefMut::map(self.arc.get().borrow_mut(), |held| {
+            held.get_or_insert_with(|| std::sync::Arc::new((self.make)()))
+        })
+    }
+
+    /// The record, read, on the game's thread outside a drawing scope.
+    pub fn borrow(&self) -> std::cell::Ref<'_, T> {
+        debug_assert!(
+            !crate::memory::draw_order::in_scope(),
+            "a drawing store reached by its owner while the parts read it (take the part's reads)"
+        );
+        // Made first only when it is not yet, so that reads may nest.
+        if self.arc.get().borrow().is_none() {
+            drop(self.shared());
+        }
+        std::cell::Ref::map(self.arc.get().borrow(), |held| {
+            &**held.as_ref().expect("made above")
+        })
+    }
+}
+
+impl<T: Clone> DrawArc<T> {
+    /// The record, to write, on the game's thread outside a drawing scope: no other borrow may
+    /// be held.
+    pub fn borrow_mut(&self) -> std::cell::RefMut<'_, T> {
+        debug_assert!(
+            !crate::memory::draw_order::in_scope(),
+            "a drawing store written while the parts read it"
+        );
+        std::cell::RefMut::map(self.shared(), std::sync::Arc::make_mut)
+    }
+}
+
+/// A `DrawArc` store lent to the parts of one drawing scope: the record as it stood when the
+/// scope opened (a later write copies it first).
+pub struct ArcRead<T>(std::sync::Arc<T>);
+
+impl<T> ArcRead<T> {
+    /// The scope's share of `store`'s record.
+    pub(crate) fn lend(store: &DrawArc<T>, scope: &crate::memory::draw_order::DrawScope) -> Self {
+        let _ = scope;
+        // Not `borrow`: the scope is open (the pointer is cloned here, nothing is written).
+        Self(std::sync::Arc::clone(&store.shared()))
+    }
+}
+
+impl<T> std::ops::Deref for ArcRead<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.0
+    }
+}
+
+#[cfg(test)]
+mod arc_tests {
+    use super::*;
+
+    #[test]
+    fn a_write_after_a_lend_leaves_the_lent_copy_as_it_was() {
+        let store = DrawArc::new(|| [1u32, 2, 3]);
+        let lent = ArcRead(std::sync::Arc::clone(&store.shared()));
+        store.borrow_mut()[0] = 9;
+        assert_eq!(*lent, [1, 2, 3]);
+        assert_eq!(*store.borrow(), [9, 2, 3]);
+        // With no lent copy alive a write goes in place.
+        drop(lent);
+        let before = std::ptr::from_ref(&*store.borrow());
+        store.borrow_mut()[1] = 8;
+        assert_eq!(before, std::ptr::from_ref(&*store.borrow()));
+    }
+}
 
 /// Debug builds: the byte ranges lent to the open drawing scope (`PhaseRead::lend`). One
 /// writer (the game's thread, before the parts start and after they have all ended), many
@@ -1466,7 +1602,6 @@ pub struct WindowLoopState {
     pub f370: PlainDword,
     pub lost: PlainDword,
     pub no_task_switch: PlainDword, // `notaskswitch`, a `var\ral.cfg` setting
-    pub keep_priority: PlainDword,  // `noprichange`, a setting
     /// Only the main loop's, which needs neither.
     pub _gap_51838c: [PlainDword; 2],
     pub f394: PlainDword, // 1 at start
@@ -1479,7 +1614,6 @@ impl WindowLoopState {
             f370: PlainDword::new(0),
             lost: PlainDword::new(0),
             no_task_switch: PlainDword::new(0),
-            keep_priority: PlainDword::new(0),
             _gap_51838c: [PlainDword::new(0), PlainDword::new(0)],
             f394: PlainDword::new(1),
             paused: PlainDword::new(0),
@@ -1509,12 +1643,6 @@ impl HostShared {
 /// less `HostShared`'s two.
 #[derive(rc2k_derive::Cells)]
 pub struct Machine {
-    pub has_mmx: PlainDword,
-    pub ignore_mmx: PlainDword, // `ignoremmx`
-    pub has_sse: PlainDword,
-    pub ignore_katmai: PlainDword, // `ignorekatmai`
-    pub has_3dnow: PlainDword,
-    pub ignore_3dnow: PlainDword, // `ignoreamdk3d`
     pub work: PlainDword,
     pub work_float: PlainDword,
     pub gap_c8: PlainDword,
@@ -1533,8 +1661,6 @@ pub struct Machine {
     pub version: [PlainDword; 37], // OSVERSIONINFOA, 148 bytes
     pub exception_resume: PlainDword,
     pub instance: PlainDword,
-    /// 1 on a computer called "andrew" (`system::check_developer_machine`).
-    pub developer: PlainDword,
     /// The setting `nofmv`: 1 = no films.
     pub no_fmv: PlainDword,
 }
@@ -1542,12 +1668,6 @@ pub struct Machine {
 impl Machine {
     pub const fn new() -> Self {
         Machine {
-            has_mmx: PlainDword::new(0),
-            ignore_mmx: PlainDword::new(0),
-            has_sse: PlainDword::new(0),
-            ignore_katmai: PlainDword::new(0),
-            has_3dnow: PlainDword::new(0),
-            ignore_3dnow: PlainDword::new(0),
             work: PlainDword::new(0),
             work_float: PlainDword::new(0),
             gap_c8: PlainDword::new(0),
@@ -1566,7 +1686,6 @@ impl Machine {
             version: [const { PlainDword::new(0) }; 37],
             exception_resume: PlainDword::new(0),
             instance: PlainDword::new(0),
-            developer: PlainDword::new(0),
             no_fmv: PlainDword::new(0),
         }
     }
@@ -1666,6 +1785,29 @@ impl<const N: usize> TextPlace for [u8; N] {
         Err(crate::errors::BadInput(
             "a write into one of the program's own texts",
         ))
+    }
+}
+
+/// What the menus and saves do to a list of car handles whatever its room: read and write an entry.
+pub trait CarEntries {
+    /// How many entries it has room for.
+    fn room(&self) -> usize;
+    fn entry(&self, n: usize) -> u32;
+    fn set_entry(&self, n: usize, value: u32);
+}
+
+/// What the saves do to a player's record whatever holds it: read it whole and write it whole.
+pub trait PlayerSlot {
+    fn get(&self) -> rc2k_core::menu::player::Player;
+    fn set(&self, value: rc2k_core::menu::player::Player);
+}
+
+impl dyn PlayerSlot + '_ {
+    /// The record changed by `change` (worked on a copy, then written back).
+    pub fn update(&self, change: impl FnOnce(&mut rc2k_core::menu::player::Player)) {
+        let mut record = self.get();
+        change(&mut record);
+        self.set(record);
     }
 }
 
@@ -1769,6 +1911,12 @@ impl<const N: usize> TextPlace for PlainBytes<N> {
 pub struct TextFrom<'a, B: ByteBuffer> {
     buffer: &'a B,
     from: usize,
+}
+
+impl<'a, B: ByteBuffer> TextFrom<'a, B> {
+    pub(crate) fn new(buffer: &'a B, from: usize) -> Self {
+        TextFrom { buffer, from }
+    }
 }
 
 impl<const N: usize> PlainBytes<N> {

@@ -2,25 +2,26 @@
 //! for its cell and the eight about it (+-0x200000 each way; the place is read back from
 //! `ground_x` before each).
 //!
-//! Caller: `physics::face_contacts`. Refuses what `cell_face_contacts` refuses.
+//! Refuses what `cell_face_contacts` refuses.
 
 use crate::errors::Refused;
 use crate::physics::step_families::ContactInputs;
 
 /// The steps, not guarded.
 // Core: `rc2k_core::physics::ground_search::cells_around`.
-pub fn face_contacts_around(
+pub(super) fn face_contacts_around(
     c: &ContactInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    c.ground.ground.ground_x.set(c.car.position[0].get());
-    c.ground.ground.ground_z.set(c.car.position[2].get());
+    {
+        let mut search = c.ground.search.borrow_mut();
+        search.x = c.car.position.bits_at(0);
+        search.z = c.car.position.bits_at(2);
+    }
     rc2k_core::physics::ground_search::cells_around(
         || {
-            (
-                c.ground.ground.ground_x.get(),
-                c.ground.ground.ground_z.get(),
-            )
+            let search = c.ground.search.borrow();
+            (search.x, search.z)
         },
         |x, z| crate::physics::cell_face_contacts::steps(c, x, z, scene),
     )

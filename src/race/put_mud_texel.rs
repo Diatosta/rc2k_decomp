@@ -4,14 +4,14 @@
 //!
 //! Takes the components and x, y (0 .. 0xFF); gives the pixel put, or the one passed in.
 //!
-//! See `race/mud.rs`. Callers: `race::muddy_texel`, `race::splash_mud`. Refuses what
-//! `put_surface_pixel` refuses (no format, no surface), before anything.
+//! See `race/mud.rs`. Refuses what `put_surface_pixel` refuses (no format, no surface), before
+//! anything.
 
 use crate::errors::Refused;
 use crate::gfx::put_surface_pixel::put_surface_pixel;
 use crate::race::mud_texel::texel_place;
 
-pub fn put_mud_texel(
+pub(super) fn put_mud_texel(
     components: u32,
     x: u32,
     y: u32,

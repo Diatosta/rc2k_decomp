@@ -6,19 +6,19 @@
 //! it with 0xFF).
 
 use crate::effects::mask_store::Masks;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::windscreen_drop_vars_store::WindscreenDrops;
 use crate::errors::Refused;
 
-// Converted: `rc2k_core::effects::steps::{shape_entry, pick_shapes}`
+// The logic is in `rc2k_core::effects::steps::{shape_entry, pick_shapes}`
 pub fn pick_shapes(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     use rc2k_core::effects::steps;
-    let index = steps::shape_entry(drops.picks.index.get())?;
+    let index = steps::shape_entry(drops.picks.borrow().index)?;
     // (the flag, the shape): `MaskPicks.flags[0]` / shape set A, `MaskPicks.flags[1]` /
     // shape set B.
     for n in 0..2 {
-        let picked = steps::pick_shapes(drops.picks.table[index].get() as i32);
-        drops.picks.flags[n].set(picked.flag);
-        masks.vars.shapes[n].ease_step.set(picked.shapes);
+        let picked = steps::pick_shapes(drops.picks.borrow().table[index] as i32);
+        drops.picks.borrow_mut().flags[n] = picked.flag;
+        masks.vars.borrow_mut().shapes[n].ease_step = picked.shapes;
     }
     Ok(())
 }

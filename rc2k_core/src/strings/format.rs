@@ -63,7 +63,7 @@ pub fn clock(value: u32) -> Vec<u8> {
 }
 
 /// As `clock`, with a '0' before a quotient below 10 ("0Q:RR").
-pub fn clock_padded(value: u32) -> Vec<u8> {
+pub(crate) fn clock_padded(value: u32) -> Vec<u8> {
     let mut out = Vec::new();
     if ((value / 60) as i32) < 10 {
         out.push(b'0');
@@ -162,7 +162,7 @@ pub fn rot13(b: u8) -> u8 {
 
 /// The name of a controller axis as the controls screen appends it: " (+x)", " (-ry)"; the
 /// 0x10 bit is the direction, 0 .. 2 are x, y, z and 3 .. 5 their turns.
-pub fn axis_name(axis: u8) -> Vec<u8> {
+pub(crate) fn axis_name(axis: u8) -> Vec<u8> {
     let (sign, rest) = if axis & 0x10 != 0 {
         (b'+', axis.wrapping_sub(0x10))
     } else {

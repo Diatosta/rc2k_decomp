@@ -1,28 +1,28 @@
 //! `menu::award_stage_points`: the stage's championship points. For each class
-//! (`event.shown.class`, 0 .. `event.shown.classes`) the points start at 0x14 (`seconds`); each
+//! (`event.shown.class`, 0 .. `CLASSES`) the points start at 0x14 (`seconds`); each
 //! entry
 //! of standings table B in that class, in the table's order, is logged ("Status of
-//! driver" and its +0x74), gets the points into its +0x54 + 4 * `section` and the points
-//! go down by one (not below 0). A computer's driver (+4 0, `menu::find_cpu_team` by its
-//! +0) keeps them in its +0x78 + 4 * `section` when its +0x24 is 1, a player (+4 the
-//! player + 1) in its +0x98 + 4 * `section` when its +0xD0 is 1; otherwise both are 0.
-//! Then each entry's total of its six stage points (+0x54 .., the negative ones left out)
-//! into its +0x6C and its driver's +0x90 or player's +0xB0.
+//! driver" and its `status`), gets the points into its `stage` slot of `section` and the points
+//! go down by one (not below 0). A computer's entry (`player` 0, its driver found by
+//! `menu::find_cpu_team` from the entry's `first`) keeps them in the driver's results when the
+//! driver is still in the event, a player's entry (`player` the player + 1) in the player's
+//! `stage_points` when the player takes part; otherwise both are 0.
+//! Then each entry's total of its six stage points (the negative ones left out) goes into its
+//! own total slot and into its driver's or player's total.
 //!
-//! Callers: the event drivers. It logs through `logfile::log_write`
-//! and `log_int` (level 1). Refuses no table, one without its end entry, a class count of 0 or past
-//! 0x100, a section past 5, a player past 4 or missing, before anything; a driver not found is the
-//! search's fatal error, before anything.
+//! It logs through `logfile::log_write` and `log_int` (level 1). Refuses no table, one without its
+//! end entry, a section past 5, a player past 4 or missing,
+//! before anything; a driver not found is the search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::drivers_store::{Driver, IN_EVENT};
+use crate::menu::drivers_store::IN_EVENT;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
-const STATUS_TEXT_RVA: &std::ffi::CStr = c"Status of driver"; // aStatusOfDriver
+const STATUS_TEXT: &std::ffi::CStr = c"Status of driver";
 /// The driver (computer, by `find_cpu_team`) or player of an entry, and the field its
 /// stage points go to, and whether it keeps them.
 enum Owner<'a> {
-    Driver(&'a Driver),
+    Driver(usize),
     Player(PlayerCell<'a>),
 }
 
@@ -44,10 +44,10 @@ pub fn award_stage_points(
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let classes: u32 = screens.event.shown.classes.get();
-    let section: u32 = screens.event.section.get();
-    if classes == 0 || classes > 0x100 || section > 5 {
-        return Err(BadInput("a class count of 0 or past 0x100, or a section past 5").into());
+    let classes = crate::menu::event_store::CLASSES;
+    let section: u32 = screens.event.read().section;
+    if section > 5 {
+        return Err(BadInput("a section past 5").into());
     }
     let mut all = walked_entries_b(tables)?;
     let mut owners = Vec::with_capacity(all.len());
@@ -58,20 +58,23 @@ pub fn award_stage_points(
     for class in 0..classes {
         let mut points = Points::default();
         for (e, o) in all.iter_mut().zip(&owners) {
-            screens.event.shown.class.set(class);
+            screens.event.write().shown.class = class;
             if e.group != class {
                 continue;
             }
-            crate::logfile::log_write::log_nul(&STATUS_TEXT_RVA, false, 1);
+            crate::logfile::log_write::log_nul(&STATUS_TEXT, false, 1);
             crate::logfile::log_int::log_int(e.status as i32, true, 1);
             let given = points.take();
             let keeps = match *o {
-                Owner::Driver(d) => d.in_event.get() == IN_EVENT,
+                Owner::Driver(d) => menus.cars.drivers.read().drivers[d].in_event == IN_EVENT,
                 Owner::Player(p) => p.get().entry == 1,
             };
             e.stage[section as usize] = kept(given, keeps);
             match *o {
-                Owner::Driver(d) => d.stage(section as usize).set(kept(given, keeps)),
+                Owner::Driver(d) => {
+                    *menus.cars.drivers.write().drivers[d].stage(section as usize) =
+                        kept(given, keeps);
+                }
                 Owner::Player(p) => {
                     p.update(|q| q.stage_points[section as usize] = kept(given, keeps));
                 }
@@ -82,7 +85,7 @@ pub fn award_stage_points(
         let total = total(std::array::from_fn(|k| e.stage[k]));
         e.stage[6] = total;
         match *o {
-            Owner::Driver(d) => d.stage_total().set(total),
+            Owner::Driver(d) => *menus.cars.drivers.write().drivers[d].stage_total() = total,
             Owner::Player(p) => p.update(|q| q.stage_points[6] = total),
         }
     }

@@ -10,7 +10,7 @@ pub const NOT_EDITING: u32 = u32::MAX;
 /// A text's bytes (cleared, and kept for Escape).
 pub const TEXT_LEN: usize = 0x40;
 /// The most characters a text takes.
-pub const MOST_CHARS: usize = 0x3F;
+pub(crate) const MOST_CHARS: usize = 0x3F;
 /// The widest an edited text may be on the network screens.
 pub const WIDTH: u32 = 0x30C;
 
@@ -91,6 +91,10 @@ pub enum Setting {
     MostPlayers,
     /// The host's address.
     HostAddress,
+    /// The port, edited as a number's text.
+    Port,
+    /// The session's password, typed as text.
+    Password,
     /// Any other item: nothing is edited.
     None,
 }
@@ -101,6 +105,8 @@ impl Setting {
             1 => Setting::Name,
             2 => Setting::MostPlayers,
             3 => Setting::HostAddress,
+            4 => Setting::Port,
+            5 => Setting::Password,
             _ => Setting::None,
         }
     }
@@ -138,6 +144,8 @@ mod tests {
         assert_eq!(Setting::of(2), Setting::MostPlayers);
         assert_eq!(Setting::of(3), Setting::HostAddress);
         assert_eq!(Setting::of(0), Setting::None);
-        assert_eq!(Setting::of(4), Setting::None);
+        assert_eq!(Setting::of(4), Setting::Port);
+        assert_eq!(Setting::of(5), Setting::Password);
+        assert_eq!(Setting::of(6), Setting::None);
     }
 }

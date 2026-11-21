@@ -4,8 +4,8 @@
 //! (old gear), the gear set, `physics::revs_from_wheels`. Every change sets the car's
 //! `gear_changed` and `gear_change_pending` to 1.
 //!
-//! Caller: `physics::take_asked_gear`. Refuses (before anything) a gear or new gear outside
-//! -1 ..= 7 where the gearing reads its ratio, and what `gear_bit` refuses.
+//! Refuses (before anything) a gear or new gear outside -1 ..= 7 where the gearing reads its ratio,
+//! and what `gear_bit` refuses.
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::{PlainDword, PlainInt};
@@ -17,7 +17,7 @@ use rc2k_core::physics::gear_shifts::Change;
 
 /// The other places: the asked gear, the gear bits, the two words set.
 #[derive(Clone, Copy)]
-pub struct ChangePlaces<'a> {
+struct ChangePlaces<'a> {
     pub wanted: &'a PlainInt,
     /// By address: `bt` on memory, its bit number past the first dword.
     pub bits: &'a PlainDword,
@@ -46,7 +46,7 @@ fn ratio_gear(g: i32) -> Result<(), Refused> {
 
 /// The core.
 // Core: `rc2k_core::physics::gear_shifts::change`.
-pub fn change_gear_at(
+fn change_gear_at(
     numbers: &Numbers,
     gp: &GearPlaces<'_>,
     c: &ChangePlaces<'_>,
@@ -76,8 +76,7 @@ pub fn change_gear_at(
     if way == Change::ToNeutral {
         return neutral();
     }
-    let bit = gear_bit_at(c.bits, w)?;
-    if bit.carry {
+    if gear_bit_at(c.bits, w)? {
         return neutral();
     }
     ratio_gear(gear)?;

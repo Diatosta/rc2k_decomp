@@ -3,17 +3,17 @@
 //! flipped (`xor 0xFF000000`). The table and its length are the view's (`scene::fog::Fog`).
 //! Takes the depth (whole) and returns the alpha in its top byte.
 //!
-//! Callers: the marks' drawers (16). Refuses a table length of 0 or past the table's 0x1000
-//! bytes.
+//! Refuses a table length of 0 or past the table's 0x1000 bytes.
 
 use crate::errors::Refused;
 
 /// On the view's fog.
 pub fn fog_at(fog: &crate::scene::fog::Fog, depth: u32) -> Result<u32, Refused> {
     // Logic: `rc2k_core::scene::fog::fog_at`.
+    let fog = fog.borrow();
     Ok(rc2k_core::scene::fog::fog_at(
         depth,
-        fog.length.get() as i32,
+        fog.length as i32,
         |n| fog.level(n as u32),
     )?)
 }

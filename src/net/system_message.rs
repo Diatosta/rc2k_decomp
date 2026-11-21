@@ -10,7 +10,7 @@ use rc2k_core::net::message::SystemMessage;
 use rc2k_core::net::players::{A_PLAYER, System};
 
 /// The message is in `crate::test_support::own::net().vars.receiver.receive_data`.
-pub fn system_message(
+pub(super) fn system_message(
     net: &Net,
     lines: &crate::race::viewer_screen_store::NetTexts,
 ) -> Result<(), Refused> {
@@ -30,9 +30,13 @@ pub fn system_message(
                     link.send_to(),
                     message.id,
                 );
+                crate::net::left::player_destroyed(net, message.id);
             }
         }
-        System::SessionLost => destroy_connection(net, lines)?,
+        System::SessionLost => {
+            crate::net::left::session_lost(net);
+            destroy_connection(net, lines)?;
+        }
         System::Host => {
             vars.own.set_state(vars.own.state().made_host());
             vars.sync_first.set(1);

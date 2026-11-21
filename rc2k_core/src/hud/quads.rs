@@ -11,27 +11,18 @@ pub const ALPHA: usize = 0;
 pub const LEFT: usize = 1;
 pub const TOP: usize = 2;
 pub const RIGHT: usize = 3;
-pub const BOTTOM: usize = 4;
+pub(crate) const BOTTOM: usize = 4;
 pub const COLOUR: usize = 5;
 /// The corners' texture places: u, v of each corner from here.
 pub const PLACES: usize = 6;
 pub const RECORD: usize = 14;
 
-/// The places of a texture's rectangle (left, top, width, height in texels): the record's dwords in
-/// order.
-pub fn sprite_places([left, top, w, h]: [u32; 4]) -> [(usize, u32); 8] {
+/// The places of a texture's rectangle (left, top, width, height in texels): each corner's (u, v),
+/// in the corners' order (left top, right top, right bottom, left bottom).
+pub fn sprite_places([left, top, w, h]: [u32; 4]) -> [[u32; 2]; 4] {
     let [u0, u1] = [left << 16, left.wrapping_add(w) << 16];
     let [v0, v1] = [top << 16, top.wrapping_add(h) << 16];
-    [
-        (6, u0),
-        (12, u0),
-        (8, u1),
-        (10, u1),
-        (7, v0),
-        (9, v0),
-        (11, v1),
-        (13, v1),
-    ]
+    [[u0, v0], [u1, v0], [u1, v1], [u0, v1]]
 }
 
 /// The absolute value of a signed number.
@@ -39,13 +30,13 @@ pub fn positive(v: u32) -> u32 {
     if (v as i32) < 0 { v.wrapping_neg() } else { v }
 }
 
-/// A sprite's corners at (x, y), its size made positive: the record's dwords in order.
-pub fn sprite_corners(x: u32, y: u32, w: u32, h: u32) -> [(usize, u32); 4] {
+/// A sprite's corners at (x, y), its size made positive: left, top, right, bottom.
+pub fn sprite_corners(x: u32, y: u32, w: u32, h: u32) -> [u32; 4] {
     [
-        (LEFT, x),
-        (RIGHT, positive(w).wrapping_add(x)),
-        (TOP, y),
-        (BOTTOM, positive(h).wrapping_add(y)),
+        x,
+        y,
+        positive(w).wrapping_add(x),
+        positive(h).wrapping_add(y),
     ]
 }
 
@@ -54,21 +45,11 @@ pub fn scaled_size(size: u32, scale: f64) -> u32 {
     fistp64(size as i32 as f64 * scale) as u32
 }
 
-/// `add_solid_quad`'s places: every corner on one texel (0xF8 << 16, 8 << 16), a solid
-/// colour; the record's dwords in the order written.
-pub const SOLID_PLACES: [(usize, u32); 8] = [
-    (6, 0xF8_0000),
-    (8, 0xF8_0000),
-    (10, 0xF8_0000),
-    (12, 0xF8_0000),
-    (7, 0x8_0000),
-    (9, 0x8_0000),
-    (11, 0x8_0000),
-    (13, 0x8_0000),
-];
+/// `add_solid_quad`'s texel: every corner's (u, v) on one texel (0xF8 << 16, 8 << 16), a solid
+/// colour.
+pub const SOLID_TEXEL: [u32; 2] = [0xF8_0000, 0x8_0000];
 
-/// One vertex of the polygon (x at +0, y +4, colour +0x10, u +0x18, v
-/// +0x1C; the rest left).
+/// One vertex of the polygon (x, y, colour, u, v; the rest of the record is left).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Vertex {
     pub x: f32,
@@ -107,7 +88,7 @@ pub fn quad_vertices(q: &[u32; RECORD], a: f32, b: f32) -> ([Vertex; 4], u32, u3
 }
 
 /// `add_polygon`'s scaling: `v` times `i` over `k` (the virtual screen to the real one).
-pub fn screen_scaled(v: f32, i: u32, k: f32) -> f32 {
+pub(crate) fn screen_scaled(v: f32, i: u32, k: f32) -> f32 {
     (v as f64 * i as i32 as f64 / k as f64) as f32
 }
 
@@ -131,22 +112,15 @@ mod tests {
         assert_eq!(
             sprite_places([2, 3, 4, 5]),
             [
-                (6, 0x2_0000),
-                (12, 0x2_0000),
-                (8, 0x6_0000),
-                (10, 0x6_0000),
-                (7, 0x3_0000),
-                (9, 0x3_0000),
-                (11, 0x8_0000),
-                (13, 0x8_0000)
+                [0x2_0000, 0x3_0000],
+                [0x6_0000, 0x3_0000],
+                [0x6_0000, 0x8_0000],
+                [0x2_0000, 0x8_0000],
             ]
         );
         assert_eq!(positive(-5i32 as u32), 5);
         assert_eq!(positive(0x8000_0000), 0x8000_0000);
-        assert_eq!(
-            sprite_corners(10, 20, -4i32 as u32, 6),
-            [(LEFT, 10), (RIGHT, 14), (TOP, 20), (BOTTOM, 26)]
-        );
+        assert_eq!(sprite_corners(10, 20, -4i32 as u32, 6), [10, 20, 14, 26]);
         assert_eq!(scaled_size(24, 2.5), 60);
         assert_eq!(scaled_size(25, 0.5), 12);
         assert_eq!(scaled_size(27, 0.5), 14);

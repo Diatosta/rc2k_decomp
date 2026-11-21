@@ -20,8 +20,8 @@
 //! free lower gear's share is below `shift_ratio_figure` and the engine over its top is below
 //! `shift_down_clutch_point` / `shift_down_point`, by `brake`).
 //!
-//! Caller: `physics::gearbox_step`. Refuses what the calls refuse, and a gear outside -1 ..= 7
-//! where a ratio is read; what was written is put back.
+//! Refuses what the calls refuse, and a gear outside -1 ..= 7 where a ratio is read; what was
+//! written is put back.
 
 use crate::errors::Refused;
 use crate::math::x87;
@@ -35,6 +35,7 @@ use crate::physics::pick_start_gear::pick_start_gear;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
+use rc2k_core::physics::gearbox::GearInputs;
 
 /// Up.
 fn up(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
@@ -48,7 +49,7 @@ fn up(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Ref
     };
     car.gear.set(to);
     revs(car, tables, numbers)?;
-    settle(car, tables);
+    settle(car);
     Ok(Shift::Done)
 }
 
@@ -72,7 +73,7 @@ fn down(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, R
         car.gear_change_pending.set(1);
         return Ok(Shift::Done);
     }
-    settle(car, tables);
+    settle(car);
     Ok(Shift::Done)
 }
 
@@ -90,10 +91,10 @@ pub fn reverse(
     car.gear.set(-1);
     if quarter {
         car.engine_speed
-            .set(x87::mul(&car.engine_speed, &numbers.quarter));
+            .set(x87::mul(&car.engine_speed, numbers.quarter));
     }
     wheels(car, tables)?;
-    settle(car, tables);
+    settle(car);
     Ok(())
 }
 
@@ -101,14 +102,13 @@ pub fn reverse(
 fn start_line(
     car: &Car,
     tables: &PhysicsTables,
+    inputs: &GearInputs,
     gear_figures: &GearFigures,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<Shift, Refused> {
-    let drawing = &scene.drawing;
     let gear = car.gear.get();
-    if let Some(shift) = shifts::start_line_keys(gear, tables.input_gear_down.get() != 0, || {
-        tables.input_gear_up.get() != 0
-    }) {
+    if let Some(shift) =
+        shifts::start_line_keys(gear, inputs.gear_down != 0, || inputs.gear_up != 0)
+    {
         return Ok(shift);
     }
     if car.all_wheels_off.get() != 0 {
@@ -117,31 +117,21 @@ fn start_line(
     if shifts::forward(gear) {
         let kept = car.engine_speed.get();
         revs_speed(car, tables)?;
-        drawing.scene.get().scratch.set(over_top(car).to_bits());
+        let over = over_top(car).to_bits();
         car.engine_speed.set(kept);
-        if !below(
-            drawing.scene.get().scratch.get(),
-            gear_figures.shift_up_point.get(),
-        ) {
+        if !below(over, gear_figures.shift_up_point.get()) {
             return Ok(Shift::Up);
         }
     }
     if !shifts::above_first(gear) {
         return Ok(Shift::Done);
     }
-    drawing.scene.get().scratch.set(over_top(car).to_bits());
+    let over = over_top(car).to_bits();
     let Some(lower) = { lower_free_gear(car, gear) }? else {
         return Ok(Shift::Done);
     };
     let (rb, rc) = (ratio(tables, gear)?, ratio(tables, lower)?);
-    if mul_div_status(
-        drawing.scene.get().scratch.get(),
-        rb,
-        rc,
-        &gear_figures.shift_ratio_figure,
-    ) & 0x100
-        == 0
-    {
+    if mul_div_status(over, rb, rc, &gear_figures.shift_ratio_figure) & 0x100 == 0 {
         return Ok(Shift::Done);
     }
     let point = if shifts::down_point_clutch(car.brake.get()) {
@@ -149,7 +139,7 @@ fn start_line(
     } else {
         gear_figures.shift_down_point.get()
     };
-    if !below(drawing.scene.get().scratch.get(), point) {
+    if !below(over, point) {
         return Ok(Shift::Done);
     }
     Ok(Shift::Down)
@@ -157,17 +147,17 @@ fn start_line(
 
 /// The steps on `r`.
 // Core: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
-pub fn manual_gearbox(
+pub(super) fn manual_gearbox(
     car: &Car,
     tables: &PhysicsTables,
+    inputs: &GearInputs,
     numbers: &Numbers,
     gear_figures: &GearFigures,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     car.gear_changed.set(0);
     let mut to = 'first: {
         if car.driver_kind.get() == 2 {
-            break 'first start_line(car, tables, gear_figures, scene)?;
+            break 'first start_line(car, tables, inputs, gear_figures)?;
         }
         let gear = car.gear.get();
         if bit(car, gear)? || car.forced_neutral.get() != 0 {
@@ -182,18 +172,16 @@ pub fn manual_gearbox(
             return Ok(());
         }
         if car.gearbox_kind.get() != 0 {
-            break 'first start_line(car, tables, gear_figures, scene)?;
+            break 'first start_line(car, tables, inputs, gear_figures)?;
         }
-        shifts::manual_keys(tables.input_gear_up.get() != 0, || {
-            tables.input_gear_down.get() != 0
-        })
+        shifts::manual_keys(inputs.gear_up != 0, || inputs.gear_down != 0)
     };
     loop {
         to = match to {
             Shift::Up => up(car, tables, numbers)?,
             Shift::Down => down(car, tables, numbers)?,
             Shift::Neutral => {
-                neutral(car, tables);
+                neutral(car);
                 Shift::Done
             }
             Shift::Start => {

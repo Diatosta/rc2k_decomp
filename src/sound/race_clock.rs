@@ -7,36 +7,36 @@ use crate::sound::store::RaceClock;
 
 fn load(clock: &RaceClock) -> rc2k_core::sound::clock::RaceClock {
     rc2k_core::sound::clock::RaceClock {
-        last: clock.last.get(),
-        turns_a_second: clock.turns_a_second.get(),
-        step: clock.step.get(),
-        turns: clock.turns.get(),
+        last: clock.last,
+        turns_a_second: clock.turns_a_second,
+        step: clock.step,
+        turns: clock.turns,
     }
 }
 
-fn store(clock: &RaceClock, c: &rc2k_core::sound::clock::RaceClock) {
-    clock.last.set(c.last);
-    clock.turns_a_second.set(c.turns_a_second);
-    clock.step.set(c.step);
-    clock.turns.set(c.turns);
+fn store(clock: &mut RaceClock, c: &rc2k_core::sound::clock::RaceClock) {
+    clock.last = c.last;
+    clock.turns_a_second = c.turns_a_second;
+    clock.step = c.step;
+    clock.turns = c.turns;
 }
 
 /// `sound::start_race_clock`. The logic is `rc2k_core::sound::clock`.
 pub fn start_race_clock(now: u32, sound: &crate::sound::owner::Sound) {
-    let clock = sound.race.clock.get();
-    let mut c = load(clock);
+    let mut clock = sound.race.clock.get().borrow_mut();
+    let mut c = load(&clock);
     c.start(now);
-    store(clock, &c);
+    store(&mut clock, &c);
 }
 
 /// `sound::step_race_clock`: true if 20 ms or more have passed since the last turn, which then
 /// becomes this one. The logic is `rc2k_core::sound::clock`; nothing is stored when no turn is due.
-pub fn step_race_clock(now: u32, sound: &crate::sound::owner::Sound) -> bool {
-    let clock = sound.race.clock.get();
-    let mut c = load(clock);
+pub(super) fn step_race_clock(now: u32, sound: &crate::sound::owner::Sound) -> bool {
+    let mut clock = sound.race.clock.get().borrow_mut();
+    let mut c = load(&clock);
     let due = c.step(now);
     if due {
-        store(clock, &c);
+        store(&mut clock, &c);
     }
     due
 }

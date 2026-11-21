@@ -2,7 +2,7 @@
 
 use crate::net::set_hud_options::own_block;
 use crate::race::owner_shared::RaceShared;
-pub fn keep_hud_options(
+pub(super) fn keep_hud_options(
     shared: &RaceShared,
     net: &crate::net::owner::Net,
 ) -> Result<(), crate::errors::BadInput> {

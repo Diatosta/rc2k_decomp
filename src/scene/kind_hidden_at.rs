@@ -1,5 +1,5 @@
-//! `scene::kind_hidden_at`: `scene::kind_is_hidden` for the object whose number is the
-//! record's byte +1. Caller: `physics::face_contact`.
+//! `scene::kind_hidden_at`: `scene::kind_is_hidden` for the object whose number is the record's
+//! byte +1.
 
 use crate::errors::BadInput;
 use crate::race::owner_course::Course;

@@ -6,16 +6,28 @@
 //! arithmetic is the x87's, in `X` (`math/x87_float.rs`); the tests compare against recorded
 //! vectors (`data/vectors`).
 
+#[cfg(test)]
 use crate::math::cells::Cells;
 use crate::math::x87_float::{ld, stf};
 
 /// The three products-differences, each stored as made: an output over an input is read back
-/// as it then is.
+/// as it then is. Only the differential test keeps this form; callers use `cross_plain`.
+#[cfg(test)]
 pub fn cross(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized), o: &(impl Cells + ?Sized)) {
     let (a, b) = (|k| ld(a.float(k)), |k| ld(b.float(k)));
     o.set_float(0, stf(a(1) * b(2) - a(2) * b(1)));
     o.set_float(1, stf(a(2) * b(0) - a(0) * b(2)));
     o.set_float(2, stf(a(0) * b(1) - a(1) * b(0)));
+}
+
+/// `cross` of two plain vectors into a third, the same steps (the output is none of the inputs).
+pub fn cross_plain(a: &[f32; 3], b: &[f32; 3]) -> [f32; 3] {
+    let (a, b) = (|k: usize| ld(a[k]), |k: usize| ld(b[k]));
+    [
+        stf(a(1) * b(2) - a(2) * b(1)),
+        stf(a(2) * b(0) - a(0) * b(2)),
+        stf(a(0) * b(1) - a(1) * b(0)),
+    ]
 }
 
 #[cfg(test)]

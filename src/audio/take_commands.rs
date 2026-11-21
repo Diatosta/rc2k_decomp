@@ -23,7 +23,9 @@ pub fn take_commands(
             Command::Start(start) => {
                 crate::audio::start_voice::start_voice(audio, start.sound as i32, &start)?;
             }
-            Command::Room(room) => audio.state.eax_room.set(room),
+            Command::Room(room) => {
+                audio.state.eax_room.set(room);
+            }
             Command::Load(list) => {
                 audio.state.sound_list_loaded.set(list);
                 crate::audio::load_sounds::load_sounds(audio, system, sets, menu_sounds, list)?;
@@ -56,8 +58,7 @@ pub fn take_commands(
         }
         crate::sound::queue::locked(audio).pop();
         if command == Command::EndOfTurn {
-            #[cfg(feature = "remote")]
-            crate::audio::mix_hash::turn_end_taken();
+            crate::remote::turn_end_taken();
             return Ok(());
         }
     }

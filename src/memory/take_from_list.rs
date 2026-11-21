@@ -1,11 +1,7 @@
-//! `memory::take_from_list` (0x402956): hands out the next bytes of a list's newest block.
-//!
-//! Takes: bytes, the list (`MemoryList`, after `memory::rewind_list`)
-//! Returns their address, or none (the original's carry flag) if the list has fewer bytes
-//! left.
-//! The list's cursor moves on and what remains is counted down. 12 call sites: the lexicon
-//! compiler and the sprite and font builder cut their work memory this way.
-//! The name is a reading.
+//! Hands out the next bytes of a list's newest block (a `MemoryList`, after
+//! `memory::rewind_list`): their place, or none if the list has fewer bytes left. The list's
+//! cursor moves on and what remains is counted down. The lexicon compiler and the sprite and
+//! font builder cut their work memory this way.
 
 use crate::errors::BadInput;
 use crate::memory::HeldList;

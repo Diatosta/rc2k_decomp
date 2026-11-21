@@ -5,15 +5,15 @@
 //! `drive_kind`, then times `ride_height_handling_scale`), `handling[0]`, `handling[3]`,
 //! `handling[5]`, `handling[6]` (`suspension_stiffness`). What each is, is a reading.
 //!
-//! Callers: `physics::car_physics_step` (every physics step) and `race::settle_car`. Refuses
-//! (before anything) a drive kind above 1 (the cars' records have 0 and 1; the pair tables hold
-//! two).
+//! Refuses (before anything) a drive kind above 1 (the cars' records have 0 and 1; the pair tables
+//! hold two).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87::int_lerp;
 use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::car_store::Car;
+use crate::physics::figures::{HANDLING_RANGES_A, HANDLING_RANGES_B, HANDLING_RANGES_C};
 use crate::physics::grade_or_reset::grade_or_reset;
 use crate::physics::store::DamageModel;
 use crate::physics::tables_store::PhysicsTables;
@@ -24,79 +24,69 @@ use crate::race::owner_shared::RaceShared;
 fn before<'a>(
     car: &'a Car,
     tables: &'a PhysicsTables,
-) -> [(
-    &'a PlainFloat,
-    &'a PlainDword,
-    &'a PlainFloat,
-    &'a PlainFloat,
-); 4] {
+) -> [(&'a PlainFloat, &'a PlainDword, f32, f32); 4] {
     [
         (
             &tables.handling[8],
             &car.steering_sensitivity,
-            &tables.handling_ranges_a[3],
-            &tables.handling_ranges_a[2],
+            HANDLING_RANGES_A[3],
+            HANDLING_RANGES_A[2],
         ),
         (
             &tables.handling[7],
             &car.steering_sensitivity,
-            &tables.handling_ranges_a[5],
-            &tables.handling_ranges_a[4],
+            HANDLING_RANGES_A[5],
+            HANDLING_RANGES_A[4],
         ),
         (
             &tables.handling[1],
             &car.brake_balance,
-            &tables.handling_ranges_a[1],
-            &tables.handling_ranges_a[0],
+            HANDLING_RANGES_A[1],
+            HANDLING_RANGES_A[0],
         ),
         (
             &tables.handling[2],
             &car.ride_height,
-            &tables.handling_ranges_b[1],
-            &tables.handling_ranges_b[0],
+            HANDLING_RANGES_B[1],
+            HANDLING_RANGES_B[0],
         ),
     ]
 }
 fn after<'a>(
     car: &'a Car,
     tables: &'a PhysicsTables,
-) -> [(
-    &'a PlainFloat,
-    &'a PlainDword,
-    &'a PlainFloat,
-    &'a PlainFloat,
-); 4] {
+) -> [(&'a PlainFloat, &'a PlainDword, f32, f32); 4] {
     [
         (
             &tables.handling[0],
             &car.suspension_stiffness,
-            &tables.handling_ranges_c[7],
-            &tables.handling_ranges_c[6],
+            HANDLING_RANGES_C[7],
+            HANDLING_RANGES_C[6],
         ),
         (
             &tables.handling[3],
             &car.suspension_stiffness,
-            &tables.handling_ranges_c[1],
-            &tables.handling_ranges_c[0],
+            HANDLING_RANGES_C[1],
+            HANDLING_RANGES_C[0],
         ),
         (
             &tables.handling[5],
             &car.suspension_stiffness,
-            &tables.handling_ranges_c[3],
-            &tables.handling_ranges_c[2],
+            HANDLING_RANGES_C[3],
+            HANDLING_RANGES_C[2],
         ),
         (
             &tables.handling[6],
             &car.suspension_stiffness,
-            &tables.handling_ranges_c[5],
-            &tables.handling_ranges_c[4],
+            HANDLING_RANGES_C[5],
+            HANDLING_RANGES_C[4],
         ),
     ]
 }
 
 /// The exact version, for `race::settle_car` and `physics::car_physics_step`.
 pub fn set_handling(
-    damage: &DamageModel,
+    damage: &mut DamageModel,
     numbers: &Numbers,
     shared: &RaceShared,
 ) -> Result<(), Refused> {
@@ -106,18 +96,18 @@ pub fn set_handling(
     }
     grade_or_reset(damage, numbers, shared);
     let k256 = numbers.k256.get();
-    let lerp = |(out, n, hi, lo): (&PlainFloat, &PlainDword, &PlainFloat, &PlainFloat)| {
+    let lerp = |(out, n, hi, lo): (&PlainFloat, &PlainDword, f32, f32)| {
         out.set(int_lerp(n.get() as i32, k256, hi, lo));
     };
     for v in before(shared.car(), shared.physics_tables.get()) {
         lerp(v);
     }
-    let r = &shared.physics_tables.get().handling_ranges_b;
+    let r = &HANDLING_RANGES_B;
     lerp((
         &shared.physics_tables.get().handling[4],
         &shared.car().ride_height,
-        &r[4 + kind],
-        &r[2 + kind],
+        r[4 + kind],
+        r[2 + kind],
     ));
     shared.physics_tables.get().handling[4].set(x87::mul(
         &shared.physics_tables.get().handling[4],

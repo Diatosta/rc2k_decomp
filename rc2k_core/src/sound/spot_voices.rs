@@ -204,7 +204,7 @@ pub fn hear(voices: &mut [Voice; VOICES], k: &Hearing) {
 
 /// A voice's distance x 1000 as a whole number: nearest, ties to even; out of range or not a number
 /// gives 0x80000000.
-pub fn distance_1000(distance: f32) -> u32 {
+pub(crate) fn distance_1000(distance: f32) -> u32 {
     let product = (distance as f64 * 1000.0).round_ties_even();
     if product.is_nan() || product < i32::MIN as f64 || product > i32::MAX as f64 {
         0x8000_0000
@@ -405,15 +405,15 @@ pub fn free_unheard<E>(
 /// What `sound::play_spot_voices` does with a voice heard this turn.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Played {
-    /// Told to start (+0x24 1): its settings and end worked out, playing.
+    /// Told to start (its start flag is 1): its settings and end worked out, playing.
     Start,
-    /// Playing (+0x28 1): it goes on.
+    /// Playing (its playing flag is 1): it goes on.
     GoOn,
     /// Neither: nothing is sent.
     Silent,
 }
 
-/// A heard voice's play this turn: `start` (+0x24) first, `playing` (+0x28) asked only
+/// A heard voice's play this turn: `start` first, `playing` asked only
 /// when it is not told to start.
 pub fn played(start: u32, playing: impl FnOnce() -> u32) -> Played {
     if start == 1 {
@@ -426,7 +426,7 @@ pub fn played(start: u32, playing: impl FnOnce() -> u32) -> Played {
 }
 
 /// A voice going on: its sound with bit 31 set (sent again without restarting it)
-/// unless its sample loops (the sample record's +0x14 is 1).
+/// unless its sample loops (the sample record's loop flag is 1).
 pub fn going_on(sound: u32, looping: u32) -> u32 {
     if looping != 1 {
         sound | 0x8000_0000

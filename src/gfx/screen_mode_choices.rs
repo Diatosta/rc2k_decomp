@@ -1,34 +1,38 @@
-//! The graphics options' screen mode choices, in the record `gfx::choices_store` (`made`: made,
-//! the video card (0 primary, 1 secondary), the resolution (a place in the list), the buffering
-//! (0 double, 1 triple), mipmapping, the two cards present, the list made, the mipmapping's limit,
-//! the list's length, the list: 16 bytes a resolution, its width, height, pixel kind's figure and
-//! the mode). The card is the mode's bit `display.modes.kind_bits` (0x1000: the secondary).
+//! The graphics options' screen mode choices, in the record `gfx::choices_store` (`made`: made, the
+//! video card (0 primary, 1 secondary), the resolution (a place in the list), the buffering (0
+//! double, 1 triple), mipmapping, the two cards present, the list made, the mipmapping's limit, the
+//! list's length, the list: 16 bytes a resolution, its width, height, pixel kind's figure and the
+//! mode). The card is the mode's bit `display.modes.kind_bits` (0x1000: the secondary).
 //!
-//! - Made and the choice to be tried: the mode chosen (0x300000 with `kind_bits[+4]`, the list's
-//!   mode at +8 and `third_bits[+0xC]`) tried (`gfx::try_screen_mode`); if it works and +0x10 is
-//!   not above the texture figure (`cards.mips`) it is kept (`gfx::keep_race_screen_mode`); either
-//!   way the menus' mode set again (`gfx::set_menu_screen_mode`); failure if it did not work.
-//! - Not made: the card from the race screen mode (0x1000 or not), the cards present, then as
-//!   made without a choice to try, from the race screen mode.
+//! - Made and the choice to be tried: the mode chosen (0x300000 with `kind_bits[kind]`, the list's
+//!   mode at the chosen resolution and `third_bits[buffering]`) tried (`gfx::try_screen_mode`); if
+//!   it works and the mipmapping choice is not above the texture figure (`cards.mips`) it is kept
+//!   (`gfx::keep_race_screen_mode`); either way the menus' mode set again
+//!   (`gfx::set_menu_screen_mode`); failure if it did not work.
+//! - Not made: the card from the race screen mode (0x1000 or not), the cards present, then as made
+//!   without a choice to try, from the race screen mode.
 //! - Made and no choice to try (or not made): the list made again from the mode table's modes of
 //!   the pixel kind (`system::find_entry_with_bits`, `system::next_entry`), each with its size and
-//!   pixel kind's figure by `system::find_entry` (a key not there: the place past the table, as
-//!   the game reads it); +8 the mode's place in the list by its low 12 bits (else the first whose
-//!   width is not below the mode's: the search keeps 0, its bound never moves); then +8 and +0xC
-//!   from the race screen mode (its low 12 bits in the list, else both 0; +0xC from `modes.kinds`
-//!   by its fourth nibble, less 1, not below 0); +0x10 masked by +0x20; made.
+//!   pixel kind's figure by `system::find_entry` (a key not there: the place past the table, as the
+//!   game reads it); the resolution is the mode's place in the list by its low 12 bits (else the
+//!   first whose width is not below the mode's: the search keeps 0, its bound never moves); then
+//!   the resolution and the buffering from the race screen mode (its low 12 bits in the list, else
+//!   both 0; the buffering from `modes.kinds` by its fourth nibble, less 1, not below 0); the
+//!   mipmapping choice masked by its limit; made.
 //!
-//! Callers: `gfx::choose_screen_modes` and the graphics options' actions
-//! (`menu::apply_screen_mode`). Refuses (before anything is written) a list longer than the
-//! record's room (16 modes: it would write over the constants after the record) and a size's place
-//! of 0x1000 or more when made (it would read that far past the list).
+//! Refuses (before anything is written) a list longer than the record's room (64 modes: it would
+//! write over the constants after the record) and a size's place of 0x1000 or more when made (it
+//! would read that far past the list).
 
 use crate::d3d::owner::D3d;
-use crate::errors::CarryZeroFlags;
 use crate::errors::{BadInput, Refused};
 use crate::gfx::modes::Modes;
 use crate::gfx::owner::{Display, Gfx};
 use rc2k_core::gfx::mode_choices as mc;
+
+/// The widest race a phone offers while its 3D is on the software rasteriser (a phone's 2868 x 1320
+/// ran at 5 to 7 frames a second): the screen's ratio at this width, unless the player sets a size.
+const SOFTWARE_PHONE_WIDTH: u32 = 1280;
 
 /// `system::find_entry` as the game uses it (a run-on past a table's last entry goes on into the
 /// field after it): the dword of `Modes` where the entry whose first dword is `key` starts, or the
@@ -101,21 +105,17 @@ fn modes_of(display: &Display, kind: u32) -> Option<Vec<usize>> {
     Some(found)
 }
 
-/// With `try_choice` (true) the choice tried, else the list made again; the flags it leaves (see
-/// the header).
+/// With `try_choice` (true) the choice tried, else the list made again. True when the choice was taken
+/// or the list made, false when the choice was not possible or did not work (the list is not
+/// made without modes).
 pub fn screen_mode_choices(
     gfx: &Gfx,
     d3d: &D3d,
     system: &crate::system::owner::System,
     try_choice: bool,
-) -> Result<CarryZeroFlags, Refused> {
+) -> Result<bool, Refused> {
     let display = &gfx.display;
-    let failed = || {
-        Ok(CarryZeroFlags {
-            carry: true,
-            zero: false,
-        })
-    };
+    let failed = || Ok(false);
     let made = display.choices.made.get() == 1;
     // The way taken and what decides it, before anything is written.
     let kind = if made {
@@ -158,29 +158,29 @@ pub fn screen_mode_choices(
                 display.modes.third_bits[third as usize].get(),
             );
             let tried = crate::gfx::try_screen_mode::try_screen_mode(gfx, system, d3d, mode)?;
-            let worked = !tried.carry
-                && mc::kept(display.choices.mipmapping.get(), d3d.cards.get().mips.get());
+            let worked =
+                tried && mc::kept(display.choices.mipmapping.get(), d3d.cards.get().mips.get());
             if worked {
                 crate::gfx::keep_race_screen_mode::keep_race_screen_mode(gfx, system, d3d, mode)?;
+                // A size chosen from the list is no longer the window's own.
+                if crate::gfx::monitor_sizes::size_of_mode(mode)
+                    != crate::gfx::monitor_sizes::window()
+                {
+                    crate::gfx::monitor_sizes::set_window(None);
+                }
             }
             crate::platform::set_menu_mode_now(gfx, system);
             if !worked {
                 return failed();
             }
-            // The mode the three calls leave (they keep it).
-            return Ok(CarryZeroFlags {
-                carry: false,
-                zero: mode == 0,
-            });
+            return Ok(true);
         }
         return rebuild(display, d3d, current, modes);
     }
     display.choices.card.set(kind);
-    display.choices.has_primary.set(display.cards.primary.get());
-    display
-        .choices
-        .has_secondary
-        .set(display.cards.secondary.get());
+    // The one card there is: a primary one that draws in 3D.
+    display.choices.has_primary.set(1);
+    display.choices.has_secondary.set(0);
     rebuild(display, d3d, display.mode.race_mode.get(), modes)
 }
 
@@ -190,30 +190,119 @@ fn rebuild(
     d3d: &D3d,
     current: u32,
     modes: Option<Vec<usize>>,
-) -> Result<CarryZeroFlags, Refused> {
+) -> Result<bool, Refused> {
     display.choices.listed.set(0);
     display.choices.resolutions.set(0);
     let Some(modes) = modes else {
-        return Ok(CarryZeroFlags {
-            carry: true,
-            zero: false,
-        });
+        return Ok(false);
     };
-    let mut listed = Vec::new();
-    for (n, &at) in modes.iter().enumerate() {
+    let mut all = Vec::new();
+    for &at in &modes {
         let mode = display.modes.dword(at)?;
         let (size_key, kind_key) = mc::keys(mode);
         let size = entry_of(&display.modes, size_key, Modes::SIZES_AT, 8)?;
         let kind = entry_of(&display.modes, kind_key, Modes::PIXEL_KINDS_AT, 2)?;
         // The entries' second dwords: the size's two halves, the kind's figure.
         let size_halves = display.modes.dword(size + 1)?;
-        let l = mc::Listed {
+        all.push(mc::Listed {
             width: size_halves & 0xFFFF,
             height: size_halves >> 16,
             figure: display.modes.dword(kind + 1)?,
             mode,
-        };
-        // `n` is below the list's 16: the room was checked before anything was written.
+        });
+    }
+    // The sizes beyond the game's table: the monitor's modes, the usual sizes that fit its
+    // desktop and the size set by hand, each as the first mode's kind with a size of its own.
+    if let Some(first) = all.first().copied() {
+        let (modes, desktop) = crate::platform::monitor_modes();
+        // A phone whose 3D is on the software rasteriser cannot carry the screen's full size: the
+        // desktop is taken as the cut size (the size set by hand stays what the player chose).
+        let cap = crate::render::gpu::software_phone()
+            .then(|| rc2k_core::gfx::resolutions::capped_desktop(desktop, SOFTWARE_PHONE_WIDTH))
+            .flatten();
+        let desktop = cap.or(desktop);
+        let monitor = rc2k_core::gfx::resolutions::modes_as_sizes(&modes);
+        crate::gfx::monitor_sizes::set_monitor(monitor.clone(), desktop);
+        let table: Vec<(u32, u32, u32)> = all
+            .iter()
+            .map(|l| (l.width, l.height, l.mode & 0xFF))
+            .collect();
+        let table_sizes: Vec<(u32, u32)> = all.iter().map(|l| (l.width, l.height)).collect();
+        for (w, h) in rc2k_core::gfx::resolutions::extra_sizes(
+            &table_sizes,
+            &monitor,
+            desktop,
+            crate::gfx::monitor_sizes::custom().or(cap),
+        ) {
+            let Some(mode) = crate::gfx::monitor_sizes::mode_for(first.mode, &table, w, h) else {
+                break;
+            };
+            all.push(mc::Listed {
+                width: w,
+                height: h,
+                figure: first.figure,
+                mode,
+            });
+        }
+        // The window's own size, when the list has no entry of that size already.
+        let window = crate::gfx::monitor_sizes::window();
+        let window_listed =
+            window.filter(|&(w, h)| !all.iter().any(|l| (l.width, l.height) == (w, h)));
+        crate::gfx::monitor_sizes::set_window_listed(window_listed);
+        if let Some((w, h)) = window_listed
+            && let Some(mode) = crate::gfx::monitor_sizes::mode_for(first.mode, &table, w, h)
+        {
+            all.push(mc::Listed {
+                width: w,
+                height: h,
+                figure: first.figure,
+                mode,
+            });
+        }
+        // The game's own table has sizes up to 1920 x 1280 whatever the screen: one larger than
+        // the desktop could only be shown shrunk, with bars, so it is left out (the size set by
+        // hand stays). A saved race size that is left out is replaced by the largest size listed.
+        if let Some((dw, dh)) = desktop {
+            let custom = crate::gfx::monitor_sizes::custom();
+            let fits = |l: &mc::Listed| {
+                (l.width <= dw && l.height <= dh)
+                    || custom == Some((l.width, l.height))
+                    || window_listed == Some((l.width, l.height))
+            };
+            if all.iter().any(fits) {
+                let race = display.mode.race_mode.get();
+                let saved = all
+                    .iter()
+                    .find(|l| (l.mode ^ race) & mc::SAME_SIZE == 0)
+                    .copied();
+                all.retain(fits);
+                all.sort_by_key(|l| rc2k_core::gfx::resolutions::order(l.width, l.height));
+                if let (Some(saved), Some(used)) = (
+                    saved,
+                    all.iter()
+                        .rev()
+                        .find(|l| l.width <= dw && l.height <= dh)
+                        .copied(),
+                ) && !fits(&saved)
+                {
+                    crate::program_log::log(&format!(
+                        "screen: the saved race size {} x {} is larger than the desktop {dw} x {dh}: {} x {} used",
+                        saved.width, saved.height, used.width, used.height
+                    ));
+                    display
+                        .mode
+                        .race_mode
+                        .set((race & !mc::SAME_SIZE) | (used.mode & mc::SAME_SIZE));
+                }
+            }
+        }
+        all.sort_by_key(|l| rc2k_core::gfx::resolutions::order(l.width, l.height));
+        all.truncate(mc::ROOM as usize);
+    }
+    let mut listed = Vec::new();
+    for (n, l) in all.iter().enumerate() {
+        // `n` is below the list's room: the table's modes were counted before anything was
+        // written and the rest cut to the room.
         let slot = &display.choices.list.modes[n];
         slot.width.set(l.width);
         slot.height.set(l.height);
@@ -254,8 +343,5 @@ fn rebuild(
     );
     display.choices.mipmapping.set(figure);
     display.choices.made.set(1);
-    Ok(CarryZeroFlags {
-        carry: false,
-        zero: figure == 0,
-    })
+    Ok(true)
 }

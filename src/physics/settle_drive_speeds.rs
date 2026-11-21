@@ -4,38 +4,34 @@
 //! set (whatever the gear). A speed of 0 (or NaN) is left; one that reaches or crosses 0 becomes +0
 //! (a NaN after the step too). Then, in gear, `physics::revs_from_wheels`.
 //!
-//! Caller: `physics::car_physics_step`, before `physics::free_rev_in_neutral`, every physics step.
 //! Refuses (before anything) a gear outside -1 ..= 7 (`revs_from_wheels`' table).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::memory::session::PlainDword;
+use crate::physics::figures::{SETTLE_FAST_STEP, SETTLE_SLOW_STEP};
 use crate::physics::flow::FloatView;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
-use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 
-/// The switches and the scratch: the game's or a test's.
+/// The switches: the game's or a test's.
 #[derive(Clone, Copy)]
-pub struct SettlePlaces<'a> {
+struct SettlePlaces<'a> {
     /// `front_wheels_off`: settle the first driven speed (in neutral).
     pub first: &'a PlainDword,
     /// `rear_wheels_off`: settle the second.
     pub second: &'a PlainDword,
     /// `brake`: the big step.
     pub fast: &'a PlainDword,
-    /// `scratch`: the step is stored there (a dword holding the float's bits).
-    pub scratch: &'a crate::memory::session::PlainDword,
 }
 
 impl<'a> SettlePlaces<'a> {
-    pub fn game(shared: &'a RaceShared, scene: &'a crate::scene::owner::Scene) -> Self {
+    pub fn game(shared: &'a RaceShared) -> Self {
         Self {
             first: &shared.car().front_wheels_off,
             second: &shared.car().rear_wheels_off,
             fast: &shared.car().brake,
-            scratch: &scene.drawing.scene.get().scratch,
         }
     }
 }
@@ -62,8 +58,7 @@ fn settle(v: &(impl FloatView + ?Sized), step: f32) {
 }
 
 /// The steps.
-pub fn settle_drive_speeds_at(
-    tables: &PhysicsTables,
+fn settle_drive_speeds_at(
     numbers: &Numbers,
     g: &GearPlaces<'_>,
     s: &SettlePlaces<'_>,
@@ -74,19 +69,17 @@ pub fn settle_drive_speeds_at(
     }
     let step = || {
         if s.fast.is_set() {
-            tables.settle_fast_step.get()
+            SETTLE_FAST_STEP
         } else {
-            tables.settle_slow_step.get()
+            SETTLE_SLOW_STEP
         }
     };
     if s.first.is_set() && gear == 0 {
         let step = step();
-        s.scratch.set(step.to_bits());
         settle(g.drive_speed, step);
     }
     if s.second.is_set() {
         let step = step();
-        s.scratch.set(step.to_bits());
         settle(g.drive_speed_b, step);
     }
     if gear != 0 {
@@ -96,15 +89,10 @@ pub fn settle_drive_speeds_at(
 }
 
 /// The exact version, for `physics::car_physics_step`.
-pub fn settle_drive_speeds(
-    numbers: &Numbers,
-    shared: &RaceShared,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub(super) fn settle_drive_speeds(numbers: &Numbers, shared: &RaceShared) -> Result<(), Refused> {
     settle_drive_speeds_at(
-        shared.physics_tables.get(),
         numbers,
         &GearPlaces::game(shared.car(), shared.physics_tables.get()),
-        &SettlePlaces::game(shared, scene),
+        &SettlePlaces::game(shared),
     )
 }

@@ -1,7 +1,7 @@
-//! The load-game screen's preview of the saved game that was read into the buffer: headings
-//! and row numbers, a title line (the mode's string, the saved section's title and, for the saved
-//! stage's record, `<record>/6` unless 0), and one row per saved car: name, four numbers, a flag
-//! sprite and a car sprite. A negative number is drawn as "-". Called by `draw_savegame_preview`.
+//! The load-game screen's preview of the saved game that was read into the buffer: headings and row
+//! numbers, a title line (the mode's string, the saved section's title and, for the saved stage's
+//! record, `<record>/6` unless 0), and one row per saved car: name, four numbers, a flag sprite and
+//! a car sprite. A negative number is drawn as "-".
 //!
 //! Rows 2 to 4 only show a name and sprites if the first saved dword (the number of players, by
 //! this use; a reading) reaches them; otherwise string 0x578 and two 0x57A stand there, but the
@@ -36,7 +36,7 @@ pub fn draw_savegame_details(
     // are copied into the preview's variables first.
     use rc2k_core::screens::savegame_preview::{Car, Title, details};
     {
-        // The read file's dwords and cars, by offset in it.
+        // The read file's dwords and cars, by position in it.
         let file = &saves.save_games.file;
         let saved_dword = |at: usize| -> Result<u32, crate::errors::BadInput> {
             let b = file.read_at(at, 4, "a saved game's head")?;
@@ -71,7 +71,7 @@ pub fn draw_savegame_details(
                 bytes.try_into().expect("CAR_LEN bytes"),
             );
             Ok(Car {
-                // The saved car's copy of its player's name (+0x124), read as far as its NUL
+                // The saved car's copy of its player's name, read as far as its NUL
                 // inside the read file.
                 name: crate::screens::game_screen::HeldText::SavedCarName(at + 0x124),
                 nation: p.nationality,

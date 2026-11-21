@@ -17,6 +17,16 @@ use rc2k_core::drive::lit_faces::{
 
 const MOST: u32 = 0x100;
 
+/// The blink's brightness levels by step, four to a word (the low byte first).
+const BLINK_LEVELS: [u32; 6] = [
+    0xFEFD_FEFF,
+    0x0201_00FF,
+    0x0001_0203,
+    0x00FF_FEFF,
+    0x0001_0201,
+    0x0001_00FF,
+];
+
 /// Field `o` of course face `f` (by number), and its writes.
 fn at(course: &Course, f: u32, o: u32) -> Result<u32, BadInput> {
     crate::race::course_places::face_field(course.reads(), f, o)
@@ -52,29 +62,29 @@ fn store(course: &Course, f: u32, b: &FaceBytes) -> Result<(), BadInput> {
 }
 
 /// The lit face list's entry `k` (0x100 of them; the count is checked below).
-fn list(physics: &Physics, k: u32) -> &crate::memory::session::PlainDword {
-    &physics.contact.get().lit_faces[k as usize]
+fn listed(physics: &Physics, k: u32) -> u32 {
+    physics.lit_faces.borrow().faces[k as usize]
 }
 
 fn refusal(race: &Race) -> Option<&'static str> {
-    let count: u32 = race.physics.contact.get().lit_face_count.get();
+    let count: u32 = race.physics.lit_faces.borrow().count;
     if count > MOST {
         return Some("more than 0x100 lit faces (past g_litFaces)");
     }
-    let faces: u32 = race.course.course.get().course_face_count.get();
+    let faces: u32 = race.course.course.borrow().course_face_count;
     for k in 0..count {
-        if list(&race.physics, k).get() >= faces {
+        if listed(&race.physics, k) >= faces {
             return Some("a lit face past g_courseFaceCount");
         }
     }
     None
 }
 
-pub fn animate_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+fn animate_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     if let Some(why) = refusal(race) {
         return Err(BadInput(why).into());
     }
-    if race.physics.contact.get().lit_face_count.get() == 0 {
+    if race.physics.lit_faces.borrow().count == 0 {
         return Ok(());
     }
 
@@ -84,7 +94,7 @@ pub fn animate_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(),
 fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let mut k = 0;
     loop {
-        let f = list(&race.physics, k).get();
+        let f = listed(&race.physics, k);
         let mut bytes = load(&race.course, f)?;
         let leave = 'face: {
             let object = byte(&race.course, f, 1)?;
@@ -98,30 +108,27 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                 point_number,
                 0,
             )?
-            .wrapping_sub(race.car_blocks().cars[0].position[0].get());
-            scene.drawing.scene.get().scratch.set(dx);
+            .wrapping_sub(race.car_blocks().cars[0].position.bits_at(0));
+            scene.draw_work_mut().scratch = dx;
             let dz = crate::race::scene_points::point_word(
                 race.course.reads(),
                 &crate::race::scene_points::no_own(),
                 point_number,
                 2,
             )?
-            .wrapping_sub(race.car_blocks().cars[0].position[2].get());
-            scene.drawing.scene.get().scratch.set(dz);
+            .wrapping_sub(race.car_blocks().cars[0].position.bits_at(2));
+            scene.draw_work_mut().scratch = dz;
             let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
-            race.physics.contact.get().lit_face_distance.set(d);
             let step = pace(d);
-            race.physics.contact.get().lit_face_pace.set(step);
-            let kind_of: u32 = scene.objects.tables.get().object_kind(object as u32);
-            // The material's byte +0x1C (the low byte of its eighth word).
+            let kind_of: u32 = scene.objects.tables.borrow().object_kind(object as u32);
+            // The material's kind byte: the low byte of its eighth word.
             let kind =
                 crate::scene::polygon::material_run_byte(race.polygon_tables(), kind_of, 0x1C)?;
             match kind {
                 1 | 9 => {
                     blink(&mut bytes, |n| {
-                        // `blink_levels`: the step is below 0x18 (`BLINK_STEPS`).
-                        (race.physics.contact.get().blink_levels[n as usize / 4].get()
-                            >> (8 * (n % 4))) as u8
+                        // The step is below 0x18 (`BLINK_STEPS`).
+                        (BLINK_LEVELS[n as usize / 4] >> (8 * (n % 4))) as u8
                     })
                     .is_none()
                 }
@@ -138,16 +145,8 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         distance as i32,
                         angle,
                     );
-                    race.physics
-                        .contact
-                        .get()
-                        .lit_face_saved_30
-                        .set(at(&race.course, f, 0x30)?);
-                    race.physics
-                        .contact
-                        .get()
-                        .lit_face_saved_38
-                        .set(at(&race.course, f, 0x38)?);
+                    let saved_x = at(&race.course, f, 0x30)?;
+                    let saved_z = at(&race.course, f, 0x38)?;
                     put(
                         &race.course,
                         f,
@@ -161,40 +160,36 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         at(&race.course, f, 0x38)?.wrapping_add(z),
                     )?;
                     let p = at(&race.course, f, 4)?;
-                    race.physics.ground().ground_x.set(
-                        crate::race::scene_points::point_word(
-                            race.course.reads(),
-                            &crate::race::scene_points::no_own(),
-                            p,
-                            0,
-                        )?
-                        .wrapping_add(at(&race.course, f, 0x30)?),
-                    );
-                    race.physics.ground().ground_z.set(
-                        crate::race::scene_points::point_word(
-                            race.course.reads(),
-                            &crate::race::scene_points::no_own(),
-                            p,
-                            2,
-                        )?
-                        .wrapping_add(at(&race.course, f, 0x38)?),
-                    );
-                    race.course
-                        .course
-                        .get()
-                        .ground_face_last
-                        .set(race.car_blocks().cars[0].probe_point_face[4].get());
+                    let ground_x = crate::race::scene_points::point_word(
+                        race.course.reads(),
+                        &crate::race::scene_points::no_own(),
+                        p,
+                        0,
+                    )?
+                    .wrapping_add(at(&race.course, f, 0x30)?);
+                    let ground_z = crate::race::scene_points::point_word(
+                        race.course.reads(),
+                        &crate::race::scene_points::no_own(),
+                        p,
+                        2,
+                    )?
+                    .wrapping_add(at(&race.course, f, 0x38)?);
+                    {
+                        let mut search = race.physics.ground_search().borrow_mut();
+                        search.x = ground_x;
+                        search.z = ground_z;
+                        search.last = race.car_blocks().cars[0].probe_point_face[4].get();
+                    }
                     crate::physics::find_ground::find_ground(
-                        race.physics.ground_probe.get(),
-                        race.physics.ground(),
+                        race.physics.ground_probe(),
+                        race.physics.ground_search(),
                         &race.course,
-                        scene,
                     )?;
                     put(
                         &race.course,
                         f,
                         0x34,
-                        race.physics.ground().ground_height.get().wrapping_sub(
+                        race.physics.ground_search().borrow().height.wrapping_sub(
                             crate::race::scene_points::point_word(
                                 race.course.reads(),
                                 &crate::race::scene_points::no_own(),
@@ -203,19 +198,9 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                             )?,
                         ),
                     )?;
-                    if race.course.course.get().ground_slot.get() == u32::MAX {
-                        put(
-                            &race.course,
-                            f,
-                            0x30,
-                            race.physics.contact.get().lit_face_saved_30.get(),
-                        )?;
-                        put(
-                            &race.course,
-                            f,
-                            0x38,
-                            race.physics.contact.get().lit_face_saved_38.get(),
-                        )?;
+                    if race.physics.ground_search().borrow().slot == u32::MAX {
+                        put(&race.course, f, 0x30, saved_x)?;
+                        put(&race.course, f, 0x38, saved_z)?;
                     }
                     bytes.b11 = bytes.b11.wrapping_sub(1);
                     false
@@ -225,18 +210,14 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
         };
         store(&race.course, f, &bytes)?;
         if leave {
-            let last = race
-                .physics
-                .contact
-                .get()
-                .lit_face_count
-                .get()
-                .wrapping_sub(1);
-            list(&race.physics, k).set(list(&race.physics, last).get());
-            race.physics.contact.get().lit_face_count.set(last);
+            let last = race.physics.lit_faces.borrow().count.wrapping_sub(1);
+            let moved_in = listed(&race.physics, last);
+            let mut lit = race.physics.lit_faces.borrow_mut();
+            lit.faces[k as usize] = moved_in;
+            lit.count = last;
         }
         k += 1;
-        if k >= race.physics.contact.get().lit_face_count.get() {
+        if k >= race.physics.lit_faces.borrow().count {
             return Ok(());
         }
     }

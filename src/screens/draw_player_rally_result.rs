@@ -35,7 +35,7 @@ pub fn draw_player_rally_result(
         time: player.time,
         speed,
     };
-    let figures = results.players[0].get();
+    let figures = results.read().players[0];
     let figures = rc2k_core::screens::player_result::RallyFigures {
         position: figures.position,
         best: figures.time_bonus,

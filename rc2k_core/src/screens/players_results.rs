@@ -1,7 +1,5 @@
 //! The players' stage results pages, with and without the points column, drawn by one loop over
-//! the rows each; their differences are the `Layout`. Slips kept as is: the
-//! points version draws four rows for two players, tests the first row's time with a signed
-//! comparison (the others with equality) and puts the third row's time at 0x1B2.
+//! the rows each; their differences are the `Layout`. One row per player (up to four).
 
 use crate::screens::best_scores::{car_glyph, flag_glyph};
 use crate::screens::screen::{Buffer, Screen};
@@ -17,12 +15,7 @@ pub enum Font {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Work {
-    /// A row's gap, then its points.
-    Gap,
-    /// The first row's time.
-    FirstTime,
-}
+pub enum Work {}
 
 /// A time of 0x36EE80 hundredths (ten hours) or more: no time.
 pub const NO_TIME: u32 = 0x36EE80;
@@ -31,44 +24,27 @@ pub const NO_TIME: u32 = 0x36EE80;
 pub struct Layout {
     /// Added to every column's x but the stage's and the "no time" string's.
     pub dx: i32,
-    /// Two players give two rows or four (the points version).
-    pub two_rows_for_two: bool,
     /// The first row's "no time" test: signed `>= NO_TIME` or `== NO_TIME`.
     pub first_time_signed: bool,
-    /// The third row's time's x (0x1B2 in the points version, the column's 0x1E4 + dx in the
-    /// other).
-    pub third_time_x: i32,
     /// The head string 0x21A at 0x2BB and the points column.
     pub points: bool,
-    /// After the third row's flag, the extra sprite there too (the version without points).
-    pub third_row_extra: bool,
 }
 
 pub const WITH_POINTS: Layout = Layout {
     dx: 0,
-    two_rows_for_two: false,
     first_time_signed: true,
-    third_time_x: 0x1B2,
     points: true,
-    third_row_extra: false,
 };
 
 pub const WITHOUT_POINTS: Layout = Layout {
     dx: 0x1E,
-    two_rows_for_two: true,
     first_time_signed: false,
-    third_time_x: 0x202,
     points: false,
-    third_row_extra: true,
 };
 
-/// How many rows a page shows for `players` players.
-pub fn rows(layout: &Layout, players: u32) -> usize {
-    match players {
-        3 => 3,
-        2 if layout.two_rows_for_two => 2,
-        _ => 4,
-    }
+/// How many rows a page shows for `players` players: one each, one to four.
+pub fn rows(players: u32) -> usize {
+    players.clamp(1, 4) as usize
 }
 
 /// A row's player.
@@ -88,15 +64,13 @@ pub struct Row<T> {
 /// The page's other parts.
 #[derive(Clone, Debug)]
 pub struct Page {
-    /// The section's title string (its first record's +0x38).
+    /// The section's title string (its first record's title field).
     pub section: u32,
     /// The stage line, with its NUL.
     pub stage: Vec<u8>,
     /// The units' head: string 0x574 when true, else 0x573.
     pub units_set: bool,
     pub show_hours: bool,
-    /// The third row's extra sprite.
-    pub extra_glyph: u32,
 }
 
 /// The page. Every sprite's palette is taken from where the previous drawing left off.
@@ -141,28 +115,23 @@ pub fn players_results<S: Screen<Font = Font, Work = Work>>(
         if none {
             s.string(Font::Small, 0x4FA, 0x1B8, y(row))?;
         } else {
-            let x = if row == 2 {
-                layout.third_time_x
-            } else {
-                0x1E4 + dx
-            };
-            s.time_line(Font::Small, &time(r.time, page.show_hours), x, y(row))?;
+            s.time_line(
+                Font::Small,
+                &time(r.time, page.show_hours),
+                0x1E4 + dx,
+                y(row),
+            )?;
         }
     }
     for (row, r) in rows.iter().enumerate() {
         s.sprite(car_glyph(r.car), 0x141 + dx, y(row))?;
-        if row == 2 && layout.third_row_extra {
-            s.sprite(page.extra_glyph, 0x141 + dx, y(row))?;
-        }
     }
     let first = rows[0].time;
-    s.keep(Work::FirstTime, first);
     for (row, r) in rows.iter().enumerate().skip(1) {
         if r.time == NO_TIME {
             continue;
         }
         let gap = r.time.wrapping_sub(first);
-        s.keep(Work::Gap, gap);
         s.string(Font::Rows, 0x579, 0x1DF + dx, y(row))?;
         s.time_line(Font::Small, &time(gap, page.show_hours), 0x257 + dx, y(row))?;
     }
@@ -171,7 +140,6 @@ pub fn players_results<S: Screen<Font = Font, Work = Work>>(
     }
     if layout.points {
         for (row, r) in rows.iter().enumerate() {
-            s.keep(Work::Gap, r.points);
             s.line(Font::Rows, &decimal(r.points, Pad::None), 0x2BB, y(row))?;
         }
     }
@@ -210,7 +178,6 @@ pub fn standings<S: Screen<Font = Font, Work = Work>>(
         s.string(Font::Rows, 0x4FE + row as u32, 0xEA, y(row))?;
     }
     for (row, r) in rows.iter().enumerate() {
-        s.keep(Work::Gap, r.points);
         s.line(Font::Rows, &decimal(r.points, Pad::None), 0x217, y(row))?;
     }
     Ok(())
@@ -289,8 +256,7 @@ mod tests {
 
     #[test]
     fn pages() {
-        assert_eq!(rows(&WITH_POINTS, 2), 4);
-        assert_eq!(rows(&WITHOUT_POINTS, 2), 2);
+        assert_eq!((rows(2), rows(3), rows(4)), (2, 3, 4));
         let row = |n: u32, time: u32| Row {
             name: n,
             nation: n,
@@ -305,21 +271,18 @@ mod tests {
             stage: b"stage\0".to_vec(),
             units_set: false,
             show_hours: false,
-            extra_glyph: 0x77,
         };
         let mut s = Record::default();
         players_results(&mut s, &WITHOUT_POINTS, &page, &rows).unwrap();
         assert!(s.0.contains(&"sprite 0x1c 0x9d 0xfe".to_string()));
         assert!(s.0.contains(&"Small s4fa 0x1b8 0x115".to_string()));
-        // The third row's time last: its palette is the line buffer.
         assert!(s.0.contains(&"sprite 0x46 0x15f 0x12c".to_string()));
-        assert!(s.0.contains(&"sprite 0x77 0x15f 0x12c".to_string()));
-        assert!(s.0.contains(&"keep Gap 500".to_string()));
+        assert!(!s.0.contains(&"sprite 0x77 0x15f 0x12c".to_string()));
         assert!(!s.0.iter().any(|l| l.contains("0x2bb")));
         let mut s = Record::default();
         players_results(&mut s, &WITH_POINTS, &page, &rows).unwrap();
         assert!(
-            s.0.contains(&"time Small \"00:15.00\\0\" 0x1b2 0x12c".to_string()),
+            s.0.contains(&"time Small \"00:15.00\\0\" 0x1e4 0x12c".to_string()),
             "{:?}",
             s.0
         );

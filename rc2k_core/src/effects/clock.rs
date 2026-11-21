@@ -27,7 +27,7 @@ pub struct Scales {
 }
 
 impl Clock {
-    /// One frame at scene clock `clock`; `running` the settings' +0x10 is 1 (else no
+    /// One frame at scene clock `clock`; `running` the settings' running flag is 1 (else no
     /// ticks). The first time only started, the clock kept and the first reciprocal.
     pub fn tick(&mut self, clock: u32, running: bool, k: &Scales) {
         if self.started == 0 {

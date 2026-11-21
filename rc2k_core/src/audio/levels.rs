@@ -71,8 +71,8 @@ pub fn sample_buffer_size(kb: u32) -> u32 {
 }
 
 /// The EAX rooms: ten reverbs of 0x10 bytes.
-pub const EAX_ROOMS: u32 = 10;
-pub const EAX_ROOM_LEN: u32 = 0x10;
+pub(crate) const EAX_ROOMS: u32 = 10;
+pub(crate) const EAX_ROOM_LEN: u32 = 0x10;
 
 /// Where room `room`'s reverb is in the rooms' table. Refused: past the ten.
 pub fn eax_room_offset(room: u32) -> Result<u32, Invalid> {

@@ -11,7 +11,7 @@ use crate::math::x87;
 /// `colour` is the vertices' colour, `size` the half side.
 pub fn draw_particle(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
-    view_matrix: &[crate::memory::session::PlainFloat; 16],
+    view_matrix: &crate::scene::matrix::Matrix,
     place: [[u8; 10]; 3],
     colour: u32,
     size: u32,
@@ -19,15 +19,16 @@ pub fn draw_particle(
     effects: &crate::effects::owner::Effects,
 ) {
     let effects_frame = &effects.frame;
-    let turned = x87::column_turn(&place, view_matrix);
+    let turned = x87::column_turn_by(&place, view_matrix);
     for (n, v) in turned.into_iter().enumerate() {
-        effects_frame.draw_work.turned[n].set(v);
+        effects_frame.draw_work.borrow_mut().turned[n] = v;
     }
-    if x87::bits_at_or_below(turned[2], effects_frame.draw_work.near.get()) {
+    if x87::bits_at_or_below(turned[2], effects_frame.draw_work.borrow().near) {
         return;
     }
     let k = effects_frame
         .draw_work
+        .borrow()
         .view_k(scene.scratch.front_end_polygon());
     let sq = x87::particle_square_floats(turned, k, size as i32);
     for n in 0..4 {
@@ -37,7 +38,7 @@ pub fn draw_particle(
         v.x.set(sq[6 + n]);
         v.y.set(sq[2 + n]);
     }
-    effects_frame.draw_work.half[0].set(sq[0]);
-    effects_frame.draw_work.half[1].set(sq[0]);
+    effects_frame.draw_work.borrow_mut().half[0] = sq[0];
+    effects_frame.draw_work.borrow_mut().half[1] = sq[0];
     crate::effects::clip_quad::draw_fan(buffer, scene);
 }

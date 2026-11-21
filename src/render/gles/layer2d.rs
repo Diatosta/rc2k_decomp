@@ -217,7 +217,7 @@ impl Gpu {
             self.layer2d.background[self.layer2d.background_now],
         );
         gl.bind_sampler(0, 0);
-        self.draw_quad(&self.overlay, false);
+        self.draw_quad(&self.overlay, false, None);
     }
 
     /// `vertices` quad vertices drawn over the target, in the state `plain_state` leaves.

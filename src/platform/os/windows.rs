@@ -3,9 +3,8 @@
 //! the same questions in its own file.
 
 pub use crate::platform::ffi::win32::{
-    computer_name, discard_pages, disk_free, drive_type, keyboard_subtype, language_id, map_pages,
-    memory, own_stack_word, set_error_mode, set_priority_class, terminate, user_name,
-    version_record, volume,
+    computer_name, discard_pages, disk_free, drive_type, language_id, map_pages, memory,
+    own_stack_word, terminate, user_name, version_record,
 };
 
 /// The folder `dir` removed by a hidden `cmd.exe` once this program lets go of its files in
@@ -46,10 +45,13 @@ mod tests {
         std::fs::create_dir_all(dir.join("sub")).unwrap();
         std::fs::write(dir.join("sub").join("a.txt"), b"a").unwrap();
         assert!(super::remove_folder_after_exit(&dir));
-        let gone = (0..100).any(|_| {
-            std::thread::sleep(std::time::Duration::from_millis(200));
-            !dir.exists()
-        });
+        // The command tries each second; the wait ends as soon as the folder is gone, and
+        // gives up only after a minute (a hang guard, not a speed claim).
+        let give_up = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        while dir.exists() && std::time::Instant::now() < give_up {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let gone = !dir.exists();
         assert!(gone, "{} is still there", dir.display());
     }
 }

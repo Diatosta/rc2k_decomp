@@ -10,13 +10,11 @@ pub enum Font {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// The weights lost.
-    Lost,
     /// The status.
     Status,
 }
 
-/// A part: the car's damage (+0xCC + 4 x item), its threshold
+/// A part: the car's damage of the item, its threshold
 /// (`MenuState.driver_stats.highs[12][item]`), its weight (`weights[12][item]`) and whether it is
 /// chosen for repair.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -51,7 +49,6 @@ pub fn inspection_status<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     status: i32,
 ) -> Result<Drawn, S::Error> {
-    s.keep(Work::Lost, 100i32.wrapping_sub(status) as u32);
     s.keep(Work::Status, status as u32);
     s.bar(Bar {
         x: 0x19D,

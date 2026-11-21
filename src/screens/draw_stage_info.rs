@@ -20,17 +20,17 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-pub const TITLE_X: i32 = 0x2EB;
+pub(super) const TITLE_X: i32 = 0x2EB;
 pub const TITLE_Y: i32 = 0x77;
 
 /// The record of the event's stage, and its section.
-pub fn event_stage(
+pub(super) fn event_stage(
     screens: &Screens,
     system: &System,
 ) -> Result<(RecordRef, u32), crate::errors::BadInput> {
     let table = system.records().stage_tables.championship();
-    let section: u32 = screens.event.section.get();
-    let index: u32 = screens.event.stage_in_section.get();
+    let section: u32 = screens.event.read().section;
+    let index: u32 = screens.event.read().stage_in_section;
     Ok((
         find_record_in(&system.records().stage_tables, table, index as i32, section)?,
         section,
@@ -39,16 +39,16 @@ pub fn event_stage(
 
 /// The title string of the event's section: from a table in mode 0x13, otherwise from the
 /// section's first record.
-pub fn event_title(
+pub(super) fn event_title(
     lists: &crate::menu::lists_store::MenuLists,
     champ: &ChampView,
     event: &EventState,
     system: &System,
 ) -> Result<u32, crate::errors::BadInput> {
     let table = system.records().stage_tables.championship();
-    let section: u32 = event.section.get();
+    let section: u32 = event.read().section;
     let first = find_record_in(&system.records().stage_tables, table, 0, section)?;
-    if champ.event_mode.get() == 0x13 {
+    if champ.read().event_mode == 0x13 {
         section_title(lists, section)
     } else {
         Ok(first.record(&system.records().stage_tables)?.name())

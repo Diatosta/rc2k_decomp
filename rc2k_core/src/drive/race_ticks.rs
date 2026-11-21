@@ -2,7 +2,7 @@
 //! "quit?" question's answers and the best frame kept, the keys that end a pause, and when the
 //! tyre-change screen shows.
 
-/// The fatal error a tick raises with the first car block's +0x260 at 0.
+/// The fatal error a tick raises with the first car block's car number at 0.
 pub const NO_CAR_FATAL: u32 = 0x8060_0655;
 
 /// Whether tick `tick` (already counted) runs the race's step, by `RaceView.after_credits`
@@ -46,6 +46,23 @@ pub fn quit_notice(third: bool) -> u32 {
     if third { 0xC2 } else { 0xC1 }
 }
 
+/// Where the key letters are in the question's text: the last "(a/b" group's `a` and `b`, and a
+/// `c` when the group goes on "/c" (their byte places); none when the text has no such group.
+pub fn answer_letters(text: &[u8]) -> Option<Vec<usize>> {
+    let open = text.iter().rposition(|&b| b == b'(')?;
+    let letter = |at: usize| text.get(at).filter(|b| !matches!(b, b'/' | b')'));
+    letter(open + 1)?;
+    letter(open + 3)?;
+    if text.get(open + 2) != Some(&b'/') {
+        return None;
+    }
+    let mut places = vec![open + 1, open + 3];
+    if text.get(open + 4) == Some(&b'/') && letter(open + 5).is_some() {
+        places.push(open + 5);
+    }
+    Some(places)
+}
+
 /// The answer to a key from `input::yes_no_key`: 1 (yes) gives -1, -1 (no) gives 0, 2 gives -2
 /// outside race mode 2 with the third answer offered; any other key, no answer yet.
 pub fn quit_answer(key: u32, mode: u32, third: bool) -> Option<u32> {
@@ -69,7 +86,7 @@ pub fn held_wait(wait: u32) -> u32 {
     if wait <= 10 { 10 } else { wait }
 }
 
-/// Whether the tyre-change screen shows: a change under way (the first block's +0x26C not 0 or
+/// Whether the tyre-change screen shows: a change under way (the first block's change word not 0 or
 /// -1).
 pub fn tyre_change_shown(change: u32) -> bool {
     change != 0 && change != u32::MAX
@@ -77,6 +94,16 @@ pub fn tyre_change_shown(change: u32) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_key_letters_are_in_the_last_group() {
+        use super::answer_letters;
+        assert_eq!(answer_letters(b"RETIRAR? (s/n)"), Some(vec![10, 12]));
+        assert_eq!(answer_letters(b"QUIT? (y/n/r)"), Some(vec![7, 9, 11]));
+        assert_eq!(answer_letters(b"Quit"), None);
+        assert_eq!(answer_letters(b"Quit (yes)"), None);
+        assert_eq!(answer_letters(b"A (b/"), None);
+    }
+
     use super::*;
 
     #[test]

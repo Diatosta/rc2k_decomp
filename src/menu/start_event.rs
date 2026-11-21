@@ -11,8 +11,8 @@
 //! cleared, and for both `event_over` is set. The one-player ones differ (see `Starter::first`).
 
 use crate::errors::Refused;
-use crate::memory::session::PlainDword;
 use crate::menu::event_flow::*;
+use crate::menu::event_store::EventWord;
 use crate::menu::lists_store::CarList;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
@@ -30,25 +30,33 @@ struct Game<'a> {
     menus: &'a crate::menu::owner::Menus,
     owners: crate::owners::Owners<'static>,
     cars: Option<CarList>,
+    /// A launch's answers to the car choices.
+    answer: Option<crate::menu::launch::CarAnswer<'a>>,
 }
 
 impl starters::Event for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: starters::Var) -> u32 {
-        get(var(self.menus, v))
+        match var(v) {
+            Slot::Event(word) => word.get(&self.menus.screens.event),
+            Slot::LastCar => self.menus.cars.table.read().last_car,
+        }
     }
 
     fn set(&mut self, v: starters::Var, value: u32) {
-        set(var(self.menus, v), value);
+        match var(v) {
+            Slot::Event(word) => word.set(&self.menus.screens.event, value),
+            Slot::LastCar => self.menus.cars.table.write().last_car = value,
+        }
     }
 
     fn flag(&mut self, s: Switch) -> bool {
-        switch_cell(self.owners.menus, self.owners.system, s).is_set()
+        switch_is_set(self.owners.menus, self.owners.system, s)
     }
 
     fn set_flag(&mut self, s: Switch, on: bool) {
-        switch_cell(self.owners.menus, self.owners.system, s).set(on);
+        set_switch(self.owners.menus, self.owners.system, s, on);
     }
 
     fn call(&mut self, c: starters::Call) -> Result<(), Refused> {
@@ -67,12 +75,22 @@ impl starters::Event for Game<'_> {
             }
             C::SelectCar(list) => {
                 self.cars = Some(list);
-                {
-                    run_screen(
-                        ScreenId::SelectCar,
-                        &Entry::with_cars(self.owners, self.cars),
-                    )
-                }?;
+                let answered = match self.answer.as_mut() {
+                    Some(answer) => answer(list)?,
+                    None => None,
+                };
+                match answered {
+                    Some(chosen_in) => {
+                        self.cars = Some(chosen_in);
+                        starters::Event::set_flag(self, Switch::LeftByKey, false);
+                    }
+                    None => {
+                        run_screen(
+                            ScreenId::SelectCar,
+                            &Entry::with_cars(self.owners, self.cars),
+                        )?;
+                    }
+                }
             }
             C::TakeShownCar => m::take_shown_car::take_shown_car(self.menus, self.cars)?,
             C::HideAllInGameOptions => {
@@ -87,24 +105,39 @@ impl starters::Event for Game<'_> {
     }
 }
 
-fn var(menus: &crate::menu::owner::Menus, v: starters::Var) -> &PlainDword {
+/// Where a starter's variable is.
+enum Slot {
+    Event(EventWord),
+    /// The carousel's last car (`CarTables::last_car`).
+    LastCar,
+}
+
+fn var(v: starters::Var) -> Slot {
     use starters::Var as V;
-    let event = &menus.screens.event;
     match v {
-        V::EventType => &event.event_type,
-        V::RepairSet => &menus.cars.table.last_car, // 0xF
-        V::PlayerCount => &event.player_count,
-        V::Index => &event.stage_in_section,
-        V::Section => &event.section,
-        V::StagesDone => &event.stages_done,
-        V::Continuing => &event.continuing_save,
-        V::Current => &event.current_player,
-        V::EventMode => &event.event_kind,
+        V::EventType => Slot::Event(EventWord::EventType),
+        V::RepairSet => Slot::LastCar, // 0xF
+        V::PlayerCount => Slot::Event(EventWord::PlayerCount),
+        V::Index => Slot::Event(EventWord::StageInSection),
+        V::Section => Slot::Event(EventWord::Section),
+        V::StagesDone => Slot::Event(EventWord::StagesDone),
+        V::Continuing => Slot::Event(EventWord::ContinuingSave),
+        V::Current => Slot::Event(EventWord::CurrentPlayer),
+        V::EventMode => Slot::Event(EventWord::EventKind),
     }
 }
 
 /// Starts the event of a starter.
-pub fn start_event(o: crate::owners::Owners<'static>, s: &Starter) -> Result<(), Refused> {
+pub(super) fn start_event(o: crate::owners::Owners<'static>, s: &Starter) -> Result<(), Refused> {
+    start_event_with(o, s, None)
+}
+
+/// `start_event` with a launch's answers to the car choices.
+pub(super) fn start_event_with<'a>(
+    o: crate::owners::Owners<'static>,
+    s: &Starter,
+    answer: Option<crate::menu::launch::CarAnswer<'a>>,
+) -> Result<(), Refused> {
     let menus = o.menus;
     // The logic is in `rc2k_core::menu::starters::start`. The players' own settings come back
     // afterwards (`menu::own_settings`).
@@ -115,6 +148,7 @@ pub fn start_event(o: crate::owners::Owners<'static>, s: &Starter) -> Result<(),
                 menus,
                 owners: o,
                 cars: None,
+                answer,
             },
         )
     })

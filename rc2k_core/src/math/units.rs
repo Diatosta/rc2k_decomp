@@ -29,31 +29,31 @@ impl Units {
     }
 
     /// The temperature unit's label: "F" / "C".
-    pub fn temperature_label(self) -> u16 {
+    pub(crate) fn temperature_label(self) -> u16 {
         self.pick(0x576, 0x575)
     }
     /// The speed unit's label: "mph" / "km/h".
-    pub fn speed_label(self) -> u16 {
+    pub(crate) fn speed_label(self) -> u16 {
         self.pick(0x573, 0x574)
     }
     /// The power unit's label: "bhp" / "kW".
-    pub fn power_label(self) -> u16 {
+    pub(crate) fn power_label(self) -> u16 {
         self.pick(0x557, 0x558)
     }
     /// The torque unit's label.
-    pub fn torque_label(self) -> u16 {
+    pub(crate) fn torque_label(self) -> u16 {
         self.pick(0x55C, 0x55D)
     }
     /// The weight unit's label.
-    pub fn weight_label(self) -> u16 {
+    pub(crate) fn weight_label(self) -> u16 {
         self.pick(0x55F, 0x55E)
     }
 }
 
 /// The string shown for a car figure that is not known ("n/a").
-pub const NOT_KNOWN_LABEL: u16 = 0x578;
+pub(crate) const NOT_KNOWN_LABEL: u16 = 0x578;
 /// The string after a length in millimetres.
-pub const MM_LABEL: u16 = 0x55A;
+pub(crate) const MM_LABEL: u16 = 0x55A;
 
 /// A figure as shown: its text, then the text of string `label` if there is one.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -91,7 +91,7 @@ pub fn speed(tenths: u32, units: Units) -> Option<Figure> {
 
 /// A distance given in hundredths of a mile, with two decimals and no label; `None` when
 /// the km do not fit 32 bits.
-pub fn distance_2dp(hundredths: u32, units: Units) -> Option<Vec<u8>> {
+pub(crate) fn distance_2dp(hundredths: u32, units: Units) -> Option<Vec<u8>> {
     let value = match units {
         Units::Metric => miles_to_km(hundredths)?,
         Units::Imperial => hundredths,
@@ -181,18 +181,18 @@ pub fn torque(tenths: u32, units: Units) -> Figure {
 }
 
 /// Whole degrees Celsius in Fahrenheit (rounding toward 0).
-pub fn celsius_to_fahrenheit(celsius: i32) -> i32 {
+pub(crate) fn celsius_to_fahrenheit(celsius: i32) -> i32 {
     ((celsius as i64 * 9 / 5) as i32).wrapping_add(32)
 }
 
 /// A time of day written as hours * 100 + minutes (1300 for 13:00) in minutes: the last two
 /// decimal digits count once, everything above them 60 times.
-pub fn hhmm_to_minutes(hhmm: u32) -> u32 {
+pub(crate) fn hhmm_to_minutes(hhmm: u32) -> u32 {
     (hhmm / 100) * 60 + hhmm % 100
 }
 
 /// The largest distance `miles_to_km` takes: above it the result does not fit 32 bits.
-pub const MAX_MILES: u32 = (((1u64 << 32) * 10_000 - 1 - 5_000) / 16_093) as u32;
+pub(crate) const MAX_MILES: u32 = (((1u64 << 32) * 10_000 - 1 - 5_000) / 16_093) as u32;
 
 /// A distance in miles (any fixed-point scale) in kilometres, rounded to the nearest:
 /// times 1.6093. `None` past `MAX_MILES`.
@@ -201,72 +201,4 @@ pub fn miles_to_km(miles: u32) -> Option<u32> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn celsius() {
-        assert_eq!(celsius_to_fahrenheit(0), 32);
-        assert_eq!(celsius_to_fahrenheit(100), 212);
-        assert_eq!(celsius_to_fahrenheit(-40), -40);
-        // rounds toward 0
-        assert_eq!(celsius_to_fahrenheit(-1), 31);
-        assert_eq!(celsius_to_fahrenheit(1), 33);
-    }
-
-    #[test]
-    fn hours_and_minutes() {
-        assert_eq!(hhmm_to_minutes(1300), 780);
-        assert_eq!(hhmm_to_minutes(59), 59);
-        assert_eq!(hhmm_to_minutes(2359), 1439);
-    }
-
-    fn text(f: Figure) -> (String, Option<u16>) {
-        (String::from_utf8(f.text).unwrap(), f.label)
-    }
-
-    #[test]
-    fn figures() {
-        use Units::*;
-        assert_eq!(
-            text(speed(1234, Imperial).unwrap()),
-            ("123.4".into(), Some(0x573))
-        );
-        assert_eq!(
-            text(speed(1000, Metric).unwrap()),
-            ("160.9".into(), Some(0x574))
-        );
-        assert_eq!(speed(MAX_MILES + 1, Metric), None);
-        assert_eq!(distance_2dp(1205, Imperial).unwrap(), b"12.05");
-        assert_eq!(distance_2dp(100, Metric).unwrap(), b"1.61");
-        assert_eq!(text(temperature(-5, Metric)), ("-5".into(), Some(0x575)));
-        assert_eq!(
-            text(temperature(-40, Imperial)),
-            ("-40".into(), Some(0x576))
-        );
-        assert_eq!(text(temperature(20, Imperial)), ("68".into(), Some(0x576)));
-        assert_eq!(text(temperature(i32::MIN, Metric)).0, "-2147483648");
-        assert_eq!(text(power(3005, Imperial)), ("300".into(), Some(0x557)));
-        assert_eq!(text(power(3000, Metric)), ("223".into(), Some(0x558)));
-        assert_eq!(
-            text(length(0x1_FF_00, Metric)),
-            ("".into(), Some(NOT_KNOWN_LABEL))
-        );
-        assert_eq!(text(length(100, Imperial)), ("0.36\"".into(), None));
-        assert_eq!(text(length(1000, Metric)), ("91.4".into(), Some(MM_LABEL)));
-        assert_eq!(text(weight(25_000, Metric)), ("1134".into(), Some(0x55E)));
-        assert_eq!(text(torque(2000, Imperial)), ("200".into(), Some(0x55C)));
-        assert_eq!(text(torque(2000, Metric)), ("27.7".into(), Some(0x55D)));
-        assert_eq!(Units::from_setting(2), None);
-    }
-
-    #[test]
-    fn miles() {
-        assert_eq!(miles_to_km(0), Some(0));
-        assert_eq!(miles_to_km(1), Some(2));
-        assert_eq!(miles_to_km(100), Some(161));
-        assert!(miles_to_km(MAX_MILES).is_some());
-        assert_eq!(miles_to_km(MAX_MILES + 1), None);
-        assert!(miles_to_km(MAX_MILES).unwrap() >= u32::MAX - 1);
-    }
-}
+mod tests;

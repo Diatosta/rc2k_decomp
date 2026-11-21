@@ -3,10 +3,9 @@
 //!
 //! For each of the four player names (`menu::fit_name`): the name is measured with the font
 //! (`text::measure_text`) and, while it is wider than 0x15E, loses its last character and is
-//! measured again. A measured width does not depend on the x it starts from, so each is
-//! measured from 0 (`measure_text::only_measures`). One caller, the main menu's set-up
-//! `menu::set_up_front_end`. Refuses a name that would be cut to before its start, and what the
-//! measuring refuses.
+//! measured again. A measured width does not depend on the x it starts from, so each is measured
+//! from 0 (`measure_text::only_measures`). Refuses a name that would be cut to before its start,
+//! and what the measuring refuses.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;

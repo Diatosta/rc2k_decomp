@@ -1,8 +1,9 @@
-//! `menu::copy_standing_entry`: a standings entry filled from a player record: +4 the player's
-//! index + 1, +0x14 / +0x1C / +0x18 the record's +0x88 / +0x90 / +0x8C, +0xC its name pointer
-//! (+0x18) and +0x20 the name's 0x20 bytes, +8 / +0x10 its +4 / +8, +0x4C its +0xD0.
+//! `menu::copy_standing_entry`: a standings entry filled from a player record: `player` the player's
+//! index + 1, `key` / `group` / `rally_time` the record's `time` / `class` / `total`, `name_id`
+//! its name pointer and `name` the name's 0x20 bytes, `nation` / `car` its nationality and car
+//! number, `entered` its `entry`.
 //!
-//! Callers: two of the game's. Refuses a null entry, record or name, before anything.
+//! Refuses a null entry, record or name, before anything.
 use crate::errors::Refused;
 use crate::menu::standings::*;
 
@@ -16,13 +17,13 @@ pub fn copy_standing_entry(
 ) -> Result<(), Refused> {
     name_player(&p.get())?;
     use rc2k_core::menu::standings::PlayerA;
-    let name_at = name_address_of(&p.get())?;
+    let name_id = name_id_of(&p.get())?;
     let source = PlayerA {
         index,
         time: p.get().time,
         group: p.get().class,
         total: p.get().total,
-        name_at,
+        name_id,
         name: name_of(play, &p.get())?,
         nationality: p.get().nationality,
         car: p.get().car_number,

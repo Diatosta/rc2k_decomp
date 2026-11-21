@@ -8,13 +8,13 @@
 //! their numbers (-1 for none). When the nearest is last turn's second (`RaceSounds.next`) or the
 //! next last turn's nearest (`RaceSounds.nearest`), the two swap, so that each keeps its voice;
 //! they are kept in the two dwords and each gets `sound::car_sounds` with its `sound_offset` set to
-//! -2 (the nearest) or -1 for the call and put back after. One caller, `sound::race_turn`. Refuses
-//! (before anything) a count over 8 and a null object; what the callees refuse puts back what was
-//! written (sounds already sent stay sent).
+//! -2 (the nearest) or -1 for the call and put back after. Refuses (before anything) a count over 8
+//! and a null object; what the callees refuse puts back what was written (sounds already sent stay
+//! sent).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::{ld, stf};
-use crate::sound::store::SoundObject;
+use crate::sound::store::{SoundObject, SoundObjectCell};
 
 /// Every car's sounds for the turn: the players' each, of the computer's the two nearest
 /// the listener (each keeping its voice).
@@ -36,63 +36,58 @@ pub fn car_sounds_all(
     let mut nearest = Nearest::default();
     for n in 0..count {
         let o = SoundObject::of(sound, n)?;
-        if o.in_use.get() != 1 {
+        if o.borrow().in_use != 1 {
             continue;
         }
-        if o.sound_offset.get() as i32 >= 0 {
+        if o.borrow().sound_offset as i32 >= 0 {
             crate::sound::car_sounds::car_sounds(n, sound, race, system, audio)?;
             continue;
         }
-        x87_1(o, &sound.race.sounds.get().nearest_distance);
-        nearest.consider(n, sound.race.sounds.get().nearest_distance.get());
+        nearest.consider(n, x87_1(o));
     }
-    let (first, second) = nearest.kept(
-        sound.race.sounds.get().nearest.get(),
-        sound.race.sounds.get().next.get(),
-    );
-    sound.race.sounds.get().nearest.set(first);
-    sound.race.sounds.get().next.set(second);
-    for (which, mark) in [
-        (&sound.race.sounds.get().nearest, NEAREST_MARK),
-        (&sound.race.sounds.get().next, NEXT_MARK),
-    ] {
-        let n = which.get();
+    let (first, second) = {
+        let mut sounds = sound.race.sounds_mut();
+        let (first, second) = nearest.kept(sounds.nearest, sounds.next);
+        sounds.nearest = first;
+        sounds.next = second;
+        (first, second)
+    };
+    for (n, mark) in [(first, NEAREST_MARK), (second, NEXT_MARK)] {
         if (n as i32) < 0 {
             continue;
         }
         let o = SoundObject::of(sound, n)?;
-        let kept = o.sound_offset.get();
-        o.sound_offset.set(mark);
+        let kept = o.borrow().sound_offset;
+        o.borrow_mut().sound_offset = mark;
         crate::sound::car_sounds::car_sounds(n, sound, race, system, audio)?;
-        o.sound_offset.set(kept);
+        o.borrow_mut().sound_offset = kept;
     }
     Ok(())
 }
 
 // ---- the x87-precision arithmetic ----
 
-/// An x87-precision run in plain Rust over `X`, written as the expressions it computes
-/// (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// An x87-precision run in plain Rust over `X`, written as the expression it computes:
 /// `nearest_distance = (place[0] * place[0]) + ((place[1] * place[1]) + (place[2] * place[2]))`
-fn x87_1(si: &SoundObject, nearest_distance: &crate::memory::session::PlainFloat) {
-    let t0 = ld(si.place[0].get());
-    let t1 = ld(si.place[0].get());
+fn x87_1(si: &SoundObjectCell) -> f32 {
+    let t0 = ld(si.borrow().place[0]);
+    let t1 = ld(si.borrow().place[0]);
     let t2 = t0 * t1;
-    let t3 = ld(si.place[1].get());
-    let t4 = ld(si.place[1].get());
+    let t3 = ld(si.borrow().place[1]);
+    let t4 = ld(si.borrow().place[1]);
     let t5 = t3 * t4;
-    let t6 = ld(si.place[2].get());
-    let t7 = ld(si.place[2].get());
+    let t6 = ld(si.borrow().place[2]);
+    let t7 = ld(si.borrow().place[2]);
     let t8 = t6 * t7;
     let t9 = t5 + t8;
     let t10 = t2 + t9;
-    nearest_distance.set(stf(t10));
+    stf(t10)
 }
 
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::sound::asm_layout::{Laid, with_laid};
+    use crate::sound::asm_layout::{OBJECT_EXTENT, with_object};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -100,7 +95,7 @@ mod reference_vectors {
             name: "car_sounds_all line 70",
             operands: vec![
                 Operand::Sized {
-                    len: SoundObject::EXTENT,
+                    len: OBJECT_EXTENT,
                     reads: &[(0x2C, In::F), (0x30, In::F), (0x34, In::F)],
                     writes: &[],
                 },
@@ -111,14 +106,11 @@ mod reference_vectors {
             ],
             ulps: 0,
             plain: |a| {
-                // The distance sits at +0x2578 of the race sounds' 1999 layout.
-                with_laid::<SoundObject, _>(a[0], |so| {
-                    x87_1(
-                        so,
-                        crate::scene::x87_mem::view::<crate::memory::session::PlainFloat>(
-                            a[1], 0x2578,
-                        ),
-                    );
+                // The distance sits in the race sounds' 1999 layout, as the recorded block expects.
+                with_object(a[0], |so| {
+                    let distance = x87_1(so);
+                    crate::math::x87_mem::view::<crate::memory::session::PlainFloat>(a[1], 0x2578)
+                        .set(distance);
                 });
             },
         }]

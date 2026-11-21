@@ -8,7 +8,7 @@
 //!
 //! The offsets are rounded as the x87 rounds.
 
-use crate::effects::rain::Weather;
+use crate::effects::rain_store::Weather;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::owner::Race;
@@ -16,39 +16,41 @@ use crate::race::owner::Race;
 /// The marks' random: times 0x9D plus 0x47.
 fn next_seed(effects: &crate::effects::owner::Effects) -> u32 {
     let setup = &effects.setup;
-    let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
-    setup.work.seed.set(s);
+    let s = setup
+        .work
+        .borrow()
+        .seed
+        .wrapping_mul(0x9D)
+        .wrapping_add(0x47);
+    setup.work.borrow_mut().seed = s;
     s
 }
 
-pub fn drift_offsets(race: &Race, weather: &Weather, effects: &crate::effects::owner::Effects) {
-    let (r, k) = (&weather.rain, &weather.rain_rules);
+pub(super) fn drift_offsets(
+    race: &Race,
+    weather: &Weather,
+    effects: &crate::effects::owner::Effects,
+) {
+    let (mut r, k) = (weather.rain.borrow_mut(), &weather.rain_rules);
     {
-        let since = race
-            .shared
-            .physics_tables
-            .get()
-            .scene_clock
-            .get()
-            .wrapping_sub(r.drift_since.get());
-        if since >= r.drift_wait.get() {
+        let since = race.shared.run().scene_clock.wrapping_sub(r.drift_since);
+        if since >= r.drift_wait {
             let s = next_seed(effects);
             let x = (s & 0xFFF).wrapping_sub(0x7FF);
-            r.drift_target[0].set(x87::int_times(x as i32, k.target_scale[0]));
+            r.drift_target[0] = x87::int_times(x as i32, k.target_scale[0]);
             let y = ((s >> 12) & 0xFFF).wrapping_sub(0x7FF);
-            r.drift_target[2].set(x87::int_times(y as i32, k.target_scale[1]));
-            r.drift_wait.set(((s >> 24) + 0x40) * 5);
-            r.drift_since
-                .set(race.shared.physics_tables.get().scene_clock.get());
+            r.drift_target[2] = x87::int_times(y as i32, k.target_scale[1]);
+            r.drift_wait = ((s >> 24) + 0x40) * 5;
+            r.drift_since = race.shared.run().scene_clock;
             let s = next_seed(effects);
-            r.drift_halves[0].set((s & 0xFFFF) << 8);
-            r.drift_halves[2].set((s >> 16) << 8);
+            r.drift_halves[0] = (s & 0xFFFF) << 8;
+            r.drift_halves[2] = (s >> 16) << 8;
         }
         for (n, at) in [0, 2].into_iter().enumerate() {
-            let pace = x87::ease(&r.drift_target[at], &r.drift_pace[at], k.ease[n]);
-            r.drift_pace[at].set(pace);
-            let offset = bh::to_int(bh::int(r.view[at].get() as i32) + bh::ld(pace));
-            r.view[at].set(offset as u32);
+            let pace = x87::ease(r.drift_target[at], r.drift_pace[at], k.ease[n]);
+            r.drift_pace[at] = pace;
+            let offset = bh::to_int(bh::int(r.view[at] as i32) + bh::ld(pace));
+            r.view[at] = offset as u32;
         }
     }
 }

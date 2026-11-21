@@ -13,12 +13,7 @@ pub enum Font {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Work {
-    X,
-    Y,
-    /// The row counter.
-    Row,
-}
+pub enum Work {}
 
 /// Where a list's names go.
 #[derive(Clone, Copy, Debug)]
@@ -31,9 +26,6 @@ pub struct Layout {
     pub rows: u32,
     /// Pages in the table (100 names or more).
     pub pages: u32,
-    /// Whether the position and row counter are kept in the work variables (all but the
-    /// saved games' list).
-    pub keeps: bool,
     /// What a page past the table is refused as.
     pub past: &'static str,
 }
@@ -45,18 +37,16 @@ pub const SAVED_GAMES: Layout = Layout {
     step: 0x1D,
     rows: 5,
     pages: 10,
-    keeps: false,
     past: "a page past the saved games' names",
 };
 
-pub const SETUPS: Layout = Layout {
+pub(crate) const SETUPS: Layout = Layout {
     font: Font::Setups,
     columns: [0xE9, 0x238],
     first_y: 0x44,
     step: 0x1D,
     rows: 15,
     pages: 3,
-    keeps: true,
     past: "slot page past the name table",
 };
 
@@ -67,12 +57,10 @@ pub const REPLAYS: Layout = Layout {
     step: 0x1B,
     rows: 10,
     pages: 5,
-    keeps: true,
     past: "slot page past the name table",
 };
 
 /// Page `page` of a list, `name` giving slot n's text: returns the last name's `too_wide`.
-/// Kept, per column: the column's x, then after each row the next y and the rows done.
 pub fn names<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     layout: &Layout,
@@ -83,24 +71,15 @@ pub fn names<S: Screen<Font = Font, Work = Work>>(
         return Err(Invalid(layout.past).into());
     }
     let mut slot = page * layout.rows * 2;
-    let mut carry = false;
+    let mut too_wide = false;
     for x in layout.columns {
-        if layout.keeps {
-            s.keep(Work::X, x as u32);
-            s.keep(Work::Y, layout.first_y as u32);
-            s.keep(Work::Row, 0);
-        }
         for row in 0..layout.rows {
             let y = layout.first_y + layout.step * row as i32;
-            carry = s.text(layout.font, name(slot), x, y)?.too_wide;
+            too_wide = s.text(layout.font, name(slot), x, y)?.too_wide;
             slot += 1;
-            if layout.keeps {
-                s.keep(Work::Y, (y + layout.step) as u32);
-                s.keep(Work::Row, row + 1);
-            }
         }
     }
-    Ok(carry)
+    Ok(too_wide)
 }
 
 /// The save setup page's title.
@@ -190,13 +169,10 @@ mod tests {
         let mut s = Record::default();
         setup_page(&mut s, LOAD_SETUP_TITLE, 2, |n| n).unwrap();
         assert_eq!(s.0[0], "Setups s4dd 0x190 0xe");
-        assert_eq!(s.0[3], "keep X 0xe9");
-        assert_eq!(s.0[6], "Setups n60 0xe9 0x44");
-        assert_eq!(s.0.last().unwrap(), "keep Row 0xf");
-        assert!(s.0.contains(&"keep Y 0x1f7".to_string()));
+        assert_eq!(s.0[3], "Setups n60 0xe9 0x44");
         let mut s = Record::default();
         names(&mut s, &REPLAYS, 4, |n| n).unwrap();
-        assert_eq!(s.0[3], "Names n80 0xc6 0xb5");
+        assert_eq!(s.0[0], "Names n80 0xc6 0xb5");
         assert!(names(&mut Record::default(), &REPLAYS, 5, |n| n).is_err());
     }
 }

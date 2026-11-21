@@ -17,7 +17,7 @@ use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::owner::Race;
 
 /// The cells the blend reads and writes.
-pub struct BlendCells<'a> {
+struct BlendCells<'a> {
     /// The work car's checkpoint.
     pub checkpoint: &'a PlainDword,
     /// The lead car's checkpoint.
@@ -33,7 +33,7 @@ pub struct BlendCells<'a> {
 }
 
 /// The Rust core on the variables `v`: the held count.
-pub fn blend_at(race: &Race, v: &BlendCells<'_>) -> u32 {
+fn blend_at(race: &Race, v: &BlendCells<'_>) -> u32 {
     let mut n = v.checkpoint.get().wrapping_sub(v.lead_checkpoint.get());
     if (n as i32) < 0 {
         n = 0;
@@ -50,8 +50,8 @@ pub fn blend_at(race: &Race, v: &BlendCells<'_>) -> u32 {
         bh::ld(v.start_share.get()) + bh::ld(v.step_share.get()) + bh::ld(v.pace_push.get()),
     ));
     let (low, high) = (
-        race.course.numbers.get().zero.get(),
-        race.course.numbers.get().one.get(),
+        race.course.numbers.zero.get(),
+        race.course.numbers.one.get(),
     );
     if compare_full(v.blend.get(), low) & 0x100 != 0 {
         v.blend.set(x87::loaded(low));
@@ -62,12 +62,12 @@ pub fn blend_at(race: &Race, v: &BlendCells<'_>) -> u32 {
     n
 }
 
-fn game<'a>(race: &'a Race, scene: &'a crate::scene::owner::Scene) -> BlendCells<'a> {
+fn game<'a>(race: &'a Race, scratch: &'a PlainDword) -> BlendCells<'a> {
     let shared = &race.shared;
     BlendCells {
         checkpoint: &shared.car().checkpoint,
         lead_checkpoint: &race.car_blocks().cars[0].checkpoint,
-        scratch: &scene.drawing.scene.get().scratch,
+        scratch,
         step_share: &shared.car().start_blend_share,
         start_share: &shared.car().start_share,
         pace_push: &shared.car().pace_push,
@@ -77,5 +77,8 @@ fn game<'a>(race: &'a Race, scene: &'a crate::scene::owner::Scene) -> BlendCells
 
 /// (the exact one, for `drive::read_car_controls`).
 pub fn start_blend(race: &Race, scene: &crate::scene::owner::Scene) -> u32 {
-    blend_at(race, &game(race, scene))
+    let scratch = PlainDword::new(scene.draw_work().scratch);
+    let n = blend_at(race, &game(race, &scratch));
+    scene.draw_work_mut().scratch = scratch.get();
+    n
 }

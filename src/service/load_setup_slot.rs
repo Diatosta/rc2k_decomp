@@ -36,7 +36,10 @@ type Editor = fn(&Menus, &System, &crate::input::owner::Input, bool) -> Result<(
 
 /// The slot the highlighted menu item stands for.
 pub fn highlighted_slot(pages: &MenuPages, loop_flags: &LoopFlags) -> u32 {
-    rc2k_core::service::setups::highlighted_slot(pages.setup_slot_page.get(), loop_flags.item.get())
+    rc2k_core::service::setups::highlighted_slot(
+        pages.read().setup_slot_page,
+        loop_flags.read().item,
+    )
 }
 
 pub fn load_setup_slot(
@@ -82,7 +85,7 @@ pub fn load_setup_slot(
     clear_repair_flags(service)?;
     clear_repair_marks(service)?;
 
-    let highlighted = screens.loop_flags.item.get();
+    let highlighted = screens.loop_flags.read().item;
     for page in CONFIRM_ORDER {
         let (change, edit): (ChangePage, Editor) = match page {
             EditPage::GearRatio => (GEAR_RATIO, edit_gear_ratio),
@@ -91,11 +94,11 @@ pub fn load_setup_slot(
             _ => (SUSPENSION_STIFFNESS, edit_suspension_stiffness),
         };
         if change.change.chosen(service).get() != change.change.installed(service).get() {
-            screens.loop_flags.item.set(change.item);
+            screens.loop_flags.write().item = change.item;
             edit(menus, system, input, true)?;
         }
     }
-    screens.loop_flags.item.set(highlighted);
+    screens.loop_flags.write().item = highlighted;
     go_back::go_back(menus);
     Ok(())
 }

@@ -3,7 +3,7 @@
 //! `set_up_credits_race`, `set_up_arcade_cars` and `set_start_states`; sets `in_credits`; logs
 //! "INIT CREDITS - track", the stage, "car" and the car kinds (level 1); loads the stage, starts
 //! `roll_credits`, sets `after_credits` 0, plays the race, clears `in_credits` and tidies
-//! everything. Called by `menu::play_films` and the front end's developer entry.
+//! everything.
 
 use crate::errors::Refused;
 use crate::logfile::log_int::log_int;
@@ -14,12 +14,12 @@ const WORDS: [&std::ffi::CStr; 2] = [c"INIT CREDITS - track", c"car"];
 /// The steps in order.
 pub fn credits_race(race: &'static Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let frame = &race.frame;
-    crate::logfile::program_log::log("race::credits_race: the demonstration starts");
-    race.course.numbers.get().replay_mode.set(0);
+    crate::program_log::log("race::credits_race: the demonstration starts");
+    race.course.set_replay_mode(0);
     race.shared.replay_file().hold_car_revs.set(0);
     race.shared.tables().noise_seed.set(0x1234_5678);
-    race.physics.split_tables().arcade_kind.set(2);
-    race.shared.switches.get().editor_mode.set(0);
+    race.physics.split_tables_mut().arcade_kind = 2;
+    race.shared.switches.borrow_mut().editor_mode = 0;
     crate::race::set_up_credits_race::set_up_credits_race(race, &o)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
     crate::race::race_shell::set_start_states(race, &o.net.race_slot)?;

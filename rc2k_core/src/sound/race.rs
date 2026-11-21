@@ -7,8 +7,8 @@ pub enum Voice {
     Female,
 }
 
-/// The two cars' lists: the first car's by its +0x298 (0 the male list), the second the other,
-/// or the same when the two +0x298 are the same.
+/// The two cars' lists: the first car's by its voice setting (0 the male list), the second the other,
+/// or the same when the two settings are the same.
 pub fn voices(first: u32, second: u32) -> (Voice, Voice) {
     let (a, b) = if first == 0 {
         (Voice::Male, Voice::Female)

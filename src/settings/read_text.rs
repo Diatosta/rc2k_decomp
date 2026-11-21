@@ -1,11 +1,10 @@
-//! `settings::read_text` (0x41155A): reads a settings file into the scratch block.
+//! `settings::read_text`: reads a settings file into the scratch block.
 //!
-//! Takes the path. Returns the text when it was read. `files::read_file` of up to 0xFFFF bytes to
-//! 0x93E8B0, and a NUL after what was read. Five callers: `var\ral.cfg`, `var\ral.zog`, `lang.cfg`,
-//! `files\d\gfx\sku` and one more.
+//! Takes the path. Returns the text when it was read. `files::read_file` of up to 0xFFFF bytes into the
+//! scratch block, and a NUL after what was read.
 
 use crate::errors::BadInput;
-use crate::files::read_file::read_file_to_store;
+use crate::files::read_file::read_file_to_buffer;
 use crate::settings::TEXT_ROOM;
 use crate::system::owner::System;
 
@@ -13,8 +12,8 @@ use crate::system::owner::System;
 /// not read. Refuses what `read_file` refuses.
 pub fn read_text(system: &System, path: &[u8]) -> Result<Option<Vec<u8>>, BadInput> {
     {
-        let read = read_file_to_store(path, &system.work().files.buffer, TEXT_ROOM, 0)?;
-        // Converted: `rc2k_core::files::settings::text_read`.
+        let read = read_file_to_buffer(path, &system.work().files.buffer, TEXT_ROOM, 0)?;
+        // Whether the read counts, and how long the text is (`rc2k_core::files::settings::text_read`).
         let Some(bytes) = rc2k_core::files::settings::text_read(read.ok, read.bytes_read) else {
             return Ok(None);
         };

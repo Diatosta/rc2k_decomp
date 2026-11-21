@@ -1,8 +1,9 @@
 //! The input thread's routine ("INPUTTDB"). Unless its slot's flag is already 1: the flag set,
 //! "INPUTTDB:START" logged, DirectInput made (none: to the end), the keyboard, the mouse and the
-//! joysticks set up, the priority raised. Then every 20 ms (waits of 5 ms on the tick count, kept
-//! in `last_tick`): `clocks.key_ticks` one more for each 20 ms gone, the keyboard and the mouse
-//! read, a tick of the devices, a second's sleep while the window is not the active one; until
+//! joysticks set up, the priority raised. Then every 20 ms (one wait for the time left on the tick
+//! count, kept in `last_tick`; 5 ms looks while that clock is not the machine's): `clocks.key_ticks` one more for each 20 ms gone, the keyboard and the mouse
+//! read, a tick of the devices, a wait of up to a second while the window is not the active one
+//! (ended by its becoming active); until
 //! the game is quitting. The end: both devices given back, the mouse, the keyboard and DirectInput
 //! released, "INPUTTDB:QUIT" logged, the priority back, the flag 0.
 //!
@@ -15,13 +16,41 @@ use crate::input::devices::records;
 use crate::input::owner::Input;
 use crate::system::owner::System;
 
-const START_TEXT_RVA: &std::ffi::CStr = c"INPUTTDB:START"; // "INPUTTDB:START"
-const QUIT_TEXT_RVA: &std::ffi::CStr = c"INPUTTDB:QUIT"; // "INPUTTDB:QUIT"
+const START_TEXT: &std::ffi::CStr = c"INPUTTDB:START";
+const QUIT_TEXT: &std::ffi::CStr = c"INPUTTDB:QUIT";
 const TICK_MS: u32 = 20;
 
 /// "INPUTTDB:.." to the game's log (level 2, a line).
 fn log(text: &std::ffi::CStr) {
     crate::logfile::log_write::log_nul(&text, true, 2);
+}
+
+/// How long a tick waits for the window to be the active one again, and how often it looks.
+const UNFOCUSED_WAIT_MS: u32 = 1000;
+const UNFOCUSED_LOOK_MS: u32 = 10;
+
+/// While the window is not the active one the devices are read only once a second; the wait
+/// ends as soon as the window is active again or the game is quitting, so the controllers
+/// answer at once after coming back to the window.
+fn wait_while_unfocused(system: &System) {
+    let flags = &system.session.flags;
+    for _ in 0..UNFOCUSED_WAIT_MS / UNFOCUSED_LOOK_MS {
+        if flags.window_focused.get() == 1 || flags.quitting.is_set() {
+            return;
+        }
+        crate::clock::sleep::sleep(UNFOCUSED_LOOK_MS);
+    }
+}
+
+/// Waits until about `left` ms of the game's clock remain: one sleep of that length while the
+/// clock is the machine's (scaled with the sleeps by a test run's speed, so it cannot be there earlier), looks every 5 ms while it is another
+/// (a video's, a held race's, the picture override), as it does not move with real time.
+fn wait_for_next_tick(system: &System, left: u32) {
+    if crate::clock::tick_count::follows_machine_clock(&system.session.picture_clock) {
+        crate::clock::sleep::sleep(left);
+    } else {
+        crate::clock::sleep::sleep(5);
+    }
 }
 
 /// The thread's work up to its `ExitThread` (see the header).
@@ -31,14 +60,16 @@ pub fn input_thread(
     system: &System,
     race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {
-    use crate::threading::set_priority::set_priority;
-    let flag = &crate::threading::thread_slot::slot_ref(crate::threading::thread_slot::INPUT)?.flag;
+    use crate::platform::sync::set_priority;
+    use std::sync::atomic::Ordering;
+    let running = &crate::threading::thread_slot::SlotThread::Input
+        .slot()
+        .running;
     'work: {
-        if flag.get() == 1 {
+        if running.swap(true, Ordering::SeqCst) {
             break 'work;
         }
-        flag.set(1);
-        log(START_TEXT_RVA);
+        log(START_TEXT);
         // DirectInput made (in Rust, on SDL's joysticks); the keyboard and the mouse are
         // SDL's events: nothing to make for them.
         let direct_input = crate::input::di_objects::create_input();
@@ -48,18 +79,18 @@ pub fn input_thread(
         }
         crate::input::list_joysticks::list_joysticks(input, system);
         set_priority(2);
-        let mut last = crate::system::tick_count::tick_count(&system.session.picture_clock);
+        let mut last = crate::clock::tick_count::tick_count(&system.session.picture_clock);
         input.devices.last_tick.set(last);
         loop {
             let mut gone;
             loop {
-                crate::system::sleep::sleep(5);
                 last = input.devices.last_tick.get();
-                gone = crate::system::tick_count::tick_count(&system.session.picture_clock)
+                gone = crate::clock::tick_count::tick_count(&system.session.picture_clock)
                     .wrapping_sub(last);
                 if gone >= TICK_MS {
                     break;
                 }
+                wait_for_next_tick(system, TICK_MS - gone);
             }
             loop {
                 system
@@ -74,25 +105,26 @@ pub fn input_thread(
                 }
             }
             input.devices.last_tick.set(last);
-            crate::input::input_tick::input_tick_in_game(input, sound, system, race)?;
-            if system.session.flags.window_focused.get() != 1 {
-                crate::system::sleep::sleep(1000);
+            if crate::platform::input::take_devices_changed() {
+                crate::input::list_joysticks::list_new_joysticks(input, system);
             }
+            crate::input::input_tick::input_tick(input, sound, system, race)?;
+            wait_while_unfocused(system);
             if system.session.flags.quitting.is_set() {
                 break;
             }
         }
     }
     for record in records(&input.devices) {
-        { crate::input::release_device::release_device_in_game(&input.devices, record) }?;
+        crate::input::release_device::release_device(&input.devices, record)?;
     }
     let direct_input = input.devices.direct_input.get();
     if direct_input != 0 {
         crate::input::di_objects::release(direct_input);
         input.devices.direct_input.set(0);
     }
-    log(QUIT_TEXT_RVA);
+    log(QUIT_TEXT);
     set_priority(0);
-    flag.set(0);
+    running.store(false, Ordering::SeqCst);
     Ok(())
 }

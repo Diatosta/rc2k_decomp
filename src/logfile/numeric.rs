@@ -33,10 +33,10 @@ pub struct Body {
 /// The number's text logged (`write_line::log_text`), not through the scratch buffer. The
 /// text ends where its NUL goes, never past what was written (fixed: `wiki/Fixed-bugs.md`,
 /// "Logged floating-point numbers carry leftover digits").
-pub fn log_number(body: &Body, eax: u32, ecx: u32, newline: bool, level: u8) {
+pub fn log_number(body: &Body, number: u32, second: u32, newline: bool, level: u8) {
     // A text the scratch buffer cannot hold is refused (not logged): none of the six makes one
     // from a number.
-    let Ok(text) = (body.text)(eax, ecx) else {
+    let Ok(text) = (body.text)(number, second) else {
         return;
     };
     let end = text.nul_at.min(text.bytes.len());

@@ -1,18 +1,17 @@
 //! `scene::set_object_fade`: how see-through an object is drawn by how far off it is, and
 //! whether another, simpler object is drawn in its place.
 //!
-//! From the record of the object's kind (0x80 bytes in `object_materials`) two words: +0x1D to
-//! the first `fade_words` entry (another kind to draw instead) and +0x22 to its second (a
-//! distance). The object's `position` x and depth = 0, `object_fading` = 0 (no fading), `fade`
-//! = 0x100 (not see-through). Nothing more if both words are 0 or the object's `object_place`
-//! (a point of the scene) is -1. Else that point's record (made if it is not there, the same
-//! as `scene::project_point` makes one) gives the `position`: its x and depth in the view as
-//! whole numbers. With the depth beyond the distance times 65536: both `fade` cells = (the
-//! distance times 65536 less the depth, plus 0x100000, not under 0) over 0x1000,
-//! `object_fading` = 1, and if the first word is not 0 and an object of that kind exists
-//! (`scene::find_object_of_kind`: the first of the objects 1 ..= 0xFF with that kind), the
-//! current object becomes that object. One caller, `scene::draw_object`. Refuses an object's
-//! number past the tables and, where a record has to be made, no records or no points.
+//! From the record of the object's kind (0x80 bytes in `object_materials`) two words: one to the
+//! first `fade_words` entry (another kind to draw instead) and one to its second (a distance).
+//! The object's `position` x and depth = 0, `object_fading` = 0 (no fading), `fade` = 0x100 (not
+//! see-through). Nothing more if both words are 0 or the object's `object_place` (a point of the
+//! scene) is -1. Else that point's record (made if it is not there, the same as
+//! `scene::project_point` makes one) gives the `position`: its x and depth in the view as whole
+//! numbers. With the depth beyond the distance times 65536: both `fade` cells = (the distance times
+//! 65536 less the depth, plus 0x100000, not under 0) over 0x1000, `object_fading` = 1, and if the
+//! first word is not 0 and an object of that kind exists (`scene::find_object_of_kind`: the first
+//! of the objects 1 ..= 0xFF with that kind), the current object becomes that object. Refuses an
+//! object's number past the tables and, where a record has to be made, no records or no points.
 
 use crate::errors::BadInput;
 use crate::math::x87;
@@ -22,7 +21,10 @@ use crate::scene::project_point::make_scene_record;
 // ---- game data ----
 const OBJECTS: u32 = 0x100;
 
-fn record_at(lists: &crate::race::course_lists_store::CourseLists, place: u32) -> Option<u32> {
+fn record_at(
+    lists: crate::race::course_lists_store::CourseListsRef<'_>,
+    place: u32,
+) -> Option<u32> {
     crate::scene::point_records::held(lists)
         .then(|| crate::scene::point_records::of_scene_point(place))
 }
@@ -30,13 +32,13 @@ fn record_at(lists: &crate::race::course_lists_store::CourseLists, place: u32) -
 /// The two words of the object's kind, and whether the object's place is looked at;
 /// None for an object's number past the tables.
 fn words(
-    tables: &crate::scene::polygon_store::PolygonTables,
+    tables: crate::scene::polygon_store::PolygonTablesRef,
     reads: crate::scene::workers::DrawReads<'_>,
     cars: &crate::race::car_draw_state::CarDrawState,
     place: u32,
 ) -> Result<Option<(u32, u32, bool)>, BadInput> {
     {
-        let object: u32 = cars.object_number.get();
+        let object: u32 = cars.borrow().object_number;
         if object >= OBJECTS {
             return Ok(None);
         }
@@ -50,13 +52,9 @@ fn words(
 }
 
 pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
-    let place: u32 = ctx.view.object.object_place.get();
-    let Some((other_kind, distance, needs_record)) = words(
-        &ctx.reads.buffers.polygon_tables,
-        ctx.reads,
-        &ctx.view.cars,
-        place,
-    )?
+    let place: u32 = ctx.view.object.borrow().object_place;
+    let Some((other_kind, distance, needs_record)) =
+        words(ctx.reads.polygon_tables, ctx.reads, &ctx.view.cars, place)?
     else {
         return Err(BadInput("an object's number past the tables"));
     };
@@ -73,32 +71,31 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
             record
         }
     };
-    crate::memory::session::write_bits(&ctx.view.cars.fade_words, [other_kind, distance]);
-    ctx.view.object.position[0].set(0u32);
-    ctx.view.object.position[2].set(0u32);
-    ctx.view.object.fading.set(0u32);
-    ctx.view.object.fade[0].set(0x100u32);
+    ctx.view.cars.borrow_mut().fade_words = [other_kind, distance];
+    ctx.view.object.borrow_mut().position[0] = 0u32;
+    ctx.view.object.borrow_mut().position[2] = 0u32;
+    ctx.view.object.borrow_mut().fading = 0u32;
+    ctx.view.object.borrow_mut().fade[0] = 0x100u32;
     if !needs_record {
         return Ok(());
     }
     if field(ctx.part, record, 0)? != place {
         make_scene_record(ctx.part, place, record, ctx.reads, ctx.view)?;
     }
-    ctx.view.object.position[0].set(x87::to_int(field(ctx.part, record, 0x10)?) as u32);
+    ctx.view.object.borrow_mut().position[0] = x87::to_int(field(ctx.part, record, 0x10)?) as u32;
     let depth = x87::to_int(field(ctx.part, record, 0x18)?);
-    ctx.view.object.position[2].set(depth as u32);
+    ctx.view.object.borrow_mut().position[2] = depth as u32;
     let near = ((distance << 16) as i32).wrapping_sub(depth);
     if near >= 0 {
         return Ok(());
     }
     let fade = (near.wrapping_add(0x10_0000).max(0) as u32) >> 12;
-    crate::memory::session::write_bits(&ctx.view.object.fade, [fade, fade]);
-    ctx.view.object.fading.set(1u32);
+    ctx.view.object.borrow_mut().fade = [fade, fade];
+    ctx.view.object.borrow_mut().fading = 1u32;
     if other_kind != 0 {
-        let kinds: [u32; 0x100] =
-            crate::memory::session::read_bits(&ctx.reads.object_tables.object_kinds);
+        let kinds: [u32; 0x100] = ctx.reads.object_tables.object_kinds();
         if let Some(other) = (1..0x100).find(|&n| kinds[n] == other_kind) {
-            ctx.view.cars.object_number.set(other as u32);
+            ctx.view.cars.borrow_mut().object_number = other as u32;
         }
     }
     Ok(())

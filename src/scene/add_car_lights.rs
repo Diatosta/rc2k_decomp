@@ -33,13 +33,13 @@ impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
         self.3.map_or(0, |net_race| net_race.player)
     }
     fn all_cars(&self) -> bool {
-        self.4.vars.settings_words[4].get() == 1
+        self.4.vars.settings_word(4) == 1
     }
     fn near(&self) -> u32 {
-        self.4.view.players.get()
+        self.4.view.players()
     }
     fn view(&self) -> u32 {
-        self.4.vars.run_kind.get()
+        self.4.vars.run_kind()
     }
     fn drawn(&self) -> u32 {
         self.1
@@ -61,7 +61,7 @@ pub fn add_car_lights(
     add: &mut dyn FnMut(&CarView, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     {
-        let cars: u32 = reads.view.race_cars.get();
+        let cars: u32 = reads.view.race_cars();
         if cars == 0 || cars > BLOCKS {
             return Err(BadInput("no cars, or more than their blocks").into());
         }
@@ -78,14 +78,17 @@ pub fn add_car_lights(
             if lit {
                 // The car as the drawing sees it, and its marks count (the drawing's own, in
                 // the block: `race::car_parts`).
-                let marks = crate::race::owner_shared::RaceShared::race_car_or_in(
+                let block = crate::race::owner_shared::RaceShared::race_car_or_in(
                     reads.work,
                     reads.car_blocks,
                     car as usize,
                     "no car",
-                )?
-                .marks_count
-                .get();
+                )?;
+                let marks = reads
+                    .car_blocks
+                    .parts_of(reads.car_parts, block)
+                    .marks_count
+                    .get();
                 add(
                     reads
                         .frame_cars

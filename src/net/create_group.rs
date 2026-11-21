@@ -9,7 +9,7 @@ use crate::net::link::Link;
 pub fn join(link: &Link) -> bool {
     crate::net::dp_objects::add_player_to_group(link.dplay(), link.send_to(), link.player_id()) == 0
 }
-pub fn create_group(link: &Link) -> Result<bool, Refused> {
+pub(super) fn create_group(link: &Link) -> Result<bool, Refused> {
     let made =
         crate::net::dp_objects::create_group(link.dplay(), &crate::net::store::GROUP_NAME, &[]);
     if let Ok(id) = made {

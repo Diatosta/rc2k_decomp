@@ -2,34 +2,33 @@
 //! lengths, and two cosine-eased steps.
 
 use crate::effects::mask_store::Masks;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::math::x87;
-use crate::memory::session::{PlainDword, PlainFloat};
 
 /// `effects::set_line_turn` (and with `back`, the turn back):
-/// from the line (+0, +4 to +0xC, +0x10: here `line`'s dwords 0, 1 to 3, 4) dx into
-/// +0x396 and +0x3A6, minus dy (dy when `back`) into +0x3A2, its negation into +0x39A.
-pub fn set_line_turn(masks: &Masks, line: &[PlainDword; 6], back: bool) {
-    let dx = x87::sub(line[3].get(), line[0].get());
+/// from the line (`line`'s dwords 0, 1 to 3, 4) dx into the turn's first and fifth cells, minus
+/// dy (dy when `back`) into its fourth, its negation into its second.
+pub fn set_line_turn(masks: &Masks, line: [u32; 6], back: bool) {
+    let dx = x87::sub(line[3], line[0]);
     let dy = if back {
-        x87::sub(line[4].get(), line[1].get())
+        x87::sub(line[4], line[1])
     } else {
-        x87::negated(x87::sub(line[4].get(), line[1].get()))
+        x87::negated(x87::sub(line[4], line[1]))
     };
-    masks.vars.turn[0].set(dx);
-    masks.vars.turn[3].set(dy);
-    masks.vars.turn[1].set(x87::negated(dy));
-    masks.vars.turn[4].set(x87::loaded(dx));
+    let mut vars = masks.vars.borrow_mut();
+    vars.turn[0] = dx;
+    vars.turn[3] = dy;
+    vars.turn[1] = x87::negated(dy);
+    vars.turn[4] = x87::loaded(dx);
 }
 
 /// `effects::scale_rows3`: the three rows of three floats each made the
 /// length the effects' row lengths say (`x87::scale_row`).
-pub fn scale_rows3(rows: &[PlainFloat; 9], effects: &crate::effects::owner::Effects) {
-    for (n, row) in rows.as_chunks::<3>().0.iter().enumerate() {
-        let values = [row[0].get(), row[1].get(), row[2].get()];
-        let length = effects.setup.mask_constants.row_lengths[n].get();
-        for (cell, v) in row.iter().zip(x87::scale_row(values, length)) {
-            cell.set(v);
+pub fn scale_rows3(rows: &mut [f32; 9], effects: &crate::effects::owner::Effects) {
+    for (n, row) in rows.as_chunks_mut::<3>().0.iter_mut().enumerate() {
+        let values = [row[0], row[1], row[2]];
+        let length = effects.setup.mask_constants.borrow().row_lengths[n];
+        for (cell, v) in row.iter_mut().zip(x87::scale_row(values, length)) {
+            *cell = v;
         }
     }
 }
@@ -38,26 +37,20 @@ pub fn scale_rows3(rows: &[PlainFloat; 9], effects: &crate::effects::owner::Effe
 /// a step factor (a float), then the first result a + t - t cos(pi (n plus 1) / the step count)
 /// and the second the same with n over the second count.
 pub fn smooth_steps(
-    drops: &WindscreenDrops,
     n: u32,
     a: f32,
     b: u32,
     effects: &crate::effects::owner::Effects,
 ) -> (u32, u32) {
-    drops.inputs.scratch.set(a.to_bits());
-    effects.setup.work.scratch.set(a.to_bits());
+    effects.setup.work.borrow_mut().scratch = a.to_bits();
     smooth_pair(n, a, b, effects)
 }
 /// `smooth_steps`' two results from step n, a and b, writing nothing.
 pub fn smooth_pair(n: u32, a: f32, b: u32, effects: &crate::effects::owner::Effects) -> (u32, u32) {
     let setup = &effects.setup;
     {
-        let t = x87::sub_mul(b, a, &setup.mask_constants.ease);
-        let steps: [i32; 2] = setup
-            .mask_constants
-            .steps
-            .each_ref()
-            .map(|c| c.get() as i32);
+        let t = x87::sub_mul(b, a, setup.mask_constants.borrow().ease);
+        let steps: [i32; 2] = setup.mask_constants.borrow().steps.map(|c| c as i32);
         (
             x87::cosine_step(steps[0], n.wrapping_add(1) as i32, t, a).to_bits(),
             x87::cosine_step(steps[1], n as i32, t, a).to_bits(),
@@ -68,21 +61,22 @@ pub fn smooth_pair(n: u32, a: f32, b: u32, effects: &crate::effects::owner::Effe
 /// `effects::turn_pair`: the pair (a, b) turned by the line turn (m0 .. m3): a m3 + b m2,
 /// b m0 + a m1, unrounded.
 pub fn turn_pair(masks: &Masks, inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
-    turn_pair_x87(&inputs, &masks.vars.turn)
+    let turn = masks.vars.borrow().turn;
+    turn_pair_x87(&inputs, &turn)
 }
 
 /// `turn_pair` with a copy of the turn's nine floats.
-pub fn turn_pair_with(turn: &[PlainFloat; 9], inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
+pub(super) fn turn_pair_with(turn: &[f32; 9], inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
     turn_pair_x87(&inputs, turn)
 }
 
 /// The whole-number scalings of the first and second values.
-fn scaled_ints(inputs: &[[u8; 10]; 2], k0: &PlainFloat, k1: &PlainFloat) -> (i32, i32) {
+fn scaled_ints(inputs: &[[u8; 10]; 2], k0: f32, k1: f32) -> (i32, i32) {
     scaled_ints_x87(inputs, k0, k1)
 }
 
 /// A whole number over `k`, as an 80-bit value.
-fn int_over_80(v: i32, k: &PlainFloat) -> [u8; 10] {
+fn int_over_80(v: i32, k: f32) -> [u8; 10] {
     int_over_80_x87(v, k)
 }
 
@@ -94,182 +88,52 @@ pub fn clamp_pair(
     inputs: [[u8; 10]; 2],
     effects: &crate::effects::owner::Effects,
 ) -> [[u8; 10]; 2] {
-    let scales = &effects.setup.mask_constants.pair_scales;
-    let (b, a) = scaled_ints(&inputs, &scales[0], &scales[1]);
+    let scales = effects.setup.mask_constants.borrow().pair_scales;
+    let (b, a) = scaled_ints(&inputs, scales[0], scales[1]);
     let b = b.clamp(0, 0x7FFF);
     let a = a.clamp(0, 0xFFFF);
-    [int_over_80(b, &scales[3]), int_over_80(a, &scales[2])]
+    [int_over_80(b, scales[3]), int_over_80(a, scales[2])]
 }
-// ---- the converted versions (`rc2k_core::effects::turns`) ----
+// ---- the plain versions (`rc2k_core::effects::turns`) ----
 
-use crate::effects::plain::ld_cell;
 use crate::math::x87_float as bh;
 
 /// `turn_pair`'s arithmetic as plain Rust on the x87 model, in the same order
 /// (`i` the two inputs, `m` the turn: the block reads its floats 0, 1, 3 and 4).
-fn turn_pair_x87(i: &[[u8; 10]; 2], m: &[PlainFloat; 9]) -> [[u8; 10]; 2] {
+fn turn_pair_x87(i: &[[u8; 10]; 2], m: &[f32; 9]) -> [[u8; 10]; 2] {
     let t0 = bh::from_f80(i[1]);
     let t1 = bh::from_f80(i[0]);
-    let t2 = t1 * ld_cell(&m[4]);
-    let t3 = t0 * ld_cell(&m[3]);
+    let t2 = t1 * bh::ld(m[4]);
+    let t3 = t0 * bh::ld(m[3]);
     let t4 = t2 + t3;
-    let t5 = t0 * ld_cell(&m[0]);
-    let t6 = t1 * ld_cell(&m[1]);
+    let t5 = t0 * bh::ld(m[0]);
+    let t6 = t1 * bh::ld(m[1]);
     let t7 = t5 + t6;
     [bh::f80(t4), bh::f80(t7)]
 }
 
 /// `scaled_ints`'s arithmetic as plain Rust on the x87 model, in the same order
 /// (the two whole numbers it stores).
-fn scaled_ints_x87(i: &[[u8; 10]; 2], k0: &PlainFloat, k1: &PlainFloat) -> (i32, i32) {
+fn scaled_ints_x87(
+    i: &[[u8; 10]; 2],
+    k0: impl crate::math::x87::Flt,
+    k1: impl crate::math::x87::Flt,
+) -> (i32, i32) {
     let t0 = bh::from_f80(i[1]);
     let t1 = bh::from_f80(i[0]);
-    let t2 = t1 * ld_cell(k0);
+    let t2 = t1 * bh::ld(k0.value());
     let v0 = bh::to_int(t2);
-    let t3 = t0 * ld_cell(k1);
+    let t3 = t0 * bh::ld(k1.value());
     let v1 = bh::to_int(t3);
     (v0, v1)
 }
 
 /// `int_over_80`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn int_over_80_x87(v: i32, k: &PlainFloat) -> [u8; 10] {
+fn int_over_80_x87(v: i32, k: impl crate::math::x87::Flt) -> [u8; 10] {
     let t0 = bh::int(v);
-    let t1 = t0 / ld_cell(k);
+    let t1 = t0 / bh::ld(k.value());
     bh::f80(t1)
 }
 
 #[cfg(test)]
-mod reference_vectors {
-    use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::{Op, Spec, recorded};
-    use crate::memory::session::PlainFloat;
-
-    /// The `N` bytes of the test buffer at `at`.
-    fn bytes<const N: usize>(at: crate::effects::asm_test::Operand) -> [u8; N] {
-        // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the recorded
-        // run keeps alive and nothing else reaches meanwhile.
-        std::array::from_fn(|n| unsafe { (at + n).host().read() })
-    }
-
-    /// The test buffer's dword at `at` as a float cell.
-    fn cell(at: crate::effects::asm_test::Operand) -> PlainFloat {
-        PlainFloat::from_bits(u32::from_le_bytes(bytes::<4>(at)))
-    }
-
-    /// `data` into the test buffer at `at`.
-    fn put(at: crate::effects::asm_test::Operand, data: &[u8]) {
-        for (n, &b) in data.iter().enumerate() {
-            // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the
-            // recorded run keeps alive and nothing else reaches meanwhile.
-            unsafe { (at + n).host().write(b) };
-        }
-    }
-
-    /// The two ten-byte inputs at the test buffer's `at` (0 and 0xA).
-    fn pair(at: crate::effects::asm_test::Operand) -> [[u8; 10]; 2] {
-        [bytes::<10>(at), bytes::<10>(at + 0xA)]
-    }
-
-    #[test]
-    fn turn_pair_x87_matches() {
-        const SPEC: Spec = Spec {
-            operands: &[
-                Op::Base {
-                    lo: 0x0,
-                    hi: 0x14,
-                    reads: &[(0x0, F80), (0xA, F80)],
-                    writes: &[],
-                },
-                Op::Base {
-                    lo: 0x0,
-                    hi: 0x14,
-                    reads: &[(0x0, F32), (0x4, F32), (0xC, F32), (0x10, F32)],
-                    writes: &[],
-                },
-                Op::Base {
-                    lo: 0x0,
-                    hi: 0x14,
-                    reads: &[],
-                    writes: &[(0x0, F80), (0xA, F80)],
-                },
-            ],
-            sincos: false,
-        };
-        recorded("effects.turns.turn_pair_x87", &SPEC, |b| {
-            // The turn's floats 0, 1, 3 and 4 (byte offsets 0, 4, 0xC, 0x10).
-            let m: [PlainFloat; 9] = std::array::from_fn(|n| {
-                if n < 5 {
-                    cell(b[1] + 4 * n)
-                } else {
-                    cell(b[1])
-                }
-            });
-            let out = super::turn_pair_x87(&pair(b[0]), &m);
-            put(b[2], &out[0]);
-            put(b[2] + 0xA, &out[1]);
-        });
-    }
-
-    #[test]
-    fn scaled_ints_x87_matches() {
-        const SPEC: Spec = Spec {
-            operands: &[
-                Op::Base {
-                    lo: 0x0,
-                    hi: 0x14,
-                    reads: &[(0x0, F80), (0xA, F80)],
-                    writes: &[],
-                },
-                Op::Base {
-                    lo: 0x0,
-                    hi: 0x8,
-                    reads: &[(0x0, F32), (0x4, F32)],
-                    writes: &[],
-                },
-                Op::Base {
-                    lo: 0x0,
-                    hi: 0x8,
-                    reads: &[],
-                    writes: &[(0x0, I32), (0x4, I32)],
-                },
-            ],
-            sincos: false,
-        };
-        recorded("effects.turns.scaled_ints_x87", &SPEC, |b| {
-            let (v0, v1) = super::scaled_ints_x87(&pair(b[0]), &cell(b[1]), &cell(b[1] + 4));
-            put(b[2], &v0.to_le_bytes());
-            put(b[2] + 4, &v1.to_le_bytes());
-        });
-    }
-
-    #[test]
-    fn int_over_80_x87_matches() {
-        const SPEC: Spec = Spec {
-            operands: &[
-                Op::Base {
-                    lo: 0x0,
-                    hi: 0x4,
-                    reads: &[(0x0, I32)],
-                    writes: &[],
-                },
-                Op::Base {
-                    lo: 0x0,
-                    hi: 0x4,
-                    reads: &[(0x0, F32)],
-                    writes: &[],
-                },
-                Op::Base {
-                    lo: 0x0,
-                    hi: 0xA,
-                    reads: &[],
-                    writes: &[(0x0, F80)],
-                },
-            ],
-            sincos: false,
-        };
-        recorded("effects.turns.int_over_80_x87", &SPEC, |b| {
-            let v = i32::from_le_bytes(bytes::<4>(b[0]));
-            put(b[2], &super::int_over_80_x87(v, &cell(b[1])));
-        });
-    }
-}
+mod tests;

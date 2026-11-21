@@ -1,8 +1,8 @@
 //! The championship's finish routine played. The car is lifted (`car_lift` x 65536 added to its
-//! height); the clock restarted into `clock_a`; 0x20 dwords at `marks` and `play_end` -1; the
+//! height); the clock restarted and the sound tick clock set to it; `play_end` -1; the
 //! start `start_clock`. Each frame: the lead car's revs 0, `input::update`, the time
 //! (`drive::finish_timing`); until the time reaches the length (`finish_lengths[finished]`) or
-//! Esc or key 0x1C is down: the car's view 6 (+0x684), the first car loaded
+//! Esc or key 0x1C is down: the car's `camera_view` 6, the first car loaded
 //! (`race::load_first_car`), the camera (`drive::finish_camera`, `physics::camera_frame`), the
 //! car stored (`drive::store_first_car`), the race's frame (`drive::race_frame`).
 //!
@@ -17,51 +17,41 @@ use crate::physics::flow::c0;
 use crate::race::owner::Race;
 
 /// The car's lift: `CarBlocks.cars[0].position[1]` += `car_lift` x `k65536`.
-fn lift_car(race: &Race) {
-    race.car_blocks().cars[0].position[1].set(to_int(
-        ld(race.replay.finish.get().car_lift.get()) * ld(race.course.numbers.get().k65536.get())
-            + int(race.car_blocks().cars[0].position[1].get() as i32),
-    ) as u32);
+fn lift_car(race: &Race, k65536: crate::memory::session::ConstFloat) {
+    race.car_blocks().cars[0].position.set_bits_at(
+        1,
+        to_int(
+            ld(race.replay.finish().car_lift) * ld(k65536.get())
+                + int(race.car_blocks().cars[0].position.bits_at(1) as i32),
+        ) as u32,
+    );
 }
 
 pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (scene, sound, input) = (o.scene, o.sound, o.input);
-    lift_car(race);
-    restart_clock(race, o.system);
-    race.frame
-        .clock_ticks()
-        .clock_a
-        .set(race.shared.physics_tables.get().scene_clock.get());
-    race.frame
-        .clock_ticks()
-        .sound_tick_last
-        .set(race.shared.physics_tables.get().scene_clock.get());
-    for mark in &race.frame.clock_ticks().marks {
-        mark.set(u32::MAX);
-    }
+    lift_car(race, race.course.numbers.k65536);
+    restart_clock(race, &o.system.session.picture_clock);
+    race.frame.clock_ticks_mut().sound_tick_last = race.shared.run().scene_clock;
     race.replay.replay_view().play_end.set(u32::MAX);
-    restart_clock(race, o.system);
-    race.replay
-        .finish
-        .get()
-        .start_clock
-        .set(race.shared.physics_tables.get().scene_clock.get());
+    restart_clock(race, &o.system.session.picture_clock);
+    race.replay.finish_mut().start_clock = race.shared.run().scene_clock;
+    let pad_at_start = input.pad_marker();
     loop {
-        sound.race.sounds.get().objects[0].revs.set(0);
+        sound.race.objects.get()[0].borrow_mut().revs = 0;
         input_update(o);
-        crate::drive::finish_timing::finish_timing(race, scene, o.system);
+        crate::drive::finish_timing::finish_timing(race, scene, &o.system.session.picture_clock);
         let n = race.shared.state.results.finished.get();
         if n > 1 {
             return Err(BadInput("a finish length past the table's two").into());
         }
         if !c0(
-            race.replay.finish.get().time.get(),
-            race.replay.finish.get().finish_lengths[n as usize].get(),
+            race.replay.finish().time,
+            race.replay.finish().finish_lengths[n as usize],
         ) {
             break;
         }
         let pressed = |key: usize| input.devices.keys_pressed.get(key) != 0;
-        if pressed(1) || pressed(0x1C) {
+        if pressed(1) || pressed(0x1C) || input.pad_pressed_since(pad_at_start) {
             break;
         }
         race.car_blocks().cars[0].camera_view.set(6);
@@ -92,7 +82,12 @@ mod reference_vectors {
                 writes: &[(0x30F524, Out::I)],
             }],
             ulps: 0,
-            plain: |_| lift_car(race()),
+            plain: |_| {
+                lift_car(
+                    race(),
+                    crate::test_support::race_places::number_constant(".k65536"),
+                );
+            },
         }];
         sparse("drive.finish_run", &blocks, 4000, 204);
     }

@@ -4,12 +4,13 @@
 use crate::audio::modes::AudioOptions;
 use crate::menu::player::Player;
 
-/// The advanced audio page's six work values (`MenuOptions.audio_quality` ..
-/// `MenuOptions.channels`: quality, DS3D, EAX, A3D, Dolby, channels) from the options as last
+/// The advanced audio page's five work values (`MenuOptions.audio_quality` ..
+/// `MenuOptions.channels`: quality, DS3D, EAX, Dolby, channels) from the options as last
 /// applied.
-pub fn audio_page(options: &AudioOptions) -> [u32; 6] {
-    let a = options.applied; // quality, channels, DS3D, EAX, A3D, Dolby
-    [a[0], a[2], a[3], a[4], a[5], a[1]]
+pub fn audio_page(options: &AudioOptions) -> [u32; 5] {
+    use crate::audio::modes::{CHANNELS, DOLBY, DS3D, EAX, QUALITY};
+    let a = options.applied;
+    [a[QUALITY], a[DS3D], a[EAX], a[DOLBY], a[CHANNELS]]
 }
 
 /// The stage options page's items 1 and 2: their strings by the two switches (1:
@@ -30,9 +31,9 @@ pub fn stage_options_caption(page: u32) -> u32 {
 /// buffer, its NUL with it.
 pub const STAGE_LINE_ROOM: usize = 0x100;
 
-/// The setting the controller pages copy from the player picked: its +0x2C and the 0x2C
-/// bytes from +0x50.
-pub const PICKED_LEN: usize = 0x2C;
+/// The setting the controller pages copy from the player picked: one dword and a run of 0x2C
+/// bytes.
+pub(crate) const PICKED_LEN: usize = 0x2C;
 
 impl Player {
     /// `pick_player_n`'s copy.
@@ -48,10 +49,10 @@ mod tests {
     #[test]
     fn audio() {
         let o = AudioOptions {
-            applied: [1, 2, 3, 4, 5, 6],
+            applied: [1, 2, 3, 4, 5],
             ..AudioOptions::default()
         };
-        assert_eq!(audio_page(&o), [1, 3, 4, 5, 6, 2]);
+        assert_eq!(audio_page(&o), [1, 3, 4, 5, 2]);
     }
 
     #[test]

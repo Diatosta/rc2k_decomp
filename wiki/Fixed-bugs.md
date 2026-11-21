@@ -131,7 +131,8 @@ Each entry says:
 - **Seen**: yes, with the original game (the reason the owner's copy had the particles
   cut out) and with the converted game on 2026-10-23.
 - **Fix**: the Rust version ends the bursts when the ring is full, keeping the caller's
-  registers, as the intended exit does (`src/marks/emit_bursts.rs`). (For the hooked
+  registers, as the intended exit does (`src/effects/emit_wheel_grit_bursts.rs`; the module was
+  `marks` then). (For the hooked
   game, removed on 2026-10-23, the original's two exits were mended at start-up:
   `lea esp, [esp+4]` became `lea esp, [esp+8]` at 0x4CD741 and 0x4CDC6E.)
 
@@ -530,11 +531,11 @@ has the same fixed addresses, but its network mode could not be run here to see 
 
 **What it is:** the game chooses its reverb (the EAX room) from how much of the course is close to the player's car: each nearby face adds a weight, summed again for every view drawn. The sum is made in place in a variable that the sound thread reads whenever it runs. If the sound thread runs while the sum is being made, it takes a partial value, as low as zero.
 
-**In game:** at most a moment of the wrong reverb, then the right one again on the next turn. Not reported; probably not audible.
+**In game:** at most a moment of the wrong reverb, then the right one again on the next turn. Not reported; probably not audible. The port's own reverb has since been taken out, so nothing reads the sum any more (see [Sound and music](Sound-and-music)).
 
 **Seen or read:** read in `race::eax_environment` (0x45C7EE) and the sound thread's voice update; found 2026-11-09 by the conversion's work on what each view hands on.
 
-**Fix:** the weight is summed apart and handed to the sound whole, at the end of each view.
+**Fix:** the weight is summed apart and handed to the sound whole, at the end of each view. (Later the weight was not worked out at all any more: nothing heard used it.)
 
 ## The mirror's backdrop drawn with whatever the last polygon left
 
@@ -570,11 +571,11 @@ has the same fixed addresses, but its network mode could not be run here to see 
 
 **What it is:** the race's reverb (the EAX "room": open road, forest, tunnel...) is worked out while each view is drawn, from the course around that view's camera. Every view drawn sets it, so the rear-view mirror's, or in split screen the second player's view, replaced the first player's; the sound took whichever was set when it ran.
 
-**In game:** with an EAX sound card of the time, the reverb could follow the mirror's view or the other player's surroundings instead of the player's own. Today nothing is heard either way: EAX hardware reverb is not available on Windows since Vista, nor in this port yet.
+**In game:** with an EAX sound card of the time, the reverb could follow the mirror's view or the other player's surroundings instead of the player's own. The port had a reverb of its own for a time, which followed each player's own view; it has been taken out (see [Sound and music](Sound-and-music)).
 
 **Seen or read:** read in `race::eax_environment` (0x45C7EE) and the frame's views; found 2026-11-10 while drawing the views on several threads.
 
-**Fix:** the reverb comes from the first player's main view only.
+**Fix:** the reverb comes from the first player's main view only. (Later the weight was not worked out at all any more.)
 
 ## Tyre wear on snow, ice, water, dust and grass taken from the wrong surface
 
@@ -680,3 +681,388 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** seen (headless championship and arcade runs); the original reads the same bytes and carries on.
 
 **Fix:** a kind of -1 reads the record before the first (`scene::polygon::material_run_byte`) in the object's matrix, its contact material, its contact sound and the lit faces' animation, as the original does, so nothing ends the game.
+
+## A computer named "andrew" could not set the best tyre-change time
+
+**What it is:** at start the original asked for the computer's name, and on a machine whose name begins with "andrew" (in any case) the tyre change's gauge ignored a press made in the top band of the gauge: it ran on until the band was left. A developer's machine was kept off the record that way.
+
+**In game:** on such a computer the fastest tyre changes could not be made, so the tyre-change record could not be beaten with a near-perfect press.
+
+**Seen or read:** read.
+
+**Fix:** the name is no longer looked at; a press ends the gauge on every machine (`rc2k_core::race::tyre_change::turn`).
+
+## The first logo film played only on 16-bit screens
+
+**What it is:** at start-up the original played `allogo.avi` only when the screen had 16 bits a pixel; on a 32-bit screen it went straight to the second logo.
+
+**In game:** with the menus at 32 bits (every saved set of options of today) the first logo was never seen.
+
+**Seen or read:** read (and seen: the film never played in 32-bit runs).
+
+**Fix:** the screen always has 32 bits a pixel now, and the first logo always plays before the second (`rc2k_core::menu::films::play_films`); `nofmv` still skips every film.
+
+## A sound that could not be started would have slowed the audio thread to one turn a second
+
+**What it is:** the original watched for sound buffers that Windows had taken away for another program: a failed call set a flag, and while the flag was set the audio thread waited a second each turn before it tried to restore every buffer. Buffers are never taken away here, but the flag was also set by any failure to start the primary buffer, and then nothing cleared it unless the restore ran with the window active.
+
+**In game:** after such a failure every audio turn would take a second instead of 20 ms: sounds late by up to a second, and every wait for the audio thread (a stage's start, a race's end) a second or more.
+
+**Seen or read:** read, not seen (the platform's play call fails only for a buffer that is not there).
+
+**Fix:** the lost-buffer flag and its restore are gone (`audio::restore` removed). A play that fails is written to `rc2k.log` and that sound stays silent.
+
+## The menus took the last race's mipmapping
+
+**What it is:** the number of texture levels the menus' scene was made with came from a race setting that only a race's start wrote, from the mipmapping option. The menus never set it themselves.
+
+**In game:** the menus' textures had one level when the game started and three after any race (until the credits ran, which put it back to one), so the menus could look slightly different after racing.
+
+**Seen or read:** read.
+
+**Fix:** the menus' set-up puts the setting back to one level each time (`scene::set_up_front_end_scene`); races still take the option as before.
+
+## A key blinks on for ever after Escape on the "redefine keys" pages
+
+*Original*: `menu::redefine_key` (0x47D472).
+*Fixed*: 2026-11-17.
+
+- **What**: choosing a key to redefine marks its place; a new key clears the mark, but Escape ended the redefining without clearing it.
+- **In game**: after pressing Escape instead of a key, the chosen key's slot kept blinking, on every player's page, until some key was stored somewhere.
+- **Seen or read**: seen by the owner, with and without the hook, 2026-10-14.
+- **Fix**: Escape clears the mark too (`src/menu/redefine_keys.rs`).
+
+---
+
+## Typing a replay's name changed the saved games' list
+
+*Original*: `menu::edit_replay_name` (0x46F4E7).
+*Fixed*: 2026-11-17.
+
+- **What**: the replay name editor's clear key, backspace and its "name too wide" cut acted on the highlighted name of the saved games' list while the typed length they changed was the replay's.
+- **In game**: clearing or deleting a letter of a replay's name left the name as it was on screen and cut or blanked the name of the saved game in the same slot.
+- **Seen or read**: read in the code.
+- **Fix**: all three act on the replay's own name (`src/menu/edit_replay_name.rs`, `backspace_name`).
+
+---
+
+## Race messages lost their bytes when they arrived out of order
+
+*Original*: `net::store_received` (0x419677).
+*Fixed*: 2026-11-17.
+
+- **What**: a race message from another player is filed in sequence order. One arriving after a newer one moved the newer records up and was then filed with length 0 and none of its bytes. With the inbox full (0x40 messages), the new message was written one record past the end, over the neighbouring fields (the oldest and newest sequence bytes, the time, the copy handed to the race).
+- **In game**: in a network race a late message was applied as an empty one (a lost update of the other car); a long stall of the race step could corrupt the inbox's bookkeeping.
+- **Seen or read**: read in the code, and found by testing the Rust port against it.
+- **Fix**: a message keeps its bytes wherever it is filed; into a full inbox the oldest record goes and the new one is filed in order (`rc2k_core::net::inbox::store`, unit-tested).
+
+---
+
+## The best times file left open, and a short write passed
+
+*Original*: `saves::load_best_times` (0x4AB155), `saves::save_best_times` (0x4AB236).
+*Fixed*: 2026-11-17.
+
+- **What**: a `hst.dat` whose head was wrong was not closed after reading; the writes of the best times were never looked at.
+- **In game**: nothing visible. A file left open could keep the next save from opening it on some systems; a full disk lost the best times with no word.
+- **Seen or read**: read in the code.
+- **Fix**: the file is closed on every path; a write that falls short is logged in `rc2k.log` (`src/saves/load_best_times.rs`, `save_best_times.rs`).
+
+---
+
+## A saved game or set-up that could not be written kept its name in the list
+
+*Original*: `menu::edit_savegame_name`, `service::edit_setup_name` (the writers' result was not looked at).
+*Fixed*: 2026-11-17.
+
+- **What**: the name typed is put into the slot list before the file is written, and nothing took it out again when the write failed (for example because the `savedata` folders did not exist, which the original never made).
+- **In game**: the list showed a saved game or set-up that was not there.
+- **Seen or read**: seen by the owner, 2026-10-10.
+- **Fix**: the standalone makes the `savedata` folders at start (it already did), and a slot whose file was not written gets the name from before and a line in `rc2k.log`.
+
+---
+
+## The windscreen Pong's bat never moved
+
+*Original*: `effects::move_pong_bat` (0x4B82B0).
+*Fixed*: 2026-11-17.
+
+- **What**: the hidden Pong game over the race (cheat "blarby garby", seen from the in-car views) has code that moves the bat up and down by keys, but two jumps right after the bat's place is kept skip all of it.
+- **In game**: a ball and a bat are drawn and the ball bounces, but the bat stays where it is: the game cannot be played.
+- **Seen or read**: seen in the standalone and read in the disassembly.
+- **Fix**: the bat follows player 1's steering (left up, right down; keys, pad or wheel as the race reads them), 32 units a frame within the original's walls (`rc2k_core::effects::pong::Court::move_bat`).
+
+---
+
+## A lobby kept showing after its session was gone
+
+*Original*: `net::lobby_loop`.
+*Fixed*: 2026-11-17.
+
+- **What**: when the host's session ended while a joined machine sat in the lobby, the lobby's loop never looked at the link again.
+- **In game**: the joiner stayed in a lobby that no longer worked (a frozen list of players) instead of going back to the join screen.
+- **Seen or read**: seen in a two-copy trial (a joiner put out by the host's `/kick`, which takes the same path as a host that leaves).
+- **Fix**: the lobby ends when the network link has been closed (`net::lobby_loop`); the joiner is back at the join screen.
+
+---
+
+## Filled rectangles drawn nothing on a 32-bit screen
+
+*Original*: `gfx::fill_rect` (0x406869).
+*Fixed*: 2026-11-17.
+
+- **What**: the function that fills a rectangle with one colour skipped the fill for a 32-bit surface (its depth test jumped past it), and on an 8-bit one it filled with the byte and then ran on into a second fill of dwords that started below the rectangle and wrote four times its width.
+- **In game**: with the screen at 32 bits (every saved set of options of today) the back of a message box was never filled, the installer's copying page never cleared the percentage before writing the next (the numbers piled up until the bar's glyphs covered them), and the tyre change's texts were written over the last ones without the area being cleared first.
+- **Seen or read**: seen in the standalone's installer at 32 bits (the percentage), read in the disassembly for the rest.
+- **Fix**: the rectangle is filled, clipped, at every depth the game's surfaces have (8, 16 and 32 bits), with the palette's colour (the byte itself on 8 bits) (`rc2k_core::gfx::raster::fill`, `gfx::rect::fill_rect`). The message box's back, the installer's percentage area and the tyre change's panel are cleared as they were meant to be.
+
+---
+
+## The drivers were never shuffled at a championship's start
+
+*Original*: `menu::shuffle_drivers` (0x470AB9).
+*Fixed*: 2026-11-17.
+
+- **What**: at the start of an event the four driver tables are meant to be shuffled: two entries chosen at random swap places, once for each driver of the class. The original worked out the two entries' offsets but never added them to the tables' bases, so every swap exchanged the first entry with itself.
+- **In game**: the computer drivers' order in the championship was the same at every event; the random numbers were still drawn, so the rest of the event's random numbers were not affected.
+- **Seen or read**: read in the disassembly, not seen.
+- **Fix**: the two chosen entries swap places as meant (`menu::shuffle_drivers`), with the same two random draws per swap as before: the random state after the shuffle is unchanged, but the order of the computer drivers in a championship now differs from event to event.
+## A replay's camera taken over by the recorded change-view key
+
+*Original*: `drive::read_car_controls`.
+*Fixed*: 2026-11-17.
+
+- **What**: while a replay played, the change-view presses the driver made while racing were read back from the file and changed the camera again.
+- **In game**: a camera chosen in the replay viewer (for example the roadside camera) cut to the bumper, cockpit and chase views at the moments the driver had pressed the key, then came back.
+- **Seen or read**: seen (a replay recorded with view changes, played with a roadside camera).
+- **Fix**: while a replay plays, the recorded change-view bit is ignored (the lights' bit still acts); the camera stays as the viewer set it.
+
+## A network replay's car could not be changed
+
+*Original*: `menu::replay_viewer::mark_items`, `menu::replay_viewer::action`, `drive::choose_shown_cars`.
+*Fixed*: 2026-11-17.
+
+- **What**: the replay viewer's view item (which car is shown) was greyed for every one-player replay, and a network race's replay is one (the header's players is 1, with a car for each machine). The replay always opened on the first car. A network game still open (the lobby) also made the viewer show the lobby machine's own car whatever the view said.
+- **In game**: in a replay of a network race the second car could not be watched, whichever player had saved it.
+- **Seen or read**: seen (a replay saved after a two-player network race).
+- **Fix**: the item works for a replay with two cars or more and goes round the four views (first car, second car, both, both the other way); a network race's recording opens on the saving machine's own car; the viewer's view wins over the open link.
+
+## The tyre change's title cut at both ends
+
+*Original*: `race::draw_tyre_change`.
+*Fixed*: 2026-11-17.
+
+- **What**: the tyre change screen's title is drawn into a strip of its texture 256 pixels wide, centred in a box of 248. The Portuguese title ("MUDANÇA DE PNEUS") is about 276 pixels wide, so its centred drawing began and ended outside the strip.
+- **In game**: the first and last letters of the title were half drawn, cut straight at the strip's edges, at every screen size.
+- **Seen or read**: seen (the roadside tyre change on a stage after a puncture, in Portuguese).
+- **Fix**: the title has a texture of its own (texture 0x3F0, 256 by 256, pixel kind 3), drawn with the font's own letter spacing. A title that does not fit one 256 strip (box of 248) is drawn across two strips of that texture, its left half in the first row and its right half in the second, and shown as two quads side by side centred where the single strip was; a title that fits is one strip as before. The old strip's title row is left empty. The prompt ("PRIMA BOTÃO PARA PARAR" with the button's picture, when the player has one) has strips of its own in the same texture, two for each half of the screen, drawn the same way with the font's own letter spacing and shown centred where the prompt was; the letters are no longer drawn up to 3 pixels closer to make it fit.
+
+## The second car of a network race's replay made no sound
+
+*Original*: `race::set_up_race_sound_objects` (`race::viewer_load_stage`).
+*Fixed*: 2026-11-17.
+
+- **What**: a network race's replay is a one-player one by its header (with a car for each machine), so the replay viewer set up the sound of one car only.
+- **In game**: with the replay's second car shown (the viewer's view item), the engine and the other car sounds were silent; the first car had them.
+- **Seen or read**: seen (a replay saved after a two-player network race); read in the sound set-up.
+- **Fix**: a replay whose header names two cars or more but one player gets the sound objects of a two-player race for its first two cars (the second car's kind from the header), as a two-player replay has.
+
+## The players' results page: a cut time, extra rows and a stray sprite
+
+*Original*: `screens::draw_players_results_points`, `screens::draw_players_results`, `screens::draw_players_standings`.
+*Fixed*: 2026-11-17.
+
+- **What**: the results page with points drew the third row's time 50 pixels further left than the others (under the car's picture); it drew four rows for two players (the last two from whatever the order table held), and tested its first row's "no time" differently from the rest. The page without points drew an extra picture over the third row's car, taken from a variable another screen had left. The players' standings page also drew four rows for two players.
+- **In game**: in a three-player single rally the third row's time started under the car and was cut ("37.49" instead of "01:37.49"); with two players the page showed two more rows of someone else's data; the third row's car had another sprite on it.
+- **Seen or read**: the cut time was seen (a three-player single rally); the rest was read in the code.
+- **Fix**: every row's time is at the same place, one row is drawn per player (one to four) on both pages and the standings, and the extra picture is gone. The first row's "no time" test keeps its signed comparison, which matches the others for every time the game makes.
+
+## A time trial's top speed drawn over the best time's car
+
+*Original*: `screens::draw_time_trial_records`.
+*Fixed*: 2026-11-17.
+
+- **What**: the time trial's copy of the two record rows put the top speed's car picture at the first row's height instead of the second's.
+- **In game**: the best time's row showed two car pictures on top of each other and the top speed's row none.
+- **Seen or read**: read in the code.
+- **Fix**: the car picture goes on the top speed's row, as on the stage panels.
+
+## The fastest line missing from a record page with fewer than ten times
+
+*Original*: `screens::draw_record_times`, `screens::draw_stage_results`.
+*Fixed*: 2026-11-17.
+
+- **What**: a best-times list that ended before ten rows jumped past the page's last line. In the stage results page the same jump left the stack astray (the original crashed there; the Rust version ended the game with a refusal).
+- **In game**: the "fastest" line at the bottom of a record page was left out when the list was short; a time trial's stage results page for such a list ended the game.
+- **Seen or read**: read in the code.
+- **Fix**: the rows the list has are drawn and the fastest line is always drawn.
+
+## A spaced-out empty menu text drew what the line buffer held
+
+*Original*: `screens::draw_menu_item_text`.
+*Fixed*: 2026-11-17.
+
+- **What**: a menu item with spaced letters and an empty text drew its terminator and went on through the line buffer, past the empty text, up to the next zero byte.
+- **In game**: an empty spaced item could show stray characters of an earlier line (none of the shipped menus has one).
+- **Seen or read**: read in the code.
+- **Fix**: an empty text draws nothing.
+
+## The overall rally results judged a player's row by the stage time
+
+*Original*: `screens::draw_overall_rally_results`.
+*Fixed*: 2026-11-17.
+
+- **What**: a player's row on the overall rally results was marked "retired or not finished" by the stage's time where every other row, and the class page, use the rally's.
+- **In game**: a player who had no time in the last stage but a rally total (or the other way round) was shown with the wrong text in place of the total.
+- **Seen or read**: read in the code.
+- **Fix**: every row is judged by the rally time.
+
+## A class with only the fourth player in it had no results page
+
+*Original*: `menu::class_rally_results_pass`, `menu::class_stage_results_pass`, `menu::class_championship_pass`.
+*Fixed*: 2026-11-17.
+
+- **What**: the passes that show a results page for each class in which a player took part looked for players 1 to 3 only.
+- **In game**: with four players, a class holding only the fourth player's car was skipped in the class results.
+- **Seen or read**: read in the code.
+- **Fix**: players 1 to 4 count.
+
+## The network lobby's total drawn at the wrong height
+
+*Original*: `net::lobby_frame`.
+*Fixed*: 2026-11-17.
+
+- **What**: for a player with no race time the total was drawn at the height the "no time" text left (its row plus the font's offset), not at the row's.
+- **In game**: the totals of players still to finish sat a few pixels lower than the others'.
+- **Seen or read**: read in the code.
+- **Fix**: every total is at its row's height.
+
+## Escape on the sessions list said the session failed
+
+*Original*: `net::start_link`.
+*Fixed*: 2026-11-17.
+
+- **What**: leaving the list of sessions with Escape was handled as a failure to join.
+- **In game**: the message "session failed" came up after backing out of the list.
+- **Seen or read**: read in the code.
+- **Fix**: Escape goes back to the menu without a message.
+
+## The upper player's needle sign followed the lower player's
+
+*Original*: `hud::layout_2`.
+*Fixed*: 2026-11-17.
+
+- **What**: in the two-player HUD with the players one above the other, both players' needle signs were chosen from the second player's start value (the one-row layout uses the first for the first).
+- **In game**: the upper player's needle sign could be the lower player's.
+- **Seen or read**: read in the code.
+- **Fix**: each player's sign follows that player's own value.
+
+## Right-aligned buttons drawn as two
+
+*Original*: `screens::draw_button`.
+*Fixed*: 2026-11-17.
+
+- **What**: a right-aligned plain button wider than two pieces continued as a left-to-right button from its second piece, ending with a second right end; with a width that is a multiple of 32 it also drew a second, centred button.
+- **In game**: wide right-aligned buttons had a second end piece and an extra button drawn over or beside them.
+- **Seen or read**: read in the code.
+- **Fix**: the pieces run right to left to the left end, as the highlighted button's do.
+
+## The menus' tune not restarted after a saved replay
+
+*Original*: `race::viewer_load_stage`, `menu::replay_item_c`.
+*Fixed*: 2026-11-17.
+
+- **What**: the replay viewer sets up the race sounds, which stops the music, and nothing started the menus' tune again when a saved replay chosen from the menus was left.
+- **In game**: the menus stayed silent after watching a saved replay.
+- **Seen or read**: heard (the original, 2026-10-21).
+- **Fix**: the menus' tune starts when the viewer returns to the menus.
+
+## A replay that filled its index ended the game
+
+*Original*: `race::write_replay_block` and `race::close_replay`.
+
+- **What**: a replay's index has room for 1800 blocks of 100 frames. When the last one is written the replay is closed, and closing pads the block in progress out to 100 frames; but the block just written still counted as 100 frames in progress, so the padding filled a block past the index's last and wrote its place beyond the index.
+- **In game**: only on a stage that lasts about an hour of race time (a car stuck and never retired): the original wrote past the index; the conversion refused it and the game ended with an error.
+- **Seen or read**: seen 2026-11-18 in a long test run (a computer-driven car stuck for 180,000 ticks).
+- **Fix**: the written block is counted as done before the replay is closed, so the replay ends at its 1800 blocks and the race goes on (`race::replay`).
+
+## A large figure counted as "300 or more" in the value notice
+
+*Original*: `physics::value_notice`. *Fixed*: 2026-11-18.
+
+- **What**: the notice that fires when a car's turn count reaches 300 compared the figure by the sign of `figure - 300`, so the figures 0x80000000 to 0x8000012B (negative as a signed number) counted as at or past 300.
+- **In game**: nothing seen; a count never gets that far.
+- **Seen or read**: read in the code.
+- **Fix**: the figure is compared as a signed number against 300 (`Notice::value_notice`), so a negative figure is below it.
+
+## The camera's pitch jumped when already past its target
+
+*Original*: `physics::ease_pitch_up` and `physics::ease_pitch_down`. *Fixed*: 2026-11-18.
+
+- **What**: the camera's pitch eases half the way to its limit each step; the half was taken as an unsigned number, so a pitch already past its limit gave a step of about 2^31 instead of a small step back.
+- **In game**: nothing seen; the ground-avoiding camera never starts a step past its limit.
+- **Seen or read**: read in the code.
+- **Fix**: the halving is signed (`easing::ease_up`, `easing::ease_down`), so a value past its target eases back.
+
+## A physics setting of 0x80000000 went to the top of its range
+
+*Original*: `physics::apply_patches`. *Fixed*: 2026-11-18.
+
+- **What**: each `patch` setting is held to its range by the sign of the difference with the range's ends only, so the most negative number (0x80000000) passed the lower test and was held to the top of the range instead of the bottom.
+- **In game**: only with a `ral.cfg` value of -2147483648 for a patch setting; nothing else reaches it.
+- **Seen or read**: read in the code.
+- **Fix**: the settings are compared as signed numbers (`patches::apply_patches`).
+
+## The replay's far cameras read unrelated numbers for what they hide
+
+*Original*: `race::face_hidden` (the views' hide table). *Fixed*: 2026-11-18.
+
+- **What**: a camera view has an entry in a table saying whether faces that the ground under the car marks (such as the top of a hedge or a tunnel's roof) are hidden. The table had 34 entries, but the replay viewer's cameras go up to view 0x33, so views 0x22 to 0x33 read the variables after the table (a one, zeros, a float, the number 0x180), and whether faces were hidden for them depended on those.
+- **In game**: a handful of edge pixels (a hedge's top fringe, in replay 1 at the views 0x23 to 0x28 and 0x2C) differ; the replay viewer's camera that follows behind the car (views 0x27 and 0x28) showed the marked faces where the same camera at the other views hid them.
+- **Seen or read**: seen in the replay viewer by forcing each view and comparing with the entry at 0 and 1 (the differences are a few pixels at most); the table's overrun was read in the code.
+- **Fix**: the table has an entry for each of the 52 views: the cameras behind the car (0x23 to 0x29, 0x32, 0x33) like the views 4 to 6 behind the car (hide), the fixed cameras (0x2A to 0x31) like the fixed views 7 to 10 (show), and 0x22, a copy of the views 0x1A to 0x21, as they are (`race::view_vars_store`).
+
+## The music volume's "up" key in a race set a stale number plus four
+
+*Original*: `race::race_keys`. *Fixed*: 2026-11-19.
+
+- **What**: during a race the key that raises the music volume (the second view's volume-up key) took its starting volume from the menu's saved music level instead of the music's current volume, so the volume jumped to that level plus four. The key that lowers it used the current volume.
+- **In game**: after the music's volume had been changed in the race, raising it set it to the saved level plus four, not to the current volume plus four.
+- **Seen or read**: read in the code, not seen in play.
+- **Fix**: both keys step from the music's current volume, held to 0 .. 0x40 as before.
+
+## Enter did nothing on a player's name now and then
+
+*Original*: `menu::handle_keys`, `menu::begin_player_name`. *Fixed*: 2026-11-19.
+
+- **What**: pressing Enter on a player's name item starts typing the name, unless a flag set by Enter says to skip it. The flag was made from a byte of the milliseconds since the screen was set up, so it was set when that byte was 4: Enter pressed 1.024 to 1.28 seconds after the page appeared, and again in the same window of every 65.536 seconds, did nothing.
+- **In game**: Enter on a name item occasionally seemed ignored; pressing it again worked.
+- **Seen or read**: read in the code, not seen in play.
+- **Fix**: the flag is gone; Enter always starts the name entry.
+
+## The course grid's edge and the last course record
+
+*Original*: `race::course_grid`, `race::gather_visible_faces`. *Fixed*: 2026-11-19.
+
+- **What**: the road drawn around the view is found through a 32 x 32 grid of course records. With the largest view reach the grid's span reached one cell past its edge: a record in the far column was stored at the first cell of the next row and one in the far row past the end of the grid. Separately, the last course record's faces were gathered once more after the grid's, so when the grid held it, its faces were drawn twice.
+- **In game**: the picture could show a record's faces at the wrong place at the grid's edge with the largest reach (the usual reach never gets there), and the last record's faces drawn twice (the same pixels again, so nothing to see, a little time lost). The reference replay pictures are the same before and after.
+- **Seen or read**: read in the code, not seen in play.
+- **Fix**: a record outside the 32 columns or rows is left out of the grid, and the last record is gathered only when the grid did not hold it (`grid_cell`, `visible_records`).
+
+## The overall rally results held a large field to the wrong number
+
+*Original*: `menu::show_overall_rally_results`. *Fixed*: 2026-11-19.
+
+- **What**: the page's figure (how many entries it counts) is held to 0xAB, but a figure above that was replaced by 0x51, the limit of another page, so a very large field showed fewer entries than the page can hold.
+- **In game**: with a field of more than 171 entries the page counted 81.
+- **Seen or read**: read in the code, not seen in play.
+- **Fix**: a figure above 0xAB is held to 0xAB, like the pages beside it (`results_pages::held_figure`).
+
+## Lobby chat lines of narrow letters could fill the chat's buffer
+
+*Original*: `net::add_chat_line`. *Fixed*: 2026-11-20.
+
+- **What**: the lobby chat keeps eight lines in 768 bytes, but a line of narrow characters can be 127 bytes long and still fit the screen's width, so six such lines are more than the buffer holds. The scrolling then wrote past the buffer's end and the game stopped on that error.
+- **In game**: another player in the lobby could end every machine's game by sending lines of narrow characters (a modified client; the stock one types at most 64 characters).
+- **Seen or read**: read in the code, not seen in play.
+- **Fix**: when the lines do not all fit, the oldest lines are emptied until they do (`rc2k_core::net::chat::scrolled`); the chat still has eight lines.

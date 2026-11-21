@@ -9,9 +9,10 @@ pub const PREFS_SIZE: usize = 0x206C;
 /// The 256 texture kinds, as dwords.
 pub const TEXTURE_KINDS_AT: usize = 0x100;
 /// How many texture kinds there are.
-pub const TEXTURE_KINDS: usize = 256;
-/// The noise's cleared pair of dwords.
-pub const BLIT_CLEARED_AT: usize = 0x690;
+pub(crate) const TEXTURE_KINDS: usize = 256;
+/// The stage's precipitation range: the low and the high end of the noise scale the rain and snow
+/// amount is read from (two dwords).
+pub const PRECIPITATION_RANGE_AT: usize = 0x690;
 /// The car light table's three dwords.
 pub const CAR_LIGHT_TABLE_AT: usize = 0x18B0;
 /// The 0x40 swapped picture kinds, as dwords.
@@ -55,7 +56,7 @@ impl StagePrefsFile {
     }
 
     /// The kind of texture `n` (below `TEXTURE_KINDS`).
-    pub fn texture_kind(&self, n: usize) -> u32 {
+    pub(crate) fn texture_kind(&self, n: usize) -> u32 {
         self.dword(TEXTURE_KINDS_AT + 4 * n)
     }
 
@@ -99,11 +100,12 @@ impl StagePrefsFile {
         }
     }
 
-    /// Without precipitation: the cleared pair is 0.
-    pub fn clear_blit_cleared(&mut self, no_precipitation: bool) {
+    /// Without precipitation the range is 0 .. 0: no rain or snow amount, and no screen picture for
+    /// the windscreen's drops and flakes.
+    pub fn clear_precipitation_range(&mut self, no_precipitation: bool) {
         if no_precipitation {
-            self.set_dword(BLIT_CLEARED_AT, 0);
-            self.set_dword(BLIT_CLEARED_AT + 4, 0);
+            self.set_dword(PRECIPITATION_RANGE_AT, 0);
+            self.set_dword(PRECIPITATION_RANGE_AT + 4, 0);
         }
     }
 }
@@ -117,7 +119,7 @@ pub const MARK_INFO: (usize, usize) = (0x1C_2000, 0x8000);
 /// Where `files\b\textinfo` goes, and how much of it.
 pub const TEXTURE_INFO_B: (usize, usize) = (0x1F_4000, 0x1F_4000);
 /// Where the three line feeds go.
-pub const LINE_FEEDS_AT: usize = 0x5_BD21;
+pub(crate) const LINE_FEEDS_AT: usize = 0x5_BD21;
 /// The tail's source and its destination (0x800 bytes), copied last.
 pub const TAIL: (usize, usize, usize) = (0x17_E800, 0x17_F000, 0x800);
 /// The bytes of a texture kind's record in the info.
@@ -167,8 +169,9 @@ impl CourseInfo {
         &self.bytes
     }
 
+    #[cfg(test)]
     /// The record of texture kind `kind` (`None` past the info).
-    pub fn kind_record(&self, kind: u32) -> Option<&[u8]> {
+    pub(crate) fn kind_record(&self, kind: u32) -> Option<&[u8]> {
         let at = (kind as usize).checked_mul(KIND_RECORD)?;
         self.bytes.get(at..at.checked_add(KIND_RECORD)?)
     }
@@ -253,14 +256,17 @@ mod tests {
         p.tweak_stage(0x3E);
         assert_eq!(p.dword(CAR_LIGHT_TABLE_AT + 8), 0xFF);
         assert_eq!(p.dword(CAR_LIGHT_TABLE_AT + 12), 0xAAAA_AAAA);
-        p.clear_blit_cleared(false);
-        assert_eq!(p.dword(BLIT_CLEARED_AT), 0xAAAA_AAAA);
-        p.clear_blit_cleared(true);
+        p.clear_precipitation_range(false);
+        assert_eq!(p.dword(PRECIPITATION_RANGE_AT), 0xAAAA_AAAA);
+        p.clear_precipitation_range(true);
         assert_eq!(
-            (p.dword(BLIT_CLEARED_AT), p.dword(BLIT_CLEARED_AT + 4)),
+            (
+                p.dword(PRECIPITATION_RANGE_AT),
+                p.dword(PRECIPITATION_RANGE_AT + 4)
+            ),
             (0, 0)
         );
-        assert_eq!(p.dword(BLIT_CLEARED_AT + 8), 0xAAAA_AAAA);
+        assert_eq!(p.dword(PRECIPITATION_RANGE_AT + 8), 0xAAAA_AAAA);
     }
 
     #[test]

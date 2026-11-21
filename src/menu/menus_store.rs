@@ -1,61 +1,60 @@
-//! The menus: the 98 lists of labels as cells (the screens that draw a menu's labels, and a
+//! The menus: the 101 lists of labels as cells (the screens that draw a menu's labels, and a
 //! 1999 slip that writes into them, walk them as a run of dwords, five to a list:
 //! `LabelTables::dword`), and the 96 menus as handles into `rc2k_core::menu::tables::MENUS`,
 //! the one source of the menus' items (their places, links, functions and starting values).
 //!
-//! What the game changes in play is kept here, per item (`MenuItem`, 567 of them in one
-//! array, the menus' in `MENUS`' order): the string id (+0x14), the font (+0x18), +0x1C, the
-//! sprite (+0x20), the font a highlighted item pulses in (+0x50) and the skip mark (+0x48),
+//! What the game changes in play is kept here, per item (`MenuItem`, 566 of them in one
+//! array, the menus' in `MENUS`' order): the string id, the font, what is behind the text, the
+//! sprite, the font a highlighted item pulses in and the skip mark,
 //! each starting as the table has it. Nothing else of an item is written anywhere (the
 //! compiler says so: the rest is read from `MenuItem::fixed`). Menus are named for the screen
 //! that shows them (`menu::screen_loop`'s `Screen::menu`), the ones no screen names by their
 //! handle in `MenuTables`.
 
-use crate::gfx::typefaces::{FontCell, FontId, fonts};
-use crate::memory::session::PlainDword;
-use crate::menu::item_sprites_store::SpriteCell;
+use crate::gfx::typefaces::{FontId, fonts};
+use crate::memory::session::GameThread;
+use crate::menu::item_sprites_store::ItemSprite;
 use rc2k_core::menu::tables::{MENUS, MenuFont, MenuItem as Fixed};
+use std::cell::{Cell, RefCell};
 
-/// A label: x, y, the font, the string id.
-#[derive(rc2k_derive::Cells)]
-pub struct MenuLabel {
-    pub x: PlainDword,
-    pub y: PlainDword,
+/// A label list's fields: the label (x, y, the font, the string id) and the -1 that ends the list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LabelData {
+    pub x: u32,
+    pub y: u32,
     /// The font.
-    pub font: FontCell,
-    /// The string id (+0x14).
-    pub string: PlainDword,
+    pub font: FontId,
+    /// The string id.
+    pub string: u32,
+    pub end: u32,
 }
 
-impl MenuLabel {
-    pub const fn new(x: u32, y: u32, font: FontId, string: u32) -> Self {
-        Self {
-            x: PlainDword::new(x),
-            y: PlainDword::new(y),
-            font: FontCell::new(font),
-            string: PlainDword::new(string),
-        }
-    }
-}
-
-/// A list of labels: the label and the -1 that ends the list.
-#[derive(rc2k_derive::Cells)]
-pub struct LabelList {
-    pub label: MenuLabel,
-    pub end: PlainDword,
-}
+/// A list of labels as plain fields behind one cell the game's thread alone reaches: read by
+/// copy, written through `set` or `update` (each borrow lasts one call).
+pub struct LabelList(GameThread<RefCell<LabelData>>);
 
 impl LabelList {
     pub const fn new(x: u32, y: u32, font: FontId, string: u32) -> Self {
-        Self {
-            label: MenuLabel::new(x, y, font, string),
-            end: PlainDword::new(0xFFFF_FFFF),
-        }
+        Self(GameThread::new(RefCell::new(LabelData {
+            x,
+            y,
+            font,
+            string,
+            end: 0xFFFF_FFFF,
+        })))
+    }
+
+    /// A copy of the list's fields.
+    pub fn get(&self) -> LabelData {
+        *self.0.get().borrow()
+    }
+
+    pub fn set(&self, data: LabelData) {
+        *self.0.get().borrow_mut() = data;
     }
 }
 
 /// The label lists in the image's order.
-#[derive(rc2k_derive::Cells)]
 pub struct LabelTables {
     pub single_rally_review_labels: LabelList,
     pub arcade_review_options_labels: LabelList,
@@ -170,6 +169,12 @@ pub struct LabelTables {
     pub save_setup_labels: LabelList,
     pub visual_preferences_labels: LabelList,
     pub visual_options_labels: LabelList,
+    /// The controller axes page's, past the image's 98.
+    pub player_axes_labels: LabelList,
+    /// One axis's page's, past those.
+    pub player_axis_labels: LabelList,
+    /// The advanced page's.
+    pub advanced_labels: LabelList,
 }
 
 #[rustfmt::skip]
@@ -274,13 +279,16 @@ impl LabelTables {
         save_setup_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x0),
         visual_preferences_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x369),
         visual_options_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x37F),
+        player_axes_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x398),
+        player_axis_labels: LabelList::new(0x310, 0x30, fonts::HEAD, 0x398),
+        advanced_labels: LabelList::new(0x310, 0x30, fonts::HEAD, rc2k_core::strings::own::id::ADVANCED),
         }
     }
 }
 
-/// The 98 label lists, in the image's order (the first 98 fields of `MenuTables`, one after
-/// the other).
-pub fn label_lists(labels: &LabelTables) -> [&LabelList; 98] {
+/// The 101 label lists: the image's 98 in its order, then the axes pages' and the advanced page's (the first 101 fields of
+/// `LabelTables`, one after the other).
+fn label_lists(labels: &LabelTables) -> [&LabelList; 101] {
     [
         &labels.single_rally_review_labels,
         &labels.arcade_review_options_labels,
@@ -380,39 +388,47 @@ pub fn label_lists(labels: &LabelTables) -> [&LabelList; 98] {
         &labels.save_setup_labels,
         &labels.visual_preferences_labels,
         &labels.visual_options_labels,
+        &labels.player_axes_labels,
+        &labels.player_axis_labels,
+        &labels.advanced_labels,
     ]
 }
 impl LabelList {
     /// Dword `i` of the list (0 .. 5): x, y, the font's number, the string id, the end mark.
     fn dword(&self, i: usize) -> u32 {
+        let data = self.get();
         match i {
-            0 => self.label.x.get(),
-            1 => self.label.y.get(),
-            2 => self.label.font.get().number(),
-            3 => self.label.string.get(),
-            _ => self.end.get(),
+            0 => data.x,
+            1 => data.y,
+            2 => data.font.number(),
+            3 => data.string,
+            _ => data.end,
         }
     }
 
-    /// Dword `i` set. The font cell holds a font's number: another value is refused (a 1999
+    /// Dword `i` set. The font holds a font's number: another value is refused (a 1999
     /// write reaches the end marks, never a font).
     fn set_dword(&self, i: usize, v: u32) -> Result<(), crate::errors::BadInput> {
+        let mut data = self.get();
         match i {
-            0 => self.label.x.set(v),
-            1 => self.label.y.set(v),
-            2 => self.label.font.set(FontId::try_numbered(v as usize).ok_or(
-                crate::errors::BadInput("a label's font set to a number that is no font"),
-            )?),
-            3 => self.label.string.set(v),
-            _ => self.end.set(v),
+            0 => data.x = v,
+            1 => data.y = v,
+            2 => {
+                data.font = FontId::try_numbered(v as usize).ok_or(crate::errors::BadInput(
+                    "a label's font set to a number that is no font",
+                ))?;
+            }
+            3 => data.string = v,
+            _ => data.end = v,
         }
+        self.set(data);
         Ok(())
     }
 }
 
 impl LabelTables {
     /// The dword at byte `at` of the lists laid end to end (any alignment, over the lists'
-    /// borders), refused past the 98th list's end.
+    /// borders), refused past the 101st list's end.
     pub fn dword(&self, at: usize) -> Result<u32, crate::errors::BadInput> {
         let lists = label_lists(self);
         let mut bytes = [0; 4];
@@ -453,7 +469,7 @@ impl LabelTables {
     }
 }
 
-const LABEL_LIST_COUNT: usize = 98;
+const LABEL_LIST_COUNT: usize = 101;
 /// A label list's length.
 const LABEL_LIST_LEN: usize = 4 * LABEL_LIST_DWORDS;
 
@@ -461,10 +477,6 @@ const LABEL_LIST_LEN: usize = 4 * LABEL_LIST_DWORDS;
 const LABEL_LIST_DWORDS: usize = 5;
 
 const _: () = assert!(LABEL_LIST_DWORDS * 4 == 0x14);
-
-/// The label lists' first address in the game's layout: core's menu table names a menu's
-/// labels by their address there.
-const LABELS_FIRST_ADDRESS: usize = 0x747AD8;
 
 /// The byte `offset` bytes on from the labels of `menu`, as an offset in the label lists
 /// (`MenuTables::labels`, whose bytes the readers and writers are bounded to); None for a menu
@@ -489,32 +501,73 @@ pub fn label_font(
     if off >= lists.len() * LABEL_LIST_LEN || off % LABEL_LIST_LEN != 8 {
         return Err(crate::errors::BadInput("a label's font read off a label"));
     }
-    Ok(lists[off / LABEL_LIST_LEN].label.font.get())
+    Ok(lists[off / LABEL_LIST_LEN].get().font)
+}
+
+/// What the game changes of one item in play, as plain fields. Each starts as the table has it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ItemState {
+    /// The string id.
+    pub string: u32,
+    /// The font (`menu::disable_item` / `enable_item`).
+    pub font: FontId,
+    /// What is behind the item's text.
+    pub behind: u32,
+    /// The sprite behind it, or a button's sprite list (`menu::stage_view_steps::
+    /// style_stage_item`).
+    pub sprites: ItemSprite,
+    /// Passed over when the moves up and down meet it.
+    pub skip_mark: u32,
+    /// The font a highlighted item pulses in (`style_stage_item`).
+    pub highlight_font: FontId,
+    /// How many pixels a page has moved the item up from its table place (0 for nearly every
+    /// item; the axes list packs its rows).
+    pub raised: u32,
 }
 
 /// One item of a menu: its place in core's table (`fixed()`, never changed) and what the game
-/// changes in play. The fields that change start as the table has them.
+/// changes in play (`state`, read by copy, written through `set_state` or `update`; each borrow
+/// lasts one call).
 pub struct MenuItem {
     /// The menu's number and the item's in `MENUS` (kept as numbers: a reference made while
     /// the states are built at compile time points at a copy of the table, not at `MENUS`).
     menu: u16,
     item: u16,
-    /// The string id (+0x14).
-    pub string: PlainDword,
-    /// The font (+0x18; `menu::disable_item` / `enable_item`).
-    pub font: FontCell,
-    /// +0x1C.
-    pub behind: PlainDword,
-    /// +0x20: the sprite behind it, or a button's sprite list (`menu::stage_view_steps::
-    /// style_stage_item`).
-    pub sprites: SpriteCell,
-    /// +0x48: passed over when the moves up and down meet it.
-    pub skip_mark: PlainDword,
-    /// +0x50: the font a highlighted item pulses in (`style_stage_item`).
-    pub highlight_font: FontCell,
+    state: GameThread<RefCell<ItemState>>,
 }
 
 impl MenuItem {
+    /// A copy of the item's changing fields.
+    pub fn state(&self) -> ItemState {
+        *self.state.get().borrow()
+    }
+
+    pub fn set_state(&self, state: ItemState) {
+        *self.state.get().borrow_mut() = state;
+    }
+
+    /// The fields changed by `change` (the closure works on a copy).
+    pub fn update(&self, change: impl FnOnce(&mut ItemState)) {
+        let mut state = self.state();
+        change(&mut state);
+        self.set_state(state);
+    }
+
+    /// The string id as a dword (the stage screens' headings read it as one).
+    pub fn string_id(&self) -> ItemString<'_> {
+        ItemString(self)
+    }
+
+    /// The item's y as drawn: its table place less what the page raised it by.
+    pub fn y(&self) -> u32 {
+        (self.fixed().y as u32).wrapping_sub(self.state().raised)
+    }
+
+    /// The y of the item's text as drawn, moved with the item.
+    pub fn text_y(&self) -> u32 {
+        (self.fixed().alignment_or_text_y as u32).wrapping_sub(self.state().raised)
+    }
+
     /// The dword after a menu's last item, and an item's `x` that ends the walk.
     pub const END: u32 = 0xFFFF_FFFF;
 
@@ -528,13 +581,29 @@ impl MenuItem {
         Self {
             menu: menu as u16,
             item: item as u16,
-            string: PlainDword::new(fixed.string),
-            font: FontCell::new(font_of(fixed.font)),
-            behind: PlainDword::new(fixed.behind),
-            sprites: SpriteCell::at(fixed.sprites),
-            skip_mark: PlainDword::new(fixed.skip_mark),
-            highlight_font: FontCell::new(font_of(fixed.highlight_font)),
+            state: GameThread::new(RefCell::new(ItemState {
+                string: fixed.string,
+                font: font_of(fixed.font),
+                behind: fixed.behind,
+                sprites: fixed.sprites,
+                skip_mark: fixed.skip_mark,
+                highlight_font: font_of(fixed.highlight_font),
+                raised: 0,
+            })),
         }
+    }
+}
+
+/// An item's string id as a dword.
+pub struct ItemString<'a>(&'a MenuItem);
+
+impl ItemString<'_> {
+    pub fn get(&self) -> u32 {
+        self.0.state().string
+    }
+
+    pub fn set(&self, value: u32) {
+        self.0.update(|state| state.string = value);
     }
 }
 
@@ -578,7 +647,7 @@ const FIRST_ITEM: [u16; MENUS.len() + 1] = {
     first
 };
 
-const _: () = assert!(ITEM_COUNT == 567 && MENUS.len() == MENU_COUNT as usize);
+const _: () = assert!(ITEM_COUNT == 606 && MENUS.len() == MENU_COUNT as usize);
 
 /// The state of every item, in `MENUS`' order.
 const fn item_states() -> [MenuItem; ITEM_COUNT] {
@@ -630,6 +699,9 @@ pub struct MenuTables {
     pub player3_buttons: MenuHandle,
     pub player4_controller: MenuHandle,
     pub player4_buttons: MenuHandle,
+    pub player_axes: MenuHandle,
+    pub player_axis: MenuHandle,
+    pub advanced: MenuHandle,
     pub car_specification: MenuHandle,
     pub slideshow: MenuHandle,
     pub select_car: MenuHandle,
@@ -722,6 +794,9 @@ impl MenuTables {
             player3_buttons: MenuHandle(17),
             player4_controller: MenuHandle(18),
             player4_buttons: MenuHandle(19),
+            player_axes: MenuHandle(96),
+            player_axis: MenuHandle(97),
+            advanced: MenuHandle(98),
             car_specification: MenuHandle(20),
             slideshow: MenuHandle(21),
             select_car: MenuHandle(22),
@@ -800,7 +875,7 @@ impl MenuTables {
 pub struct MenuId(u16);
 
 /// The number of menus.
-pub const MENU_COUNT: u16 = 96;
+const MENU_COUNT: u16 = 99;
 
 impl MenuId {
     fn table(self) -> &'static rc2k_core::menu::tables::Menu {
@@ -809,14 +884,12 @@ impl MenuId {
 
     /// The offset of the menu's labels in the label lists; None for a menu without any.
     pub fn labels_place(self) -> Result<Option<u32>, crate::errors::BadInput> {
-        match self.table().labels_at {
-            0 => Ok(None),
-            at if at as usize >= LABELS_FIRST_ADDRESS
-                && ((at as usize - LABELS_FIRST_ADDRESS) < LABEL_LIST_COUNT * LABEL_LIST_LEN) =>
-            {
-                Ok(Some(at - LABELS_FIRST_ADDRESS as u32))
+        match self.table().label_list {
+            None => Ok(None),
+            Some(list) if (list as usize) < LABEL_LIST_COUNT => {
+                Ok(Some((list as usize * LABEL_LIST_LEN) as u32))
             }
-            _ => Err(crate::errors::BadInput(
+            Some(_) => Err(crate::errors::BadInput(
                 "a menu's labels off the label lists",
             )),
         }
@@ -860,13 +933,11 @@ impl MenuId {
 }
 
 /// A menu pointer: none (0, as the image starts) or a menu.
-#[repr(transparent)]
-#[derive(rc2k_derive::Cells)]
-pub struct MenuCell(PlainDword);
+pub struct MenuCell(Cell<u32>);
 
 impl MenuCell {
     pub const fn new() -> Self {
-        MenuCell(PlainDword::new(0))
+        MenuCell(Cell::new(0))
     }
 
     pub fn get(&self) -> Result<MenuId, crate::errors::BadInput> {
@@ -888,13 +959,6 @@ impl Default for MenuCell {
 mod tests {
     use super::*;
 
-    #[test]
-    fn the_menus_fonts_are_the_fonts_at_the_addresses_the_table_names() {
-        for &f in MenuFont::ALL {
-            assert_eq!(font_of(f).ida() as u32, f.ral(), "{f:?}");
-        }
-    }
-
     /// The lists read and written as a run of dwords, five to a list: any alignment, over the
     /// lists' borders, refused past the last list.
     #[test]
@@ -903,12 +967,12 @@ mod tests {
         let labels = LabelTables::new();
         let lists = label_lists(&labels);
         let end = LABEL_LIST_COUNT * LABEL_LIST_LEN;
-        let (x0, end0) = (lists[0].label.x.get(), lists[0].end.get());
+        let (x0, end0) = (lists[0].get().x, lists[0].get().end);
         assert_eq!(labels.dword(0).unwrap(), x0);
         assert_eq!(labels.dword(0x10).unwrap(), end0);
-        assert_eq!(labels.dword(0x14).unwrap(), lists[1].label.x.get());
+        assert_eq!(labels.dword(0x14).unwrap(), lists[1].get().x);
         // Unaligned: the bytes of two dwords.
-        let (a, b) = (lists[0].end.get(), lists[1].label.x.get());
+        let (a, b) = (lists[0].get().end, lists[1].get().x);
         let want = u32::from_le_bytes([
             a.to_le_bytes()[2],
             a.to_le_bytes()[3],
@@ -918,18 +982,18 @@ mod tests {
         assert_eq!(labels.dword(0x12).unwrap(), want);
         assert_eq!(labels.dword(2).unwrap(), {
             let (p, q) = (
-                lists[0].label.x.get().to_le_bytes(),
-                lists[0].label.y.get().to_le_bytes(),
+                lists[0].get().x.to_le_bytes(),
+                lists[0].get().y.to_le_bytes(),
             );
             u32::from_le_bytes([p[2], p[3], q[0], q[1]])
         });
         assert!(labels.dword(end - 4).is_ok() && labels.dword(end - 3).is_err());
         // A write to an end mark and back, a write past the end refused whole.
         labels.set_dword(0x10, 0x1234).unwrap();
-        assert_eq!(lists[0].end.get(), 0x1234);
+        assert_eq!(lists[0].get().end, 0x1234);
         labels.set_dword(0x10, end0).unwrap();
         assert!(labels.set_dword(end - 3, 1).is_err());
-        assert_eq!(labels.dword(end - 4).unwrap(), lists[97].end.get());
+        assert_eq!(labels.dword(end - 4).unwrap(), lists[100].get().end);
         assert!(labels.set_dword(8, 99_999).is_err());
     }
 
@@ -939,7 +1003,7 @@ mod tests {
             let m = MenuId(n);
             assert_eq!(
                 m.labels_place().unwrap().is_some(),
-                m.table().labels_at != 0
+                m.table().label_list.is_some()
             );
             if let Some(at) = m.labels_place().unwrap() {
                 assert_eq!(at as usize % LABEL_LIST_LEN, 0, "menu {n}");
@@ -957,14 +1021,11 @@ mod tests {
             assert_eq!(m.items(tables).len(), m.table().items.len());
             for (state, fixed) in m.items(tables).iter().zip(m.table().items) {
                 assert!(std::ptr::eq(state.fixed(), fixed));
-                assert_eq!(state.string.get(), fixed.string);
-                assert_eq!(state.behind.get(), fixed.behind);
-                assert_eq!(state.skip_mark.get(), fixed.skip_mark);
-                assert_eq!(state.font.get().ida() as u32, fixed.font.ral());
-                assert_eq!(
-                    state.highlight_font.get().ida() as u32,
-                    fixed.highlight_font.ral()
-                );
+                assert_eq!(state.state().string, fixed.string);
+                assert_eq!(state.state().behind, fixed.behind);
+                assert_eq!(state.state().skip_mark, fixed.skip_mark);
+                assert_eq!(state.state().font, font_of(fixed.font));
+                assert_eq!(state.state().highlight_font, font_of(fixed.highlight_font));
             }
             total += m.items(tables).len();
         }
@@ -987,6 +1048,6 @@ mod tests {
         // Handle fields are in `MENUS`' order: the first and the last.
         let tables = &crate::test_support::own::menus().tables.menus;
         assert_eq!(tables.visual_preferences.id().0, 0);
-        assert_eq!(tables.championship_end_review.id().0, MENU_COUNT - 1);
+        assert_eq!(tables.advanced.id().0, MENU_COUNT - 1);
     }
 }

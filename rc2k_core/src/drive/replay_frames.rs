@@ -15,7 +15,7 @@ pub fn frame_and_tenth(clock: u32) -> (u32, u32) {
 }
 
 /// The kept slots of the four car blocks (0x3F80 bytes), by frame & 7.
-pub const SLOT_SIZE: u32 = 0x3F80;
+pub(crate) const SLOT_SIZE: u32 = 0x3F80;
 pub const SLOTS: u32 = 8;
 
 /// A frame's slot's offset.
@@ -24,9 +24,9 @@ pub fn slot_offset(frame: u32) -> u32 {
 }
 
 /// The highest frame read, and the fatal errors past it and past a frame's tenths.
-pub const LAST_FRAME: u32 = 0x708;
-pub const FRAME_PAST: u32 = 0x80A6_1151;
-pub const TENTH_PAST: u32 = 0x80A6_1152;
+pub const LAST_FRAME: u32 = crate::race::replay_v2::MOST_BLOCKS;
+pub(crate) const FRAME_PAST: u32 = 0x80A6_1151;
+pub(crate) const TENTH_PAST: u32 = 0x80A6_1152;
 
 /// The fatal error's code for reading a frame or a tenth past its end; None when both are in
 /// range.
@@ -50,23 +50,78 @@ pub fn written_view(byte: i8) -> i8 {
     byte.clamp(2, 3)
 }
 
+/// The frame head's byte +5 for a network race: the view of this machine's car (`car`), so the
+/// replay opens on it: 0 the first car, 1 the second (the tape holds two cars; a later one's
+/// machine gets the first).
+pub fn network_view(car: u32) -> u8 {
+    u8::from(car == 1)
+}
+
 /// Whether the replay is flushed: while recording, at the last tenth of a frame.
 pub fn flush_due(mode: u32, tenth: u32) -> bool {
     mode == RECORDING && tenth == TENTHS - 1
 }
 
-/// The cars on the tape.
+/// The cars on the tape of every replay.
 pub const TAPE_CARS: u32 = 2;
+/// The cars on the tape of a replay with the extra tape (3 and 4 player races).
+pub(crate) const EXTENDED_TAPE_CARS: u32 = 4;
+/// The cars the extra tape holds: cars 2 and 3.
+pub const EXTRA_TAPE_CARS: u32 = EXTENDED_TAPE_CARS - TAPE_CARS;
 
-/// Whether a car is on the tape.
-pub fn on_tape(car: u32) -> bool {
-    car < TAPE_CARS
+/// Whether a car is on the tape; `extended` for a replay with the extra tape.
+pub fn on_tape(car: u32, extended: bool) -> bool {
+    car < if extended {
+        EXTENDED_TAPE_CARS
+    } else {
+        TAPE_CARS
+    }
 }
 
-/// A car's entry on the tape at a tenth (16 bytes a tenth, 8 a car): the indices of the
-/// tenth and the car, none past the frame's tenths or the cars on the tape.
-pub fn tape_slot(tenth: u32, car: u32) -> Option<(usize, usize)> {
-    (tenth < TENTHS && on_tape(car)).then_some((tenth as usize, car as usize))
+/// Where a car's entry on the tape is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TapePlace {
+    /// The frame's own tape (cars 0 and 1): the tenth and the car.
+    Main(usize, usize),
+    /// The extra tape that follows the frame (cars 2 and 3): the tenth and the car less 2.
+    Extra(usize, usize),
+}
+
+/// A car's entry on the tape at a tenth (16 bytes a tenth, 8 a car; the extra tape the same for
+/// cars 2 and 3): none past the frame's tenths or the cars on the tape.
+pub fn tape_place(tenth: u32, car: u32, extended: bool) -> Option<TapePlace> {
+    if tenth >= TENTHS || !on_tape(car, extended) {
+        return None;
+    }
+    Some(if car < TAPE_CARS {
+        TapePlace::Main(tenth as usize, car as usize)
+    } else {
+        TapePlace::Extra(tenth as usize, (car - TAPE_CARS) as usize)
+    })
+}
+
+/// The dwords of the extra tape: a hundred tenths of 16 bytes, for cars 2 and 3.
+pub const EXTRA_TAPE_DWORDS: usize = 400;
+/// The extra tape's bytes: what a block of a replay with the extra tape holds after the plain
+/// frame.
+pub const EXTRA_TAPE_BYTES: usize = 4 * EXTRA_TAPE_DWORDS;
+/// A block's bytes once unpacked in a replay with the extra tape.
+pub const EXTENDED_FRAME_BYTES: usize = FRAME_BYTES + EXTRA_TAPE_BYTES;
+
+/// A block's bytes once unpacked.
+pub fn block_bytes(extended: bool) -> usize {
+    if extended {
+        EXTENDED_FRAME_BYTES
+    } else {
+        FRAME_BYTES
+    }
+}
+
+#[cfg(test)]
+/// The inputs of cars 2 and 3 are recorded: a local race of more than two players (a network
+/// race's other machines keep their cars' state alone, as before).
+pub(crate) fn records_extra_tape(players: u32, network: bool) -> bool {
+    players > TAPE_CARS && !network
 }
 
 /// Whether the inputs are played back: while playing a replay.
@@ -102,7 +157,7 @@ pub const CAR_DWORDS: usize = 0x1A1;
 
 /// The starting state's pieces in order, each with its dwords, copied one after another when
 /// the cars are saved to a frame and loaded back.
-pub const START_PIECES: [(StartPiece, usize); 6] = [
+pub(crate) const START_PIECES: [(StartPiece, usize); 6] = [
     (StartPiece::Car(0), CAR_DWORDS),
     (StartPiece::Car(1), CAR_DWORDS),
     (StartPiece::Car(2), CAR_DWORDS),
@@ -126,11 +181,11 @@ pub fn start_layout() -> impl Iterator<Item = (StartPiece, usize, usize)> {
 /// The dwords of the loose parts (the race slots) in the starting state.
 pub const SLOT_DWORDS: usize = 0xF0;
 /// The dwords of the computer driver's state in the starting state.
-pub const EXTRA_DWORDS: usize = 0x100;
+pub(crate) const EXTRA_DWORDS: usize = 0x100;
 /// The dwords of the tape: a hundred tenths of 16 bytes.
 pub const TAPE_DWORDS: usize = 400;
 /// A replay frame as the file holds it (0x2810 bytes): the starting state, then the tape.
-pub const FRAME_DWORDS: usize = START_DWORDS + TAPE_DWORDS;
+pub(crate) const FRAME_DWORDS: usize = START_DWORDS + TAPE_DWORDS;
 pub const FRAME_BYTES: usize = 4 * FRAME_DWORDS;
 
 /// One frame of a replay file, field by field at the file's offsets (little-endian dwords; the
@@ -224,19 +279,26 @@ mod tests {
     fn frames() {
         assert_eq!(frame_and_tenth(1234), (12, 34));
         assert_eq!(slot_offset(9), SLOT_SIZE);
-        assert_eq!(frame_fault(0x709, 0), Some(FRAME_PAST));
-        assert_eq!(frame_fault(0x708, 101), Some(TENTH_PAST));
-        assert_eq!(frame_fault(0x708, 100), None);
+        assert_eq!(frame_fault(LAST_FRAME + 1, 0), Some(FRAME_PAST));
+        assert_eq!(frame_fault(LAST_FRAME, 101), Some(TENTH_PAST));
+        assert_eq!(frame_fault(LAST_FRAME, 100), None);
         assert!(past_end(5, 5));
         assert_eq!(written_view(-4), 2);
         assert_eq!(written_view(9), 3);
+        assert_eq!([0, 1, 2].map(network_view), [0, 1, 0]);
         assert!(flush_due(1, 99));
         assert!(!flush_due(2, 99));
-        assert_eq!(tape_slot(3, 1), Some((3, 1)));
-        assert_eq!(tape_slot(TENTHS, 0), None);
-        assert_eq!(tape_slot(0, TAPE_CARS), None);
-        assert!(on_tape(1));
-        assert!(!on_tape(2));
+        assert_eq!(tape_place(3, 1, false), Some(TapePlace::Main(3, 1)));
+        assert_eq!(tape_place(TENTHS, 0, true), None);
+        assert_eq!(tape_place(0, TAPE_CARS, false), None);
+        assert_eq!(tape_place(7, 3, true), Some(TapePlace::Extra(7, 1)));
+        assert_eq!(tape_place(7, 4, true), None);
+        assert!(on_tape(1, false));
+        assert!(!on_tape(2, false) && on_tape(2, true));
+        assert_eq!(block_bytes(false), 0x2810);
+        assert_eq!(block_bytes(true), 0x2E50);
+        assert!(records_extra_tape(3, false) && !records_extra_tape(2, false));
+        assert!(!records_extra_tape(4, true));
     }
 
     #[test]

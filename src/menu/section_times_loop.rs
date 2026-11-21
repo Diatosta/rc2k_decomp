@@ -6,7 +6,7 @@ use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 /// `ScreenItems.current[78]`'s slot, the item kept between visits.
-const SLOT: usize = (0x747798 - 0x747660) / 4;
+const SLOT: usize = 78;
 
 pub const SCREEN: Screen = Screen {
     lists: &[

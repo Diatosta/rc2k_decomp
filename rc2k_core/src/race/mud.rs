@@ -4,7 +4,7 @@
 /// The mud textures are numbered 0 ..= 3.
 pub const MOST_TEXTURE: u32 = 3;
 /// Bytes of one texture's strength map: 128 x 128.
-pub const MAP_BYTES: u32 = 0x4000;
+pub(crate) const MAP_BYTES: u32 = 0x4000;
 
 /// A place on the 256 x 256 texture halved `halvings` times (at most twice); `None` when an
 /// odd coordinate would be halved.
@@ -69,7 +69,7 @@ pub fn extra_throw(sum: u32) -> (u32, bool) {
 }
 
 /// The weakest strength that splashes.
-pub const WEAKEST: u32 = 0x20;
+pub(crate) const WEAKEST: u32 = 0x20;
 
 /// Splash place from a random number (x low byte, y next).
 pub fn splash_place(random: u32) -> (u32, u32) {

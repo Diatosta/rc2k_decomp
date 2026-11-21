@@ -9,7 +9,7 @@ use crate::system::checked_reads::refuse;
 
 /// The current player (`Player`), or None if the index is past the four.
 pub fn current_player(menus: &Menus) -> Option<crate::menu::standings::PlayerCell<'_>> {
-    crate::menu::player::player(menus, menus.screens.event.current_player.get())
+    crate::menu::player::player(menus, menus.screens.event.read().current_player)
 }
 
 /// The flag of menu item `item` in the repair flag table. The items are the workshop's and the
@@ -20,7 +20,7 @@ pub fn repair_flag(service: &Service, item: u32) -> u32 {
 }
 
 /// `repair_flag` for a caller that holds the tables group.
-pub fn repair_flag_in(service: &Service, item: u32) -> u32 {
+pub(super) fn repair_flag_in(service: &Service, item: u32) -> u32 {
     service
         .repair_flags
         .get(item as usize)
@@ -29,15 +29,15 @@ pub fn repair_flag_in(service: &Service, item: u32) -> u32 {
 }
 
 pub fn edit_mode(menus: &Menus) -> bool {
-    menus.screens.state.service_ui.box_shown.is_set()
+    menus.screens.state.read().service_ui.box_shown
 }
 
 pub fn menu_item(menus: &Menus) -> u32 {
-    menus.screens.loop_flags.item.get()
+    menus.screens.loop_flags.read().item
 }
 
 pub fn blink_on(menus: &Menus) -> bool {
-    menus.screens.draw_work.blink.is_set()
+    menus.screens.draw_work.read().blink
 }
 
 /// Menu items of the service area that have a flag: 0 .. 19. Entry 20 of both flag tables is
@@ -45,8 +45,8 @@ pub fn blink_on(menus: &Menus) -> bool {
 pub const ITEM_COUNT: u32 = 20;
 
 /// The highlighted menu item, if it has a flag.
-pub fn flagged_item(screens: &Screens) -> Result<u32, BadInput> {
-    let item = screens.loop_flags.item.get();
+pub(super) fn flagged_item(screens: &Screens) -> Result<u32, BadInput> {
+    let item = screens.loop_flags.read().item;
     if item < ITEM_COUNT {
         Ok(item)
     } else {
@@ -67,7 +67,7 @@ pub fn flags(service: &Service) -> rc2k_core::service::repairs::Table {
     read_all(&service.repair_flags)
 }
 
-pub fn store_flags(service: &Service, t: &rc2k_core::service::repairs::Table) {
+pub(super) fn store_flags(service: &Service, t: &rc2k_core::service::repairs::Table) {
     write_all(&service.repair_flags, *t);
 }
 
@@ -76,7 +76,7 @@ pub fn marks(service: &Service) -> rc2k_core::service::repairs::Table {
     read_all(&service.repair_marks)
 }
 
-pub fn store_marks(service: &Service, t: &rc2k_core::service::repairs::Table) {
+pub(super) fn store_marks(service: &Service, t: &rc2k_core::service::repairs::Table) {
     write_all(&service.repair_marks, *t);
 }
 
@@ -105,23 +105,23 @@ fn repair_time_at(service: &Service, key: u32) -> Result<Option<&PlainDword>, Ba
 }
 
 /// The time of every item whose flag is not 0.
-pub fn chosen_repairs_time(service: &Service) -> Result<i32, BadInput> {
+pub(super) fn chosen_repairs_time(service: &Service) -> Result<i32, BadInput> {
     Ok(rc2k_core::service::repairs::chosen_time(
         &flags(service),
         |item| time_of(service, item),
     )?)
 }
 
-pub fn leave_edit_mode(screens: &Screens) {
-    screens.state.service_ui.box_shown.set(false);
+pub(super) fn leave_edit_mode(screens: &Screens) {
+    screens.state.write().service_ui.box_shown = false;
 }
 
 /// True if menu item `item` has a repair time (a non-null pointer in the table).
-pub fn has_repair_time(service: &Service, item: u32) -> bool {
+pub(super) fn has_repair_time(service: &Service, item: u32) -> bool {
     item < ITEM_COUNT && service.repair_time_handles[item as usize].is_set()
 }
 
 /// True if the second flag table has its end mark where it belongs.
-pub fn marks_ended(service: &Service) -> bool {
+pub(super) fn marks_ended(service: &Service) -> bool {
     rc2k_core::service::repairs::end_of(&marks(service)).is_some()
 }

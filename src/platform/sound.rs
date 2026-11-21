@@ -1,4 +1,4 @@
-//! A stand-in for DirectSound for the standalone program, on one SDL3 audio stream.
+//! A stand-in for DirectSound, on one SDL3 audio stream.
 //!
 //! The audio code calls DirectSound's methods as the functions here, on objects held as ids: a
 //! device, its buffers (the primary one and the secondary ones, with duplicates sharing their
@@ -24,6 +24,19 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 const OUT_RATE: u32 = 44100;
+
+/// The most a volume slider holds (full volume).
+pub const FULL_VOLUME: u32 = 0x40;
+
+/// Whether the game's sounds go on while its window is not in front (the sound page's "sound when
+/// not in front"; off, a buffer made without a global focus goes quiet then).
+pub static SOUND_IN_BACKGROUND: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// The films' volume, 0 ..= `FULL_VOLUME` (the volume page's "film volume").
+pub static FILM_VOLUME: std::sync::atomic::AtomicU32 =
+    std::sync::atomic::AtomicU32::new(FULL_VOLUME);
+
 const E_NOINTERFACE: i32 = 0x8000_4002u32 as i32;
 /// `DSERR_NODRIVER`.
 const NO_DRIVER: i32 = 0x8878_0078u32 as i32;
@@ -56,7 +69,7 @@ impl Format {
 }
 
 /// What `IDirectSound::GetCaps` says (as Wine's DirectSound does: no hardware buffers):
-/// the dwords at +4 .. +0x10 of `DSCAPS`, the rest 0.
+/// the four dwords of `DSCAPS` after its size, the rest 0.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DeviceCaps {
     pub flags: u32,
@@ -494,7 +507,7 @@ pub fn set_format(id: u32, f: Format) -> i32 {
             b.format = f;
             b.bytes = primary_bytes(&f);
             b.position = 0.0;
-            crate::logfile::program_log::log(&format!(
+            crate::program_log::log(&format!(
                 "platform_sound: the primary buffer's format: {} Hz, {} bits, {} channels",
                 f.rate, f.bits, f.channels
             ));
@@ -522,11 +535,6 @@ pub fn set_frequency(id: u32, frequency: u32) -> i32 {
 /// `Stop`.
 pub fn stop(id: u32) -> i32 {
     with_buffer(id, |b| b.playing = false)
-}
-
-/// `Restore`: a buffer here is never lost.
-pub fn restore(_id: u32) -> i32 {
-    OK
 }
 
 // ---- 3D (IDirectSound3DBuffer, IDirectSound3DListener) ----
@@ -584,7 +592,7 @@ fn mix_into(b: &mut Buffer, master: f32, rolloff: f32, out: &mut [f32]) {
         }
     };
     let bytes = (f.bits / 8) as usize;
-    for frame in out.as_chunks_mut::<2>().0 {
+    for frame in out.as_chunks_mut::<2>().0.iter_mut() {
         let mut at = b.position as usize;
         if at >= frames {
             if !b.looping {
@@ -626,12 +634,26 @@ fn mix_into(b: &mut Buffer, master: f32, rolloff: f32, out: &mut [f32]) {
 const STICKY_FOCUS: u32 = 0x4000;
 const GLOBAL_FOCUS: u32 = 0x8000;
 
-/// The loudest sample sent to the device since the remote control last asked.
-#[cfg(feature = "remote")]
-pub static LAST_PEAK: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-
 /// Whether the audio callback has panicked: it gives silence from then on.
 static FEED_PANICKED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether the device's callback plays silence because the sound is taken another way: the
+/// audio thread mixes for a hash check (`set_silent_device`, first), or a render to a video takes
+/// the sound frame by frame (second).
+static SILENT_FOR_MIX_CHECK: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+static SILENT_FOR_VIDEO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The device's callback plays silence while the audio thread mixes for the mix-hash check.
+#[cfg(feature = "remote")]
+pub fn set_silent_for_mix_check(silent: bool) {
+    SILENT_FOR_MIX_CHECK.store(silent, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The device's callback plays silence while a render to a video takes the sound frame by frame.
+pub fn set_silent_for_video(silent: bool) {
+    SILENT_FOR_VIDEO.store(silent, std::sync::atomic::Ordering::Relaxed);
+}
 
 /// SDL's audio callback: the playing buffers mixed into what the stream wants (none when it
 /// wants less than a frame).
@@ -641,9 +663,9 @@ fn feed(wanted: i32) -> Option<Vec<i16>> {
     if frames == 0 {
         return None;
     }
-    // The mix-hash check mixes on the audio thread instead (`audio::mix_hash`).
-    #[cfg(feature = "remote")]
-    if crate::audio::mix_hash::deterministic() {
+    // The mix-hash check mixes on the audio thread instead, and a render to a video takes its
+    // sound frame by frame.
+    if SILENT_FOR_MIX_CHECK.load(Relaxed) || SILENT_FOR_VIDEO.load(Relaxed) {
         return Some(vec![0i16; frames * 2]);
     }
     // A panic must not unwind into SDL (it would end the program, unreported).
@@ -654,7 +676,7 @@ fn feed(wanted: i32) -> Option<Vec<i16>> {
     };
     Some(mixed.unwrap_or_else(|| {
         if !FEED_PANICKED.swap(true, Relaxed) {
-            crate::logfile::program_log::log(
+            crate::program_log::log(
                 "platform_sound: the audio callback panicked: silence from now on",
             );
         }
@@ -664,6 +686,7 @@ fn feed(wanted: i32) -> Option<Vec<i16>> {
 
 /// The playing buffers mixed into `frames` stereo frames for the device.
 pub(crate) fn mixed_frames(frames: usize) -> Vec<i16> {
+    use std::sync::atomic::Ordering::Relaxed;
     let mut out = vec![0f32; frames * 2];
     // DirectSound's focus: while the window is not in front, a buffer made without
     // `DSBCAPS_GLOBALFOCUS` or `DSBCAPS_STICKYFOCUS` plays on unheard (the game asks for
@@ -671,7 +694,8 @@ pub(crate) fn mixed_frames(frames: usize) -> Vec<i16> {
     let mut unheard = Vec::new();
     with(|s| {
         // Before the device exists nothing plays; the flag is then taken as set.
-        let focused = s.window_focused.is_none_or(|flag| flag.get() == 1);
+        let focused = s.window_focused.is_none_or(|flag| flag.get() == 1)
+            || SOUND_IN_BACKGROUND.load(Relaxed);
         let master = s
             .primary
             .and_then(|p| match &s.entries.get(&p)?.kind {
@@ -706,16 +730,13 @@ pub(crate) fn mixed_frames(frames: usize) -> Vec<i16> {
         .iter()
         .map(|x| (x * 32767.0).clamp(-32768.0, 32767.0) as i16)
         .collect();
-    #[cfg(feature = "remote")]
-    if let Some(peak) = pcm.iter().map(|sample| sample.unsigned_abs() as u32).max() {
-        LAST_PEAK.fetch_max(peak, std::sync::atomic::Ordering::Relaxed);
-    }
+    crate::remote::note_sound_peak(&pcm);
     pcm
 }
 
 static OPENED: Mutex<bool> = Mutex::new(false);
 
-/// `DirectSoundCreate` for the standalone: the device, SDL's audio opened the first time.
+/// The sound device made: the device, SDL's audio opened the first time.
 /// Fails (as `DirectSoundCreate` can, with `DSERR_NODRIVER`) when SDL cannot.
 pub fn create_device(window_focused: &'static crate::memory::session::Dword) -> Result<u32, i32> {
     with(|s| s.window_focused = Some(window_focused));
@@ -724,11 +745,11 @@ pub fn create_device(window_focused: &'static crate::memory::session::Dword) -> 
         match crate::platform::ffi::sdl::start_audio_output(OUT_RATE, feed) {
             Ok(()) => {}
             Err(crate::platform::ffi::sdl::AudioError::Init) => {
-                crate::logfile::program_log::log("platform_sound: SDL audio cannot be started");
+                crate::program_log::log("platform_sound: SDL audio cannot be started");
                 return Err(NO_DRIVER);
             }
             Err(crate::platform::ffi::sdl::AudioError::NoDevice) => {
-                crate::logfile::program_log::log("platform_sound: no SDL audio device");
+                crate::program_log::log("platform_sound: no SDL audio device");
                 return Err(NO_DRIVER);
             }
         }

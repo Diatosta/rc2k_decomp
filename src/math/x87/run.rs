@@ -6,7 +6,7 @@
 //! `fist` `to_int`. The 80-bit values some functions carry between steps (`[u8; 10]`)
 //! are `X` inside: at double precision every step's result has 53 bits, so the conversion
 //! at the boundary is exact. Their comparison with the x87's instructions is frozen in
-//! `x87_frozen_c.rs`.
+//! `x87_checks/recorded`.
 
 use super::{Flt, out, set_chop, set_control};
 use crate::math::x87_float::{ONE, compare, f80, from_f80, int, ld, st, to_int};
@@ -23,12 +23,6 @@ pub fn length_80(v: [u32; 3]) -> [u8; 10] {
 pub fn scale_by_80(v: [u32; 3], s: [u8; 10]) -> [u32; 3] {
     let s = from_f80(s);
     v.map(|part| st(ld(part) * s))
-}
-
-/// `((a + b) h) / d`.
-#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn sum_times_over(a: u32, b: u32, h: u32, d: u32) -> u32 {
-    st((ld(a) + ld(b)) * ld(h) / ld(d))
 }
 
 /// `c + (a - c) f + (b - c) g` as a whole number, summed as `(a - c) f + (c + (b - c) g)`.
@@ -49,21 +43,17 @@ pub struct FaceDifferences<S: Flt> {
     pub scale: S,
 }
 
-/// What `face_shares` leaves: the three cross products, the two quotients with the whole
-/// numbers they give times the scale, and with `sse` the reciprocal that was used.
+/// What `face_shares` leaves: the two quotients with the whole numbers they give times the
+/// scale.
 pub struct FaceShares {
-    pub share_a: f32,
-    pub share_b: f32,
-    pub share_c: f32,
     pub plane_f: f32,
     pub share_s: i32,
     pub plane_g: f32,
     pub share_t: i32,
-    pub share_scale: Option<f32>,
 }
 
 /// `face_shares_bits` on typed values.
-pub fn face_shares<S: Flt>(d: &FaceDifferences<S>, sse: bool) -> FaceShares {
+pub fn face_shares<S: Flt>(d: &FaceDifferences<S>) -> FaceShares {
     let i = [
         d.x[0] as u32,
         d.x[1] as u32,
@@ -73,26 +63,21 @@ pub fn face_shares<S: Flt>(d: &FaceDifferences<S>, sse: bool) -> FaceShares {
         d.z[2] as u32,
         d.scale.bits(),
     ];
-    let mut o = [0u32; 8];
-    face_shares_bits(&i, &mut o, sse);
+    let mut o = [0u32; 7];
+    face_shares_bits(&i, &mut o);
     FaceShares {
-        share_a: f32::from_bits(o[0]),
-        share_b: f32::from_bits(o[1]),
-        share_c: f32::from_bits(o[2]),
         plane_f: f32::from_bits(o[3]),
         share_s: o[4] as i32,
         plane_g: f32::from_bits(o[5]),
         share_t: o[6] as i32,
-        share_scale: sse.then(|| f32::from_bits(o[7])),
     }
 }
 
 /// `physics::face_shares`' floating point part. `i`: the six differences (whole numbers:
 /// x[0..3] then z[0..3]) and the scale `Numbers.k65536` (bits) at [6]. `o` gets, in
 /// order, the three cross products, the first quotient, the whole number it gives times the
-/// scale, the second quotient and its whole number, and with `sse` the reciprocal (`rcpss`
-/// of the first cross product, from the tables of `arch::rcpss`) at [7].
-pub fn face_shares_bits(i: &[u32; 7], o: &mut [u32; 8], sse: bool) {
+/// scale, the second quotient and its whole number.
+pub fn face_shares_bits(i: &[u32; 7], o: &mut [u32; 7]) {
     let n = |k: usize| int(i[k] as i32);
     let scale = ld(i[6]);
     // The three cross products, each stored as a float.
@@ -100,30 +85,16 @@ pub fn face_shares_bits(i: &[u32; 7], o: &mut [u32; 8], sse: bool) {
     let x1 = n(0) * n(5) - n(2) * n(3);
     let x2 = n(1) * n(3) - n(0) * n(4);
     o[0] = st(x0);
-    if !sse {
-        o[1] = st(x1);
-        o[2] = st(x2);
-        // Divided by the first cross product as stored; the quotient stored, and times the
-        // scale, rounded.
-        let q1 = ld(o[1]) / ld(o[0]);
-        o[3] = st(q1);
-        o[4] = to_int(q1 * scale) as u32;
-        let q2 = ld(o[2]) / ld(o[0]);
-        o[5] = st(q2);
-        o[6] = to_int(q2 * scale) as u32;
-    } else {
-        let rcp = crate::platform::arch::rcpss(f32::from_bits(o[0]));
-        o[7] = rcp.to_bits();
-        // The cross products times 1 over the first, unrounded until stored.
-        o[1] = st(x1);
-        let q1 = x1 * ld(o[7]);
-        o[3] = st(q1);
-        o[4] = to_int(q1 * scale) as u32;
-        o[2] = st(x2);
-        let q2 = x2 * ld(o[7]);
-        o[5] = st(q2);
-        o[6] = to_int(q2 * scale) as u32;
-    }
+    o[1] = st(x1);
+    o[2] = st(x2);
+    // Divided by the first cross product as stored; the quotient stored, and times the
+    // scale, rounded.
+    let q1 = ld(o[1]) / ld(o[0]);
+    o[3] = st(q1);
+    o[4] = to_int(q1 * scale) as u32;
+    let q2 = ld(o[2]) / ld(o[0]);
+    o[5] = st(q2);
+    o[6] = to_int(q2 * scale) as u32;
 }
 
 /// `(a - b [+ c]) - d e`, left unrounded (80 bits).
@@ -143,12 +114,6 @@ pub fn less_plus_less_product_80(
         x += ld(c.value());
     }
     f80(x - ld(d) * ld(e))
-}
-
-/// `((i a) b) / c` as a whole number.
-#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_times_times_over_to_int(i: i32, a: u32, b: u32, c: u32) -> i32 {
-    to_int(int(i) * ld(a) * ld(b) / ld(c))
 }
 
 /// `(a a k + c) g` and its negative, each rounded to a float.
@@ -204,24 +169,12 @@ pub fn ramp<T: Flt>(x: impl Flt, t: [T; 4], zero: impl Flt) -> f32 {
     out((ld(x) - ld(t[0])) / span * (ld(t[3]) - ld(t[1])) + ld(t[1]))
 }
 
-/// `((a b) c) d`, rounded once.
-#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn mul3(a: u32, b: u32, c: u32, d: u32) -> u32 {
-    st(ld(a) * ld(b) * ld(c) * ld(d))
-}
-
 /// `lo + (i / d) (hi - lo)`, the products in that order.
 pub fn int_lerp(i: i32, d: impl Flt, hi: impl Flt, lo: impl Flt) -> f32 {
     let d = d.value();
     let hi = hi.value();
     let lo = lo.value();
     out(int(i) / ld(d) * (ld(hi) - ld(lo)) + ld(lo))
-}
-
-/// `(a - b) / c` as a whole number.
-#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn sub_div_to_int(a: u32, b: u32, c: u32) -> i32 {
-    to_int((ld(a) - ld(b)) / ld(c))
 }
 
 /// A whole number as an 80-bit value; with `negate`, its negative.
@@ -233,12 +186,6 @@ pub fn int_80(a: i32, negate: bool) -> [u8; 10] {
 /// The 80-bit `e` as a whole number.
 pub fn ext_to_int(e: [u8; 10]) -> i32 {
     to_int(from_f80(e))
-}
-
-/// `a / b + c`.
-#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn int_over_int_plus(a: i32, b: i32, c: u32) -> u32 {
-    st(int(a) / int(b) + ld(c))
 }
 
 /// (sine, cosine) of the float `a`, rounded to floats (`fsincos`: libm's `sin` / `cos`
@@ -263,30 +210,12 @@ pub fn abs_sqrt_times_plus(x: impl Flt, t: impl Flt, c: impl Flt) -> f32 {
     out(ld(x).abs().sqrt() * ld(t) + ld(c))
 }
 
-/// `(a + b) + c`.
-#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn add3(a: u32, b: u32, c: u32) -> u32 {
-    st(ld(a) + ld(b) + ld(c))
-}
-
 /// `(a b) c` as a whole number.
 pub fn mul2_to_int(a: impl Flt, b: impl Flt, c: impl Flt) -> i32 {
     let a = a.value();
     let b = b.value();
     let c = c.value();
     to_int(ld(a) * ld(b) * ld(c))
-}
-
-/// `c` less `a b`.
-#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn neg_product_plus(a: u32, b: u32, c: u32) -> u32 {
-    st(-(ld(a) * ld(b)) + ld(c))
-}
-
-/// `-(a b)`.
-#[cfg(test)] // replaced by `negated` of the plain step; the frozen comparison keeps it
-pub fn neg_mul(a: u32, b: u32) -> u32 {
-    st(-(ld(a) * ld(b)))
 }
 
 /// The compare of `|a|` with `b`: C0 .. C3 (0x4700).
@@ -499,24 +428,12 @@ pub fn lever_share(
     }
 }
 
-/// `-((a b) c)`.
-#[cfg(test)] // replaced by `negated` of the plain step; the frozen comparison keeps it
-pub fn neg_mul2(a: u32, b: u32, c: u32) -> u32 {
-    st(-(ld(a) * ld(b) * ld(c)))
-}
-
 /// `(((a - b) + c) + (x - d) e) f` as a whole number (`v` = a, b, c, x, d, e, f).
 pub fn wheel_int<T: Flt>(v: [T; 7]) -> i32 {
     let v = v.map(|x| x.value());
     let p = ld(v[0]) - ld(v[1]) + ld(v[2]);
     let q = (ld(v[3]) - ld(v[4])) * ld(v[5]);
     to_int((p + q) * ld(v[6]))
-}
-
-/// `(((|x| / a) + b) c)`.
-#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn abs_div_add_mul(x: u32, a: u32, b: u32, c: u32) -> u32 {
-    st((ld(x).abs() / ld(a) + ld(b)) * ld(c))
 }
 
 /// `(a b) c + d`.
@@ -540,12 +457,6 @@ pub fn over_abs_plus_minus(a: impl Flt, s: impl Flt, b: impl Flt, c: impl Flt) -
 /// `a - b` of two whole numbers as an 80-bit value: exact.
 pub fn ints_diff_80(a: i32, b: i32) -> [u8; 10] {
     f80(int(a) - int(b))
-}
-
-/// `|x| / n`, as a float.
-#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn abs_fidiv(x: u32, n: i32) -> u32 {
-    st(ld(x).abs() / int(n))
 }
 
 /// `(a - b) c + d`.
@@ -594,12 +505,6 @@ pub fn lerp_table(s: impl Flt, a0: impl Flt, a1: impl Flt, c0: impl Flt, c1: imp
     let c0 = c0.value();
     let c1 = c1.value();
     out((ld(s) - ld(a0)) / (ld(a1) - ld(a0)) * (ld(c1) - ld(c0)) + ld(c0))
-}
-
-/// `(a / b) c`.
-#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
-pub fn div_then_mul(a: u32, b: u32, c: u32) -> u32 {
-    st(ld(a) / ld(b) * ld(c))
 }
 
 /// `((a + b) n) / k - b`.

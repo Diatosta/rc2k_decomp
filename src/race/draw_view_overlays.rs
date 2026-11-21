@@ -33,7 +33,8 @@ pub fn draw_view_overlays(
     set_filters(race, ctx.part);
     {
         // Not around the view's marks: they run `drive::set_listener`, on the shared store.
-        let _held = ctx.view.matrices.hold(ctx.reads.matrices, ctx.part);
+        let _held =
+            crate::scene::view_matrices::hold(&ctx.view.matrices, ctx.reads.matrices, ctx.part);
         draw_own_car(
             &crate::race::view_scratch::DrawCtx {
                 far_clip: false,

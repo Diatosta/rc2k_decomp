@@ -2,25 +2,25 @@
 
 use crate::memory::session::{PlainBytes, PlainDword};
 use crate::service::read_setup_slot::{SetUps, template};
+use std::cell::Cell;
 
 /// One of the service area's four setup items (gear ratio, tyre, ride height, suspension
 /// stiffness).
-#[derive(rc2k_derive::Cells)]
 pub struct SetupItem {
     /// The value being chosen (`service::step_*_up` / `_down`).
-    pub chosen: PlainDword,
+    pub chosen: Cell<u32>,
     /// The value installed on the car (put back when the change is toggled off).
-    pub installed: PlainDword,
+    pub installed: Cell<u32>,
     /// The value at the start of the item's edit page (`service::begin_edits`).
-    pub start: PlainDword,
+    pub start: Cell<u32>,
 }
 
 impl SetupItem {
     const fn new(value: u32) -> Self {
         SetupItem {
-            chosen: PlainDword::new(value),
-            installed: PlainDword::new(value),
-            start: PlainDword::new(0),
+            chosen: Cell::new(value),
+            installed: Cell::new(value),
+            start: Cell::new(0),
         }
     }
 }

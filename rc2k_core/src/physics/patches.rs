@@ -25,13 +25,13 @@ pub const RANGES: [(u32, u32); 12] = [
 /// float) and 1.7.
 pub const PLAIN: [u32; 3] = [0x3F80_0000, 0x3F66_6667, 0x3FD9_999A];
 /// The third float of these records: 1.2.
-pub const OTHER_THIRD: ([usize; 2], u32) = ([3, 10], 0x3F99_999A);
-pub const NINE_POINT_EIGHT: u32 = 0x411C_CCCD;
-pub const TEN: u32 = 0x4120_0000;
+pub(crate) const OTHER_THIRD: ([usize; 2], u32) = ([3, 10], 0x3F99_999A);
+pub(crate) const NINE_POINT_EIGHT: u32 = 0x411C_CCCD;
+pub(crate) const TEN: u32 = 0x4120_0000;
 /// By record: which of the ten factors its three floats are first multiplied by.
 pub const BY_RECORD: [usize; 12] = [6, 9, 8, 7, 5, 8, 5, 5, 7, 5, 7, 9];
 /// The factors the first, second and third float are then multiplied by.
-pub const BY_FLOAT: [usize; 3] = [4, 3, 2];
+pub(crate) const BY_FLOAT: [usize; 3] = [4, 3, 2];
 
 /// What the patches read and write (as bits).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -63,11 +63,11 @@ pub fn apply_patches(p: &mut Patches, hundred: f32) {
     }
     p.applied = 1;
     for (s, (least, most)) in p.settings.iter_mut().zip(RANGES) {
-        // The sign of the difference, whatever the overflow.
-        if (s.wrapping_sub(least) as i32) < 0 {
+        // The settings are signed: a negative figure goes to the bottom of its range.
+        if (*s as i32) < least as i32 {
             *s = least;
         }
-        if (s.wrapping_sub(most) as i32) >= 0 {
+        if (*s as i32) >= most as i32 {
             *s = most;
         }
     }
@@ -101,41 +101,4 @@ pub fn apply_patches(p: &mut Patches, hundred: f32) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn patches() {
-        let mut p = Patches {
-            switch: 1,
-            settings: [8, 0, 50, 4321, 200, 100, 100, 100, 100, 100, 100, 100],
-            ..Default::default()
-        };
-        apply_patches(&mut p, 100.0);
-        assert_eq!(p.applied, 1);
-        assert_eq!(p.settings[3], 4321);
-        assert_eq!(f32::from_bits(p.factors[0]), 0.5);
-        assert_eq!(f32::from_bits(p.factors[1]), 43.21);
-        assert_eq!(f32::from_bits(p.gravity), 9.8f32 * 0.5);
-        // Record 0: by factor 6 (setting 8, 100%), then its third by factor 2 (200%).
-        assert_eq!(f32::from_bits(p.records[0][0]), 1.0);
-        assert_eq!(p.records[0][2], (1.7f32 * 2.0).to_bits());
-        assert_eq!(p.tens, [0; 2]);
-        let before = p;
-        apply_patches(&mut p, 100.0);
-        assert_eq!(p, before);
-        // Held to the ranges, switched off: only the plain values.
-        let mut q = Patches {
-            settings: [0, u32::MAX, 9, 2, 0, 1, 2, 3, 4, 5, 6, 0x8000_0000],
-            ..Default::default()
-        };
-        apply_patches(&mut q, 100.0);
-        assert_eq!(q.settings[0], 4);
-        assert_eq!(q.settings[1], 0);
-        // 0x80000000 less 10 is not below 0 by the sign: held to the top instead.
-        assert_eq!(q.settings[11], 200);
-        assert_eq!(q.factors, [0; 10]);
-        assert_eq!(q.records[3], [PLAIN[0], PLAIN[1], OTHER_THIRD.1]);
-        assert_eq!(q.tens, [TEN; 2]);
-    }
-}
+mod tests;

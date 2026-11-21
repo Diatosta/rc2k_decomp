@@ -1,6 +1,7 @@
 //! The race's logic.
 
 pub mod best_line;
+pub mod blend;
 pub mod car_marks;
 pub mod car_parts;
 pub mod cars;
@@ -16,12 +17,15 @@ pub mod loading;
 pub mod map;
 pub mod mud;
 pub mod music;
+pub mod overview;
 pub mod pace;
 pub mod pace_notes;
 pub mod panel;
 pub mod plates;
 pub mod quick_sort;
+pub mod render_dialog;
 pub mod replay;
+pub mod replay_v2;
 pub mod results;
 pub mod seal;
 pub mod shadow;
@@ -37,3 +41,4 @@ pub mod view;
 pub mod view_steps;
 pub mod viewer;
 pub mod viewer_flow;
+pub mod viewer_tip;

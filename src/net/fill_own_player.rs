@@ -77,20 +77,25 @@ pub fn fill_own_player(
         race.shared.state.settings.direction.get() as u8,
         player.race_number as u8,
     );
-    for (n, b) in own.into_iter().enumerate() {
-        net.vars.own.head.set(n, b);
-    }
-    net.vars
-        .own
-        .head
-        .set(record::RANDOM, { race.shared.random.next_random() } as u8);
-    net.vars.own.race_time.set(0);
-    net.vars.own.total.set(0);
+    net.vars.own.update(|r| {
+        for (n, b) in own.into_iter().enumerate() {
+            r.set_byte(n, b);
+        }
+    });
+    let random = { race.shared.random.next_random() } as u8;
+    net.vars.own.update(|r| {
+        r.set_byte(record::RANDOM, random);
+        r.set_race_time(0);
+        r.set_total(0);
+    });
     for (to, from) in settings(race) {
         to.set(from(&player));
     }
     race.shared.state.results.hud_bits_current.set(u32::MAX);
-    race.shared.state.settings.set_visual_options(options);
+    race.shared
+        .state
+        .settings
+        .set_visual_options(&options.visual());
     race.shared.state.results.finished.set(0);
     Ok(())
 }

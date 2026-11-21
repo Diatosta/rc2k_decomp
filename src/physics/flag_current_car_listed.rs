@@ -3,17 +3,21 @@
 //!
 //! Returns the entry.
 //!
-//! Caller: `physics::take_split_counted`. Refuses (before anything) a current car past 7.
+//! Refuses (before anything) a current car past 7.
 
 use crate::errors::Refused;
 use crate::physics::listed_car_flags::set_flag;
-use crate::race::frame_store::FrameWork;
+use crate::race::frame_store::FrameWorkStore;
 use crate::race::work_store::RaceWork;
 
-pub fn flag_current_car_listed(
-    frame_work: &FrameWork,
+pub(super) fn flag_current_car_listed(
+    frame_work: &FrameWorkStore,
     work: &RaceWork,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    set_flag(frame_work, work, &sound.race.stage.get().once[0])
+    set_flag(
+        frame_work,
+        work,
+        &mut sound.race.stage.get().borrow_mut().once[0],
+    )
 }

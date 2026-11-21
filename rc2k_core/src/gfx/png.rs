@@ -15,7 +15,7 @@ use miniz_oxide::inflate::core::{DecompressorOxide, decompress, inflate_flags};
 pub const SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
 
 /// Bytes a pixel by colour type.
-pub const PIXEL_BYTES: [u32; 8] = [1, 0, 3, 1, 2, 0, 4, 0];
+pub(crate) const PIXEL_BYTES: [u32; 8] = [1, 0, 3, 1, 2, 0, 4, 0];
 
 /// What IHDR says.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

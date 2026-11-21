@@ -8,7 +8,7 @@ use crate::Invalid;
 pub const EFFECTS: u32 = 6;
 /// What a request does: start, set or stop an effect.
 pub const START: u32 = 2;
-pub const SET: u32 = 3;
+pub(crate) const SET: u32 = 3;
 pub const STOP: u32 = 4;
 
 /// A request's dword: `kind | (a & 0xFFF) << 8 | (b & 0xFFF) << 20` (the kind not

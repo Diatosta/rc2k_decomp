@@ -17,7 +17,6 @@
 //! taken: a name past the list, a length outside 0 .. 0x1F, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::add_text_length::add_text_length;
 use crate::menu::backspace_savegame_name::backspace_savegame_name;
@@ -45,19 +44,33 @@ fn end_name(menus: &Menus, name: crate::memory::place::BytePlace) -> Result<(), 
 /// The slot of the highlighted saved game: `page * 10 + item - 1`.
 fn highlighted_slot(pages: &MenuPages, loop_flags: &LoopFlags) -> u32 {
     pages
+        .read()
         .save_page
-        .get()
         .wrapping_mul(10)
-        .wrapping_add(loop_flags.item.get())
+        .wrapping_add(loop_flags.read().item)
         .wrapping_sub(1)
 }
 
-/// Saves the game in `slot`. Whether it worked is not looked at. A slot or a state the writer
-/// refuses ends the program with the reason.
-pub fn save_game(menus: &Menus, saves: &'static Saves, slot: u32) {
-    if let Err(why) = write_savegame_slot(menus, saves, slot) {
-        crate::logfile::program_log::log(&format!("saves::write_savegame_slot: slot {slot}"));
-        crate::fatal::raise::end("saves::write_savegame_slot", why);
+/// Saves the game in `slot`. When the file cannot be written the slot's name goes back to the
+/// one from before, so the list does not show a game that was not saved. A slot or a state the
+/// writer refuses ends the program with the reason.
+pub(super) fn save_game(menus: &Menus, saves: &'static Saves, slot: u32) {
+    match write_savegame_slot(menus, saves, slot) {
+        Ok(true) => {}
+        Ok(false) => {
+            crate::program_log::log(&format!(
+                "saves: the saved game in slot {slot} was not written"
+            ));
+            // The slot is below 100 here: `write_savegame_slot` took it.
+            let _ = restore_text(
+                menus,
+                crate::saves::write_savegame_slot::slot_name(saves, slot),
+            );
+        }
+        Err(why) => {
+            crate::program_log::log(&format!("saves::write_savegame_slot: slot {slot}"));
+            crate::fatal::raise::end("saves::write_savegame_slot", why);
+        }
     }
 }
 
@@ -76,17 +89,36 @@ pub fn edit_savegame_name(
     if !(0..NAME_LEN as i32).contains(&length(menus)) {
         return Err(BadInput("text length outside the name").into());
     }
-    if !has_layout(input) {
-        return Err(BadInput("no keyboard layout").into());
-    }
 
-    let key = take_key(input);
     use rc2k_core::menu::text_entry::{self as entry, Key};
+    let typed = crate::input::typed_text::take();
+    // A character: appended unless the name is full, and taken off again when too wide.
+    let mut append = |c: u8| -> Result<(), Refused> {
+        let len = length(menus);
+        if entry::appends(c, len, screens.loop_flags.read().text_max as i32) {
+            name.add(len as u32).write(&[c], "a saved game's name")?;
+            set_length(menus, len.wrapping_add(1));
+            let measured = measure_text_at(
+                MEASURING_FONT,
+                &name.bytes("a saved game's name")?,
+                len,
+                canvas,
+            )?;
+            if entry::too_wide(measured.width as i32) {
+                backspace_savegame_name(menus, saves)?;
+            }
+        }
+        Ok(())
+    };
+    for &c in &typed.chars {
+        append(c)?;
+    }
+    let key = take_key(input);
     match entry::key(key) {
         Key::None => {}
         Key::Escape => {
             restore_text(menus, name)?;
-            screens.entry.typing.set(false);
+            screens.entry.write().typing = false;
             return Ok(());
         }
         Key::Enter => {
@@ -94,38 +126,21 @@ pub fn edit_savegame_name(
                 restore_text(menus, name)?;
                 add_text_length(menus, name)?;
             }
-            screens.entry.typing.set(false);
+            screens.entry.write().typing = false;
             end_name(menus, name)?;
             save(highlighted_slot(
                 &menus.tables.pages,
                 &menus.screens.loop_flags,
             ));
-            end_name(menus, name)?;
-            screens.entry.typing.set(false);
             return Ok(());
         }
         Key::Clear => clear_text(menus, name)?,
         Key::Backspace => backspace_savegame_name(menus, saves)?,
-        Key::Other(key) => {
-            let c = key_to_char(input, key as u32)? as u8;
-            let len = length(menus);
-            if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
-                name.add(len as u32).write(&[c], "a saved game's name")?;
-                set_length(menus, len.wrapping_add(1));
-                let measured = measure_text_at(
-                    MEASURING_FONT,
-                    &name.bytes("a saved game's name")?,
-                    len,
-                    canvas,
-                )?;
-                if entry::too_wide(measured.width as i32) {
-                    backspace_savegame_name(menus, saves)?;
-                }
-            }
-        }
+        // Printable keys come as typed text, not as keys.
+        Key::Other(_) => {}
     }
     let mut tail = Vec::new();
-    if screens.draw_work.cursor_on.is_set() {
+    if screens.draw_work.read().cursor_on {
         push_string(so, &mut tail, CURSOR_STRING)?;
     }
     tail.push(0);

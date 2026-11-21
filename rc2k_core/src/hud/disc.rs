@@ -30,7 +30,7 @@ pub struct Disc {
     pub centre: [f32; 2],
 }
 
-/// A vertex's place and texture place, as stored (+0, +4 and +0x18, +0x1C).
+/// A vertex's place and texture place, as stored in the vertex record.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DiscVertex {
     pub place: [f32; 2],
@@ -168,9 +168,34 @@ pub fn needle_corners([x0, y0, x1, y1]: [u32; 4]) -> [(u32, u32); 4] {
     [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
 }
 
+/// Where a car lies on the disc, from the disc's centre, when it is `offset` map pixels from the
+/// car at the centre (x right, y down in the picture) and the disc's texture is turned by `turn`
+/// (4096 to a turn, as `ring_angles` takes it): the vertices' own arithmetic read the other way,
+/// the picture's pixels shrunk by the texture's scale and carried round the other way by the same turn.
+pub fn map_marker(offset: [f32; 2], turn: u32, texture_scale: f32) -> [f32; 2] {
+    use crate::math::portable::{atan2, cos, sin};
+    let [dx, dy] = offset.map(f64::from);
+    let along = (dx * dx + dy * dy).sqrt() / f64::from(texture_scale);
+    let angle = atan2(dx, -dy) - f64::from(turn & 0xFFF) * core::f64::consts::TAU / 4096.0;
+    [(along * sin(angle)) as f32, (-along * cos(angle)) as f32]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_car_ahead_lies_above_the_centre_and_turns_with_the_disc() {
+        let near =
+            |a: [f32; 2], b: [f32; 2]| (a[0] - b[0]).abs() < 1e-3 && (a[1] - b[1]).abs() < 1e-3;
+        // Ten map pixels up, the texture's scale 0.5: twenty disc units up.
+        assert!(near(map_marker([0.0, -10.0], 0, 0.5), [0.0, -20.0]));
+        // A quarter turn (0x400) carries it to the left.
+        assert!(near(map_marker([0.0, -10.0], 0x400, 0.5), [-20.0, 0.0]));
+        // The turn is taken modulo a full turn.
+        assert!(near(map_marker([0.0, -10.0], 0x1400, 0.5), [-20.0, 0.0]));
+        assert!(near(map_marker([3.0, 4.0], 0, 1.0), [3.0, 4.0]));
+    }
 
     #[test]
     fn ring_and_needle() {

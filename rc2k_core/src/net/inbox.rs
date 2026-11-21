@@ -32,36 +32,19 @@ pub struct Inbox {
     pub time: u32,
 }
 
-/// What a message put into a full inbox writes past the last record (the game's slip, kept): its
-/// sequence byte over the oldest sequence wanted, its length over the newest seen, its bytes over
-/// what follows (the time, the copy's count and records).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Spill {
-    pub sequence: u8,
-    pub length: u8,
-    pub bytes: Vec<u8>,
-}
-
 /// True if sequence `a` is older than `b` (wrapping, as a signed byte).
 pub fn older(a: u8, b: u8) -> bool {
     (a.wrapping_sub(b) as i8) < 0
 }
 
 /// A message received (`sequence` as sent, doubled here) put into the inbox at `time`: one older
-/// than the oldest wanted is dropped; the newest seen is kept. Into a full inbox the records move
-/// up one (the oldest gone) and it goes in past the last record (the `Spill` given back, to write
-/// after the time is set); else it goes in after the last record not newer, those newer moved down
-/// one. Moving one leaves the count 0, so the message goes in with length 0 and none of its bytes
-/// (the game's slip, kept). Refused, before anything: a count above 0x40 or a message longer than
-/// 0xFE bytes.
-pub fn store(
-    inbox: &mut Inbox,
-    sequence: u8,
-    time: u32,
-    message: &[u8],
-) -> Result<Option<Spill>, Invalid> {
+/// than the oldest wanted is dropped; the newest seen is kept. Into a full inbox the oldest
+/// record goes to make room; the message goes in after the last record not newer, those newer
+/// moved down one. Refused, before anything: a count above 0x40 or a message longer than 0xFE
+/// bytes.
+pub fn store(inbox: &mut Inbox, sequence: u8, time: u32, message: &[u8]) -> Result<(), Invalid> {
     let sequence = sequence.wrapping_add(sequence);
-    let count = inbox.count;
+    let mut count = inbox.count;
     if count > RECORDS {
         return Err(Invalid("store_received: more than 0x40 records"));
     }
@@ -70,56 +53,49 @@ pub fn store(
     }
     inbox.time = time;
     if older(sequence, inbox.oldest) {
-        return Ok(None);
+        return Ok(());
     }
     if !older(sequence, inbox.newest) {
         inbox.newest = sequence;
     }
-    let mut length = message.len();
-    let at = if count == 0 {
-        inbox.count = 1;
-        0
-    } else if count == RECORDS {
-        // The records 1 .. 0x3F to 0 .. 0x3E.
+    if count == RECORDS {
+        // The records 1 .. 0x3F to 0 .. 0x3E: the oldest makes room.
         inbox.records.copy_within(RECORD.., 0);
-        return Ok(Some(Spill {
-            sequence,
-            length: length as u8,
-            bytes: message.to_vec(),
-        }));
-    } else {
-        let mut at = count as usize * RECORD;
-        loop {
-            if !older(sequence, inbox.records[at - RECORD]) {
-                break;
-            }
-            inbox.records.copy_within(at - RECORD..at, at);
-            length = 0;
-            at -= RECORD;
-            if at == 0 {
-                break;
-            }
-        }
-        inbox.count = count + 1;
-        at
-    };
+        count -= 1;
+    }
+    let mut at = count as usize * RECORD;
+    while at > 0 && older(sequence, inbox.records[at - RECORD]) {
+        inbox.records.copy_within(at - RECORD..at, at);
+        at -= RECORD;
+    }
+    inbox.count = count + 1;
     inbox.records[at] = sequence;
-    inbox.records[at + 1] = length as u8;
-    inbox.records[at + 2..at + 2 + length].copy_from_slice(&message[..length]);
-    Ok(None)
+    inbox.records[at + 1] = message.len() as u8;
+    inbox.records[at + 2..at + 2 + message.len()].copy_from_slice(message);
+    // What an earlier, longer message left after this one's end goes.
+    inbox.records[at + 2 + message.len()..at + RECORD].fill(0);
+    Ok(())
+}
+
+/// The message a record holds: its bytes up to the length byte (never past the record's room).
+pub fn record_message(record: &[u8]) -> &[u8] {
+    let len = (record[1] as usize).min(LONGEST as usize);
+    &record[2..2 + len]
 }
 
 /// The inbox's messages handed to the race: the count and the records to apply; the inbox's
-/// count becomes 0 and the oldest wanted the newest seen.
+/// count becomes 0 and the oldest wanted the newest seen. Only the records that arrived are
+/// copied (none when nothing did).
 pub fn hand_over(inbox: &mut Inbox) -> (u32, Vec<u8>) {
-    let handed = (inbox.count, inbox.records.clone());
+    let used = (inbox.count as usize).min(RECORDS as usize) * RECORD;
+    let handed = (inbox.count, inbox.records[..used].to_vec());
     inbox.count = 0;
     inbox.oldest = inbox.newest;
     handed
 }
 
 /// A message's room in the send buffer (0x100 bytes, the sequence byte first).
-pub const SEND_ROOM: u32 = 0x100;
+pub(crate) const SEND_ROOM: u32 = 0x100;
 
 /// The sequence byte of the next message sent: one on, the top bit set.
 pub fn next_sequence(last: u8) -> u8 {
@@ -157,18 +133,32 @@ mod tests {
     }
 
     #[test]
+    fn a_record_holds_its_own_length_and_nothing_after_it() {
+        let mut inbox = empty();
+        store(&mut inbox, 0x81, 0, &[7; 0xFE]).unwrap();
+        // the full-length message is read whole
+        assert_eq!(record_message(&inbox.records[..RECORD]), &[7; 0xFE][..]);
+        // a shorter one in the same place leaves no stale bytes and reads as short
+        inbox.count = 0;
+        inbox.oldest = 0;
+        store(&mut inbox, 0x81, 1, b"JGSM").unwrap();
+        assert_eq!(record_message(&inbox.records[..RECORD]), b"JGSM");
+        assert!(inbox.records[6..RECORD].iter().all(|&b| b == 0));
+    }
+
+    #[test]
     fn storing() {
         let mut inbox = empty();
-        assert_eq!(store(&mut inbox, 0x81, 7, b"ab"), Ok(None));
+        assert_eq!(store(&mut inbox, 0x81, 7, b"ab"), Ok(()));
         assert_eq!(inbox.count, 1);
         assert_eq!(record(&inbox, 0), (2, 2, b"ab".as_slice()));
         assert_eq!((inbox.newest, inbox.time), (2, 7));
         store(&mut inbox, 0x83, 8, b"cd").unwrap();
         assert_eq!(record(&inbox, 1), (6, 2, b"cd".as_slice()));
-        // An older one goes in between, with nothing of it (the slip).
+        // An older one goes in between, with its bytes.
         store(&mut inbox, 0x82, 9, b"xy").unwrap();
         assert_eq!(inbox.count, 3);
-        assert_eq!(record(&inbox, 1), (4, 0, b"".as_slice()));
+        assert_eq!(record(&inbox, 1), (4, 2, b"xy".as_slice()));
         assert_eq!(record(&inbox, 2), (6, 2, b"cd".as_slice()));
         assert_eq!(inbox.newest, 6);
         // Too old.
@@ -176,19 +166,15 @@ mod tests {
         store(&mut inbox, 0x84, 10, b"z").unwrap();
         assert_eq!(inbox.count, 3);
         assert_eq!(inbox.time, 10);
-        // Full: the records move up and the message spills past them.
+        // Full: the oldest goes and the message is the newest.
         inbox.oldest = 0;
         inbox.count = RECORDS;
-        let spill = store(&mut inbox, 0x10, 11, b"q").unwrap();
-        assert_eq!(record(&inbox, 0), (4, 0, b"".as_slice()));
-        assert_eq!(
-            spill,
-            Some(Spill {
-                sequence: 0x20,
-                length: 1,
-                bytes: b"q".to_vec()
-            })
-        );
+        inbox.records[RECORD] = 0x30;
+        inbox.records[RECORD * 0x3F] = 0x50;
+        store(&mut inbox, 0x30, 11, b"q").unwrap();
+        assert_eq!(inbox.count, RECORDS);
+        assert_eq!(record(&inbox, 0), (0x30, 2, b"xy".as_slice()));
+        assert_eq!(record(&inbox, 0x3F), (0x60, 1, b"q".as_slice()));
         assert!(store(&mut inbox, 0x10, 11, &[0; 0xFF]).is_err());
         inbox.count = RECORDS + 1;
         assert!(store(&mut inbox, 0x10, 11, b"").is_err());
@@ -203,7 +189,15 @@ mod tests {
         inbox.newest = 6;
         let (count, records) = hand_over(&mut inbox);
         assert_eq!((count, records[0]), (2, 0x84));
+        assert_eq!(records.len(), 2 * RECORD);
         assert_eq!((inbox.count, inbox.oldest, inbox.newest), (0, 6, 6));
+    }
+
+    #[test]
+    fn nothing_arrived_nothing_is_copied() {
+        let mut inbox = empty();
+        let (count, records) = hand_over(&mut inbox);
+        assert_eq!((count, records.len()), (0, 0));
     }
 
     #[test]

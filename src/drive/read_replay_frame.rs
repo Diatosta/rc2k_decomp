@@ -1,11 +1,12 @@
 //! Reads a replay's frame while a replay plays from its file (else it reports failure). Frames
-//! past 0x708 and tenths past 100 are the fatal errors 0x80A61151 and 0x80A61152. At or past the
+//! past 0x708 and tenths past 100 are a damaged replay (fatal errors 0x80A61151
+//! and 0x80A61152 in the game's reporter): refused as a trouble the game can go back from. At or past the
 //! last frame: the last frame, `replay_at_end` 1, the tenth 0. Else the tenth goes into
 //! `replay_frame`, `replay_at_end` 0, the frame into `replay_block`, the file is put at the
 //! frame's place and its bytes (packed when the place is below 0) are read into `block`
 //! (`drive::read_packed`). Refuses what `read_packed` refuses.
 
-use crate::errors::{FatalError, Refused};
+use crate::errors::{Recover, Refused};
 use crate::race::owner::Race;
 use crate::system::owner::System;
 use rc2k_core::drive::replay_frames::{frame_fault, past_end};
@@ -21,8 +22,8 @@ pub fn read_replay_frame(
     if !race_owner.shared.replay_file().replay_open.is_set() {
         return Ok(true);
     }
-    if let Some(code) = frame_fault(frame, tenth) {
-        return Err(FatalError { code, message: "" }.into());
+    if frame_fault(frame, tenth).is_some() {
+        return Err(Recover("a replay frame is past what a replay holds").into());
     }
     if past_end(
         frame,

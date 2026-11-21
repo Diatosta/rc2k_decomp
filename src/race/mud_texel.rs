@@ -5,7 +5,7 @@
 //!
 //! Takes x and y (0 .. 0xFF).
 //!
-//! See `race/mud.rs`. Callers: `race::muddy_texel`, `race::splash_mud`.
+//! See `race/mud.rs`.
 
 use crate::errors::BadInput;
 use crate::race::mud::mud_pixel;
@@ -13,7 +13,7 @@ use crate::race::mud::mud_pixel;
 /// The texel's place on the texture, or None when it is skipped (an odd place halved).
 pub fn texel_place(x: u32, y: u32, scene: &crate::scene::owner::Scene) -> Option<(u32, u32)> {
     // Logic in `rc2k_core::race::mud::texel_place`.
-    rc2k_core::race::mud::texel_place(x, y, scene.objects.tables.get().system_levels[256].get())
+    rc2k_core::race::mud::texel_place(x, y, scene.texture_levels().system_levels[256])
 }
 
 pub fn mud_texel(

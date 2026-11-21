@@ -4,14 +4,19 @@
 //! (`vectors::block_vectors`) reach the places through the stores by name, a field through `paths`
 //! and not by its byte in the record.
 
+use crate::drive::finish_store::Finish;
+use crate::physics::camera_store::CameraWork;
+use crate::physics::contact_store::{ContactWork, ProbeLists};
+use crate::physics::ground_query::GroundSearch;
+use crate::physics::wheel_work::WheelWork;
 use std::sync::OnceLock;
 
 /// `(offset, store, field path)`, sorted by offset.
 #[rustfmt::skip]
 const FIELDS: &[(usize, &str, &str)] = &[
-    (0x1C2C64, "owners.race.replay.viewer_and_kinds", ".viewer_panel.texel_scale"),
-    (0x1C2C68, "owners.race.replay.viewer_and_kinds", ".viewer_panel.reciprocal_width_800"),
-    (0x1C2C6C, "owners.race.replay.viewer_and_kinds", ".viewer_panel.reciprocal_height_600"),
+    (0x1C2C64, "owners.race.replay.viewer_panel.texel_scale", ""),
+    (0x1C2C68, "owners.race.replay.viewer_panel.reciprocal_width_800", ""),
+    (0x1C2C6C, "owners.race.replay.viewer_panel.reciprocal_height_600", ""),
     (0x1C5CFC, "owners.race.course.numbers", ".hundredth_a"),
     (0x1C5D00, "owners.race.course.numbers", ".two_and_a_quarter"),
     (0x1C5D14, "owners.race.course.numbers", ".hundred"),
@@ -32,19 +37,19 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x1C5E2C, "owners.race.course.numbers", ".k256"),
     (0x1C5E34, "owners.race.course.numbers", ".k10000"),
     (0x1C5E40, "owners.race.course.numbers", ".half"),
-    (0x1C5E48, "owners.race.course.numbers", ".grip_change"),
-    (0x1CB958, "owners.race.frame.lights_and_gear", ".gear.shift_up_point"),
-    (0x1CB95C, "owners.race.frame.lights_and_gear", ".gear.shift_down_point"),
-    (0x1CB960, "owners.race.frame.lights_and_gear", ".gear.shift_down_clutch_point"),
-    (0x1CB964, "owners.race.frame.lights_and_gear", ".gear.shift_ratio_figure"),
-    (0x1CB968, "owners.race.frame.lights_and_gear", ".gear.drive_torque_figure"),
-    (0x1CB96C, "owners.race.frame.lights_and_gear", ".gear.figures[0]"),
-    (0x1CB970, "owners.race.frame.lights_and_gear", ".gear.figures[1]"),
-    (0x1CB974, "owners.race.frame.lights_and_gear", ".gear.figures[2]"),
-    (0x1CB978, "owners.race.frame.lights_and_gear", ".gear.figures[3]"),
-    (0x1CB97C, "owners.race.frame.lights_and_gear", ".gear.test_marks[0]"),
-    (0x1CB980, "owners.race.frame.lights_and_gear", ".gear.test_marks[1]"),
-    (0x1CB984, "owners.race.frame.lights_and_gear", ".gear.test_marks[2]"),
+    (0x1C5E48, "owners.race.course.grip_change", ""),
+    (0x1CB958, "owners.race.physics.gear", ".shift_up_point"),
+    (0x1CB95C, "owners.race.physics.gear", ".shift_down_point"),
+    (0x1CB960, "owners.race.physics.gear", ".shift_down_clutch_point"),
+    (0x1CB964, "owners.race.physics.gear", ".shift_ratio_figure"),
+    (0x1CB968, "owners.race.physics.gear", ".drive_torque_figure"),
+    (0x1CB96C, "owners.race.physics.gear", ".figures[0]"),
+    (0x1CB970, "owners.race.physics.gear", ".figures[1]"),
+    (0x1CB974, "owners.race.physics.gear", ".figures[2]"),
+    (0x1CB978, "owners.race.physics.gear", ".figures[3]"),
+    (0x1CB97C, "owners.race.physics.gear", ".test_marks[0]"),
+    (0x1CB980, "owners.race.physics.gear", ".test_marks[1]"),
+    (0x1CB984, "owners.race.physics.gear", ".test_marks[2]"),
     (0x1CCD80, "owners.race.course.course", ".flat_depth"),
     (0x205260, "owners.race.shared.tables", ".view_share"),
     (0x20628C, "owners.race.frame.view_and_records", ".view_vars.camera_bias_scale"),
@@ -88,41 +93,41 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x208BB4, "owners.race.physics.camera", ".view_b_offset[1]"),
     (0x208BB8, "owners.race.physics.camera", ".view_b_offset[2]"),
     (0x208BF0, "owners.race.physics.camera", ".view_blend_aux_2"),
-    (0x21388C, "owners.race.shared.physics_tables", ".step_time"),
-    (0x213E78, "owners.race.shared.physics_tables", ".grip_slide_scale"),
-    (0x213E7C, "owners.race.shared.physics_tables", ".grip_slip_limit"),
-    (0x213E80, "owners.race.shared.physics_tables", ".grip_force_limit"),
-    (0x213E88, "owners.race.shared.physics_tables", ".spec_scale_a4"),
-    (0x213EB8, "owners.race.shared.physics_tables", ".rev_limit_scale"),
-    (0x213EC4, "owners.race.shared.physics_tables", ".drive_speed_scale"),
-    (0x213ECC, "owners.race.shared.physics_tables", ".side_force_scale"),
-    (0x213ED0, "owners.race.shared.physics_tables", ".slip_blend"),
-    (0x213ED4, "owners.race.shared.physics_tables", ".slip_share"),
-    (0x213ED8, "owners.race.shared.physics_tables", ".wheel_speed_margin"),
-    (0x213EDC, "owners.race.shared.physics_tables", ".wheel_speed_gap"),
-    (0x213EE0, "owners.race.shared.physics_tables", ".sound_speed_scale"),
+    (0x21388C, "owners.race.course.numbers", ".step_time"),
+    (0x213E78, "owners.race.course.numbers", ".grip_slide_scale"),
+    (0x213E7C, "owners.race.course.numbers", ".grip_slip_limit"),
+    (0x213E80, "owners.race.course.numbers", ".grip_force_limit"),
+    (0x213E88, "owners.race.course.numbers", ".spec_scale_a4"),
+    (0x213EB8, "owners.race.course.numbers", ".rev_limit_scale"),
+    (0x213EC4, "owners.race.course.numbers", ".drive_speed_scale"),
+    (0x213ECC, "owners.race.course.numbers", ".side_force_scale"),
+    (0x213ED0, "owners.race.course.numbers", ".slip_blend"),
+    (0x213ED4, "owners.race.course.numbers", ".slip_share"),
+    (0x213ED8, "owners.race.course.numbers", ".wheel_speed_margin"),
+    (0x213EDC, "owners.race.course.numbers", ".wheel_speed_gap"),
+    (0x213EE0, "owners.race.course.numbers", ".sound_speed_scale"),
     (0x213F04, "owners.race.shared.physics_tables", ".spec_default_bc0[0]"),
     (0x213F08, "owners.race.shared.physics_tables", ".spec_default_bc0[1]"),
     (0x213F0C, "owners.race.shared.physics_tables", ".spec_default_bc0[2]"),
-    (0x213F10, "owners.race.shared.physics_tables", ".spec_scale_1b8"),
-    (0x213F34, "owners.race.shared.physics_tables", ".grip_ramp"),
-    (0x213F38, "owners.race.shared.physics_tables", ".grip_ramp_share"),
-    (0x213F5C, "owners.race.shared.physics_tables", ".surface_blend[0]"),
-    (0x213F60, "owners.race.shared.physics_tables", ".surface_blend[1]"),
-    (0x213F64, "owners.race.shared.physics_tables", ".surface_blend[2]"),
-    (0x213F68, "owners.race.shared.physics_tables", ".surface_blend[3]"),
-    (0x213FAC, "owners.race.shared.physics_tables", ".inertia[1]"),
+    (0x213F10, "owners.race.course.numbers", ".spec_scale_1b8"),
+    (0x213F34, "owners.race.course.numbers", ".grip_ramp"),
+    (0x213F38, "owners.race.course.numbers", ".grip_ramp_share"),
+    (0x213F5C, "owners.race.course.numbers", ".surface_blend[0]"),
+    (0x213F60, "owners.race.course.numbers", ".surface_blend[1]"),
+    (0x213F64, "owners.race.course.numbers", ".surface_blend[2]"),
+    (0x213F68, "owners.race.course.numbers", ".surface_blend[3]"),
+    (0x213FAC, "owners.race.course.numbers", ".inertia[1]"),
     (0x213FB8, "owners.race.shared.physics_tables", ".rev_limits[0]"),
     (0x213FBC, "owners.race.shared.physics_tables", ".rev_limits[1]"),
     (0x213FC0, "owners.race.shared.physics_tables", ".camera_drop"),
     (0x213FC8, "owners.race.shared.physics_tables", ".gravity"),
-    (0x213FCC, "owners.race.shared.physics_tables", ".air_drag"),
-    (0x213FD0, "owners.race.shared.physics_tables", ".rolling_drag"),
-    (0x213FD4, "owners.race.shared.physics_tables", ".free_rev_add"),
-    (0x213FD8, "owners.race.shared.physics_tables", ".free_rev_scale"),
-    (0x213FE4, "owners.race.shared.physics_tables", ".rev_top_scale"),
-    (0x213FEC, "owners.race.shared.physics_tables", ".wheel_load_scale"),
-    (0x214098, "owners.race.shared.physics_tables", ".camera_frame_scale"),
+    (0x213FCC, "owners.race.course.numbers", ".air_drag"),
+    (0x213FD0, "owners.race.course.numbers", ".rolling_drag"),
+    (0x213FD4, "owners.race.course.numbers", ".free_rev_add"),
+    (0x213FD8, "owners.race.course.numbers", ".free_rev_scale"),
+    (0x213FE4, "owners.race.course.numbers", ".rev_top_scale"),
+    (0x213FEC, "owners.race.course.numbers", ".wheel_load_scale"),
+    (0x214098, "owners.race.course.numbers", ".camera_frame_scale"),
     (0x2140B0, "owners.race.shared.physics_tables", ".drive_shares[0]"),
     (0x2140B4, "owners.race.shared.physics_tables", ".drive_shares[1]"),
     (0x2140B8, "owners.race.shared.physics_tables", ".drive_shares[2]"),
@@ -141,15 +146,15 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x2141D8, "owners.race.shared.physics_tables", ".wheel_spin_push[1]"),
     (0x21422C, "owners.race.shared.physics_tables", ".wheel_speed_step"),
     (0x214230, "owners.race.shared.physics_tables", ".surface_softness"),
-    (0x214234, "owners.race.shared.physics_tables", ".wheel_slips[0]"),
-    (0x214238, "owners.race.shared.physics_tables", ".wheel_slips[1]"),
+    (0x214234, "owners.race.physics.wheel_work", ".wheel_slips[0]"),
+    (0x214238, "owners.race.physics.wheel_work", ".wheel_slips[1]"),
     (0x21423C, "owners.race.shared.physics_tables", ".drive_limits[0]"),
     (0x214240, "owners.race.shared.physics_tables", ".drive_limits[1]"),
     (0x214244, "owners.race.shared.physics_tables", ".drive_limits[2]"),
-    (0x214248, "owners.race.shared.physics_tables", ".drive_forces[0]"),
-    (0x21424C, "owners.race.shared.physics_tables", ".drive_forces[1]"),
-    (0x214250, "owners.race.shared.physics_tables", ".drive_slip[0]"),
-    (0x214254, "owners.race.shared.physics_tables", ".drive_slip[1]"),
+    (0x214248, "owners.race.physics.wheel_work", ".drive_forces[0]"),
+    (0x21424C, "owners.race.physics.wheel_work", ".drive_forces[1]"),
+    (0x214250, "owners.race.physics.wheel_work", ".drive_slip[0]"),
+    (0x214254, "owners.race.physics.wheel_work", ".drive_slip[1]"),
     (0x214260, "owners.race.shared.physics_tables", ".grip_limit"),
     (0x214264, "owners.race.shared.physics_tables", ".slip_limit"),
     (0x214268, "owners.race.shared.physics_tables", ".wheel_load"),
@@ -221,23 +226,23 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x214C08, "owners.race.shared.physics_tables", ".handling[7]"),
     (0x214C0C, "owners.race.shared.physics_tables", ".handling[8]"),
     (0x214D04, "owners.race.shared.physics_tables", ".split_point_distance"),
-    (0x223AE4, "owners.race.shared.buffers.reads", ".engine_tables.sines[0]"),
-    (0x223AE8, "owners.race.shared.buffers.reads", ".engine_tables.sines[1]"),
-    (0x223AF4, "owners.race.shared.buffers.reads", ".engine_tables.sines[4]"),
-    (0x223DA8, "owners.race.shared.vars", ".mud_scale_a[0]"),
-    (0x223DAC, "owners.race.shared.vars", ".mud_scale_a[1]"),
-    (0x22400C, "owners.scene.drawing.scene", ".scratch"),
-    (0x22401C, "owners.scene.drawing.scene", ".work_float_a"),
-    (0x224020, "owners.scene.drawing.scene", ".work_float_b"),
-    (0x224040, "owners.scene.drawing.scene", ".surface_point[0]"),
-    (0x224044, "owners.scene.drawing.scene", ".surface_point[1]"),
-    (0x224048, "owners.scene.drawing.scene", ".surface_point[2]"),
-    (0x237638, "owners.scene.lights.state", ".camera_shake_x"),
-    (0x23763C, "owners.scene.lights.state", ".camera_shake_y"),
-    (0x237640, "owners.scene.lights.state", ".camera_shake_z"),
-    (0x237644, "owners.scene.lights.state", ".camera_shake_listener"),
-    (0x239824, "owners.race.physics.ground", ".ground_x"),
-    (0x23982C, "owners.race.physics.ground", ".ground_z"),
+    (0x223AE4, "owners.race.shared.buffers.engine_tables", ".sines[0]"),
+    (0x223AE8, "owners.race.shared.buffers.engine_tables", ".sines[1]"),
+    (0x223AF4, "owners.race.shared.buffers.engine_tables", ".sines[4]"),
+    (0x223DA8, "owners.race.shared.vars.mud_scale_a", "[0]"),
+    (0x223DAC, "owners.race.shared.vars.mud_scale_a", "[1]"),
+    (0x22400C, "owners.scene.draw_work", ".scratch"),
+    (0x22401C, "owners.scene.draw_work", ".work_float_a"),
+    (0x224020, "owners.scene.draw_work", ".work_float_b"),
+    (0x224040, "owners.scene.draw_work", ".surface_point[0]"),
+    (0x224044, "owners.scene.draw_work", ".surface_point[1]"),
+    (0x224048, "owners.scene.draw_work", ".surface_point[2]"),
+    (0x237638, "owners.scene.line_and_shake", ".camera_shake_x"),
+    (0x23763C, "owners.scene.line_and_shake", ".camera_shake_y"),
+    (0x237640, "owners.scene.line_and_shake", ".camera_shake_z"),
+    (0x237644, "owners.scene.line_and_shake", ".camera_shake_listener"),
+    (0x239824, "owners.race.physics.ground_search", ".x"),
+    (0x23982C, "owners.race.physics.ground_search", ".z"),
     (0x24BB38, "owners.race.replay.finish", ".car_lift"),
     (0x24BB44, "owners.race.replay.finish", ".limit_a"),
     (0x24BB48, "owners.race.replay.finish", ".limit_b"),
@@ -253,15 +258,12 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x24BB74, "owners.race.replay.finish", ".limit_d"),
     (0x24BB78, "owners.race.replay.finish", ".camera_pitch_per_share"),
     (0x24BB7C, "owners.race.replay.finish", ".camera_height_per_share"),
-    (0x2D1DF4, "owners.race.physics.contact", ".contact_share_numerator"),
-    (0x2D1DF8, "owners.race.physics.contact", ".contact_normal_factor"),
-    (0x2D2A14, "owners.race.physics.contact", ".probe_share_u[0]"),
-    (0x2D2A18, "owners.race.physics.contact", ".probe_share_u[1]"),
-    (0x2D2A24, "owners.race.physics.contact", ".probe_share_u[4]"),
-    (0x2D2B14, "owners.race.physics.contact", ".probe_share_v[0]"),
-    (0x2D2B18, "owners.race.physics.contact", ".probe_share_v[1]"),
-    (0x2D2B24, "owners.race.physics.contact", ".probe_share_v[4]"),
-    (0x2D3014, "owners.race.physics.contact", ".crash_ground_scale"),
+    (0x2D2A14, "owners.race.physics.probes", ".probe_share_u[0]"),
+    (0x2D2A18, "owners.race.physics.probes", ".probe_share_u[1]"),
+    (0x2D2A24, "owners.race.physics.probes", ".probe_share_u[4]"),
+    (0x2D2B14, "owners.race.physics.probes", ".probe_share_v[0]"),
+    (0x2D2B18, "owners.race.physics.probes", ".probe_share_v[1]"),
+    (0x2D2B24, "owners.race.physics.probes", ".probe_share_v[4]"),
     (0x2D307C, "owners.race.physics.contact", ".contact_normal[1]"),
     (0x2D3090, "owners.race.physics.contact", ".contact_point[0]"),
     (0x2D3094, "owners.race.physics.contact", ".contact_point[1]"),
@@ -269,37 +271,7 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x2D30A8, "owners.race.physics.contact", ".contact_car_speed[0]"),
     (0x2D30AC, "owners.race.physics.contact", ".contact_car_speed[1]"),
     (0x2D30B0, "owners.race.physics.contact", ".contact_car_speed[2]"),
-    (0x2D30C0, "owners.race.physics.contact", ".contact_turn_cross[0]"),
-    (0x2D30C4, "owners.race.physics.contact", ".contact_turn_cross[1]"),
-    (0x2D30C8, "owners.race.physics.contact", ".contact_turn_cross[2]"),
-    (0x2D30CC, "owners.race.physics.contact", ".contact_point_speed[0]"),
-    (0x2D30D0, "owners.race.physics.contact", ".contact_point_speed[1]"),
-    (0x2D30D4, "owners.race.physics.contact", ".contact_point_speed[2]"),
-    (0x2D30E4, "owners.race.physics.contact", ".contact_normal_speed[0]"),
-    (0x2D30E8, "owners.race.physics.contact", ".contact_normal_speed[1]"),
-    (0x2D30EC, "owners.race.physics.contact", ".contact_normal_speed[2]"),
-    (0x2D30F0, "owners.race.physics.contact", ".contact_side_speed[0]"),
-    (0x2D30F4, "owners.race.physics.contact", ".contact_side_speed[1]"),
-    (0x2D30F8, "owners.race.physics.contact", ".contact_side_speed[2]"),
-    (0x2D30FC, "owners.race.physics.contact", ".contact_slide_limit_held"),
     (0x2D3100, "owners.race.physics.contact", ".contact_slide_limit"),
-    (0x2D3130, "owners.race.physics.contact", ".contact_normal_push[0]"),
-    (0x2D3134, "owners.race.physics.contact", ".contact_normal_push[1]"),
-    (0x2D3138, "owners.race.physics.contact", ".contact_normal_push[2]"),
-    (0x2D3140, "owners.race.physics.contact", ".contact_slide[0]"),
-    (0x2D3144, "owners.race.physics.contact", ".contact_slide[1]"),
-    (0x2D3148, "owners.race.physics.contact", ".contact_slide[2]"),
-    (0x2D3150, "owners.race.physics.contact", ".contact_total[0]"),
-    (0x2D3154, "owners.race.physics.contact", ".contact_total[1]"),
-    (0x2D3158, "owners.race.physics.contact", ".contact_total[2]"),
-    (0x2D3160, "owners.race.physics.contact", ".contact_extra[0]"),
-    (0x2D3164, "owners.race.physics.contact", ".contact_extra[1]"),
-    (0x2D3168, "owners.race.physics.contact", ".contact_extra[2]"),
-    (0x2D31D0, "owners.race.physics.contact", ".crash_up_dot"),
-    (0x2D31D8, "owners.race.physics.contact", ".contact_turn_push"),
-    (0x2D31DC, "owners.race.physics.contact", ".contact_depth"),
-    (0x2D31E0, "owners.race.physics.contact", ".contact_share"),
-    (0x2D3204, "owners.race.physics.contact", ".contact_factor"),
     (0x2D3B4C, "owners.race.physics.contact", ".object_point_offset[0]"),
     (0x2D3B50, "owners.race.physics.contact", ".object_point_offset[1]"),
     (0x2D3B54, "owners.race.physics.contact", ".object_point_offset[2]"),
@@ -311,15 +283,6 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x2D3B78, "owners.race.physics.contact", ".object_point_scaled[0]"),
     (0x2D3B7C, "owners.race.physics.contact", ".object_point_scaled[1]"),
     (0x2D3B80, "owners.race.physics.contact", ".object_point_scaled[2]"),
-    (0x2D3B88, "owners.race.physics.contact", ".bump_push_scale"),
-    (0x2D3B9C, "owners.race.physics.contact", ".bump_push[0]"),
-    (0x2D3BA0, "owners.race.physics.contact", ".bump_push[1]"),
-    (0x2D3BA4, "owners.race.physics.contact", ".bump_push[2]"),
-    (0x2D3BAC, "owners.race.physics.contact", ".bump_share_a"),
-    (0x2D3BB0, "owners.race.physics.contact", ".bump_share_b"),
-    (0x2D3CD8, "owners.race.physics.contact", ".bump_relative_speed[0]"),
-    (0x2D3CDC, "owners.race.physics.contact", ".bump_relative_speed[1]"),
-    (0x2D3CE0, "owners.race.physics.contact", ".bump_relative_speed[2]"),
     (0x30F524, "owners.race.shared.car_blocks", ".cars[0].position[1]"),
     (0x319FE0, "owners.race.shared.car", ".step_clock"),
     (0x319FF8, "owners.race.shared.car", ".brake_balance"),
@@ -473,13 +436,576 @@ fn place(off: usize) -> (&'static str, &'static str) {
     }
 }
 
+/// The finish state (plain fields, not cells): its registry name.
+const FINISH: &str = "owners.race.replay.finish";
+
+/// How a field of the finish state is read and written as bits.
+type FinishBits = (fn(&Finish) -> u32, fn(&mut Finish, u32));
+
+/// The finish state's field at `path`.
+fn finish_field(path: &str) -> Option<FinishBits> {
+    macro_rules! float {
+        ($f:ident) => {
+            Some((|f| f.$f.to_bits(), |f, v| f.$f = f32::from_bits(v)))
+        };
+    }
+    match path {
+        ".car_lift" => float!(car_lift),
+        ".limit_a" => float!(limit_a),
+        ".limit_b" => float!(limit_b),
+        ".camera_yaw_rate" => float!(camera_yaw_rate),
+        ".camera_distance_start" => float!(camera_distance_start),
+        ".camera_height_start" => float!(camera_height_start),
+        ".camera_distance_rate" => float!(camera_distance_rate),
+        ".camera_height_rate" => float!(camera_height_rate),
+        ".time" => float!(time),
+        ".eased" => float!(eased),
+        ".share" => float!(share),
+        ".limit_c" => float!(limit_c),
+        ".limit_d" => float!(limit_d),
+        ".camera_pitch_per_share" => float!(camera_pitch_per_share),
+        ".camera_height_per_share" => float!(camera_height_per_share),
+        _ => None,
+    }
+}
+
+/// The course's counts and places (plain fields, not cells): their registry name.
+const COURSE_WORK: &str = "owners.race.course.course";
+
+/// The course record's field at `path` (the ones the recorded vectors touch).
+fn course_word<'a>(
+    work: &'a mut crate::race::course_store::CourseWork,
+    path: &str,
+) -> Option<&'a mut u32> {
+    match path {
+        ".flat_depth" => Some(&mut work.flat_depth),
+        _ => None,
+    }
+}
+
+/// The camera work (plain fields, not cells): its registry name.
+const CAMERA: &str = "owners.race.physics.camera";
+
+/// How a field of the camera work is read and written as bits.
+type CameraBits = (fn(&CameraWork) -> u32, fn(&mut CameraWork, u32));
+
+/// The camera work's field at `path`.
+fn camera_field(path: &str) -> Option<CameraBits> {
+    macro_rules! float {
+        ($($f:ident)+ $([$i:literal])?) => {
+            Some((|c| c.$($f)+$([$i])?.to_bits(), |c, v| c.$($f)+$([$i])? = f32::from_bits(v)))
+        };
+    }
+    macro_rules! whole {
+        ($($f:ident)+ $([$i:literal])?) => {
+            Some((|c| c.$($f)+$([$i])? as u32, |c, v| c.$($f)+$([$i])? = v as _))
+        };
+    }
+    match path {
+        ".view_shift_a" => float!(view_shift_a),
+        ".view_shift_b" => float!(view_shift_b),
+        ".view_shift_c" => float!(view_shift_c),
+        ".view_shift_d" => float!(view_shift_d),
+        ".camera_offset_x" => whole!(camera_offset_x),
+        ".camera_offset_y" => whole!(camera_offset_y),
+        ".camera_offset_z" => whole!(camera_offset_z),
+        ".start_heading" => whole!(start_heading),
+        ".start_roll" => whole!(start_roll),
+        ".start_pitch" => whole!(start_pitch),
+        ".view_a_heading" => whole!(view_a_heading),
+        ".view_a_roll" => whole!(view_a_roll),
+        ".view_a_pitch" => whole!(view_a_pitch),
+        ".view_b_heading" => whole!(view_b_heading),
+        ".view_b_roll" => whole!(view_b_roll),
+        ".view_b_pitch" => whole!(view_b_pitch),
+        ".view_a_offset[0]" => float!(view_a_offset[0]),
+        ".view_a_offset[1]" => float!(view_a_offset[1]),
+        ".view_a_offset[2]" => float!(view_a_offset[2]),
+        ".view_b_offset[0]" => float!(view_b_offset[0]),
+        ".view_b_offset[1]" => float!(view_b_offset[1]),
+        ".view_b_offset[2]" => float!(view_b_offset[2]),
+        ".view_blend_aux_2" => whole!(view_blend_aux_2),
+        _ => None,
+    }
+}
+
+/// The scene's work words (plain fields, not cells): their registry name.
+const DRAW_WORK: &str = "owners.scene.draw_work";
+
+/// How a field of the scene's work words is read and written as bits.
+type WorkBits = (
+    fn(&crate::scene::draw_store::DrawWork) -> u32,
+    fn(&mut crate::scene::draw_store::DrawWork, u32),
+);
+
+/// The work words' field at `path`.
+fn work_field(path: &str) -> Option<WorkBits> {
+    match path {
+        ".scratch" => Some((|w| w.scratch, |w, v| w.scratch = v)),
+        ".work_float_a" => Some((
+            |w| w.work_float_a.to_bits(),
+            |w, v| w.work_float_a = f32::from_bits(v),
+        )),
+        ".work_float_b" => Some((
+            |w| w.work_float_b.to_bits(),
+            |w, v| w.work_float_b = f32::from_bits(v),
+        )),
+        ".surface_point[0]" => Some((|w| w.surface_point[0], |w, v| w.surface_point[0] = v)),
+        ".surface_point[1]" => Some((|w| w.surface_point[1], |w, v| w.surface_point[1] = v)),
+        ".surface_point[2]" => Some((|w| w.surface_point[2], |w, v| w.surface_point[2] = v)),
+        _ => None,
+    }
+}
+
+/// The best-line place and the camera shake (plain fields, not cells): their registry name.
+const LINE_AND_SHAKE: &str = "owners.scene.line_and_shake";
+
+/// How a field of the best-line place and camera shake is read and written as bits.
+type ShakeBits = (
+    fn(&crate::scene::line_shake_store::LineAndShake) -> u32,
+    fn(&mut crate::scene::line_shake_store::LineAndShake, u32),
+);
+
+/// The best-line and shake record's field at `path`.
+fn shake_field(path: &str) -> Option<ShakeBits> {
+    match path {
+        ".camera_shake_x" => Some((|w| w.camera_shake_x, |w, v| w.camera_shake_x = v)),
+        ".camera_shake_y" => Some((|w| w.camera_shake_y, |w, v| w.camera_shake_y = v)),
+        ".camera_shake_z" => Some((|w| w.camera_shake_z, |w, v| w.camera_shake_z = v)),
+        ".camera_shake_listener" => Some((
+            |w| w.camera_shake_listener,
+            |w, v| w.camera_shake_listener = v,
+        )),
+        _ => None,
+    }
+}
+
+/// The ground search's record (plain fields, not cells): its registry name.
+const GROUND_SEARCH: &str = "owners.race.physics.ground_search";
+
+/// How a field of the ground search's record is read and written as bits.
+type SearchBits = (fn(&GroundSearch) -> u32, fn(&mut GroundSearch, u32));
+
+/// The ground search record's field at `path`.
+fn search_field(path: &str) -> Option<SearchBits> {
+    match path {
+        ".x" => Some((|g| g.x, |g, v| g.x = v)),
+        ".z" => Some((|g| g.z, |g, v| g.z = v)),
+        _ => None,
+    }
+}
+
+/// The probe lists (plain fields, not cells): their registry name.
+const PROBES: &str = "owners.race.physics.probes";
+
+/// How a field of the probe lists is read and written as bits.
+type ProbeBits = (fn(&ProbeLists) -> u32, fn(&mut ProbeLists, u32));
+
+/// The probe lists' field at `path` (the shares the recorded vectors touch).
+fn probes_field(path: &str) -> Option<ProbeBits> {
+    macro_rules! share {
+        ($list:ident, $i:expr) => {
+            Some((
+                |p| p.$list[$i].to_bits(),
+                |p, v| p.$list[$i] = f32::from_bits(v),
+            ))
+        };
+    }
+    match path {
+        ".probe_share_u[0]" => share!(probe_share_u, 0),
+        ".probe_share_u[1]" => share!(probe_share_u, 1),
+        ".probe_share_u[4]" => share!(probe_share_u, 4),
+        ".probe_share_v[0]" => share!(probe_share_v, 0),
+        ".probe_share_v[1]" => share!(probe_share_v, 1),
+        ".probe_share_v[4]" => share!(probe_share_v, 4),
+        _ => None,
+    }
+}
+
+/// The contact work (plain fields, not cells): its registry name.
+const CONTACT: &str = "owners.race.physics.contact";
+
+/// The word of the contact work at `path` (`.name` or `.name[index]`).
+fn contact_word<'a>(work: &'a mut ContactWork, path: &str) -> Option<&'a mut u32> {
+    let (name, index) = match path.strip_suffix(']') {
+        Some(head) => {
+            let (name, index) = head.rsplit_once('[')?;
+            (name, index.parse::<usize>().ok()?)
+        }
+        None => (path, 0),
+    };
+    let array = match name {
+        ".contact_normal" => &mut work.contact_normal,
+        ".contact_point" => &mut work.contact_point,
+        ".contact_car_speed" => &mut work.contact_car_speed,
+        ".object_point_offset" => &mut work.object_point_offset,
+        ".object_point_turned" => &mut work.object_point_turned,
+        ".object_point_scaled" => &mut work.object_point_scaled,
+        ".contact_slide_limit" => return Some(&mut work.contact_slide_limit),
+        ".face_angle" => return Some(&mut work.face_angle),
+        ".face_speed" => return Some(&mut work.face_speed),
+        _ => return None,
+    };
+    array.get_mut(index)
+}
+
+/// The drive's working figures (plain fields, not cells): their registry name.
+const WHEEL_WORK: &str = "owners.race.physics.wheel_work";
+
+/// The word of the drive's working figures at `path` (`.name[index]`).
+fn wheel_word<'a>(work: &'a mut WheelWork, path: &str) -> Option<&'a mut u32> {
+    let (name, index) = path.strip_suffix(']')?.rsplit_once('[')?;
+    let array = match name {
+        ".wheel_slips" => &mut work.wheel_slips[..],
+        ".drive_forces" => &mut work.drive_forces[..],
+        ".drive_slip" => &mut work.drive_slip[..],
+        _ => return None,
+    };
+    array.get_mut(index.parse::<usize>().ok()?)
+}
+
+/// The gearbox figures (plain cells, not walked): their registry name.
+const GEAR: &str = "owners.race.physics.gear";
+
+/// The gearbox figures' cell at `path`.
+fn gear_cell<'a>(
+    gear: &'a crate::physics::gear_store::GearFigures,
+    path: &str,
+) -> Option<&'a dyn crate::memory::session::Cell32> {
+    Some(match path {
+        ".shift_up_point" => &gear.shift_up_point,
+        ".shift_down_point" => &gear.shift_down_point,
+        ".shift_down_clutch_point" => &gear.shift_down_clutch_point,
+        ".shift_ratio_figure" => &gear.shift_ratio_figure,
+        ".drive_torque_figure" => &gear.drive_torque_figure,
+        ".figures[0]" => &gear.figures[0],
+        ".figures[1]" => &gear.figures[1],
+        ".figures[2]" => &gear.figures[2],
+        ".figures[3]" => &gear.figures[3],
+        ".test_marks[0]" => &gear.test_marks[0],
+        ".test_marks[1]" => &gear.test_marks[1],
+        ".test_marks[2]" => &gear.test_marks[2],
+        _ => return None,
+    })
+}
+
+/// The registry name the game's float constants are read under.
+const NUMBERS: &str = "owners.race.course.numbers";
+
+thread_local! {
+    /// The values a test put into the constants' places (the constants themselves are fixed): the
+    /// code under test is handed them (`number_constant`).
+    static NUMBER_OVERRIDES: std::cell::RefCell<std::collections::HashMap<String, u32>> =
+        std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+/// The constant at `path` as a test last put it, else as the game holds it.
+pub fn number_constant(path: &str) -> crate::memory::session::ConstFloat {
+    crate::memory::session::ConstFloat::from_bits(number_bits(path).expect("a constant's path"))
+}
+
+/// The field of the constants at `path`.
+fn number_field<'a>(
+    n: &'a mut crate::race::numbers_store::Numbers,
+    path: &str,
+) -> Option<&'a mut crate::memory::session::ConstFloat> {
+    Some(match path {
+        ".hundredth_a" => &mut n.hundredth_a,
+        ".two_and_a_quarter" => &mut n.two_and_a_quarter,
+        ".hundred" => &mut n.hundred,
+        ".thousand" => &mut n.thousand,
+        ".one" => &mut n.one,
+        ".two" => &mut n.two,
+        ".three" => &mut n.three,
+        ".five" => &mut n.five,
+        ".sixty_four" => &mut n.sixty_four,
+        ".k65536" => &mut n.k65536,
+        ".one_over_65536" => &mut n.one_over_65536,
+        ".quarter" => &mut n.quarter,
+        ".one_and_a_half" => &mut n.one_and_a_half,
+        ".one_over_two_pi" => &mut n.one_over_two_pi,
+        ".tenths[0]" => &mut n.tenths[0],
+        ".kilometres_in_mile" => &mut n.kilometres_in_mile,
+        ".k4096" => &mut n.k4096,
+        ".k256" => &mut n.k256,
+        ".k10000" => &mut n.k10000,
+        ".half" => &mut n.half,
+        ".inertia[1]" => &mut n.inertia[1],
+        ".surface_blend[0]" => &mut n.surface_blend[0],
+        ".surface_blend[1]" => &mut n.surface_blend[1],
+        ".surface_blend[2]" => &mut n.surface_blend[2],
+        ".surface_blend[3]" => &mut n.surface_blend[3],
+        ".grip_slide_scale" => &mut n.grip_slide_scale,
+        ".grip_slip_limit" => &mut n.grip_slip_limit,
+        ".grip_force_limit" => &mut n.grip_force_limit,
+        ".spec_scale_a4" => &mut n.spec_scale_a4,
+        ".rev_limit_scale" => &mut n.rev_limit_scale,
+        ".drive_speed_scale" => &mut n.drive_speed_scale,
+        ".side_force_scale" => &mut n.side_force_scale,
+        ".slip_blend" => &mut n.slip_blend,
+        ".slip_share" => &mut n.slip_share,
+        ".wheel_speed_margin" => &mut n.wheel_speed_margin,
+        ".wheel_speed_gap" => &mut n.wheel_speed_gap,
+        ".sound_speed_scale" => &mut n.sound_speed_scale,
+        ".spec_scale_1b8" => &mut n.spec_scale_1b8,
+        ".grip_ramp" => &mut n.grip_ramp,
+        ".grip_ramp_share" => &mut n.grip_ramp_share,
+        ".air_drag" => &mut n.air_drag,
+        ".rolling_drag" => &mut n.rolling_drag,
+        ".free_rev_add" => &mut n.free_rev_add,
+        ".free_rev_scale" => &mut n.free_rev_scale,
+        ".rev_top_scale" => &mut n.rev_top_scale,
+        ".wheel_load_scale" => &mut n.wheel_load_scale,
+        ".camera_frame_scale" => &mut n.camera_frame_scale,
+        ".step_time" => &mut n.step_time,
+        _ => return None,
+    })
+}
+
+/// The bits of the constant at `path` (the constants are fixed: a test's value is kept aside).
+fn number_bits(path: &str) -> Option<u32> {
+    if let Some(bits) = NUMBER_OVERRIDES.with(|o| o.borrow().get(path).copied()) {
+        return Some(bits);
+    }
+    let mut n = super::own::race().course.numbers;
+    number_field(&mut n, path).map(|c| c.bits())
+}
+
+/// The game's constants with the values a test put into their places.
+pub fn numbers() -> crate::race::numbers_store::Numbers {
+    let mut n = super::own::race().course.numbers;
+    NUMBER_OVERRIDES.with(|o| {
+        for (path, bits) in o.borrow().iter() {
+            if let Some(c) = number_field(&mut n, path) {
+                *c = crate::memory::session::ConstFloat::from_bits(*bits);
+            }
+        }
+    });
+    n
+}
+
+/// The engine tables (plain arrays, not cells): their registry name.
+const ENGINE_TABLES: &str = "owners.race.shared.buffers.engine_tables";
+
+/// The index of the sine table's entry a path `.sines[n]` names.
+fn sine_index(path: &str) -> Option<usize> {
+    path.strip_prefix(".sines[")?
+        .strip_suffix(']')?
+        .parse()
+        .ok()
+}
+
+/// The bytes of the field at `path` in the store `name` (the registry's, or a plain one).
+fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
+    if name == CONTACT {
+        let mut work = super::own::race().physics.contact().borrow().clone();
+        return Some(contact_word(&mut work, path)?.to_le_bytes().to_vec());
+    }
+    if name == NUMBERS {
+        return Some(number_bits(path)?.to_le_bytes().to_vec());
+    }
+    if name == COURSE_WORK {
+        let mut work = *super::own::race().course.course.borrow();
+        return Some(course_word(&mut work, path)?.to_le_bytes().to_vec());
+    }
+    if name == WHEEL_WORK {
+        let mut work = super::own::race().physics.wheel_work().borrow().clone();
+        return Some(wheel_word(&mut work, path)?.to_le_bytes().to_vec());
+    }
+    if name == GEAR {
+        let cell = gear_cell(super::own::race().physics.gear(), path)?;
+        return Some(cell.bits().to_le_bytes().to_vec());
+    }
+    if name == FINISH {
+        let (get, _) = finish_field(path)?;
+        return Some(
+            get(&super::own::race().replay.finish())
+                .to_le_bytes()
+                .to_vec(),
+        );
+    }
+    if name == DRAW_WORK {
+        let (get, _) = work_field(path)?;
+        return Some(get(&super::own::scene().draw_work()).to_le_bytes().to_vec());
+    }
+    if name == LINE_AND_SHAKE {
+        let (get, _) = shake_field(path)?;
+        return Some(
+            get(&super::own::scene().line_and_shake())
+                .to_le_bytes()
+                .to_vec(),
+        );
+    }
+    if name == GROUND_SEARCH {
+        let (get, _) = search_field(path)?;
+        return Some(
+            get(&super::own::race().physics.ground_search().borrow())
+                .to_le_bytes()
+                .to_vec(),
+        );
+    }
+    if name == PROBES {
+        let (get, _) = probes_field(path)?;
+        return Some(
+            get(&super::own::race().physics.probes().borrow())
+                .to_le_bytes()
+                .to_vec(),
+        );
+    }
+    if name == ENGINE_TABLES {
+        let n = sine_index(path)?;
+        let tables = super::own::race().shared.buffers.engine_tables.borrow();
+        return Some(tables.sines.get(n)?.to_bits().to_le_bytes().to_vec());
+    }
+    if name == CAMERA {
+        let (get, _) = camera_field(path)?;
+        return Some(
+            get(&super::own::race().physics.camera())
+                .to_le_bytes()
+                .to_vec(),
+        );
+    }
+    super::state::walk(name).path_bytes(path)
+}
+
+/// `bytes` put into the field at `path` in the store `name`; false when it is not there.
+fn set_store_bytes(name: &str, path: &str, bytes: &[u8]) -> bool {
+    if name == CONTACT {
+        let Ok(word) = <[u8; 4]>::try_from(bytes) else {
+            return false;
+        };
+        let mut work = super::own::race().physics.contact().borrow_mut();
+        let Some(slot) = contact_word(&mut work, path) else {
+            return false;
+        };
+        *slot = u32::from_le_bytes(word);
+        return true;
+    }
+    if name == NUMBERS {
+        // The constants are fixed: a test's value is kept aside for the code under test.
+        let Ok(word) = <[u8; 4]>::try_from(bytes) else {
+            return false;
+        };
+        if number_bits(path).is_none() {
+            return false;
+        }
+        NUMBER_OVERRIDES.with(|o| {
+            o.borrow_mut()
+                .insert(path.to_string(), u32::from_le_bytes(word))
+        });
+        return true;
+    }
+    if name == COURSE_WORK {
+        let Ok(word) = <[u8; 4]>::try_from(bytes) else {
+            return false;
+        };
+        let mut work = super::own::race().course.course.borrow_mut();
+        let Some(slot) = course_word(&mut work, path) else {
+            return false;
+        };
+        *slot = u32::from_le_bytes(word);
+        return true;
+    }
+    if name == WHEEL_WORK {
+        let Ok(word) = <[u8; 4]>::try_from(bytes) else {
+            return false;
+        };
+        let mut work = super::own::race().physics.wheel_work().borrow_mut();
+        let Some(slot) = wheel_word(&mut work, path) else {
+            return false;
+        };
+        *slot = u32::from_le_bytes(word);
+        return true;
+    }
+    if name == GEAR {
+        let Ok(word) = <[u8; 4]>::try_from(bytes) else {
+            return false;
+        };
+        let Some(cell) = gear_cell(super::own::race().physics.gear(), path) else {
+            return false;
+        };
+        cell.set_bits(u32::from_le_bytes(word));
+        return true;
+    }
+    if name == FINISH {
+        let (Some((_, set)), Ok(word)) = (finish_field(path), <[u8; 4]>::try_from(bytes)) else {
+            return false;
+        };
+        set(
+            &mut super::own::race().replay.finish_mut(),
+            u32::from_le_bytes(word),
+        );
+        return true;
+    }
+    if name == DRAW_WORK {
+        let (Some((_, set)), Ok(word)) = (work_field(path), <[u8; 4]>::try_from(bytes)) else {
+            return false;
+        };
+        set(
+            &mut super::own::scene().draw_work_mut(),
+            u32::from_le_bytes(word),
+        );
+        return true;
+    }
+    if name == LINE_AND_SHAKE {
+        let (Some((_, set)), Ok(word)) = (shake_field(path), <[u8; 4]>::try_from(bytes)) else {
+            return false;
+        };
+        set(
+            &mut super::own::scene().line_and_shake_mut(),
+            u32::from_le_bytes(word),
+        );
+        return true;
+    }
+    if name == GROUND_SEARCH {
+        let (Some((_, set)), Ok(word)) = (search_field(path), <[u8; 4]>::try_from(bytes)) else {
+            return false;
+        };
+        set(
+            &mut super::own::race().physics.ground_search().borrow_mut(),
+            u32::from_le_bytes(word),
+        );
+        return true;
+    }
+    if name == PROBES {
+        let (Some((_, set)), Ok(word)) = (probes_field(path), <[u8; 4]>::try_from(bytes)) else {
+            return false;
+        };
+        set(
+            &mut super::own::race().physics.probes().borrow_mut(),
+            u32::from_le_bytes(word),
+        );
+        return true;
+    }
+    if name == ENGINE_TABLES {
+        let (Some(n), Ok(word)) = (sine_index(path), <[u8; 4]>::try_from(bytes)) else {
+            return false;
+        };
+        let mut tables = super::own::race().shared.buffers.engine_tables.borrow_mut();
+        let Some(entry) = tables.sines.get_mut(n) else {
+            return false;
+        };
+        *entry = f32::from_bits(u32::from_le_bytes(word));
+        return true;
+    }
+    if name == CAMERA {
+        let (Some((_, set)), Ok(word)) = (camera_field(path), <[u8; 4]>::try_from(bytes)) else {
+            return false;
+        };
+        set(
+            &mut super::own::race().physics.camera_mut(),
+            u32::from_le_bytes(word),
+        );
+        return true;
+    }
+    super::state::walk(name).set_path_bytes(path, bytes)
+}
+
 /// `len` bytes of the race block from `off`: the place's own cells, and where the read is
 /// wider than they are, the places that follow it.
 pub fn read(off: usize, len: usize) -> Vec<u8> {
     let (name, path) = place(off);
-    let mut bytes = super::state::walk(name)
-        .path_bytes(path)
-        .unwrap_or_else(|| panic!("no field {path} in {name}"));
+    let mut bytes = store_bytes(name, path).unwrap_or_else(|| panic!("no field {path} in {name}"));
     if bytes.len() < len {
         let rest = read(off + bytes.len(), len - bytes.len());
         bytes.extend(rest);
@@ -491,20 +1017,17 @@ pub fn read(off: usize, len: usize) -> Vec<u8> {
 /// `bytes` put at the race block's `off`, as `read` finds the places.
 pub fn write(off: usize, bytes: &[u8]) {
     let (name, path) = place(off);
-    let store = super::state::walk(name);
     // A write that covers the place's cells exactly needs no read of them first: one walk of
     // the store instead of two (the vectors write places in every case).
     if known_len(off) == Some(bytes.len()) {
-        assert!(store.set_path_bytes(path, bytes), "{path} in {name}");
+        assert!(set_store_bytes(name, path, bytes), "{path} in {name}");
         return;
     }
-    let mut cells = store
-        .path_bytes(path)
-        .unwrap_or_else(|| panic!("no field {path} in {name}"));
+    let mut cells = store_bytes(name, path).unwrap_or_else(|| panic!("no field {path} in {name}"));
     note_len(off, cells.len());
     let here = cells.len().min(bytes.len());
     cells[..here].copy_from_slice(&bytes[..here]);
-    assert!(store.set_path_bytes(path, &cells), "{path} in {name}");
+    assert!(set_store_bytes(name, path, &cells), "{path} in {name}");
     if bytes.len() > here {
         write(off + here, &bytes[here..]);
     }
@@ -548,7 +1071,7 @@ mod tests {
             );
         }
         for &(block, name, path) in table {
-            let cells = crate::test_support::state::walk(name).path_bytes(path);
+            let cells = super::store_bytes(name, path);
             assert!(
                 cells.is_some_and(|c| !c.is_empty()),
                 "place {block:#X}: no field {path} in {name}"

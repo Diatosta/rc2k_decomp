@@ -1,43 +1,36 @@
 //! The object and picture loaders' file numbers: the .ro3 / .lwo name numbers and paths, the
-//! picture number and texture. The path strings between them stay unknown_* bytes, reached by
-//! address.
+//! picture number and texture.
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::PlainDword;
+use std::cell::RefCell;
 
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+/// The loaders' file numbers and path texts; plain fields, borrowed through the scene's cell
+/// (`scene::owner::Scene::file_numbers`).
 pub struct ObjectFileNumbers {
-    /// The dword before the file numbers; nothing reads or writes it (a gap).
-    pub unknown_0: PlainDword,
-    /// .ro3 name number, kept as the text's game address within `path_texts`
+    /// .ro3 name number, kept as the text's place in `path_texts`
     /// (`scene::set_object_file_names`).
-    pub object_ro3_number: PlainDword,
-    /// .ro3 path, kept as the text's game address within `path_texts`
+    pub object_ro3_number: u32,
+    /// .ro3 path, kept as the text's place in `path_texts`
     /// (`scene::set_object_file_names`).
-    pub object_ro3_path: PlainDword,
-    /// .lwo path, kept as the text's game address within `path_texts`
+    pub object_ro3_path: u32,
+    /// .lwo path, kept as the text's place in `path_texts`
     /// (`scene::set_object_file_names`).
-    pub object_lwo_path: PlainDword,
-    /// .lwo name number, kept as the text's game address within `path_texts`
+    pub object_lwo_path: u32,
+    /// .lwo name number, kept as the text's place in `path_texts`
     /// (`scene::set_object_file_names`).
-    pub object_lwo_number: PlainDword,
-    /// The path texts the stored text addresses above point into: the folder, map, info and
-    /// car-icon file names (`texts`, reached by game address through `text_at`; the dwords are
-    /// only the storage, 464 bytes of NUL-ended strings).
-    pub path_texts: [PlainDword; 116],
-    /// The picture number (`scene::load_texture_picture`).
-    pub picture_number: PlainDword,
-    /// The texture (`scene::load_texture_picture`).
-    pub picture_texture: PlainDword,
+    pub object_lwo_number: u32,
+    /// The path texts the places above point into: the folder, map, info and car-icon file names
+    /// (`texts`, reached through `Scene::path_text`; 464 bytes of NUL-ended strings).
+    pub path_texts: [u8; TEXTS_LEN],
 }
 
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
-
 impl ObjectFileNumbers {
-    /// The store with its first values (every field not named here starts at zero).
+    /// The store with its first values (the numbers start at zero).
     pub const fn new() -> Self {
         Self {
+            object_ro3_number: 0,
+            object_ro3_path: 0,
+            object_lwo_path: 0,
+            object_lwo_number: 0,
             path_texts: path_texts(&[
                 (0, b"files\\s\\data\\titledem.pcx\0"),
                 (26, b"files\\a\\obj????.ro3\0"),
@@ -63,71 +56,64 @@ impl ObjectFileNumbers {
                 (425, b"files\\b\\tx1824.pcx\0"),
                 (444, b"files\\b\\tx1825.pcx\0"),
             ]),
-            ..ZeroCells::ZERO
         }
     }
 }
 
-/// The path texts in `path_texts`, by game address (for `ObjectFileNumbers::text_at`).
+/// The path texts in `path_texts`, by their first byte's place in it (for
+/// `ObjectFileNumbers::text_at`).
 pub mod texts {
-    pub const FOLDER_0_RO3: usize = 0x60AD4E;
-    pub const FOLDER_0_LWO: usize = 0x60AD62;
-    pub const FOLDER_1_RO3: usize = 0x60AD76;
-    pub const FOLDER_1_LWO: usize = 0x60AD8A;
-    pub const FOLDER_2_RO3: usize = 0x60AD9E;
-    pub const FOLDER_2_LWO: usize = 0x60ADB7;
-    pub const FOLDER_3_RO3: usize = 0x60ADD0;
-    pub const FOLDER_3_LWO: usize = 0x60ADE9;
-    pub const ERROR_LIST_PATH: usize = 0x60AE02;
-    pub const MAP_PATH: usize = 0x60AE12;
-    pub const NUMBER_PLACE_A: usize = 0x60AE0F;
-    pub const NUMBER_PLACE_B: usize = 0x60AE1D;
-    pub const NUMBER_PLACE_C: usize = 0x60AE2F;
-    pub const MAP_KEY: usize = 0x60AE24;
-    pub const TEXTURE_INFO_A: usize = 0x60AE36;
-    pub const MARK_INFO: usize = 0x60AE47;
-    pub const TEXTURE_INFO_B: usize = 0x60AE58;
-    pub const OBJECTS_INFO: usize = 0x60AE69;
-    pub const CARS_INFO: usize = 0x60AE7A;
-    pub const EXTRAS_INFO: usize = 0x60AE8B;
-    pub const FRONT_INFO: usize = 0x60AEA1;
-    pub const CAR_ICON_0: usize = 0x60AEB7;
-    pub const CAR_ICON_1: usize = 0x60AECA;
-    pub const CAR_ICON_2: usize = 0x60AEDD;
-    pub const CAR_ICON_3: usize = 0x60AEF0;
+    pub const FOLDER_0_RO3: usize = 26;
+    pub const FOLDER_0_LWO: usize = 46;
+    pub const FOLDER_1_RO3: usize = 66;
+    pub const FOLDER_1_LWO: usize = 86;
+    pub const FOLDER_2_RO3: usize = 106;
+    pub const FOLDER_2_LWO: usize = 131;
+    pub const FOLDER_3_RO3: usize = 156;
+    pub const FOLDER_3_LWO: usize = 181;
+    pub const ERROR_LIST_PATH: usize = 206;
+    pub const MAP_PATH: usize = 222;
+    pub const NUMBER_PLACE_A: usize = 219;
+    pub const NUMBER_PLACE_B: usize = 233;
+    pub const NUMBER_PLACE_C: usize = 251;
+    pub const MAP_KEY: usize = 240;
+    pub const TEXTURE_INFO_A: usize = 258;
+    pub const MARK_INFO: usize = 275;
+    pub const TEXTURE_INFO_B: usize = 292;
+    pub const OBJECTS_INFO: usize = 309;
+    pub const CARS_INFO: usize = 326;
+    pub const EXTRAS_INFO: usize = 343;
+    pub const FRONT_INFO: usize = 365;
+    pub const CAR_ICON_0: usize = 387;
+    pub const CAR_ICON_1: usize = 406;
+    pub const CAR_ICON_2: usize = 425;
+    pub const CAR_ICON_3: usize = 444;
 }
 
 /// A path text in `path_texts`: read up to its NUL and written to inside the 464 bytes the
-/// texts occupy, its bounds.
+/// texts occupy, its bounds. Each read or write borrows the store for its own length.
 pub struct PathText<'a> {
-    numbers: &'a ObjectFileNumbers,
+    numbers: &'a RefCell<ObjectFileNumbers>,
     /// The text's first byte, within `path_texts`.
     from: usize,
 }
 
-impl ObjectFileNumbers {
-    /// The text at game address `ida`.
-    pub fn text_at(&self, ida: usize) -> PathText<'_> {
-        assert!((0x60AD34..0x60AF04).contains(&ida));
-        PathText {
-            numbers: self,
-            from: ida - 0x60AD34,
-        }
+impl<'a> PathText<'a> {
+    /// The text that starts at byte `from` of `path_texts` in `numbers`.
+    pub fn new(numbers: &'a RefCell<ObjectFileNumbers>, from: usize) -> Self {
+        assert!(from < TEXTS_LEN);
+        PathText { numbers, from }
     }
 }
 
 impl crate::memory::session::TextPlace for PathText<'_> {
     fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
-        let table = &self.numbers.path_texts;
-        let mut text = Vec::new();
-        for n in self.from..TEXTS_LEN {
-            match crate::memory::session::byte_of(table, n) {
-                Some(0) => return Ok(text),
-                Some(c) => text.push(c),
-                None => break,
-            }
+        let numbers = self.numbers.borrow();
+        let rest = &numbers.path_texts[self.from..];
+        match rest.iter().position(|&byte| byte == 0) {
+            Some(end) => Ok(rest[..end].to_vec()),
+            None => Err(crate::errors::BadInput("a text with no end in its buffer")),
         }
-        Err(crate::errors::BadInput("a text with no end in its buffer"))
     }
 
     fn write_text_at(
@@ -140,12 +126,7 @@ impl crate::memory::session::TextPlace for PathText<'_> {
         if from.saturating_add(bytes.len()) > TEXTS_LEN {
             return Err(crate::errors::BadInput("a write past the path texts"));
         }
-        for (n, &byte) in (from..).zip(bytes) {
-            let cell = &self.numbers.path_texts[n / 4];
-            let mut word = cell.get().to_le_bytes();
-            word[n % 4] = byte;
-            cell.set(u32::from_le_bytes(word));
-        }
+        self.numbers.borrow_mut().path_texts[from..from + bytes.len()].copy_from_slice(bytes);
         Ok(())
     }
 }
@@ -154,7 +135,7 @@ impl crate::memory::session::TextPlace for PathText<'_> {
 const TEXTS_LEN: usize = 4 * 116;
 
 /// The path buffer whole: each text with its end byte at its byte offset, zero elsewhere.
-const fn path_texts(texts: &[(usize, &[u8])]) -> [PlainDword; 116] {
+const fn path_texts(texts: &[(usize, &[u8])]) -> [u8; TEXTS_LEN] {
     let mut bytes = [0u8; TEXTS_LEN];
     let mut t = 0;
     while t < texts.len() {
@@ -166,16 +147,5 @@ const fn path_texts(texts: &[(usize, &[u8])]) -> [PlainDword; 116] {
         }
         t += 1;
     }
-    let mut dwords = [const { PlainDword::new(0) }; 116];
-    let mut n = 0;
-    while n < 116 {
-        dwords[n] = PlainDword::new(u32::from_le_bytes([
-            bytes[4 * n],
-            bytes[4 * n + 1],
-            bytes[4 * n + 2],
-            bytes[4 * n + 3],
-        ]));
-        n += 1;
-    }
-    dwords
+    bytes
 }

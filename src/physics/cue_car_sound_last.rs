@@ -1,16 +1,15 @@
 //! `physics::cue_car_sound`'s twin for the pace notes: the cue goes last in the queue of the
-//! sound object of car 0 or 1, when the object's state word is 1.
+//! sound object of a player's car (0 or 1; up to 3 in a split screen of more), when the object's state word is 1.
 //!
-//! Caller: `physics::cue_listed_car_sound_last`. Refuses (before anything) a car past 7 or a
-//! null sound object.
+//! Refuses (before anything) a car past 7 or a null sound object.
 
 use crate::errors::Refused;
 use crate::sound::store::SoundObject;
 use rc2k_core::physics::listed_cars::cue_object;
 
-/// `cue` queued last for the car `which` (0 or 1: a player's), if it sounds.
+/// `cue` queued last for the car `which` (a player's), if it sounds.
 // Core: `rc2k_core::physics::listed_cars::cue_object`.
-pub fn cue_car_sound_last(
+pub(super) fn cue_car_sound_last(
     which: u32,
     cue: u32,
     sound: &crate::sound::owner::Sound,
@@ -19,10 +18,15 @@ pub fn cue_car_sound_last(
     let failed = std::cell::Cell::new(None);
     let found = cue_object(
         which,
-        |which| sound.race.sounds.get().player_cars[which as usize].get(),
+        crate::sound::cue_players::count(),
+        |which| match which {
+            // The split screen's third and fourth cars are their own sound objects.
+            0 | 1 => sound.race.sounds().player_cars[which as usize],
+            other => other,
+        },
         |car| car,
         |car| match SoundObject::of(sound, car) {
-            Ok(o) => o.in_use.get(),
+            Ok(o) => o.borrow().in_use,
             Err(e) => {
                 failed.set(Some(e));
                 0

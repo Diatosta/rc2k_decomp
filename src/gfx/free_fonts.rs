@@ -12,8 +12,3 @@ pub fn free_fonts(fonts: &FontStores) -> Result<(), BadInput> {
     fonts.font_block.palettes.set(0);
     Ok(())
 }
-
-/// With the game's list and palettes' place.
-pub fn free_fonts_in_game(gfx: &crate::gfx::owner::Gfx) -> Result<(), BadInput> {
-    free_fonts(&gfx.fonts)
-}

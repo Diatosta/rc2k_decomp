@@ -5,8 +5,7 @@
 //! `knock_in` while it is the deepest so far) and the steering pull (from `steer_trim`) that the
 //! sounds read.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses (before anything) a null sound
-//! object.
+//! Refuses (before anything) a null sound object.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
@@ -20,17 +19,16 @@ pub fn share_engine_sound(
     work: &crate::race::work_store::RaceWork,
 ) -> Result<(), Refused> {
     let so = crate::sound::store::current_object(sound, work);
-    if shares_figures(car.contact_depth.get(), so.knock_in[3].get()) {
-        for (k, figure) in car
-            .contact_point
-            .iter()
-            .chain([&car.contact_depth])
-            .enumerate()
-        {
-            so.knock_in[k].set(figure.get());
+    if shares_figures(car.contact_depth.get(), so.borrow().knock_in[3]) {
+        let figures = {
+            let [x, y, z] = car.contact_point.get();
+            [x, y, z, car.contact_depth.get()]
+        };
+        for (k, figure) in figures.into_iter().enumerate() {
+            so.borrow_mut().knock_in[k] = figure;
         }
     }
-    so.steer_trim_copy.set(car.steer_trim.get());
-    so.new_revs.set(1);
+    so.borrow_mut().steer_trim_copy = car.steer_trim.get();
+    so.borrow_mut().new_revs = 1;
     Ok(())
 }

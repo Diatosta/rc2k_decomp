@@ -5,8 +5,8 @@
 use crate::Invalid;
 
 /// The batch's room: vertices (0x20 bytes each) and indices (words).
-pub const VERTEX_ROOM: u32 = 0x400;
-pub const INDEX_ROOM: u32 = 0x600;
+pub(crate) const VERTEX_ROOM: u32 = 0x400;
+pub(crate) const INDEX_ROOM: u32 = 0x600;
 /// More vertices than this and the batch is drawn before the next polygon.
 pub const FULL: u32 = 0x64;
 /// The most vertices of a polygon the batch takes.
@@ -14,13 +14,15 @@ pub const MOST_VERTICES: u32 = 0x10;
 /// The batch's texture when it has none.
 pub const NO_TEXTURE: u32 = u32::MAX;
 
-/// The HUD's three layouts, by the record's +0xF4 (`draw_hud`): 1 and 2 the split ones,
-/// anything else the single player's.
+/// The HUD's layouts, by the record's layout number (`draw_hud`): 1 and 2 the two-player split ones, 3
+/// and 4 the larger split screens', anything else the single player's.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Layout {
     Single,
     One,
     Two,
+    /// Three or four players, each their part of the screen.
+    Many(u32),
 }
 
 impl Layout {
@@ -28,6 +30,7 @@ impl Layout {
         match field {
             1 => Layout::One,
             2 => Layout::Two,
+            3 | 4 => Layout::Many(field),
             _ => Layout::Single,
         }
     }
@@ -78,7 +81,7 @@ pub fn polygon_indices(first: u32, count: u32) -> Vec<u16> {
 
 /// The kinds' first slots (0x400 entries; the HUD asks for 0xC0 ..
 /// 0xDC).
-pub const KIND_SLOTS: u32 = 0x400;
+pub(crate) const KIND_SLOTS: u32 = 0x400;
 
 /// `set_batch_texture`: the entry of the texture shown; refuses one
 /// past the table, before anything.
@@ -96,8 +99,15 @@ mod tests {
     #[test]
     fn batch() {
         assert_eq!(
-            [0, 1, 2, 3].map(Layout::of),
-            [Layout::Single, Layout::One, Layout::Two, Layout::Single]
+            [0, 1, 2, 3, 4, 5].map(Layout::of),
+            [
+                Layout::Single,
+                Layout::One,
+                Layout::Two,
+                Layout::Many(3),
+                Layout::Many(4),
+                Layout::Single
+            ]
         );
         assert!(flushes(0x65, 1, 1) && flushes(0, 1, 2) && !flushes(0x64, 1, 1));
         assert!(check_polygon(0, 0, 0, false).is_err());

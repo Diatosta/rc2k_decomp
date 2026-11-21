@@ -4,13 +4,11 @@
 //! offset resolves to), and the copies between them.
 //!
 //! `ByteView::cell_run` and `CellRun`: the byte-wise copies, `load_cells` and
-//! `checkpoints_store::run_on` walk runs. `ByteView::field_path` stays for `drive::sim_hash`
-//! (the held races' hash, `remote` and tests).
+//! `checkpoints_store::run_on` walk runs. `ByteView::field_path` is for the tests.
 
 #![allow(unsafe_code)]
 
 use crate::errors::BadInput;
-use crate::logfile::program_log::log;
 use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
 
 /// A type made of atomics and cells only (`session::{Dword, Float, Word, Byte, Bytes<N>}`, their
@@ -71,7 +69,7 @@ pub unsafe trait ByteView: Cells {
 
     /// The path of the field holding byte `offset` (`.a.b[2]`) added to `path`, and the type of
     /// the primitive cell it ends in: the debug pages' rows are named by it.
-    #[cfg(any(test, feature = "remote"))]
+    #[cfg(test)]
     fn field_path(&self, _offset: usize, _path: &mut String) -> &'static str
     where
         Self: Sized,
@@ -270,7 +268,7 @@ pub fn copy_cells<F: ByteView, T: ByteView>(from: (&F, usize), to: (&T, usize), 
 /// # Panics
 /// When the two differ in size.
 #[cfg(test)]
-pub fn copy_whole<F: ByteView, T: ByteView>(from: &F, to: &T) {
+fn copy_whole<F: ByteView, T: ByteView>(from: &F, to: &T) {
     assert_eq!(size_of::<F>(), size_of::<T>(), "two records of one layout");
     copy_cells((from, 0), (to, 0), size_of::<F>());
 }
@@ -283,7 +281,7 @@ pub fn copy_whole<F: ByteView, T: ByteView>(from: &F, to: &T) {
 /// # Panics
 /// When the records differ in size, or their cells do not line up.
 #[cfg(test)]
-pub fn merge_cell_changes<T: ByteView, F: ByteView>(to: &T, now: &F, start: &F) {
+fn merge_cell_changes<T: ByteView, F: ByteView>(to: &T, now: &F, start: &F) {
     let size = size_of::<T>();
     assert_eq!(size, size_of::<F>(), "two records of one layout");
     let mut at = 0;
@@ -363,6 +361,8 @@ pub enum CellRun<'a> {
     PlainBytes(&'a [std::cell::Cell<u8>]),
     PlainByte(&'a [crate::memory::session::PlainByte]),
     PlainWord(&'a [crate::memory::session::PlainWord]),
+    /// The words of a `PlainFloats`.
+    PlainWords(&'a [std::cell::Cell<u32>]),
 }
 
 impl<'a> CellRun<'a> {
@@ -382,7 +382,8 @@ impl<'a> CellRun<'a> {
             | CellRun::PlainDword(_)
             | CellRun::PlainFloat(_)
             | CellRun::PlainFlag(_)
-            | CellRun::PlainInt(_) => 4,
+            | CellRun::PlainInt(_)
+            | CellRun::PlainWords(_) => 4,
         }
     }
 
@@ -404,6 +405,7 @@ impl<'a> CellRun<'a> {
             CellRun::PlainBytes(r) => r.len(),
             CellRun::PlainByte(r) => r.len(),
             CellRun::PlainWord(r) => r.len(),
+            CellRun::PlainWords(r) => r.len(),
         };
         cells * self.width()
     }
@@ -427,6 +429,7 @@ impl<'a> CellRun<'a> {
             CellRun::PlainBytes(r) => r.as_ptr() as usize,
             CellRun::PlainByte(r) => r.as_ptr() as usize,
             CellRun::PlainWord(r) => r.as_ptr() as usize,
+            CellRun::PlainWords(r) => r.as_ptr() as usize,
         }
     }
 
@@ -452,6 +455,7 @@ impl<'a> CellRun<'a> {
             CellRun::PlainBytes(r) => CellRun::PlainBytes(&r[i..]),
             CellRun::PlainByte(r) => CellRun::PlainByte(&r[i..]),
             CellRun::PlainWord(r) => CellRun::PlainWord(&r[i..]),
+            CellRun::PlainWords(r) => CellRun::PlainWords(&r[i..]),
         })
     }
 
@@ -473,6 +477,7 @@ impl<'a> CellRun<'a> {
             CellRun::PlainBytes(r) => CellRef::Plain8(&r[i]),
             CellRun::PlainByte(r) => CellRef::Plain8(r[i].cell()),
             CellRun::PlainWord(r) => CellRef::Plain16(r[i].cell()),
+            CellRun::PlainWords(r) => CellRef::Plain32(&r[i]),
         }
     }
 
@@ -1060,6 +1065,39 @@ unsafe impl<const N: usize> ByteView for crate::memory::session::PlainBytes<N> {
         (0, CellRun::PlainBytes(self.cells()))
     }
 }
+// SAFETY: `repr(transparent)` over one `Cell<[u32; N]>`: every byte is inside the cell, and
+// zero is a valid value.
+unsafe impl<const N: usize> Cells for crate::memory::plain_floats::PlainFloats<N> {
+    fn copy_from(&self, other: &Self) {
+        self.set_bits(other.bits());
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        let (now, start) = (now.bits(), start.bits());
+        for n in 0..N {
+            if now[n] != start[n] {
+                self.set_bits_at(n, now[n]);
+            }
+        }
+    }
+
+    /// The row as an array of one kind of cell is visited: one run, element 0.
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visitor.index(0);
+        if N > 0 {
+            visitor.run(CellRun::PlainWords(self.cells()));
+        }
+        visitor.leave();
+    }
+}
+
+// SAFETY: `repr(transparent)` over a `Cell<[u32; N]>`: no padding, any bits a value; all of it one
+// run of word cells.
+unsafe impl<const N: usize> ByteView for crate::memory::plain_floats::PlainFloats<N> {
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::PlainWords(self.cells()))
+    }
+}
 // SAFETY: `N` of a type of cells one after another (an array has no padding between
 // elements): every value byte is in a cell of an element, and the all-zero elements are valid.
 unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
@@ -1089,7 +1127,7 @@ unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
 // SAFETY: `N` records of fixed layout one after another, an array's layout: no padding (the
 // elements have none, nor does an array between them), any bits a value.
 unsafe impl<T: ByteView, const N: usize> ByteView for [T; N] {
-    #[cfg(any(test, feature = "remote"))]
+    #[cfg(test)]
     fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
         let size = size_of::<T>();
         path.push_str(&format!("[{}]", offset / size));
@@ -1124,7 +1162,7 @@ unsafe impl<T: Cells> Cells for crate::memory::session::GameThread<T> {
 }
 // SAFETY: one `T` (`repr(transparent)`), whose cells are handed out only on the game's thread.
 unsafe impl<T: ByteView> ByteView for crate::memory::session::GameThread<T> {
-    #[cfg(any(test, feature = "remote"))]
+    #[cfg(test)]
     fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
         self.get().field_path(offset, path)
     }
@@ -1216,26 +1254,25 @@ pub(crate) fn bytes_of<T: Plain>(value: &T) -> &[u8] {
     unsafe { std::slice::from_raw_parts(std::ptr::from_ref(value).cast(), size_of::<T>()) }
 }
 
-/// `#[repr(C)]` records of integers, their sizes the sums of their fields (no padding).
+/// `#[repr(C)]` records of integers, their sizes the sums of their fields (no padding): each
+/// pair is a type and its size in bytes. Used beside the record's definition.
 macro_rules! plain_record {
     ($($t:ty = $size:expr),* $(,)?) => { $(
         const _: () = assert!(size_of::<$t>() == $size, "padding in a plain record");
         // SAFETY: integers and arrays of them only (each record's fields, read at the type), so
         // any bits are a value; no padding (asserted above).
-        unsafe impl Plain for $t {}
+        #[allow(unsafe_code)]
+        unsafe impl $crate::memory::cells::Plain for $t {}
     )* };
 }
+pub(crate) use plain_record;
+
 plain_record!(
     rc2k_core::strings::text::Font = 4 + 7 * 4,
     rc2k_core::memory::List = 4 * 4,
     rc2k_core::gfx::pixels::PixelFormat = 5 * 4,
-    crate::gfx::texture_upload::TextureFormat = 3 * 4 + 5 * 4 + 8 * 4,
-    crate::gfx::texture_upload::TextureRecord = (5 + 9 + 9 + 7) * 4,
-    crate::audio::samples::SampleFile = 0x20,
     rc2k_core::audio::streams::AudioStream = 0x2C,
-    crate::audio::make_buffer::BufferDescription = 0x14,
-    crate::audio::describe_wave_format::WaveFormat = 0x12,
-    rc2k_core::audio::modes::AudioOptions = 0x40,
+    rc2k_core::audio::modes::AudioOptions = 0x34,
     rc2k_core::audio::voices::SampleRecord = 0x40,
     rc2k_core::audio::voices::Voice = 0x70,
     rc2k_core::audio::voices::MixerChannel = 0x58,
@@ -1243,31 +1280,16 @@ plain_record!(
     rc2k_core::menu::player::Player = 0x28C,
 );
 
-/// One of the game's stores: a static whose every byte is a cell, read and written by
-/// offset through its own cells (`load_cells`, `store_cells`).
-///
-/// # Safety
-/// `first()` is the store's first byte and `size()` bytes behind it are the store's own, laid
-/// out as it says (`slice` reaches them from `first()`).
-pub unsafe trait Store {
-    /// Its length in bytes.
-    fn size(&self) -> usize;
-    /// Its first byte: a checked place's bytes are found from it (`place_of`), inside `size()`.
-    fn first(&self) -> *const u8;
+/// A record whose every byte is a cell, read and written by byte offset through its own cells
+/// (`load_cells`, `store_cells`): the tests' reference for the typed reads.
+#[cfg(test)]
+pub trait Store {
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput>;
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput>;
 }
 
-// SAFETY: `first` is the record's first byte and `size` its size.
-unsafe impl<T: ByteView> Store for T {
-    fn size(&self) -> usize {
-        size_of::<T>()
-    }
-
-    fn first(&self) -> *const u8 {
-        std::ptr::from_ref(self).cast()
-    }
-
+#[cfg(test)]
+impl<T: ByteView> Store for T {
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
         load_cells(self, offset, to)
     }
@@ -1421,75 +1443,8 @@ pub const fn cells_of_bytes<T: ByteView, const N: usize>(bytes: [u8; N]) -> T {
     core::mem::ManuallyDrop::into_inner(unsafe { bits.record })
 }
 
-/// `N` dwords of a record of cells from byte `at` on, for a record read as a run of dwords.
-#[cfg(test)]
-pub fn dwords_in<T: ByteView, const N: usize>(
-    cells: &T,
-    at: usize,
-) -> &[crate::memory::session::Dword; N] {
-    dwords_as(cells, at)
-}
-
-/// `dwords_in` for a record of the game thread's cells.
-pub fn plain_dwords_in<T: PlainCellsOnly, const N: usize>(
-    cells: &T,
-    at: usize,
-) -> &[crate::memory::session::PlainDword; N] {
-    dwords_as(cells, at)
-}
-
-/// A record of fixed layout made of plain (non-atomic) cells only: its dwords may be reached
-/// as `PlainDword`s (`plain_dwords_in`).
-///
-/// # Safety
-/// Every byte of the record is inside a `Cell` (no atomic among them), so a `PlainDword` over
-/// four of its bytes reaches them as its own cells do: non-atomically, on the one thread a
-/// record of `Cell`s (`!Sync`) is reached from.
-pub unsafe trait PlainCellsOnly: ByteView {}
-
-// SAFETY: every field is a `PlainDword` (a `Cell<u32>`): no atomic among its bytes.
-unsafe impl PlainCellsOnly for crate::race::replay_file_store::ReplayIndex {}
-// SAFETY: every field is a `PlainDword` or an array of them: no atomic among its bytes.
-#[cfg(test)]
-unsafe impl PlainCellsOnly for crate::race::prefs_store::StagePrefs {}
-
-/// A cell over one dword, any bits valid: `Dword` and `PlainDword` (`dwords_as`'s kinds).
-trait DwordCell {}
-impl DwordCell for crate::memory::session::Dword {}
-impl DwordCell for crate::memory::session::PlainDword {}
-
-fn dwords_as<D: DwordCell, T: ByteView, const N: usize>(cells: &T, at: usize) -> &[D; N] {
-    assert!(
-        at + N * size_of::<D>() <= size_of::<T>(),
-        "dwords past the record"
-    );
-    let first = std::ptr::from_ref::<T>(cells).cast::<u8>().wrapping_add(at);
-    assert!(first.cast::<D>().is_aligned(), "dwords on an odd place");
-    // SAFETY: inside `cells` (checked above), whose every byte is a cell (`ByteView`) for as long
-    // as the borrow, aligned (checked above), and any bits make a `D` (`DwordCell`: a cell over a
-    // `u32`). The cells there are of `D`'s kind, so no byte is reached both atomically and not:
-    // `plain_dwords_in` takes records of plain cells only (`PlainCellsOnly`), `dwords_in` (the
-    // tests) records of `Dword`s.
-    unsafe { &*first.cast() }
-}
-
-/// A store's bytes as a reader (`rc2k_core::strings::bytes::Bytes`): the field's own bytes, none
-/// past its end.
-pub struct StoreBytes<'a>(pub &'a dyn Store);
-
-impl rc2k_core::strings::bytes::Bytes for StoreBytes<'_> {
-    fn byte(&self, at: usize) -> Option<u8> {
-        let mut byte = [0];
-        self.copy_run(at, &mut byte)?;
-        Some(byte[0])
-    }
-    fn copy_run(&self, at: usize, out: &mut [u8]) -> Option<()> {
-        let end = at.checked_add(out.len())?;
-        (end <= self.0.size() && self.0.load(at, out).is_ok()).then_some(())
-    }
-}
-
 /// The `T` at byte `offset` of `store` (any alignment; a run past the store is refused).
+#[cfg(test)]
 pub fn load_value<T: Plain>(store: &dyn Store, offset: usize) -> Result<T, BadInput> {
     let mut value = zeroed::<T>();
     store.load(offset, bytes_mut(&mut value))?;
@@ -1497,31 +1452,9 @@ pub fn load_value<T: Plain>(store: &dyn Store, offset: usize) -> Result<T, BadIn
 }
 
 /// `value` written at byte `offset` of `store` (a run past the store is refused).
+#[cfg(test)]
 pub fn store_value<T: Plain>(store: &dyn Store, offset: usize, value: T) -> Result<(), BadInput> {
     store.store(offset, bytes_of(&value))
-}
-
-/// `len` bytes copied from `from` at `from_at` to `to` at `to_at`: each side inside its own store
-/// (a run past either is refused, naming `what`).
-pub fn copy_between(
-    from: &dyn Store,
-    from_at: usize,
-    to: &dyn Store,
-    to_at: usize,
-    len: usize,
-    what: &str,
-) -> Result<(), BadInput> {
-    let mut bytes = vec![0; len];
-    from.load(from_at, &mut bytes).inspect_err(|_| {
-        log(&format!(
-            "pointers: {what}: {len} bytes read at {from_at:#x}"
-        ));
-    })?;
-    to.store(to_at, &bytes).inspect_err(|_| {
-        log(&format!(
-            "pointers: {what}: {len} bytes written at {to_at:#x}"
-        ));
-    })
 }
 
 #[cfg(test)]

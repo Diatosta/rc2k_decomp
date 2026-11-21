@@ -1,5 +1,5 @@
 //! Waits up to the given milliseconds for a key: every 10 ms
-//! (`system::sleep`) a key taken (`input::take_key`), the clock (`system::tick_count`)
+//! (`clock::sleep`) a key taken (`input::take_key`), the clock (`clock::tick_count`)
 //! read until it reaches the start plus that (a signed difference). Gives the key, 0 when the
 //! time ran out.
 
@@ -9,12 +9,12 @@ use rc2k_core::system::time::{time_up, wait_end};
 /// (`menu::championship_welcome`) reads only the key and whether there was one.
 pub fn wait_or_key(o: crate::owners::Owners<'static>, milliseconds: u32) -> u8 {
     let (system, input) = (o.system, o.input);
-    use crate::system::tick_count::tick_count;
+    use crate::clock::tick_count::tick_count;
     let end = wait_end(tick_count(&system.session.picture_clock), milliseconds);
     loop {
-        crate::system::sleep::sleep(10);
+        crate::clock::sleep::sleep(10);
         // The window's events are pumped here: the window waits on this thread.
-        crate::platform::pump_messages_now(o);
+        crate::shell::frame::pump_messages_now(o);
         let key = crate::input::take_key::take_key(input);
         if key != 0 {
             return key;

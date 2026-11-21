@@ -85,7 +85,7 @@ struct Steps<'a> {
 impl Steps<'_> {
     /// Logs the step's word.
     fn log(&mut self, word: Word) {
-        crate::race::load_times::phase(word.text().to_str().unwrap_or("?"));
+        crate::logfile::load_times::phase(word.text().to_str().unwrap_or("?"));
         crate::logfile::log_write::log_nul(&word.text(), true, 1);
     }
 
@@ -135,27 +135,46 @@ pub fn loadlevel_init(
     o: crate::owners::Owners<'static>,
     progress: &mut dyn Progress,
 ) -> Result<(), Refused> {
-    let (scene, system, gfx) = (o.scene, o.system, o.gfx);
-    use crate::race::level_init as level;
-    use crate::race::stage_prefs;
     let mut s = Steps { progress };
+    begin_level(&mut s, race, o)?;
+    load_course_data(&mut s, race, o)?;
+    load_objects_and_map(&mut s, race, o)?;
+    init_marks_and_lights(&mut s, race, o)?;
+    finish_level(&mut s, race, o)?;
+    Ok(())
+}
+
+/// The level begun: the map's and the stage's variables, the loading bar's first mark.
+fn begin_level(
+    s: &mut Steps<'_>,
+    race: &'static Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
+    let scene = o.scene;
     s.log(Word::Start);
     s.indent(3);
-    race.frame.map().use_packed.set(1u32);
-    race.frame
-        .map()
-        .packed_unless_editor
-        .set((race.shared.switches.get().editor_mode.get() == 0) as u32);
     let mut direction: u32 = race.shared.vars.get().direction.get();
     if [0x1F, 0x22, 0x51].contains(&race.shared.vars.get().stage_number.get()) {
         direction ^= 1;
     }
     race.shared.work.get().stage_direction.set(direction);
-    race.course.numbers.get().in_race.set(true);
+    race.course.set_in_race(true);
     crate::scene::workers::set_game_part_racing(&scene.scratch, true);
     o.audio.racing.set(true);
     s.mark(0)?;
     s.indent(-3);
+    Ok(())
+}
+
+/// The object memory, the course memory, the texture information, the prefs, the textures and the course.
+fn load_course_data(
+    s: &mut Steps<'_>,
+    race: &'static Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
+    let scene = o.scene;
+    use crate::race::level_init as level;
+    use crate::race::stage_prefs;
     s.step(
         Word::ObjectsInit,
         &mut || {
@@ -168,7 +187,7 @@ pub fn loadlevel_init(
     s.log(Word::AllocCourseMemory);
     s.indent(3);
     // CourseLists.course_memory_list[0]: the course's MemoryList.
-    level::allocate_course_memory(&race.course, &race.course.lists.get().course_memory_list)?;
+    level::allocate_course_memory(&race.course, &race.course.memory().course_memory_list)?;
     s.mark(2)?;
     s.mark(4)?;
     s.indent(-3);
@@ -219,6 +238,16 @@ pub fn loadlevel_init(
         },
         Some(0x14),
     )?;
+    Ok(())
+}
+
+/// The objects, their plates, the game map and the fonts.
+fn load_objects_and_map(
+    s: &mut Steps<'_>,
+    race: &'static Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
+    let (scene, system, gfx) = (o.scene, o.system, o.gfx);
     // reloadobjects.
     s.log(Word::ReloadObjects);
     s.indent(3);
@@ -236,8 +265,8 @@ pub fn loadlevel_init(
     s.indent(3);
     let game_map = crate::race::game_map::load_game_map(
         &race.frame,
-        &scene.file_numbers().text_at(texts::MAP_PATH),
-        &scene.file_numbers().text_at(texts::MAP_KEY),
+        &scene.path_text(texts::MAP_PATH),
+        &scene.path_text(texts::MAP_KEY),
         system,
         gfx,
     )?;
@@ -246,9 +275,21 @@ pub fn loadlevel_init(
     s.indent(-3);
     s.step(
         Word::LoadGameFonts,
-        &mut || crate::gfx::build_game_fonts::build_game_fonts_in_game(gfx, system, o.strings),
+        &mut || crate::gfx::build_game_fonts::build_game_fonts(gfx, system, o.strings),
         Some(0x5C),
     )?;
+    Ok(())
+}
+
+/// The marks, the refresh flags, the skid marks, the 3D's tables, the lights and the mud.
+fn init_marks_and_lights(
+    s: &mut Steps<'_>,
+    race: &'static Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
+    let (scene, system, gfx) = (o.scene, o.system, o.gfx);
+    use crate::race::level_init as level;
+    use crate::race::stage_prefs;
     // init mark, with the log off.
     s.log(Word::InitMark);
     s.indent(3);
@@ -270,17 +311,12 @@ pub fn loadlevel_init(
     s.log(Word::RefreshInit);
     s.indent(3);
     level::reset_refresh(&scene.scratch);
-    let flags: u32 = race.course.stage_prefs.get().refresh_flags_a.get();
-    scene.lights.work.get().marks_mask.set((flags & 2) >> 1);
+    let flags: u32 = race.course.stage_prefs.borrow().refresh_flags_a;
+    scene.light_work_mut().marks_mask = (flags & 2) >> 1;
     for car in &race.car_blocks().cars[..8] {
         car.lights_on.set(flags & 1);
     }
-    scene
-        .lights
-        .work
-        .get()
-        .lamps_mask
-        .set(race.course.stage_prefs.get().refresh_flags_b.get() & 1);
+    scene.light_work_mut().lamps_mask = race.course.stage_prefs.borrow().refresh_flags_b & 1;
     s.indent(-3);
     s.step(
         Word::SkidmarksInit,
@@ -322,12 +358,24 @@ pub fn loadlevel_init(
     s.mark(0x64)?;
     s.mark(0x64)?;
     s.indent(-3);
+    Ok(())
+}
+
+/// The crash matrix, the norms, the checkpoints, the pace notes and the overlay, the marker object, and the camera's last frames.
+fn finish_level(
+    s: &mut Steps<'_>,
+    race: &'static Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
+    let scene = o.scene;
+    use crate::race::level_init as level;
+    use crate::race::stage_prefs;
     s.step(
         Word::GetMatCrash,
         &mut || {
             stage_prefs::get_mat_crash(
                 race.engine_tables(),
-                race.frame.matrices.get(),
+                &race.frame.matrices,
                 race.shared.car(),
                 scene,
             );
@@ -339,7 +387,7 @@ pub fn loadlevel_init(
     s.log(Word::StoreNorms);
     s.indent(3);
     crate::race::norms::store_norms(race, scene)?;
-    if race.replay.finish.get().no_place.get() == 0 {
+    if race.replay.no_place() == 0 {
         s.indent(-3);
         s.step(
             Word::InitCheckpoints,
@@ -357,14 +405,16 @@ pub fn loadlevel_init(
     }
     use crate::scene::find_object_of_kind::find_object_of_kind;
     let mut marker = find_object_of_kind(0x7A, scene);
-    race.shared.switches.get().marker_object.set(marker);
+    race.shared.switches.borrow_mut().marker_object = marker;
     if marker == 0 {
         marker = find_object_of_kind(0x79, scene);
-        race.shared.switches.get().marker_object.set(marker);
+        race.shared.switches.borrow_mut().marker_object = marker;
     }
     // `camera_last_frame` cleared.
-    for cell in &race.replay_work().camera_last_frame {
-        cell.set(0);
+    {
+        let mut work = race.replay_work_mut();
+        work.camera_last_frame = [0; 2];
+        work.camera_last_frame_extra = [0; 2];
     }
     s.indent(-3);
     s.log(Word::Finis);

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>Rally Championship</string>
+    <key>CFBundleDisplayName</key>
+    <string>Rally Championship</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleLocalizations</key>
+    <array><string>en</string></array>
+    <key>CFBundleExecutable</key>
+    <string>rc2k</string>
+    <key>CFBundleIdentifier</key>
+    <string>io.github.diatosta.rc2k</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleSupportedPlatforms</key>
+    <array><string>iPhoneOS</string></array>
+    <key>MinimumOSVersion</key>
+    <string>13.0</string>
+    <key>UIDeviceFamily</key>
+    <array><integer>1</integer><integer>2</integer></array>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array><string>arm64</string><string>metal</string></array>
+    <key>CADisableMinimumFrameDurationOnPhone</key>
+    <true/>
+    <key>UIRequiresFullScreen</key>
+    <true/>
+    <key>UIStatusBarHidden</key>
+    <true/>
+    <key>UIViewControllerBasedStatusBarAppearance</key>
+    <false/>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>UILaunchScreen</key>
+    <dict/>
+    <key>CFBundleIcons</key>
+    <dict>
+        <key>CFBundlePrimaryIcon</key>
+        <dict>
+            <key>CFBundleIconFiles</key>
+            <array><string>AppIcon60x60</string></array>
+        </dict>
+    </dict>
+    <key>CFBundleIcons~ipad</key>
+    <dict>
+        <key>CFBundlePrimaryIcon</key>
+        <dict>
+            <key>CFBundleIconFiles</key>
+            <array><string>AppIcon60x60</string><string>AppIcon76x76</string><string>AppIcon83.5x83.5</string></array>
+        </dict>
+    </dict>
+    <key>NSCameraUsageDescription</key>
+    <string>Scans a save code's QR picture.</string>
+    <key>NSBonjourServices</key>
+    <array>
+        <string>_rc2k._udp</string>
+    </array>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Finds and joins network games on your Wi-Fi.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Keeps your screenshots in a Rally Championship album.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Saves your screenshots to your photos.</string>
+    <key>UIFileSharingEnabled</key>
+    <true/>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
+    <key>GCSupportsControllerUserInteraction</key>
+    <true/>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.racing-games</string>
+</dict>
+</plist>

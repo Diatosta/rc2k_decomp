@@ -5,7 +5,7 @@
 use crate::Invalid;
 
 /// The entries of the shapes' table.
-pub const SHAPE_ENTRIES: u32 = 0x100;
+pub(crate) const SHAPE_ENTRIES: u32 = 0x100;
 
 /// The steps from the clock to the latest step, on a clock of 256.
 pub fn steps(latest: u32, clock: u32) -> u32 {

@@ -7,10 +7,10 @@ use crate::input::owner::Input;
 
 /// The effects started with sound objects in use, and the
 /// effects' clock set.
-pub fn begin_effects(
+pub(super) fn begin_effects(
     input: &Input,
     sound: &crate::sound::store::SoundShared,
-    system: &crate::system::owner::System,
+    picture_clock: &crate::clock::tick_count::PictureClock,
 ) -> Result<(), Refused> {
     if sound.count.is_set() {
         crate::input::start_effects::start_effects(input)?;
@@ -18,8 +18,6 @@ pub fn begin_effects(
     input
         .force_feedback
         .last_time
-        .set(crate::system::tick_count::tick_count(
-            &system.session.picture_clock,
-        ));
+        .set(crate::clock::tick_count::tick_count(picture_clock));
     Ok(())
 }

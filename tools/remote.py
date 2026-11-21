@@ -1,19 +1,26 @@
 #!/usr/bin/env python3
-"""Drives a `remote` build of the game for automated tests (src/remote.rs).
+"""Drives a `remote` build of the game for automated tests (src/remote/driver.rs).
 
     remote.py build [--handheld]         builds the binary with the `remote` feature
-    remote.py start [--software] [--fresh] [--profile]    starts it (PC: on a copy of var and savedata);
+    remote.py start [--software] [--fresh] [--profile] [-- game switches]    starts it (PC: on a copy of var and savedata; the words after -- go to the game, e.g. a launch);
                                          the GPU renderer is the default (--gpu is kept: the same),
                                          --software forces the rasteriser (RC2K_RENDERER=software)
     remote.py key Return [ms]            a key press (SDL's scancode names)
+    remote.py text Rafael Gonçalves      text typed as SDL's text input gives it (into a field being edited)
     remote.py down W / up W              a key held
     remote.py pad a [ms]                 a gamepad button (menus)
+    remote.py padaxis righty V           the stand-in gamepad's right stick, vertical (-32768 .. 32767; the save code page scrolls)
     remote.py joy attach|detach          a plain stand-in stick plugged in or out
     remote.py joy axis n v / button n 0|1   its axes and buttons
+    remote.py joy rumble                 its motors as last set (heavy light, 0 .. 65535)
     remote.py shot name                  the next frame to <folder>/shots/name.png
+    remote.py window W H / wshot name    the window's size set / the window's own pixels (side space of the menus) to shots/name.png
     remote.py time n                     the arcade's countdown set to n
     remote.py state                      frames, race flag, menu, item, speed, time, place, cars
+    remote.py renderer gpu|gl|software   swaps the 3D's renderer in game (desktop); the answer names the one that runs
     remote.py chat                       the lobby chat box's lines, joined by |
+    remote.py clipset FILE / clipget FILE / camframe PGM   the save code page's clipboard set from a file / written to a file, and the stand-in camera's frame (RC2K_FAKE_CAMERA=1; a binary PGM)
+    remote.py invite HOST                an accepted invitation pretended (TCP/IP, no Steam): the menus join the first session of HOST
     remote.py wait COND.. [secs]         polls state until every COND holds (menu!=Some(MenuId(5)), item=3,
                                          race=1, screen_frames>=20; ops = != >= <= > < ; default 10 s);
                                          exit 0 when met, 1 with the last state on timeout
@@ -24,17 +31,18 @@
     remote.py log [n]                    the game's log, last n lines
     remote.py stop                       quits, then ends it
 
---handheld (or RC2K_REMOTE_HOST=root@address) drives the handheld over SSH. There var and
+--handheld (or RC2K_REMOTE_HOST=root@address) drives the handheld over SSH; its address and key
+come from RC2K_REMOTE_HOST / RC2K_REMOTE_KEY, else ANBERNIC_HOST / ANBERNIC_KEY in deploy.local. There var and
 savedata are put back on stop, as the folder is the real one. On a Mac it runs there as on the
 PC (the game's folder ~/rally, or RC2K_REMOTE_INSTALLED).
 """
-import math, os, shutil, struct, subprocess, sys, time, zlib
+import math, os, shlex, shutil, struct, subprocess, sys, time, zlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOME = os.path.expanduser(os.environ.get('RC2K_REMOTE_HOME', '~/.cache/rc2k_remote'))  # a second copy: another folder
 GAME = HOME + '/game'
 # Run on a Mac itself (over SSH from elsewhere: `ssh mac rc2k_src/tools/remote.py ..`): the
-# game's folder there is RC2K_REMOTE_INSTALLED (default ~/rally, as deploy_standalone.sh mac).
+# game's folder there is RC2K_REMOTE_INSTALLED (default ~/rally, as build.sh mac).
 MAC = sys.platform == 'darwin'
 INSTALLED = os.path.expanduser(os.environ.get('RC2K_REMOTE_INSTALLED',
                                               '~/rally' if MAC else '~/.local/share/rally-championship'))
@@ -47,21 +55,52 @@ DARLING = os.environ.get('RC2K_REMOTE_DARLING')
 # The Windows build under Wine (RC2K_REMOTE_WINE=the Wine prefix): the game folder holds rc2k.exe
 # and its DLLs, and the game reads the remote folder by its Z: path.
 WINE = os.environ.get('RC2K_REMOTE_WINE')
-# A device over SSH: the handheld (Knulli) by default; RC2K_REMOTE_GAME / RC2K_REMOTE_KEY for another
-# (the Steam Deck: the game started from Steam by its run.sh, which sets RC2K_REMOTE).
+# A device over SSH (the handheld, the Steam Deck: the game started from Steam by its run.sh,
+# which sets RC2K_REMOTE). Its address and key are never written here: RC2K_REMOTE_HOST and
+# RC2K_REMOTE_KEY, else ANBERNIC_HOST and ANBERNIC_KEY of the untracked deploy.local in the
+# repository's root (the names build.sh handheld reads). RC2K_REMOTE_GAME is the
+# game's folder there.
 DEVICE_GAME = os.environ.get('RC2K_REMOTE_GAME', '/userdata/roms/ports/rally')
 DEVICE_REMOTE = '/tmp/rc2k_remote'
-KEY = os.path.expanduser(os.environ.get('RC2K_REMOTE_KEY', '~/.ssh/rg34xxsp'))
+
+
+def deploy_local():
+    """deploy.local's NAME=value lines (bash style: `export`, quotes and a trailing comment allowed)."""
+    values = {}
+    try:
+        lines = open(ROOT + '/deploy.local').read().splitlines()
+    except OSError:
+        return values
+    for line in lines:
+        try:
+            words = shlex.split(line, comments=True)
+        except ValueError:
+            continue
+        if words and words[0] == 'export':
+            words = words[1:]
+        if len(words) == 1 and '=' in words[0]:
+            name, value = words[0].split('=', 1)
+            values[name] = value
+    return values
+
+
+def device_setting(remote_name, local_name, what):
+    """A device's setting from the environment, else from deploy.local; neither: stops."""
+    value = os.environ.get(remote_name) or deploy_local().get(local_name)
+    if not value:
+        sys.exit(f'remote.py: no {what} for the device: set {remote_name}, or {local_name} in {ROOT}/deploy.local')
+    return os.path.expanduser(value.replace('$HOME', '~').replace('${HOME}', '~'))
 
 
 def host():
     if '--handheld' in sys.argv:
         sys.argv.remove('--handheld')
-        return os.environ.get('RC2K_REMOTE_HOST', 'rc2k@192.168.1.207')
+        return device_setting('RC2K_REMOTE_HOST', 'ANBERNIC_HOST', 'address (user@address)')
     return os.environ.get('RC2K_REMOTE_HOST')
 
 
 HOST = host()
+KEY = device_setting('RC2K_REMOTE_KEY', 'ANBERNIC_KEY', 'SSH key file') if HOST else None
 FOLDER = DEVICE_REMOTE if HOST else HOME + '/ctl'
 
 
@@ -147,8 +186,8 @@ def ask(command, timeout=20):
     sys.exit(f'no answer to "{command}" in {timeout} s: is the game running? (remote.py log)')
 
 
-def png(raw, width, height, out):
-    step = 2 if width > 1000 else 1
+def png(raw, width, height, out, full=False):
+    step = 2 if width > 1000 and not full else 1
     size = len(raw) // (width * height)
     rows = []
     for y in range(0, height, step):
@@ -186,6 +225,24 @@ def shot(name):
     print(out)
 
 
+def window_shot(name):
+    """The window's own pixels (what the player sees, the menus' side space too) in full size."""
+    answer = ask(f'wshot {name}')
+    if answer.startswith('error'):
+        sys.exit(answer)
+    width, height = map(int, answer.split())
+    if HOST:
+        raw = ssh(f'cat {FOLDER}/{name}.raw; rm -f {FOLDER}/{name}.raw').stdout
+    else:
+        path = f'{FOLDER}/{name}.raw'
+        raw = open(path, 'rb').read()
+        os.unlink(path)
+    os.makedirs(SHOTS, exist_ok=True)
+    out = f'{SHOTS}/{name}.png'
+    png(raw, width, height, out, full=True)
+    print(out)
+
+
 def build():
     if HOST:
         subprocess.run(['tools/anbernic/run.sh', 'cargo', 'build', '--release', '--target', 'aarch64-unknown-linux-gnu',
@@ -204,7 +261,29 @@ def build():
         os.replace(GAME + '/rc2k.new', GAME + '/rc2k')
 
 
-def start(software, fresh, profile=False):
+def set_network_port(path, port):
+    """Sets `port` in the [network] section of the options file at `path` (added if missing)."""
+    import re
+    if not os.path.exists(path):
+        # A partial options file would replace the copied var's settings with defaults: leave it.
+        print(f'RC2K_REMOTE_NET_PORT ignored: no {path} yet')
+        return
+    text = open(path).read()
+    head = re.search(r'(?m)^\[network\]\n', text)
+    if not head:
+        text += f'\n[network]\nport = {port}\n'
+    else:
+        end = re.search(r'(?m)^\[', text[head.end():])
+        section = text[head.end():head.end() + end.start()] if end else text[head.end():]
+        if re.search(r'(?m)^port = ', section):
+            section = re.sub(r'(?m)^port = .*$', f'port = {port}', section, count=1)
+        else:
+            section = f'port = {port}\n' + section
+        text = text[:head.end()] + section + (text[head.end() + end.start():] if end else '')
+    open(path, 'w').write(text)
+
+
+def start(software, fresh, profile=False, game_args=()):
     renderer = 'RC2K_RENDERER=software ' if software else ''
     if os.environ.get('RC2K_FAIL_RENDERER'):  # start-up steps made to fail, to test the fallbacks
         renderer += f"RC2K_FAIL_RENDERER={os.environ['RC2K_FAIL_RENDERER']} "
@@ -221,11 +300,11 @@ def start(software, fresh, profile=False):
             renderer += f"{name}={os.environ[name]} "
     if os.environ.get('RC2K_SLOW_FRAMES'):  # log each frame in a race slower than this many ms
         renderer += f"RC2K_SLOW_FRAMES={int(os.environ['RC2K_SLOW_FRAMES'])} "
-    if os.environ.get('RC2K_SHOT_CLOCKS'):  # a replay's frames saved after these ticks (src/remote.rs)
+    if os.environ.get('RC2K_SHOT_CLOCKS'):  # a replay's frames saved after these ticks (src/remote/driver.rs)
         renderer += f"RC2K_SHOT_CLOCKS={','.join(str(int(c)) for c in os.environ['RC2K_SHOT_CLOCKS'].split(','))} "
     if os.environ.get('RC2K_DUMP'):  # the n-th big flush's commands to rc2k_frame_dump.bin
         renderer += f"RC2K_DUMP={int(os.environ['RC2K_DUMP'])} "
-    for switch in ('RC2K_MIRROR_BESIDE', 'RC2K_MIRROR_ALWAYS', 'RC2K_DRAW_SERIAL', 'RC2K_PLAYERS_BESIDE', 'RC2K_CAR_PART', 'RC2K_CANVAS_CHECK'):  # the mirror beside (0: after), shown, parts serial, the players' views beside, the car on a helper, the canvas rows' check
+    for switch in ('RC2K_MIRROR_BESIDE', 'RC2K_MIRROR_ALWAYS', 'RC2K_DRAW_SERIAL', 'RC2K_PLAYERS_BESIDE', 'RC2K_CAR_PART', 'RC2K_CANVAS_CHECK', 'RC2K_SHADER_KINDS'):  # the mirror beside (0: after), shown, parts serial, the players' views beside, the car on a helper, the canvas rows' check, the handheld's scene programs by kind of batch (0: two for every kind)
         if os.environ.get(switch):
             renderer += f'{switch}={int(os.environ[switch] != "0")} '
     if os.environ.get('RC2K_LOAD_TIMES'):  # a stage load's step times in the log (src/race/load_times.rs)
@@ -244,7 +323,7 @@ def start(software, fresh, profile=False):
             'kill -STOP $(cat /tmp/rc2k_paused) 2>/dev/null; pkill dmenu.bin; sleep 1; '
             # Knulli's sound server (PipeWire) is found through this; the stock OS has none
             '[ -S /var/run/pipewire-0 ] && export XDG_RUNTIME_DIR=/var/run; '
-            f'RC2K_REMOTE={FOLDER} {renderer} nohup ./rc2k_remote > rc2k.out 2>&1 < /dev/null & echo started')
+            f'RC2K_REMOTE={FOLDER} {renderer} nohup ./rc2k_remote {" ".join(shlex.quote(a) for a in game_args)} > rc2k.out 2>&1 < /dev/null & echo started')
     else:
         shutil.rmtree(FOLDER, ignore_errors=True)
         os.makedirs(FOLDER)
@@ -255,16 +334,20 @@ def start(software, fresh, profile=False):
                 shutil.rmtree(f'{GAME}/{part}', ignore_errors=True)
             if not os.path.exists(f'{GAME}/{part}'):
                 shutil.copytree(f'{INSTALLED}/{part}', f'{GAME}/{part}')
-        env = dict(os.environ, RC2K_REMOTE=FOLDER)
+        # A network port of the copy's own (RC2K_REMOTE_NET_PORT), so a test host never takes the
+        # port of a game the player runs at the same time.
+        if os.environ.get('RC2K_REMOTE_NET_PORT'):
+            set_network_port(f'{GAME}/var/rc2k.toml', int(os.environ['RC2K_REMOTE_NET_PORT']))
+        env = dict(os.environ, RC2K_REMOTE=FOLDER, RC2K_STEAM_OFF='1')  # a test copy never starts Steam's library
         if software:
             env['RC2K_RENDERER'] = 'software'
         if os.environ.get('RC2K_FAIL_RENDERER'):
             env['RC2K_FAIL_RENDERER'] = os.environ['RC2K_FAIL_RENDERER']
-        command = ['./rc2k']
+        command = ['./rc2k', *game_args]
         if WINE:
             env.update(WINEPREFIX=os.path.expanduser(WINE), WINEDEBUG='-all',
                        RC2K_REMOTE='Z:' + FOLDER.replace('/', '\\'))
-            command = ['wine', 'rc2k.exe']
+            command = ['wine', 'rc2k.exe', *game_args]
         if DARLING:
             env['DPREFIX'] = DARLING
             # SDL's controller back ends lean on frameworks Darling only stubs.
@@ -303,6 +386,13 @@ def stop():
             found = process(pid)
             if found and found[1] == 'rc2k':
                 os.kill(pid, 15)
+                # gone before this returns: a copy still on its way out holds the folder's lock
+                # (rc2k.lock), and the next start in the folder would be refused
+                end = time.time() + 10
+                while time.time() < end and process(pid) and process(pid)[0] != 'Z':
+                    time.sleep(0.05)
+                if process(pid) and process(pid)[0] != 'Z':
+                    os.kill(pid, 9)
             elif found and WINE:  # Wine's own processes for the game: its session, started apart
                 os.killpg(pid, 15)
         except (OSError, ValueError):
@@ -411,11 +501,18 @@ def main():
     if command == 'build':
         build()
     elif command == 'start':
-        start('--software' in rest, '--fresh' in rest, '--profile' in rest)
+        # Words after `--` go to the game (a launch: `-- --stage langton --then quit`).
+        game_args = rest[rest.index('--') + 1:] if '--' in rest else []
+        own = rest[:rest.index('--')] if '--' in rest else rest
+        start('--software' in own, '--fresh' in own, '--profile' in own, game_args)
     elif command == 'stop':
         stop()
     elif command == 'shot':
         shot(rest[0])
+    elif command == 'wshot':
+        window_shot(rest[0])
+    elif command == 'window':
+        print(ask(f'window {rest[0]} {rest[1]}'))
     elif command == 'pilot':
         pilot(float(rest[0]))
     elif command == 'drive' and rest in (['on'], ['off']):
@@ -429,7 +526,7 @@ def main():
         sys.exit(0 if press(rest[0], float(rest[1]) if len(rest) > 1 else 5.0) else 1)
     elif command == 'log':
         log(int(rest[0]) if rest else 30)
-    elif command in ('key', 'down', 'up', 'pad', 'joy', 'state', 'time', 'chat'):
+    elif command in ('key', 'text', 'down', 'up', 'pad', 'padaxis', 'joy', 'state', 'cars', 'time', 'chat', 'renderer', 'invite', 'clipset', 'clipget', 'camframe'):
         print(ask(' '.join([command] + rest)))
     else:
         sys.exit(__doc__)

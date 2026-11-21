@@ -83,7 +83,7 @@ impl<'a> StringTable<'a> {
 
 /// String `index` of a list of NUL-terminated strings, without its NUL; an `index` of 0 or less
 /// is the first.
-pub fn nth_string(list: &[u8], index: i32) -> &[u8] {
+pub(crate) fn nth_string(list: &[u8], index: i32) -> &[u8] {
     let mut rest = list;
     for _ in 0..index.max(0) {
         rest = match rest.iter().position(|&c| c == 0) {
@@ -106,6 +106,8 @@ pub enum Source {
     Made,
     /// `POINTER_IDS` whose pointer is set: texts the game put there.
     Pointer,
+    /// `own::FIRST ..= own::LAST`: the texts of the pages this game adds (`strings::own`).
+    Own,
     /// Every other id: the string table.
     Table,
 }
@@ -113,7 +115,9 @@ pub enum Source {
 impl Source {
     /// `pointer_set` says whether the second pointer table has an entry for the id.
     pub fn of(id: u32, pointer_set: impl FnOnce() -> bool) -> Self {
-        if id & 0x1000 != 0 {
+        if crate::strings::own::is_own(id) {
+            Source::Own
+        } else if id & 0x1000 != 0 {
             Source::Made
         } else if POINTER_IDS.contains(&id) && pointer_set() {
             Source::Pointer
@@ -172,6 +176,7 @@ mod tests {
         assert_eq!(nth_string(b"one\0two\0", -3), b"one");
         assert_eq!(nth_string(b"one\0", 5), b"");
         assert_eq!(Source::of(0x1001, || false), Source::Made);
+        assert_eq!(Source::of(0x2001, || true), Source::Own);
         assert_eq!(Source::of(0x5A5, || true), Source::Pointer);
         assert_eq!(Source::of(0x5A5, || false), Source::Table);
         assert_eq!(Source::of(0x10, || true), Source::Table);

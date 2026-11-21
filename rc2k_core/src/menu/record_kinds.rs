@@ -5,7 +5,7 @@ use crate::files::records;
 use crate::strings::bytes::Bytes;
 
 /// How many records `records::has_section` looks through for the section.
-pub const SECTION_LIMIT: usize = 600;
+pub(crate) const SECTION_LIMIT: usize = 600;
 
 /// The kind (first dword) of record `index` + 1 of `section` in the record table; refused
 /// for a section or a next index past 63, or a section the table does not hold.

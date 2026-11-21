@@ -25,7 +25,7 @@ fn look_over(
         return Ok(false);
     }
     let device = input.devices.new_joystick.get();
-    let made = di::query_interface(device, &input.guids.device2.read());
+    let made = di::query_interface(device, &input.guids.device2);
     if di::store(&input.devices.new_joystick2, made) != 0 {
         return Ok(false);
     }
@@ -82,7 +82,7 @@ fn look_over(
 /// `joystick_found` as DirectInput calls it: what Rust callers hand `EnumDevices`.
 pub fn callback(input: &Input, system: &System, instance: &DiDeviceInstance) -> u32 {
     match joystick_found(input, system, instance) {
-        Ok(eax) => eax,
+        Ok(go_on) => go_on,
         Err(e) => {
             crate::input::devices::refused_here("input::joystick_found", e);
             0

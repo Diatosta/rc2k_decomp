@@ -5,8 +5,7 @@
 //! `replay_at_end` and reports a stop. Otherwise the block and frame are stored and the frame's
 //! inputs located (`block` + 0x2000 + frame * 16).
 //!
-//! Called by `race::replay_viewer` for each frame played. Refuses what `read_replay_frame`
-//! refuses (a block past 0x708).
+//! Refuses what `read_replay_frame` refuses (a block past 0x708).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
@@ -39,9 +38,17 @@ pub fn step_viewed_replay(race: &Race, system: &System) -> Result<bool, Refused>
         Step::PlayEnd { .. } => return Ok(stop(false)),
         Step::On { block, frame, read } => {
             if read {
-                let failed =
-                    crate::drive::read_replay_frame::read_replay_frame(race, system, block, 0)?;
+                // A block that cannot be read, or a place past what a replay holds, is a
+                // damaged file: the play stops there and the player is told.
+                let failed = match crate::drive::read_replay_frame::read_replay_frame(
+                    race, system, block, 0,
+                ) {
+                    Ok(failed) => failed,
+                    Err(Refused::Recoverable(_)) => true,
+                    Err(other) => return Err(other),
+                };
                 if failed {
+                    crate::race::dialogs::notice(rc2k_core::strings::own::id::BAD_REPLAY_PLAY, "");
                     return Ok(stop(true));
                 }
             }

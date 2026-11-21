@@ -1,16 +1,15 @@
 //! Reads the edition file `files\d\gfx\sku`: a settings text with the key `sku`. Its value may
-//! start with the marks `oem:` and `dvd:`, in any order and number, each setting a switch to 1;
-//! then a number, after the next `:` a second byte and after the next `.` within 254 characters
-//! a third byte. What is not there keeps its value.
+//! start with the marks `oem:` and `dvd:`, in any order and number; then a number, after the next
+//! `:` a second byte and after the next `.` within 254 characters a third byte.
 
 use crate::errors::BadInput;
-use crate::memory::session::{PlainByte, PlainBytes, PlainDword, with_runs};
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
 
-/// The edition the file names, or `None` without the file or its key;
-/// `install::apply_config::apply_sku` applies it.
+/// The edition the file names, or `None` without the file or its key. Nothing of the game reads
+/// the edition after this (its markers were only ever written), so the caller keeps just the
+/// refusals reading and parsing the file can give.
 pub fn read_sku(
     system: &crate::system::owner::System,
     path: &[u8],
@@ -21,35 +20,5 @@ pub fn read_sku(
     Ok(config::read_sku(&text, &case_table())?)
 }
 
-/// The edition's markers (`install::read_sku`).
-#[derive(rc2k_derive::Cells)]
-pub struct Sku {
-    /// The edition's number.
-    pub number: PlainDword,
-    /// 1 for an OEM edition.
-    pub oem: PlainDword,
-    /// 1 for a DVD edition.
-    pub dvd: PlainDword,
-    /// The sku file's third byte.
-    pub third: PlainByte,
-    /// Its second byte.
-    pub second: PlainByte,
-    /// "files\d\gfx\sku", the file read.
-    pub path: PlainBytes<16>,
-    /// A gap of 6 byte(s): nothing reads it.
-    pub _gap_519112: PlainBytes<6>,
-}
-
-impl Sku {
-    pub const fn new() -> Self {
-        Sku {
-            number: PlainDword::new(0xffffffff),
-            oem: PlainDword::new(0x0),
-            dvd: PlainDword::new(0x0),
-            third: PlainByte::new(0x0),
-            second: PlainByte::new(0x0),
-            path: PlainBytes::new(with_runs::<16>(&[(0, b"files\\d\\gfx\\sku")])),
-            _gap_519112: PlainBytes::new(with_runs::<6>(&[(0, b"sku")])),
-        }
-    }
-}
+/// The edition file's path.
+pub const SKU_PATH: &[u8] = b"files\\d\\gfx\\sku";

@@ -26,6 +26,8 @@ pub struct Session {
     pub max_players: u32,
     pub players: u32,
     pub user: [u8; 0x10],
+    /// The session is locked by a password.
+    pub locked: bool,
 }
 
 pub struct NetTables {
@@ -53,6 +55,7 @@ impl NetTables {
                     max_players: 0,
                     players: 0,
                     user: [0; 16],
+                    locked: false,
                 };
                 MOST_LISTED as usize
             ],
@@ -90,7 +93,7 @@ fn listed(link: &Link, index: u32, count: u32, codes: [u32; 2]) -> Result<(), Re
 }
 
 /// `f` on connection `index` (`net::connection_entry`'s checks first).
-pub fn with_connection<R>(
+pub(super) fn with_connection<R>(
     link: &Link,
     index: u32,
     f: impl FnOnce(&mut Connection) -> R,
@@ -107,7 +110,7 @@ pub fn with_connection<R>(
 }
 
 /// `f` on session `index` (`net::session_entry`'s checks first).
-pub fn with_session<R>(
+pub(super) fn with_session<R>(
     link: &Link,
     index: u32,
     f: impl FnOnce(&mut Session) -> R,
@@ -125,7 +128,7 @@ pub fn with_session<R>(
 
 /// `strings::copy_printable` of the text `text` (none: empty) with `room` (its NUL
 /// included) into `to`.
-pub fn copy_printable_into(text: &[u8], to: &mut [u8], room: u32) -> Result<(), Refused> {
+pub(super) fn copy_printable_into(text: &[u8], to: &mut [u8], room: u32) -> Result<(), Refused> {
     let written = crate::strings::copy_printable::printable_from(text, room)?;
     to.get_mut(..written.len())
         .ok_or(BadInput("a name past its record"))?
@@ -157,7 +160,7 @@ mod tests {
             .iter()
             .map(crate::memory::session::Dword::get)
             .collect();
-        let bytes = |b: &crate::memory::session::PlainBytes<16>| {
+        let bytes = |b: &crate::memory::plain_buffer::PlainBuffer<16>| {
             (0..16).map(|k| b.get(k)).collect::<Vec<u8>>()
         };
         let kept_saved = bytes(&net.setup().saved_connection);

@@ -1,13 +1,13 @@
-//! The game's log (`var\logfile.txt`). Callers use `write_line::log_text` and the number loggers directly, or through the
-//! routes (`crate::routes`).
+//! The game's log (`var\logfile.txt`: `write_line::log_text` and the number loggers) and the
+//! program's own (`rc2k.log`: `crate::program_log`), and the load timing report (`load_times`).
 
-pub mod date_text;
-pub mod log_float;
-pub mod log_hex8;
-pub mod log_int;
-pub mod log_int_fmt;
-pub mod log_write;
-pub mod numeric;
-pub mod program_log;
-pub mod start_log;
-pub mod write_line;
+mod date_text;
+pub(crate) mod load_times;
+pub(crate) mod log_float;
+pub(crate) mod log_hex8;
+pub(crate) mod log_int;
+pub(crate) mod log_int_fmt;
+pub(crate) mod log_write;
+pub(crate) mod numeric;
+pub(crate) mod start_log;
+pub(crate) mod write_line;

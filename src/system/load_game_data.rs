@@ -10,7 +10,6 @@
 //! Refuses a default name that does not fit its place, and what its parts refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::PlainDword;
 use crate::menu::name_lists::NAME_LEN;
 use crate::owners::Owners;
 use crate::strings::append_string_by_id::push_string;
@@ -24,6 +23,13 @@ use rc2k_core::system::game_data::{
 
 const MACHINE_NAME_ROOM: usize = 0x40;
 /// More draws than a name can need.
+/// The computer's name with its NUL (room for `MACHINE_NAME_ROOM` bytes), if it can be had.
+fn computer_name() -> Option<Vec<u8>> {
+    let mut name = crate::platform::os::computer_name(MACHINE_NAME_ROOM as u32)?;
+    name.push(0);
+    Some(name)
+}
+
 const MOST_DRAWS: usize = 10_000;
 
 /// What the function calls.
@@ -111,13 +117,11 @@ pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refuse
         .set(start.run_count.runs.get().wrapping_add(1));
     outside(Call::ReadDriverNames)?;
     outside(Call::ApplyPatches)?;
-    if removes_secret_cars(play.cheats.all_secret_cars.get()) {
+    if removes_secret_cars(play.cheats.read().all_secret_cars) {
         outside(Call::RemoveSecretCars)?;
     }
-    if all_secret_cars(play.cheats.all_secret_cars.get()) {
-        play.cheats
-            .cheats
-            .set(play.cheats.cheats.get() | ALL_CARS_CHEATS);
+    if all_secret_cars(play.cheats.read().all_secret_cars) {
+        play.cheats.write().cheats |= ALL_CARS_CHEATS;
         outside(Call::ApplyCheats)?;
     }
 
@@ -162,7 +166,7 @@ pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refuse
         }
     }
 
-    if race.shared.tyre_change().record_name.get(0) == 0 {
+    if race.shared.tyre_change().record_name[0] == 0 {
         let mut draws = 0;
         let end = loop {
             let drawn = outside(Call::RandomBelow(DRIVER_NAME_IDS.1))?;
@@ -176,12 +180,11 @@ pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refuse
                 return Err(BadInput("a driver's name longer than its place").into());
             }
             // No NUL yet: a short name leaves what was there after it.
-            for (k, &b) in name.iter().enumerate() {
-                race.shared.tyre_change().record_name.set(k, b);
-            }
-            if !drawn_again(std::array::from_fn(|k| {
-                race.shared.tyre_change().record_name.get(k)
-            })) {
+            race.shared.tyre_change_mut().record_name[..name.len()].copy_from_slice(&name);
+            let first: [u8; 4] = race.shared.tyre_change().record_name[..4]
+                .try_into()
+                .expect("four bytes");
+            if !drawn_again(first) {
                 break name.len();
             }
             draws += 1;
@@ -189,8 +192,9 @@ pub fn load_game_data(o: Owners<'static>, outside: Outside) -> Result<(), Refuse
                 return Err(BadInput("no driver's name that can be taken").into());
             }
         };
-        race.shared.tyre_change().record_name.set(end, 0);
-        race.shared.tyre_change().record.set(TYRE_CHANGE_RECORD);
+        let mut tyre = race.shared.tyre_change_mut();
+        tyre.record_name[end] = 0;
+        tyre.record = TYRE_CHANGE_RECORD;
     }
 
     for slot in 0..SLOTS {
@@ -221,11 +225,7 @@ fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
         }
         Call::ReadSettings => crate::settings::read_settings::read_settings(o)?,
         Call::ReadSku => {
-            if let Some(sku) =
-                crate::install::read_sku::read_sku(o.system, &o.install.sku.path.text())?
-            {
-                crate::install::apply_config::apply_sku(o.install, &sku);
-            }
+            crate::install::read_sku::read_sku(o.system, crate::install::read_sku::SKU_PATH)?;
         }
         Call::ReadDriverNames => {
             if let Some(names) = crate::settings::read_driver_names::read_driver_names(
@@ -237,7 +237,7 @@ fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
         }
         Call::ApplyPatches => crate::physics::apply_patches::apply_patches(
             race.shared.physics_tables.get(),
-            race.course.numbers.get(),
+            &race.course.numbers,
             race.shared.work.get(),
         ),
         Call::RemoveSecretCars => crate::menu::remove_secret_cars::remove_secret_cars(menus)?,
@@ -260,7 +260,7 @@ fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
             }
         }
         Call::ComputerName => {
-            if let Some(name) = crate::system::check_developer_machine::computer_name() {
+            if let Some(name) = computer_name() {
                 o.net
                     .setup()
                     .machine_name
@@ -287,16 +287,15 @@ pub fn load_in_game(o: Owners<'static>) -> Result<(), Refused> {
 }
 
 /// How many times the game was run.
-#[derive(rc2k_derive::Cells)]
 pub struct RunCount {
     /// The game's runs counted (the save file keeps it).
-    pub runs: PlainDword,
+    pub runs: std::cell::Cell<u32>,
 }
 
 impl RunCount {
     pub const fn new() -> Self {
         RunCount {
-            runs: PlainDword::new(0x0),
+            runs: std::cell::Cell::new(0x0),
         }
     }
 }

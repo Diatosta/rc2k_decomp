@@ -6,17 +6,21 @@
 #![deny(clippy::undocumented_unsafe_blocks, clippy::missing_safety_doc)]
 
 mod audio;
+mod clock;
 mod d3d;
 mod debug;
 mod drive;
 mod effects;
+mod error_dialog;
 mod errors;
 mod fatal;
 mod files;
+mod first_run;
 mod gfx;
 mod hud;
 mod input;
 mod install;
+mod language;
 mod logfile;
 mod math;
 mod memory;
@@ -25,16 +29,19 @@ mod net;
 mod owners;
 mod physics;
 mod platform;
+mod program_log;
 mod race;
 mod records;
-#[cfg(feature = "remote")]
 mod remote;
 mod render;
+mod save_code;
 mod saves;
 mod scene;
 mod screens;
 mod service;
 mod settings;
+mod shell;
+mod single_copy;
 mod sound;
 pub mod standalone;
 mod strings;
@@ -43,5 +50,8 @@ mod system;
 mod test_support;
 mod text;
 mod threading;
-#[cfg(target_os = "emscripten")]
-pub use platform::web;
+mod video;
+#[cfg(web)]
+pub use platform::ffi::web;
+#[cfg(target_os = "android")]
+pub use shell::android;

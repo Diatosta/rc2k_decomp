@@ -2,6 +2,6 @@
 //! tables).
 
 /// The two bytes added to `out`.
-pub fn end_text_line(out: &mut Vec<u8>) {
+pub(super) fn end_text_line(out: &mut Vec<u8>) {
     out.extend_from_slice(b"\n\0");
 }

@@ -3,37 +3,46 @@
 //! (`scene::rotate_point`), each part times `one_over_65536` into the object's place; update
 //! flag 1. A reading: the car's sound placed against the view.
 //!
-//! Caller: `physics::sound_on_bit`. Refuses (before anything) a null sound object.
+//! Refuses (before anything) a null sound object.
 
 use crate::errors::Refused;
+use crate::math::matrix3::rounded_value;
 use crate::math::x87::{ext_times, ints_diff_80};
-use crate::memory::session::PlainDword;
-use crate::race::matrices_store::SceneMatrices;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::matrix3::rounded_value;
-use crate::scene::rotate_point::rotate_point;
+use crate::scene::matrix::Matrix;
+use crate::scene::rotate_point::rotate_point_by;
 
 /// The exact x87 version (for `physics::sound_on_bit`).
-pub fn place_car_sound(
+pub(super) fn place_car_sound(
     numbers: &Numbers,
-    matrices: &SceneMatrices,
+    view_turn: &Matrix,
     shared: &RaceShared,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
     let so = crate::sound::store::current_object(sound, shared.work.get());
-    so.slot_b.start.set(1);
-    let d = |a: &PlainDword, b: &PlainDword| ints_diff_80(a.get() as i32, b.get() as i32);
+    so.borrow_mut().slot_b.start = 1;
+    let d = |a: u32, b: u32| ints_diff_80(a as i32, b as i32);
+    let listener = crate::race::heard_cars::listener(shared, shared.car());
     let p = [
-        d(&shared.car().position[0], &shared.car().camera_position[0]),
-        d(&shared.car().position[1], &shared.car().camera_position[1]),
-        d(&shared.car().position[2], &shared.car().camera_position[2]),
+        d(
+            shared.car().position.bits_at(0),
+            listener.camera_position.bits_at(0),
+        ),
+        d(
+            shared.car().position.bits_at(1),
+            listener.camera_position.bits_at(1),
+        ),
+        d(
+            shared.car().position.bits_at(2),
+            listener.camera_position.bits_at(2),
+        ),
     ];
-    let out = rotate_point(shared.heard_turn.get().turn(matrices), p);
+    let out = rotate_point_by(&shared.heard_turn.get().turn(view_turn), p);
     let k = numbers.one_over_65536.get();
     for (n, e) in out.iter().enumerate() {
-        so.place_b[n].set(rounded_value(ext_times(*e, k)));
+        so.borrow_mut().place_b[n] = rounded_value(ext_times(*e, k));
     }
-    so.new_revs.set(1);
+    so.borrow_mut().new_revs = 1;
     Ok(())
 }

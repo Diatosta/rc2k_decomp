@@ -10,30 +10,58 @@ use crate::saves::load_options::load_game_options;
 use crate::saves::options_state::{self, capture};
 use crate::saves::owner::Saves;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
-use rc2k_core::options::files::{self, Asked, Paths};
+use rc2k_core::options::files::{self, Asked, Paths, Store};
 use rc2k_core::options::{Options, OptionsError};
+use std::path::{Path, PathBuf};
 
 /// Puts the options into the game's stores, as reading the old file does.
 fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
     options_state::apply(o, options)?;
     rebuild_car_lists(o.menus)?;
-    o.menus.screens.loop_flags.options_loaded.set(true);
+    o.menus.screens.loop_flags.write().options_loaded = true;
     Ok(())
+}
+
+/// Puts imported options into the game and saves them as a change on the options pages is
+/// (the save code's import).
+pub fn apply_and_save(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
+    apply(o, options)?;
+    save(o)?;
+    Ok(())
+}
+
+/// The options files on the disk.
+struct Disk;
+
+impl Store for Disk {
+    fn read(&self, path: &Path) -> std::io::Result<Option<Vec<u8>>> {
+        match std::fs::read(path) {
+            Ok(bytes) => Ok(Some(bytes)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Written to a name beside the file, then put in place.
+    fn write_whole(&self, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+        let mut temporary = path.as_os_str().to_owned();
+        temporary.push(".tmp");
+        let temporary = PathBuf::from(temporary);
+        std::fs::write(&temporary, bytes)?;
+        std::fs::rename(&temporary, path)
+    }
 }
 
 fn paths(saves: &Saves) -> Result<Paths, Refused> {
     Ok(Paths {
         new: crate::files::host_path(b"var\\rc2k.toml"),
-        old: crate::files::host_path(&crate::files::cstring(
-            &saves.files.options_path,
-            "the options file's path",
-        )?),
+        old: crate::files::host_path(&crate::files::cstring_in(&saves.files.options_path.read())?),
     })
 }
 
 /// What the command line asked for.
 fn asked() -> Asked {
-    Asked::from_args(std::env::args())
+    Asked::from_args(crate::platform::os::program_args())
 }
 
 /// A file's trouble as the program ends with it; the detail goes to standard error.
@@ -79,12 +107,25 @@ pub fn load(o: Owners<'static>) -> Result<bool, Refused> {
             Err(OptionsError::Io("the old options".into()))
         }
     };
-    let got = files::load(&paths, asked(), &base, &mut read_old);
+    let got = files::load(&Disk, &paths, asked(), &base, &mut read_old);
     if let Some(e) = trouble {
         return Err(e);
     }
-    match got.map_err(|e| refusal(&e))? {
-        Some((options, files::Source::New)) => apply(o, &options).map(|()| true),
+    let got = got.map_err(|e| refusal(&e))?;
+    // Values of the new file that were not valid are at their defaults: the player is told
+    // (once the window is there).
+    if let Some(loaded) = &got
+        && !loaded.skipped.is_empty()
+    {
+        crate::error_dialog::notice(&crate::error_dialog::text_with(
+            rc2k_core::strings::own::id::SETTINGS_RESET,
+            &loaded.skipped.join(", "),
+        ));
+    }
+    match got {
+        Some(loaded) if loaded.source == files::Source::New => {
+            apply(o, &loaded.options).map(|()| true)
+        }
         // The old file's values are in the stores already.
         Some(_) => Ok(true),
         None => Ok(false),
@@ -102,7 +143,7 @@ pub fn save(o: Owners<'static>) -> Result<bool, Refused> {
             OptionsError::Io("the old options".into())
         })
     };
-    let done = files::save(&paths, asked(), &options, &mut write_old);
+    let done = files::save(&Disk, &paths, asked(), &options, &mut write_old);
     if let Some(e) = trouble {
         return Err(e);
     }
@@ -114,12 +155,28 @@ pub fn save(o: Owners<'static>) -> Result<bool, Refused> {
 mod tests {
     use super::*;
 
+    /// The options file is written whole through a name beside it, which does not stay, and is
+    /// read back; a missing file is nothing.
+    #[test]
+    fn the_disk_store_writes_whole_and_reads_back() {
+        let dir = std::env::temp_dir().join(format!("rc2k_options_disk_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("rc2k.toml");
+        assert_eq!(Disk.read(&file).unwrap(), None);
+        Disk.write_whole(&file, b"one").unwrap();
+        Disk.write_whole(&file, b"two").unwrap();
+        assert_eq!(Disk.read(&file).unwrap().as_deref(), Some(&b"two"[..]));
+        assert!(!dir.join("rc2k.toml.tmp").exists());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     /// The stores' options taken and put back are the same options.
     #[test]
     fn capture_and_apply_round_trip() {
         let _lock = crate::test_support::test_lock();
         let o = crate::test_support::own::owners();
-        let loaded = o.menus.screens.loop_flags.options_loaded.is_set();
+        let loaded = o.menus.screens.loop_flags.read().options_loaded;
         let before = capture(o).unwrap();
         let saved: Vec<Vec<u8>> = options_state::pieces()
             .iter()
@@ -129,7 +186,7 @@ mod tests {
         apply(o, &before).unwrap();
         let after = capture(o).unwrap();
         // `apply` marks the options loaded, as the game's loader does: put the flag back.
-        o.menus.screens.loop_flags.options_loaded.set(loaded);
+        o.menus.screens.loop_flags.write().options_loaded = loaded;
         assert_eq!(after, before);
     }
 
@@ -155,12 +212,12 @@ mod tests {
     fn with_options_in_stores<T>(options: &Options, body: impl FnOnce(Owners<'static>) -> T) -> T {
         let _lock = crate::test_support::test_lock();
         let o = crate::test_support::own::owners();
-        let loaded = o.menus.screens.loop_flags.options_loaded.is_set();
+        let loaded = o.menus.screens.loop_flags.read().options_loaded;
         let before = capture(o).unwrap();
         apply(o, options).unwrap();
         let result = body(o);
         apply(o, &before).unwrap();
-        o.menus.screens.loop_flags.options_loaded.set(loaded);
+        o.menus.screens.loop_flags.write().options_loaded = loaded;
         result
     }
 
@@ -193,12 +250,19 @@ mod tests {
         let text = with_options_in_stores(&options, |o| {
             toml_file::write(&capture(o).unwrap(), None).unwrap()
         });
+        // The file holds the texts up to their NULs: what a buffer keeps after its NUL is not
+        // in the options read back.
+        let held = rc2k_core::options::document::Document::from(&options)
+            .into_options()
+            .unwrap();
         assert_eq!(
-            toml_file::read(&text, &Options::default()).unwrap(),
-            options
+            toml_file::read(&text, &Options::default())
+                .unwrap()
+                .map(|read| read.options),
+            Some(held)
         );
         let sum = crate::test_support::hash(text.as_bytes());
-        assert_eq!((text.len(), sum), (94_597, 17_957_818_195_669_191_712));
+        assert_eq!((text.len(), sum), (200_347, 9_774_075_395_527_410_901));
     }
 
     /// Loading the new file through the stores leaves the stores holding what it said, with
@@ -208,13 +272,16 @@ mod tests {
         use rc2k_core::options::toml_file;
         let _lock = crate::test_support::test_lock();
         let o = crate::test_support::own::owners();
-        let loaded = o.menus.screens.loop_flags.options_loaded.is_set();
+        let loaded = o.menus.screens.loop_flags.read().options_loaded;
         let before = capture(o).unwrap();
-        let wanted = toml_file::read("[display]\nmenu_mode = 5\n", &before).unwrap();
+        let wanted = toml_file::read("[display]\nmenu_mode = 5\n", &before)
+            .unwrap()
+            .unwrap()
+            .options;
         apply(o, &wanted).unwrap();
         let after = capture(o).unwrap();
         apply(o, &before).unwrap();
-        o.menus.screens.loop_flags.options_loaded.set(loaded);
+        o.menus.screens.loop_flags.write().options_loaded = loaded;
         let mut expected = before;
         expected.display.menu_mode = 5;
         assert_eq!(after, expected);

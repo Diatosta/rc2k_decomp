@@ -1,14 +1,13 @@
 //! The replay's file state and index: the recording switches, the replay file's open flag and
 //! handle, the viewer's state (mode, slot, stopped, textures kept, stage and fonts flags), then the
 //! replay index read and written in place ("RCIB", the seal, the block and frame counts, the
-//! (offset, size) per block). `#[repr(C)]` with a fixed layout.
+//! (offset, size) per block). Plain fields: the file's bytes are made from them where the replay
+//! is written and read into them where it is opened.
 
-use crate::memory::cells::ZeroCells;
+use rc2k_core::race::replay_v2::MOST_BLOCKS;
 
 use crate::memory::session::{PlainDword, PlainFlag};
 
-#[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ReplayFileBlock {
     /// 1 = replays are recorded (`race::open_replay`, `race::replay`).
     pub replays_on: PlainDword,
@@ -48,12 +47,12 @@ pub struct ReplayFileBlock {
     /// Kind 0x35's first texture kept (`race::viewer_palettes`).
     pub viewer_first_texture_a: PlainDword,
     /// Kind 0x35's first slot kept; the list's texture (`race::viewer_palettes`,
-    /// `race::viewer_frame`).
+    /// `menu::replay_viewer::frame`).
     pub viewer_list_texture: PlainDword,
     /// Kind 0x2A's first texture kept; the panel's texture (`race::viewer_palettes`,
-    /// `race::draw_viewer_panel`).
+    /// `menu::replay_viewer::panel`).
     pub viewer_panel_texture: PlainDword,
-    /// Kind 0x2A's first slot kept (`race::viewer_palettes`, `race::draw_viewer_panel`).
+    /// Kind 0x2A's first slot kept (`race::viewer_palettes`, `menu::replay_viewer::panel`).
     pub viewer_device_texture: PlainDword,
     /// The viewer's stage is loaded (`race::viewer_load_stage`, `race::viewer_tidy_stage`).
     pub viewer_stage_loaded: PlainDword,
@@ -64,10 +63,7 @@ pub struct ReplayFileBlock {
     pub index: ReplayIndex,
 }
 
-/// The replay index: "RCIB", the seal, the counts, the places; the dwords of the file's first
-/// 0x3850 bytes in order.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
+/// The replay index: "RCIB", the seal, the counts, the places.
 pub struct ReplayIndex {
     /// "RCIB", the index's first dword.
     pub magic: PlainDword,
@@ -80,7 +76,7 @@ pub struct ReplayIndex {
     pub frame_count: PlainDword,
     /// (Offset, size) per block, 8 bytes a block, and the rest of the index (`race::replay`,
     /// `drive::read_replay_frame`).
-    pub block_places: [PlainDword; 3600],
+    pub block_places: [PlainDword; 2 * MOST_BLOCKS as usize],
 }
 
 impl ReplayFileBlock {
@@ -88,25 +84,75 @@ impl ReplayFileBlock {
     pub const fn new() -> Self {
         Self {
             replays_on: PlainDword::new(1),
+            no_replay_switch: PlainDword::new(0),
+            chunks_plain: PlainDword::new(0),
+            replay_closed: PlainDword::new(0),
+            replay_open: PlainFlag::new(false),
+            replay_handle: PlainDword::new(0),
+            replay_at_end: PlainFlag::new(false),
+            hold_car_revs: PlainDword::new(0),
+            viewer_stopped: PlainFlag::new(false),
+            viewer_mode: PlainDword::new(0),
             viewer_slot: PlainDword::new(0xFFFFFFFF),
+            viewer_sound: PlainDword::new(0),
+            viewer_editing: PlainDword::new(0),
+            season_code: PlainDword::new(0),
+            viewer_first_texture_a: PlainDword::new(0),
+            viewer_list_texture: PlainDword::new(0),
             viewer_panel_texture: PlainDword::new(1),
             viewer_device_texture: PlainDword::new(1),
+            viewer_stage_loaded: PlainDword::new(0),
+            viewer_fonts_built: PlainDword::new(0),
             index: ReplayIndex {
                 magic: PlainDword::new(0x42494352),
-                ..ZeroCells::ZERO
+                seal: PlainDword::new(0),
+                block_count: PlainDword::new(0),
+                frame_count: PlainDword::new(0),
+                block_places: [const { PlainDword::new(0) }; 2 * MOST_BLOCKS as usize],
             },
-            ..ZeroCells::ZERO
         }
     }
 }
 
 impl ReplayIndex {
-    /// The index ("RCIB", the seal, the counts, the places) as its dwords in order, read and
-    /// written in place.
-    pub fn dwords(&self) -> &[PlainDword; INDEX_DWORDS] {
-        crate::memory::cells::plain_dwords_in(self, 0)
+    /// The index's dwords in the file's order.
+    fn words(&self) -> impl Iterator<Item = &PlainDword> {
+        [
+            &self.magic,
+            &self.seal,
+            &self.block_count,
+            &self.frame_count,
+        ]
+        .into_iter()
+        .chain(&self.block_places)
+    }
+
+    /// Every dword of the index set to 0.
+    pub fn clear(&self) {
+        for word in self.words() {
+            word.set(0);
+        }
+    }
+
+    /// The whole index written to the replay file `file`, its dwords in order: (the bytes
+    /// written, whether all of them were).
+    pub fn write_to(&self, file: u32) -> (u32, bool) {
+        let bytes: Vec<u8> = self.words().flat_map(|w| w.get().to_le_bytes()).collect();
+        crate::files::handle::write_slice(file, &bytes)
+    }
+
+    /// The index's first `len` bytes read from the replay file `file` into its first dwords,
+    /// the others left as they are: (the bytes read, whether all of them were).
+    pub fn read_from(&self, file: u32, len: usize) -> (u32, bool) {
+        let mut bytes = vec![0; len];
+        let got = crate::files::handle::read_slice(file, &mut bytes);
+        for (word, chunk) in self.words().zip(bytes.as_chunks::<4>().0) {
+            word.set(u32::from_le_bytes(*chunk));
+        }
+        got
     }
 }
 
-/// The index's dwords: "RCIB" through the places, 0x3850 bytes.
-pub const INDEX_DWORDS: usize = 4 + 3600;
+/// The index's dwords: "RCIB" through the places of the own format (`OWN_INDEX_LEN` bytes);
+/// the old format's index is the first 0x3850 / 4 of them.
+pub(super) const INDEX_DWORDS: usize = 4 + 2 * MOST_BLOCKS as usize;

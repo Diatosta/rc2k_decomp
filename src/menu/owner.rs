@@ -1,6 +1,7 @@
 //! The menu module's owner: the menus' typed stores in one struct, grouped by what they are for.
 //! `Owners::build` makes one and hands it down in `Owners`; each test thread has its own.
 
+use crate::memory::session::GameThread;
 use crate::menu::arcade_store::Arcade;
 use crate::menu::build_notice::BuildNotice;
 use crate::menu::captions_store::CaptionTables;
@@ -31,6 +32,7 @@ use crate::menu::texts_store::MenuTexts;
 use crate::screens::controls_store::ControlsScreen;
 use crate::screens::text_buffers_store::TextBuffers;
 use crate::service::owner::Service;
+use std::cell::{Ref, RefCell, RefMut};
 
 /// The cars, their numbers and the drivers.
 pub struct Cars {
@@ -167,13 +169,25 @@ pub struct Menus {
 
 /// The keyboard tables.
 pub struct Keys {
-    pub tables: KeyTables,
+    /// Plain fields behind one `RefCell`: the game's thread alone reads and writes them, each
+    /// borrow lasting one statement.
+    tables: GameThread<RefCell<KeyTables>>,
 }
 
 impl Keys {
+    /// The tables, to read.
+    pub fn tables(&self) -> Ref<'_, KeyTables> {
+        self.tables.get().borrow()
+    }
+
+    /// The tables, to write.
+    pub fn tables_mut(&self) -> RefMut<'_, KeyTables> {
+        self.tables.get().borrow_mut()
+    }
+
     pub const fn new() -> Self {
         Keys {
-            tables: KeyTables::new(),
+            tables: GameThread::new(RefCell::new(KeyTables::new())),
         }
     }
 }

@@ -7,7 +7,7 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-pub fn mud_frame(
+pub(super) fn mud_frame(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,

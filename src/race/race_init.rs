@@ -12,6 +12,7 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
+use rc2k_core::race::cars::BlockWord;
 
 /// The car blocks `car_blocks` lists (all eight, whatever the race's count).
 pub const BLOCKS: u32 = 8;
@@ -20,24 +21,20 @@ pub fn block(shared: &RaceShared, n: u32) -> Result<&Car, BadInput> {
     shared.race_car(n as usize)
 }
 
-/// The car block's dword at `off`, for the offsets the race state and the overlay's clearing
-/// name (`rc2k_core::race::cars::RACE_STATE`, `rc2k_core::race::panel::OVERLAY_CLEARED`).
-pub fn state_cell(car: &Car, off: u32) -> Result<&PlainDword, BadInput> {
-    Ok(match off {
-        0x8 => &car.step_clock,
-        0x71C => &car.notice_id,
-        0x720 => &car.notice_counter,
-        0x724 => &car.notice_last,
-        0x728 => &car.notice_shown,
-        0x72C => &car.notice_time,
-        0x730 => &car.notice_time_b,
-        0xA0C..=0xA1C if off.is_multiple_of(4) => &car.split_gaps[((off - 0xA0C) / 4) as usize],
-        0xF78..=0xF94 if off.is_multiple_of(4) => {
-            &car.car_event_codes[((off - 0xF78) / 4) as usize]
-        }
-        0xF98 => &car.car_event_count,
-        0xFA0 => &car.car_event_position,
-        _ => return Err(BadInput("a car block offset the race state does not name")),
+/// The car block's dword the core's race state and overlay tables name.
+pub(super) fn block_word(car: &Car, word: BlockWord) -> Result<&PlainDword, BadInput> {
+    const OUT: BadInput = BadInput("a car block entry the race state does not have");
+    Ok(match word {
+        BlockWord::NoticeId => &car.notice_id,
+        BlockWord::NoticeCounter => &car.notice_counter,
+        BlockWord::NoticeLast => &car.notice_last,
+        BlockWord::NoticeShown => &car.notice_shown,
+        BlockWord::NoticeTime => &car.notice_time,
+        BlockWord::NoticeTimeB => &car.notice_time_b,
+        BlockWord::SplitGap(n) => car.split_gaps.get(n).ok_or(OUT)?,
+        BlockWord::EventCode(n) => car.car_event_codes.get(n).ok_or(OUT)?,
+        BlockWord::EventCount => &car.car_event_count,
+        BlockWord::EventPosition => &car.car_event_position,
     })
 }
 
@@ -48,15 +45,15 @@ pub fn clear_race_slots(shared: &RaceShared) {
     }
 }
 
-/// Resets each car block's starts: the dwords at +0x14 and +8 to 0 (0x320 while `in_credits` is
-/// set) and +0x18 and +0x1C to 0.
+/// Resets each car block's starts: `run_ticks` and `step_clock` to 0 (0x320 while `in_credits` is
+/// set), `start_in_gear` and `false_start_count` to 0.
 pub fn reset_car_starts(shared: &RaceShared) -> Result<(), BadInput> {
     // Logic in `rc2k_core::race::cars::start_value`.
     let value = rc2k_core::race::cars::start_value(shared.work.get().in_credits.is_set());
     for n in 0..BLOCKS {
         {
             block(shared, n)?.run_ticks.set(value);
-            state_cell(block(shared, n)?, 8)?.set(value);
+            block(shared, n)?.step_clock.set(value);
             block(shared, n)?.start_in_gear.set(0);
             block(shared, n)?.false_start_count.set(0);
         }
@@ -64,7 +61,7 @@ pub fn reset_car_starts(shared: &RaceShared) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// Gives each car block's dwords at +0x10 and +0xC one `nonzero_random`.
+/// Gives each car block's `car_flags` and `noise_word` one `nonzero_random`.
 pub fn seed_car_randoms(shared: &RaceShared) -> Result<(), BadInput> {
     // Logic in `rc2k_core::race::cars::car_seeds`.
     let seeds = shared.random.with_random(rc2k_core::race::cars::car_seeds);
@@ -77,8 +74,8 @@ pub fn seed_car_randoms(shared: &RaceShared) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// Resets each car block's race state: `notice_id` 0xCA, the dword at +0x72C 0x12C,
-/// `notice_counter` / `notice_last` / `notice_shown` and the dword at +0x730 0, `split_gaps` -1;
+/// Resets each car block's race state: `notice_id` 0xCA, `notice_time` 0x12C,
+/// `notice_counter` / `notice_last` / `notice_shown` and `notice_time_b` 0, `split_gaps` -1;
 /// the four label dwords (`label_behind` and `label_ahead`) are set to spaces, the four kept copies
 /// to -1.
 pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
@@ -86,32 +83,21 @@ pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
     // Logic in `rc2k_core::race::cars::{RACE_STATE, BLANK_TEXT, UNSET_TEXT}`.
     use rc2k_core::race::cars::{BLANK_TEXT, RACE_STATE, UNSET_TEXT};
     for n in 0..BLOCKS {
-        for (off, v) in RACE_STATE {
-            state_cell(block(shared, n)?, off)?.set(v);
+        for (word, v) in RACE_STATE {
+            block_word(block(shared, n)?, word)?.set(v);
         }
     }
     // `label_behind` and `label_ahead`: four dwords of spaces.
-    for cell in [
-        &frame.panel_and_overlay.get().overlay.label_behind[0],
-        &frame.panel_and_overlay.get().overlay.label_behind[1],
-        &frame.panel_and_overlay.get().overlay.label_ahead[0],
-        &frame.panel_and_overlay.get().overlay.label_ahead[1],
-    ] {
-        cell.set(BLANK_TEXT);
-    }
+    let mut overlay = frame.overlay_mut();
+    overlay.label_behind = [BLANK_TEXT; 2];
+    overlay.label_ahead = [BLANK_TEXT; 2];
     // `kept_behind` and `kept_ahead`: four dwords of -1.
-    for cell in [
-        &frame.panel_and_overlay.get().overlay.kept_behind[0],
-        &frame.panel_and_overlay.get().overlay.kept_behind[1],
-        &frame.panel_and_overlay.get().overlay.kept_ahead[0],
-        &frame.panel_and_overlay.get().overlay.kept_ahead[1],
-    ] {
-        cell.set(UNSET_TEXT);
-    }
+    overlay.kept_behind = [UNSET_TEXT; 2];
+    overlay.kept_ahead = [UNSET_TEXT; 2];
     Ok(())
 }
 
-/// Finds the first checkpoint from 1 whose face's byte +0x26 is not 0, looking up to
+/// Finds the first checkpoint from 1 whose face's check byte is not 0, looking up to
 /// `last_checkpoint` (not included); 0 for none or with `checkpoint_count` - 2 negative. Refuses a
 /// look that would run past the list.
 pub fn first_check_checkpoint(course: &Course, shared: &RaceShared) -> Result<u32, Refused> {
@@ -120,11 +106,7 @@ pub fn first_check_checkpoint(course: &Course, shared: &RaceShared) -> Result<u3
     let last = || shared.vars.get().last_checkpoint.get();
     let trap = Trap::new();
     let look = rc2k_core::race::checkpoints::first_check_checkpoint(count, last, |n| {
-        let face: u32 = crate::race::checkpoints_store::face(
-            &shared.buffers.reads.get().checkpoints,
-            n as usize,
-        )
-        .get();
+        let face: u32 = crate::race::checkpoints_store::face(shared.checkpoints(), n as usize);
         trap.keep_read(crate::race::course_places::face_number(
             course.reads(),
             face,
@@ -133,4 +115,57 @@ pub fn first_check_checkpoint(course: &Course, shared: &RaceShared) -> Result<u3
     })?;
     trap.finish()?;
     Ok(look.and_then(|l| l.found).unwrap_or(0))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rc2k_core::race::cars::RACE_STATE;
+    use rc2k_core::race::panel::OVERLAY_CLEARED;
+
+    /// Each name the core's tables use is a car block field of the same words: the notice
+    /// fields, the split gaps and the panel's marks.
+    #[test]
+    fn block_words_are_the_old_fields() {
+        let car = Box::new(Car::new());
+        let state = [
+            &car.notice_time_b,
+            &car.notice_time,
+            &car.notice_last,
+            &car.notice_id,
+            &car.notice_counter,
+            &car.notice_shown,
+            &car.split_gaps[0],
+            &car.split_gaps[1],
+            &car.split_gaps[2],
+            &car.split_gaps[3],
+            &car.split_gaps[4],
+        ];
+        for ((word, _), field) in RACE_STATE.into_iter().zip(state) {
+            assert!(
+                core::ptr::eq(block_word(&car, word).unwrap(), field),
+                "{word:?}"
+            );
+        }
+        let overlay = [
+            &car.car_event_codes[0],
+            &car.car_event_codes[1],
+            &car.car_event_codes[2],
+            &car.car_event_codes[3],
+            &car.car_event_codes[4],
+            &car.car_event_codes[5],
+            &car.car_event_codes[6],
+            &car.car_event_codes[7],
+            &car.car_event_count,
+            &car.car_event_position,
+        ];
+        for (word, field) in OVERLAY_CLEARED.into_iter().zip(overlay) {
+            assert!(
+                core::ptr::eq(block_word(&car, word).unwrap(), field),
+                "{word:?}"
+            );
+        }
+        assert!(block_word(&car, BlockWord::SplitGap(7)).is_err());
+        assert!(block_word(&car, BlockWord::EventCode(8)).is_err());
+    }
 }

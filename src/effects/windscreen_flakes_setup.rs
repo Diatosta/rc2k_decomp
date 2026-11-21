@@ -7,7 +7,6 @@
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
 use crate::math::x87;
-use crate::memory::session::PlainFloat;
 const STATES: [(u32, u32); 7] = [
     (2, 0x11),
     (2, 0x12),
@@ -18,21 +17,16 @@ const STATES: [(u32, u32); 7] = [
     (1, 0x1B),
 ];
 
-pub fn windscreen_flakes_setup(
+pub(super) fn windscreen_flakes_setup(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     fl: &WindscreenFlakes,
     scene: &crate::scene::owner::Scene,
 ) {
-    setup_with(
-        buffer,
-        fl,
-        fl.state.setup_places.each_ref().map(PlainFloat::get),
-        scene,
-    );
+    setup_with(buffer, fl, fl.state.borrow().setup_places, scene);
 }
 
 /// The set-up with the texture places `places` (`effects::pong_setup` has its own).
-pub fn setup_with(
+pub(super) fn setup_with(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     fl: &WindscreenFlakes,
     places: [f32; 4],
@@ -44,7 +38,7 @@ pub fn setup_with(
         crate::scene::set_texture::set_texture(
             scene.scratch.game_scratch(),
             scene,
-            scene.textures.kinds.get().kind_first_slots[202].get(),
+            scene.textures.kinds.borrow().kind_first_slots[202],
         );
         for (value, state) in STATES {
             set_render_state(scene.scratch.game_scratch(), value, state);
@@ -64,10 +58,10 @@ pub fn setup_with(
         scene
             .scratch
             .front_end_polygon()
-            .polygon_vertex_count
-            .set(4);
-        fl.tables.inverse.set(x87::reciprocal(
-            &scene.scratch.front_end_polygon().window.farthest,
-        ));
+            .scalars
+            .borrow_mut()
+            .polygon_vertex_count = 4;
+        fl.tables.borrow_mut().inverse =
+            x87::reciprocal(scene.scratch.front_end_polygon().window.borrow().farthest);
     }
 }

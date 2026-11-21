@@ -1,43 +1,20 @@
-//! A player's input device read.
-//!
-//! A device record has twelve bindings of four dwords {key, place of an axis in the record (0
-//! none), the axis's sign, a button's bit}: steering left and right, throttle, brake, then
-//! eight buttons. A reading comes from the key if down (bit 0x80 of its byte in the key table),
-//! else the axis (all of it when a bound button is down and the axis is above 0x40), else the
-//! button alone.
+//! A player's input device: the record the input thread keeps for each (its layout), what a
+//! reading is, the device command's steps. The reading itself is `input::profile::readings`.
 
 use crate::Invalid;
 
 pub const RECORD_LEN: usize = 0x4F8;
-/// Offsets in the record.
-pub const DEVICE: usize = 4;
 pub const KIND: usize = 8;
-pub const ACQUIRED: usize = 0x24;
 pub const BUTTONS: usize = 0x38;
-pub const READING: usize = 0x414;
-pub const HAT_KIND: usize = 0x418;
 pub const BINDINGS: usize = 0x41C;
-pub const BINDINGS_COUNT: usize = 12;
 pub const READINGS: usize = 0x4DC;
 pub const BITS: usize = 0x4E8;
 /// All of a reading: left (whose axis is negated), and the others.
-pub const FULL_LEFT: u32 = 0xFFFF_FF00;
+pub(crate) const FULL_LEFT: u32 = 0xFFFF_FF00;
 pub const FULL: u32 = 0x100;
 
 /// The bits a reading has with the hat centred.
 pub const HAT_CENTRED: u32 = 0xE00;
-/// What `input::clear_device_readings` writes, in order: the state copies (+0x2C .. +0x38) and
-/// the readings (+0x4DC .. +0x4E4) 0, the bits the hat-centred value.
-pub const CLEARED_READINGS: [(usize, u32); 8] = [
-    (0x2C, 0),
-    (0x30, 0),
-    (0x34, 0),
-    (BUTTONS, 0),
-    (READINGS, 0),
-    (READINGS + 4, 0),
-    (READINGS + 8, 0),
-    (BITS, HAT_CENTRED),
-];
 
 pub type Record = [u8; RECORD_LEN];
 /// The key table the bindings' keys index (256 bytes).
@@ -51,255 +28,13 @@ pub fn dword(record: &Record, at: usize) -> Option<u32> {
     Some(u32::from_le_bytes(bytes.try_into().ok()?))
 }
 
-fn field(record: &Record, at: usize) -> u32 {
-    dword(record, at).expect("a field inside the record")
-}
-
-/// What `read_device` stores: steering, brake, throttle and the bits.
+/// A reading of a device: steering, brake, throttle and the bits.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Readings {
     pub steering: u32,
     pub brake: u32,
     pub throttle: u32,
     pub bits: u32,
-}
-
-/// The hat as an angle in 256ths: for a device whose hat kind is 0 and a hat not centred, its
-/// hundredths of degrees x 256 / 36000, else 0. Also the divisor and remainder when the
-/// division was reached.
-pub fn hat_reading(record: &Record, state: &State) -> (u32, Option<(u32, u32)>) {
-    if field(record, DEVICE) == 0 || field(record, HAT_KIND) != 0 {
-        return (0, None);
-    }
-    let hat = u32::from_le_bytes(state[0x20..0x24].try_into().unwrap());
-    if hat & 0xFFFF == 0xFFFF {
-        return (0, None);
-    }
-    let shifted = hat << 8;
-    (shifted / 0x8CA0, Some((0x8CA0, shifted % 0x8CA0)))
-}
-
-/// The hat (or buttons standing for it) as a code in the second byte (`hat_direction`):
-/// for a device whose hat kind is not 0, buttons 6, 7, 1, 2 as 0x100 .. 0x400, else the
-/// hat straight on 0x500, 270 degrees 0x600, 180 0x700, 90 0xF00, else 0; without a device
-/// or with kind 0, 0xE00 (none).
-pub fn hat_direction(record: &Record, state: &State) -> u32 {
-    if field(record, DEVICE) == 0 || field(record, HAT_KIND) == 0 {
-        return 0xE00;
-    }
-    for (button, code) in [(0x35, 0x100), (0x36, 0x200), (0x30, 0x300), (0x31, 0x400)] {
-        if state[button] != 0 {
-            return code;
-        }
-    }
-    match u32::from_le_bytes(state[0x20..0x24].try_into().unwrap()) {
-        0 => 0x500,
-        0x6978 => 0x600,
-        0x4650 => 0x700,
-        0x2328 => 0xF00,
-        _ => 0,
-    }
-}
-
-/// Where a binding's word says the record reads it: for an acquired device, the axis (bit
-/// 0x400: +0x2C negated, 0x800: +0x2C, 0x200: +0x34, 0x100: +0x30, else none) and the button
-/// (low byte n: bit n - 1; 0 none).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct BindingSource {
-    /// The axis's place in the state (0: none).
-    pub axis: u32,
-    /// Its sign (1 or -1; 0 when not acquired).
-    pub sign: u32,
-    /// The button's bit (0: none).
-    pub button: u32,
-}
-
-pub fn binding_place(word: u32, acquired: bool) -> BindingSource {
-    if !acquired {
-        return BindingSource {
-            axis: 0,
-            sign: 0,
-            button: 0,
-        };
-    }
-    let (axis, sign) = if word & 0x400 != 0 {
-        (0x2C, u32::MAX)
-    } else if word & 0x800 != 0 {
-        (0x2C, 1)
-    } else if word & 0x200 != 0 {
-        (0x34, 1)
-    } else if word & 0x100 != 0 {
-        (0x30, 1)
-    } else {
-        (0, 1)
-    };
-    let low = word & 0xFF;
-    let button = if low == 0 {
-        0
-    } else {
-        1u32.wrapping_shl(low - 1)
-    };
-    BindingSource { axis, sign, button }
-}
-
-/// Bound keys past 0xFF and axis places past the record are refused.
-pub fn check_bindings(record: &Record) -> Result<(), Invalid> {
-    for k in 0..BINDINGS_COUNT {
-        let g = BINDINGS + 0x10 * k;
-        if field(record, g) > 0xFF {
-            return Err(Invalid("a bound key past 0xFF"));
-        }
-        if field(record, g + 4) > RECORD_LEN as u32 - 4 {
-            return Err(Invalid("a bound axis's place past the record"));
-        }
-    }
-    Ok(())
-}
-
-struct Reader<'a> {
-    record: &'a Record,
-    keys: &'a KeyTable,
-}
-
-impl Reader<'_> {
-    fn key_down(&self, g: usize) -> bool {
-        self.keys[field(self.record, g) as usize & 0xFF] & 0x80 != 0
-    }
-
-    /// The record's dword at the binding's place times its sign.
-    fn axis_value(&self, g: usize) -> i32 {
-        let place = field(self.record, g + 4) as usize;
-        (field(self.record, place) as i32).wrapping_mul(field(self.record, g + 8) as i32)
-    }
-
-    fn buttons(&self) -> u32 {
-        field(self.record, BUTTONS)
-    }
-
-    /// One of the four readings: the value, and whether it is all of it pressed.
-    fn reading(&self, g: usize, full: u32, negate_axis: bool) -> (u32, bool) {
-        if self.key_down(g) {
-            return (full, true);
-        }
-        let button = field(self.record, g + 0xC);
-        if field(self.record, g + 4) != 0 {
-            let v = self.axis_value(g).max(0);
-            if button == 0 {
-                let v = v as u32;
-                return (if negate_axis { v.wrapping_neg() } else { v }, false);
-            }
-            if v > 0x40 && self.buttons() & button != 0 {
-                return (full, true);
-            }
-            return (0, false);
-        }
-        if button != 0 && self.buttons() & button != 0 {
-            return (full, true);
-        }
-        (0, false)
-    }
-
-    /// Whether one of the eight buttons is pressed.
-    fn pressed(&self, g: usize) -> bool {
-        if self.key_down(g) {
-            return true;
-        }
-        let button = field(self.record, g + 0xC);
-        if field(self.record, g + 4) != 0 {
-            if self.axis_value(g) <= 0x40 {
-                return false;
-            }
-            return button == 0 || self.buttons() & button != 0;
-        }
-        button != 0 && self.buttons() & button != 0
-    }
-}
-
-/// A nonzero value made all of it, by its sign.
-fn whole_steering(v: u32) -> u32 {
-    match v {
-        0 => 0,
-        v if (v as i32) < 0 => FULL_LEFT,
-        _ => FULL,
-    }
-}
-
-/// The four readings of a device (after its poll), or `None` while it is not read; see the
-/// module header. The steering is left plus right, held to all of it by its sign while a key or
-/// button is pressed. On a digital device (kind 1) bits 0x7000 and every reading not 0 are made all
-/// of it. Refused: what `check_bindings` refuses.
-pub fn read_device(
-    record: &Record,
-    keys: &KeyTable,
-    state: &State,
-) -> Result<Option<Readings>, Invalid> {
-    check_bindings(record)?;
-    if field(record, READING) != 1 {
-        return Ok(None);
-    }
-    let r = Reader { record, keys };
-    let mut bits = (hat_reading(record, state).0 << 24) | hat_direction(record, state);
-    let mut steering = {
-        let (left, l) = r.reading(BINDINGS, FULL_LEFT, true);
-        let (right, rr) = r.reading(BINDINGS + 0x10, FULL, false);
-        if l || rr {
-            bits |= 0x1000;
-        }
-        left.wrapping_add(right)
-    };
-    if bits & 0x1000 != 0 {
-        steering = whole_steering(steering);
-    }
-    let (mut throttle, t) = r.reading(BINDINGS + 0x20, FULL, false);
-    if t {
-        bits |= 0x4000;
-    }
-    let (mut brake, b) = r.reading(BINDINGS + 0x30, FULL, false);
-    if b {
-        bits |= 0x2000;
-    }
-    if field(record, KIND) == 1 {
-        bits |= 0x7000;
-        steering = whole_steering(steering);
-        if brake != 0 {
-            brake = FULL;
-        }
-        if throttle != 0 {
-            throttle = FULL;
-        }
-    }
-    for k in 0..8 {
-        if r.pressed(BINDINGS + 0x40 + 0x10 * k) {
-            bits |= 1 << k;
-        }
-    }
-    Ok(Some(Readings {
-        steering,
-        brake,
-        throttle,
-        bits,
-    }))
-}
-
-/// Which axis moved past 0x80 from rest: of the six (`now` less `rest`, signed) the first the
-/// controller has (`axes`, a bit an axis), its number, + 0x10 when it went up. None: the last
-/// difference worked out.
-pub fn axis_moved(now: &[u32; 6], rest: &[u32; 6], axes: u32) -> Result<u32, u32> {
-    let mut last = 0;
-    for n in 0..6 {
-        let d = now[n].wrapping_sub(rest[n]) as i32;
-        last = d as u32;
-        if axes & (1 << n) == 0 {
-            continue;
-        }
-        if d < -0x80 {
-            return Ok(n as u32);
-        }
-        if d > 0x80 {
-            return Ok(n as u32 | 0x10);
-        }
-    }
-    Err(last)
 }
 
 /// One player on two devices: the second's three readings added to the first's, and of its bits
@@ -333,13 +68,6 @@ pub fn device_kind(kind: u32) -> u32 {
     if kind == 0 { 2 } else { kind }
 }
 
-/// A binding's four dwords: its key, and the place, sign and button of its word (`first`: the
-/// record's first binding).
-pub fn binding(key: u8, word: u32, first: bool) -> [u32; 4] {
-    let p = binding_place(word, first);
-    [key as u32, p.axis, p.sign, p.button]
-}
-
 /// A step of the input thread's device command.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CommandStep {
@@ -355,51 +83,83 @@ pub enum CommandStep {
     Reading(usize, bool),
     /// Player 2's controller made none when it is player 1's.
     SecondApart,
-    Sleep(u32),
+    /// Player `n`'s (3 or 4) controller made none when an earlier player has it.
+    ApartFrom(usize),
     BeginEffects,
 }
+
+/// The command that sets player 1's device up again for a race in progress (a phone's touch
+/// pad and a controller changing places).
+pub const SWITCH_COMMAND: u32 = 4;
 
 /// The steps of command `command` (`device` too for 1): 1 gives the device back and acquires it
 /// again; 2 (the race's end) turns the effects off and ends them, waits a tick, gives both devices
 /// back and stops reading them; 3 (the race's start) sets up and reads device 0, device 1 too
-/// unless one player is on one device, sleeps a second, begins the effects, waits a tick and
-/// turns them on. Refused: a device past 1 for 1.
+/// unless one player is on one device, begins the effects, waits a tick and
+/// turns them on. Refused: a device past 1 for 1 (past 3 with `players` of more than two).
+/// `players` is the race's players: the third and fourth (a larger split screen) have devices 2
+/// and 3, set up and given back like the others.
 pub fn command_steps(
     command: u8,
     device: u8,
     two_devices: u32,
     one_player: u32,
+    players: u32,
 ) -> Result<Vec<CommandStep>, Invalid> {
     use CommandStep::*;
     Ok(match command {
         1 => {
-            if device > 1 {
-                return Err(Invalid("a device past 1"));
+            let last = if players > 2 { 3 } else { 1 };
+            if device > last {
+                return Err(Invalid("a device past the race's players"));
             }
             vec![Release(device as usize), Acquire(device as usize)]
         }
-        2 => vec![
-            EffectsOn(false),
-            EndEffects,
-            Tick,
-            Release(0),
-            Reading(0, false),
-            Release(1),
-            Reading(1, false),
-        ],
+        2 => {
+            let mut v = vec![
+                EffectsOn(false),
+                EndEffects,
+                Tick,
+                Release(0),
+                Reading(0, false),
+                Release(1),
+                Reading(1, false),
+            ];
+            for n in 2..players.min(4) as usize {
+                v.extend([Release(n), Reading(n, false)]);
+            }
+            v
+        }
         3 => {
             let mut v = vec![SetUp(0), Reading(0, true)];
             if two_devices != 0 || one_player != 1 {
                 v.extend([SecondApart, SetUp(1), Reading(1, true)]);
             }
-            v.extend([Sleep(1000), BeginEffects, Tick, EffectsOn(true)]);
+            for n in 2..players.min(4) as usize {
+                v.extend([ApartFrom(n), SetUp(n), Reading(n, true)]);
+            }
+            v.extend([BeginEffects, Tick, EffectsOn(true)]);
             v
         }
+        // Player 1's device changed during a race: the effects ended, the device given back
+        // and set up for the controls it has now, the effects begun again.
+        4 => vec![
+            EffectsOn(false),
+            EndEffects,
+            Tick,
+            Release(0),
+            Reading(0, false),
+            SetUp(0),
+            Reading(0, true),
+            BeginEffects,
+            Tick,
+            EffectsOn(true),
+        ],
         _ => vec![],
     })
 }
 
-/// The controller page's learning of a control: on, when it began (the 3 s start), which control
+/// The controller page's learning of a control: on, when it began (the 5 s start), which control
 /// (1 ..= 11).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Learning {
@@ -419,115 +179,26 @@ impl Learning {
     }
 }
 
-/// A control learnt from the controller's four values: the button (its number + 1, when exactly
-/// one is down), and left (x below 0), right (x above 0), y and z each shifted into a history
-/// (a 1 for "under 0x80"). A direction held over 0x1D of the last 32 polls while the other
-/// histories are empty gives 0x400 (left) / 0x800 (right) / 0x100 (y) / 0x200 (z) with the
-/// button; none empty, the button alone; else 0. The histories after, and what was found.
-pub fn classify(buttons: u32, x: u32, y: u32, z: u32, history: [u32; 4]) -> ([u32; 4], u32) {
-    let mut button = 0u32;
-    if buttons != 0 {
-        let mut b = buttons;
-        loop {
-            button += 1;
-            let out = b & 1;
-            b >>= 1;
-            if out != 0 {
-                break;
-            }
-        }
-        if b != 0 {
-            button = 0;
-        }
-    }
-    let left = if (x as i32) < 0 { x.wrapping_neg() } else { 0 };
-    let right = if (x as i32) < 0 { 0 } else { x };
-    let mut h = history;
-    for (v, value) in h.iter_mut().zip([left, right, y, z]) {
-        *v = (*v << 1) | u32::from(value < 0x80);
-    }
-    let [l, r, yy, zz] = h.map(u32::count_ones);
-    let min = |a: u32, b: u32, c: u32| a.min(b).min(c);
-    let bit = if l == 0 {
-        (min(zz, r, yy) >= 0x1D).then_some(0x400)
-    } else if r == 0 {
-        (min(zz, l, yy) >= 0x1D).then_some(0x800)
-    } else if yy == 0 {
-        (min(zz, l, r) >= 0x1D).then_some(0x100)
-    } else if zz == 0 {
-        (min(l, r, yy) >= 0x1D).then_some(0x200)
-    } else {
-        Some(0)
-    };
-    (h, bit.map_or(0, |b| button | b))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn classifying() {
-        assert_eq!(classify(4, 0x100, 0x100, 0x100, [0; 4]).1, 0);
-        assert_eq!(classify(4, 0x100, 0x100, 0x100, [u32::MAX; 4]).1, 3);
-        assert_eq!(classify(6, 0x100, 0x100, 0x100, [u32::MAX; 4]).1, 0);
-        let (h, f) = classify(0, 0x100, 0, 0, [0, 0, u32::MAX, u32::MAX]);
-        assert_eq!((h[0], f), (1, 0));
-    }
-
-    #[test]
     fn commands() {
-        assert!(command_steps(1, 2, 0, 0).is_err());
-        assert_eq!(command_steps(3, 0, 0, 1).unwrap().len(), 6);
-        assert_eq!(command_steps(3, 0, 1, 1).unwrap().len(), 9);
-        assert!(command_steps(9, 0, 0, 0).unwrap().is_empty());
-    }
-
-    fn put(record: &mut Record, at: usize, v: u32) {
-        record[at..at + 4].copy_from_slice(&v.to_le_bytes());
-    }
-
-    #[test]
-    fn reads() {
-        let mut record = [0u8; RECORD_LEN];
-        put(&mut record, READING, 1);
-        put(&mut record, DEVICE, 1);
-        put(&mut record, 0x2C, 0x80); // the first axis
-        put(&mut record, BINDINGS + 0x10 + 4, 0x2C); // right: the first axis
-        put(&mut record, BINDINGS + 0x10 + 8, 1);
-        put(&mut record, BINDINGS + 0x20, 0x48); // throttle: key 0x48
-        put(&mut record, BINDINGS + 0x40 + 0xC, 4); // button 1: bit 2
-        put(&mut record, BUTTONS, 4);
-        let mut keys = [0u8; 0x100];
-        keys[0x48] = 0x80;
-        let mut state = [0u8; 0x50];
-        state[0x20..0x24].copy_from_slice(&9000u32.to_le_bytes());
-        let r = read_device(&record, &keys, &state).unwrap().unwrap();
-        assert_eq!((r.steering, r.throttle, r.brake), (0x80, FULL, 0));
-        assert_eq!(r.bits, (64 << 24) | 0xE00 | 0x4000 | 1); // hat kind 0: no direction
-        put(&mut record, READING, 0);
-        assert_eq!(read_device(&record, &keys, &state), Ok(None));
-        put(&mut record, BINDINGS + 4, 0x4F8);
-        assert!(read_device(&record, &keys, &state).is_err());
-        assert_eq!(
-            binding_place(0x403, true),
-            BindingSource {
-                axis: 0x2C,
-                sign: u32::MAX,
-                button: 4,
-            }
-        );
+        assert!(command_steps(1, 2, 0, 0, 2).is_err());
+        assert!(command_steps(1, 2, 0, 0, 3).is_ok());
+        assert!(command_steps(1, 4, 0, 0, 4).is_err());
+        assert_eq!(command_steps(3, 0, 0, 1, 1).unwrap().len(), 5);
+        assert_eq!(command_steps(3, 0, 1, 1, 2).unwrap().len(), 8);
+        // Players 3 and 4: each apart from the earlier ones, set up and read.
+        assert_eq!(command_steps(3, 0, 1, 2, 4).unwrap().len(), 8 + 6);
+        assert_eq!(command_steps(2, 0, 0, 2, 4).unwrap().len(), 7 + 4);
+        assert_eq!(command_steps(4, 0, 0, 1, 1).unwrap().len(), 10);
+        assert!(command_steps(9, 0, 0, 0, 1).unwrap().is_empty());
     }
 
     #[test]
-    fn axes_and_merges() {
-        let rest = [0x100; 6];
-        let mut now = rest;
-        now[2] = 0x10;
-        assert_eq!(axis_moved(&now, &rest, 0b100), Ok(2));
-        assert_eq!(axis_moved(&now, &rest, 0b011), Err(0));
-        now[1] = 0x200;
-        assert_eq!(axis_moved(&now, &rest, 0b111), Ok(0x11));
+    fn merges() {
         let mut a = [1, 2, 3, 0x8000];
         merge_readings(&mut a, &[1, 1, 1, 0xFFFF]);
         assert_eq!(a, [2, 3, 4, 0xF0FF]);

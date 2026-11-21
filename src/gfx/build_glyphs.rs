@@ -36,44 +36,38 @@ use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_int_fmt::log_int_fmt;
 use crate::logfile::write_line::level;
-use crate::memory::session::PlainDword;
+use std::cell::Cell;
+
 use crate::memory::take_from_list::{rewind_list, take_from_list};
 
 /// The sheet and table being built.
-#[derive(rc2k_derive::Cells)]
 pub struct SheetVars {
     /// The sheet's table.
-    pub sheet_table: PlainDword,
-    /// Its size.
-    pub sheet_table_size: PlainDword,
-    /// Not used: nothing reads it, so the list is not kept here.
-    pub table_list: PlainDword,
+    pub sheet_table: Cell<u32>,
     /// The table being built.
-    pub table: PlainDword,
+    pub table: Cell<u32>,
     /// Its size so far.
-    pub table_size: PlainDword,
+    pub table_size: Cell<u32>,
     /// The sheet's glyph count.
-    pub glyph_count: PlainDword,
+    pub glyph_count: Cell<u32>,
     /// The bytes of the sheet's glyph records.
-    pub glyph_bytes: PlainDword,
-    pub pixel_size: PlainDword,
+    pub glyph_bytes: Cell<u32>,
+    pub pixel_size: Cell<u32>,
     /// 1 = the sheet read last was an alpha sheet, kept for the next one.
-    pub alpha_loaded: PlainDword,
+    pub alpha_loaded: Cell<u32>,
 }
 
 impl SheetVars {
     /// The sheet builder's variables (all zero).
     pub const fn new() -> Self {
         SheetVars {
-            sheet_table: PlainDword::new(0),
-            sheet_table_size: PlainDword::new(0),
-            table_list: PlainDword::new(0),
-            table: PlainDword::new(0),
-            table_size: PlainDword::new(0),
-            glyph_count: PlainDword::new(0),
-            glyph_bytes: PlainDword::new(0),
-            pixel_size: PlainDword::new(0),
-            alpha_loaded: PlainDword::new(0),
+            sheet_table: Cell::new(0),
+            table: Cell::new(0),
+            table_size: Cell::new(0),
+            glyph_count: Cell::new(0),
+            glyph_bytes: Cell::new(0),
+            pixel_size: Cell::new(0),
+            alpha_loaded: Cell::new(0),
         }
     }
 }
@@ -267,7 +261,7 @@ fn read_alpha_sheet(
 pub fn build_glyphs(
     vars: &SheetVars,
     template: &[u8],
-    list: &crate::memory::ListCells,
+    list: &crate::memory::PlainList,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
     strings: &crate::strings::owner::Strings,
@@ -412,7 +406,6 @@ pub fn build_glyphs(
         let Some(place) = take_from_list(work, size)? else {
             return Err(fatal(0x80E4_8011, ""));
         };
-        vars.sheet_table_size.set(size);
         // The sheet's table is counted off the work memory (`place` is that list's cursor, logged
         // as an address), and appended from Rust's bytes (`gfx::glyph_store`).
         vars.sheet_table.set(place);

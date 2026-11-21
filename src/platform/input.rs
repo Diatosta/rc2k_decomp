@@ -1,4 +1,4 @@
-//! The standalone program's joysticks and wheels: the backend of DirectInput's objects made
+//! The program's joysticks and wheels: the backend of DirectInput's objects made
 //! in Rust (`input::di_objects`) on SDL's joysticks and haptics.
 //!
 //! - The devices: SDL's joysticks in the order first seen (a device unplugged keeps its place and
@@ -21,13 +21,27 @@
 //!
 //! What SDL's haptics cannot do (an effect it does not have) is logged once and skipped:
 //! the game's own effects go on without it.
+//!
+//! A pad SDL can rumble but has no force-feedback effects for (an Xbox pad, a DualSense; SDL
+//! may open a haptic device for it that has only the two motors) reports force feedback too:
+//! the game's effects are kept here and, on each reading, those running are turned into the
+//! motors' levels (`rc2k_core::input::rumble`).
 
-use crate::input::di_objects::{Backend, DeviceInfo, Effect, Kind, Reading};
-use crate::logfile::program_log::log;
+use crate::input::di_objects::{Backend, DeviceInfo, Effect, Kind, ProfileKind, Reading};
 use crate::platform::ffi::sdl_input::{self, Gamepad, Haptic, Joystick};
+use crate::program_log::log;
 use sdl3_sys::everything::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
+
+/// Set when SDL reports a joystick added or removed, for the input thread to list the new ones
+/// (`take_devices_changed`).
+static DEVICES_CHANGED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether a joystick came or went since the last call.
+pub fn take_devices_changed() -> bool {
+    DEVICES_CHANGED.swap(false, std::sync::atomic::Ordering::AcqRel)
+}
 
 /// The gamepads `pad_added` opened for the menus, by SDL's id.
 static MENU_PADS: Mutex<Vec<(SDL_JoystickID, Gamepad)>> = Mutex::new(Vec::new());
@@ -35,9 +49,9 @@ static MENU_PADS: Mutex<Vec<(SDL_JoystickID, Gamepad)>> = Mutex::new(Vec::new())
 /// A joystick has appeared (SDL's event, also for those there at the start): open as a gamepad
 /// if SDL knows it as one, so its buttons reach the menus (`input::menu_pad`) whether or not
 /// the game has asked for its devices yet.
-pub fn pad_added(id: SDL_JoystickID) {
+pub(super) fn pad_added(id: SDL_JoystickID) {
     let name = sdl_input::joystick_name_for_id(id, "a joystick");
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    #[cfg(handheld)]
     if crate::platform::handheld::is_built_in_pad(&name) {
         let guid = sdl_input::joystick_guid_text_for_id(id);
         sdl_input::add_gamepad_mapping(crate::platform::handheld::pad_mapping(&guid));
@@ -59,33 +73,179 @@ pub fn pad_added(id: SDL_JoystickID) {
     log(&format!(
         "platform: {name} appeared; a gamepad for the menus: {opened}"
     ));
+    DEVICES_CHANGED.store(true, std::sync::atomic::Ordering::Release);
 }
 
 /// A joystick has gone (SDL's event): the menus' gamepad of it closed.
-pub fn pad_removed(id: SDL_JoystickID) {
+pub(super) fn pad_removed(id: SDL_JoystickID) {
     let mut pads = MENU_PADS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    pads.retain(|&(pad_id, pad)| {
-        if pad_id == id {
-            pad.close();
+    // A pad taken out of the list is dropped, which closes it.
+    pads.retain(|(pad_id, _)| *pad_id != id);
+    DEVICES_CHANGED.store(true, std::sync::atomic::Ordering::Release);
+}
+
+/// The handle that keeps a device open (closed when dropped).
+enum Opened {
+    Pad(Gamepad),
+    Stick(Joystick),
+}
+
+impl Opened {
+    /// The device's joystick (a gamepad's is its own), borrowed from the open handle.
+    fn joystick(&self) -> Option<&sdl_input::JoystickRef> {
+        match self {
+            Opened::Pad(pad) => pad.joystick(),
+            Opened::Stick(stick) => Some(stick),
         }
-        pad_id != id
-    });
+    }
+
+    /// The gamepad, when SDL knows the device as one.
+    fn gamepad(&self) -> Option<&Gamepad> {
+        match self {
+            Opened::Pad(pad) => Some(pad),
+            Opened::Stick(_) => None,
+        }
+    }
 }
 
 struct Device {
     sdl_id: SDL_JoystickID,
-    joystick: Option<Joystick>,
-    /// Read as a gamepad (DirectInput's XInput layout), when SDL knows it as one.
-    gamepad: Option<Gamepad>,
+    /// What SDL has open for the device (none once it has gone): read as a gamepad
+    /// (DirectInput's XInput layout) when SDL knows it as one, else as a plain joystick.
+    opened: Option<Opened>,
     haptic: Option<Haptic>,
     features: u32,
     info: DeviceInfo,
     /// The game's effects (their object numbers) as SDL's.
     effects: HashMap<u32, SDL_HapticEffectID>,
+    /// The game's effects as it last set them, each with whether it runs: kept while the
+    /// device is away, to make them again on its return.
+    known: HashMap<u32, (Effect, bool)>,
+    /// The device's gain the game set (its force feedback strength), 0 .. 10000: applied to
+    /// each effect by us when SDL has no gain for the device (many wheels).
+    gain: u32,
     /// Which of the sticks' four axes have left their rest (`stick_axis`).
     stick_moved: [bool; 4],
+    /// With no haptic device of use and SDL able to rumble it: the game's effects for its
+    /// motors.
+    rumble: Option<Rumble>,
+}
+
+/// A rumbled device's effects: each as the game last set it, and since when it runs.
+#[derive(Default)]
+struct Rumble {
+    effects: HashMap<u32, (Effect, Option<std::time::Instant>)>,
+    /// The device's gain, 0 .. 10000.
+    gain: u32,
+    /// When the game last set an effect: in a race it sets them every frame, so a game that
+    /// has stopped setting them (a pause, a question) has its pad still.
+    set_at: Option<std::time::Instant>,
+    /// The motors' levels last sent, and when.
+    sent: (u16, u16),
+    sent_at: Option<std::time::Instant>,
+}
+
+/// How long a rumble lasts unless sent again, and how often a running one is sent again (ms).
+const RUMBLE_FOR_MS: u32 = 1000;
+const RUMBLE_AGAIN_MS: u128 = 400;
+/// How long after the game's last setting the motors go still (ms).
+const RUMBLE_STALE_MS: u128 = 250;
+
+impl Rumble {
+    fn new() -> Self {
+        Self {
+            gain: 10_000,
+            ..Self::default()
+        }
+    }
+
+    /// The motors set for the effects running now (sent when they change, and again before a
+    /// running rumble ends).
+    fn update(&mut self, joystick: &sdl_input::JoystickRef) {
+        use rc2k_core::input::rumble::{Form, Running, motors};
+        let now = std::time::Instant::now();
+        let running = self.effects.values().filter_map(|(e, since)| {
+            let since = (*since)?;
+            let form = match e.kind {
+                Kind::Constant => Form::Constant,
+                Kind::Ramp => Form::Ramp,
+                Kind::Square | Kind::Sine | Kind::Triangle | Kind::SawUp | Kind::SawDown => {
+                    Form::Periodic
+                }
+                Kind::Spring | Kind::Damper | Kind::Inertia | Kind::Friction => Form::Condition,
+            };
+            Some(Running {
+                form,
+                params: &e.params,
+                gain: e.gain,
+                length_us: e.duration,
+                envelope: e.envelope,
+                elapsed_us: now.duration_since(since).as_micros() as u64,
+            })
+        });
+        let fresh = self
+            .set_at
+            .is_some_and(|at| now.duration_since(at).as_millis() < RUMBLE_STALE_MS);
+        let levels = if fresh {
+            motors(running, self.gain)
+        } else {
+            (0, 0)
+        };
+        let due = levels != (0, 0)
+            && self
+                .sent_at
+                .is_none_or(|at| now.duration_since(at).as_millis() >= RUMBLE_AGAIN_MS);
+        if levels != self.sent || due {
+            joystick.rumble(levels.0, levels.1, RUMBLE_FOR_MS);
+            self.sent = levels;
+            self.sent_at = Some(now);
+        }
+    }
+
+    /// Everything stopped, the motors still.
+    fn stop(&mut self, joystick: Option<&sdl_input::JoystickRef>) {
+        for (_, since) in self.effects.values_mut() {
+            *since = None;
+        }
+        if let Some(joystick) = joystick
+            && self.sent != (0, 0)
+        {
+            joystick.rumble(0, 0, 0);
+        }
+        self.sent = (0, 0);
+        self.sent_at = None;
+    }
+}
+
+/// SDL's haptic effects the game's effects can be (`sdl_effect`): a haptic device with none of
+/// them (only the two motors) is of no use, the pad is rumbled instead.
+const GAME_EFFECTS: u32 = SDL_HAPTIC_CONSTANT.0 as u32
+    | SDL_HAPTIC_RAMP.0 as u32
+    | SDL_HAPTIC_SQUARE.0 as u32
+    | SDL_HAPTIC_SINE.0 as u32
+    | SDL_HAPTIC_TRIANGLE.0 as u32
+    | SDL_HAPTIC_SAWTOOTHUP.0 as u32
+    | SDL_HAPTIC_SAWTOOTHDOWN.0 as u32
+    | SDL_HAPTIC_SPRING.0 as u32
+    | SDL_HAPTIC_DAMPER.0 as u32
+    | SDL_HAPTIC_INERTIA.0 as u32
+    | SDL_HAPTIC_FRICTION.0 as u32;
+
+/// The joystick's haptic device if it has effects the game can use, else none (closed); and
+/// whether the pad is rumbled instead.
+fn haptic_or_rumble(joystick: &sdl_input::JoystickRef) -> (Option<Haptic>, bool) {
+    let haptic = joystick.open_haptic();
+    let haptic = match haptic {
+        Some(h) if h.features() & GAME_EFFECTS == 0 => {
+            h.close();
+            None
+        }
+        h => h,
+    };
+    let rumble = haptic.is_none() && joystick.has_rumble();
+    (haptic, rumble)
 }
 
 impl Device {
@@ -96,12 +256,13 @@ impl Device {
         if let Some(haptic) = self.haptic.take() {
             haptic.close();
         }
-        if let Some(gamepad) = self.gamepad.take() {
-            gamepad.close();
-        } else if let Some(joystick) = self.joystick {
-            joystick.close();
+        // A rumbled device keeps its effects as the game set them (they run again from its
+        // return); only the motors are marked still.
+        if let Some(rumble) = self.rumble.as_mut() {
+            rumble.sent = (0, 0);
+            rumble.sent_at = None;
         }
-        self.joystick = None;
+        self.opened = None;
         self.features = 0;
         self.effects.clear();
     }
@@ -119,7 +280,7 @@ impl SdlBackend {
     pub fn start() {
         // The handheld's dummy window never has the focus; its pad has no x and y axes, so
         // SDL does not take its event device for a joystick: named, by its joystick node.
-        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        #[cfg(handheld)]
         {
             sdl_input::set_handheld_joystick_hints();
         }
@@ -127,8 +288,11 @@ impl SdlBackend {
             log("platform: SDL's joysticks do not start: no joysticks");
             return;
         }
-        #[cfg(feature = "remote")]
+        #[cfg(web)]
+        crate::platform::web_pads::stop_sdl_driver();
         crate::remote::stick_at_start();
+        #[cfg(phone)]
+        crate::platform::touch::attach_at_start();
         crate::input::di_objects::set_backend(Box::new(SdlBackend {
             devices: Vec::new(),
             seen: Vec::new(),
@@ -152,7 +316,7 @@ impl SdlBackend {
             return;
         }
         for (n, device) in self.devices.iter_mut().enumerate() {
-            if device.joystick.is_some() && !ids.contains(&device.sdl_id) {
+            if device.opened.is_some() && !ids.contains(&device.sdl_id) {
                 log(&format!(
                     "platform: joystick {n}: \"{}\" has gone",
                     device.info.name
@@ -174,73 +338,135 @@ impl SdlBackend {
         } else {
             None
         };
-        let joystick = match gamepad {
-            None => Joystick::open(id),
-            Some(pad) => pad.joystick(),
+        let opened = match gamepad {
+            None => Joystick::open(id).map(Opened::Stick),
+            Some(pad) => Some(Opened::Pad(pad)),
         };
-        let Some(joystick) = joystick else {
+        let Some(opened) = opened else {
             return;
         };
+        let Some(joystick) = opened.joystick() else {
+            return;
+        };
+        let is_pad = opened.gamepad().is_some();
         let name = joystick.name();
+        let serial = joystick.serial();
         let product = joystick.guid();
+        // The same device plugged back in takes the place it left, with its instance: the
+        // game's controller entry and the players' choice of it hold. The same one is the one
+        // of its serial number when it has one (two pads of a model told apart), else the first
+        // of its kind that has gone.
+        let gone_same =
+            |d: &Device| d.opened.is_none() && d.info.product == product && d.info.name == name;
+        let back = self
+            .devices
+            .iter()
+            .position(|d| gone_same(d) && serial.is_some() && d.info.serial == serial)
+            .or_else(|| {
+                self.devices
+                    .iter()
+                    .position(|d| gone_same(d) && serial.is_none() && d.info.serial.is_none())
+            });
+        if let Some(n) = back {
+            let (haptic, rumble) = haptic_or_rumble(joystick);
+            let d = &mut self.devices[n];
+            d.rumble = rumble.then(|| d.rumble.take().unwrap_or_default());
+            d.sdl_id = id;
+            d.features = haptic.as_ref().map_or(0, Haptic::features);
+            d.haptic = haptic;
+            d.opened = Some(opened);
+            d.stick_moved = [false; 4];
+            log(&format!(
+                "platform: joystick {n}: \"{}\" is back",
+                d.info.name
+            ));
+            // The effects the game had set are made again on the returned device.
+            let gain = d.gain;
+            let mut known: Vec<(u32, (Effect, bool))> = d.known.drain().collect();
+            known.sort_by_key(|(id, _)| *id);
+            self.gain(n, gain);
+            for (effect_id, (effect, running)) in known {
+                self.effect(n, effect_id, &effect, running, running);
+            }
+            return;
+        }
         let mut instance = product;
         for (n, b) in id.0.to_le_bytes().iter().enumerate() {
             instance[n] ^= b;
         }
         instance[15] ^= 0x5A;
-        let axes = if gamepad.is_none() {
+        let axes = if !is_pad {
             joystick.axis_count().clamp(0, 6) as u32
         } else {
             5
         };
-        let haptic = joystick.open_haptic();
-        let features = haptic.map_or(0, Haptic::features);
+        let (haptic, rumble) = haptic_or_rumble(joystick);
+        let features = haptic.as_ref().map_or(0, Haptic::features);
+        let kind = if is_pad {
+            ProfileKind::Pad
+        } else if joystick.is_wheel() {
+            ProfileKind::Wheel
+        } else {
+            ProfileKind::Joystick
+        };
         let info = DeviceInfo {
+            kind,
+            icon_family: is_pad.then(|| sdl_input::pad_family(id)),
+            profile_axes: if is_pad {
+                6
+            } else {
+                joystick
+                    .axis_count()
+                    .clamp(0, rc2k_core::input::profile::AXES as i32) as u32
+            },
             name,
+            serial,
             instance,
             product,
             axes: (1 << axes) - 1,
-            buttons: if gamepad.is_none() {
+            buttons: if !is_pad {
                 joystick.button_count().clamp(0, 32) as u32
             } else {
                 PAD_BUTTONS.len() as u32
             },
-            hats: if gamepad.is_none() {
+            hats: if !is_pad {
                 joystick.hat_count().clamp(0, 4) as u32
             } else {
                 1
             },
-            force: haptic.is_some(),
+            force: haptic.is_some() || rumble,
         };
         log(&format!(
-            "platform: joystick {}: \"{}\"{}, {} axes, {} buttons, {} hats, force feedback {} (SDL's effects {features:#x})",
+            "platform: joystick {}: \"{}\"{}, {} axes, {} buttons, {} hats, force feedback {}{} (SDL's effects {features:#x}), serial number {}",
             self.devices.len(),
             info.name,
-            if gamepad.is_none() {
-                ""
-            } else {
-                " (a gamepad)"
-            },
+            if !is_pad { "" } else { " (a gamepad)" },
             axes,
             info.buttons,
             info.hats,
-            info.force
+            info.force,
+            if rumble { " (its rumble motors)" } else { "" },
+            info.serial.as_deref().unwrap_or("none")
         ));
         self.devices.push(Device {
             sdl_id: id,
-            joystick: Some(joystick),
-            gamepad,
+            opened: Some(opened),
             haptic,
             features,
             info,
             effects: HashMap::new(),
+            known: HashMap::new(),
+            gain: 10_000,
             stick_moved: [false; 4],
+            rumble: rumble.then(Rumble::new),
         });
     }
 }
 
 /// A gamepad's buttons in DirectInput's order for an XInput pad.
-const PAD_BUTTONS: [SDL_GamepadButton; 10] = [
+/// A gamepad's buttons in the order the profiles number them (as DirectInput numbered an XInput
+/// pad's).
+pub const PAD_BUTTONS: [SDL_GamepadButton; 10] = [
     SDL_GAMEPAD_BUTTON_SOUTH,
     SDL_GAMEPAD_BUTTON_EAST,
     SDL_GAMEPAD_BUTTON_WEST,
@@ -253,6 +479,28 @@ const PAD_BUTTONS: [SDL_GamepadButton; 10] = [
     SDL_GAMEPAD_BUTTON_RIGHT_STICK,
 ];
 
+#[cfg_attr(
+    not(phone),
+    allow(dead_code, reason = "used by the phones' touch screen")
+)]
+/// The touch screen's virtual gamepad: the button a touch button presses, or the trigger for a pedal; matched
+/// to the default gamepad profile (`Profile::new` for a pad), which is what the game reads.
+pub fn touch_pad_button(
+    button: rc2k_core::input::touch::Button,
+) -> Result<SDL_GamepadButton, SDL_GamepadAxis> {
+    use rc2k_core::input::touch::Button;
+    match button {
+        Button::Throttle => Err(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER),
+        Button::Brake => Err(SDL_GAMEPAD_AXIS_LEFT_TRIGGER),
+        Button::Handbrake => Ok(SDL_GAMEPAD_BUTTON_EAST),
+        Button::GearUp => Ok(SDL_GAMEPAD_BUTTON_SOUTH),
+        Button::GearDown => Ok(SDL_GAMEPAD_BUTTON_WEST),
+        Button::Camera => Ok(SDL_GAMEPAD_BUTTON_NORTH),
+        Button::Lights => Ok(SDL_GAMEPAD_BUTTON_BACK),
+        Button::Pause => Ok(SDL_GAMEPAD_BUTTON_START),
+    }
+}
+
 /// A gamepad read as DirectInput reads an XInput pad (see the header).
 /// A stick's axis as the game should see it. SDL can report a stick that has not moved yet at
 /// the end of its range (seen on the Anbernic's pad, whose kernel says 0: until the first move
@@ -264,11 +512,12 @@ fn stick_axis(raw: i32, moved: &mut bool) -> i32 {
     if *moved { raw } else { 0 }
 }
 
-fn pad_reading(pad: Gamepad, stick_moved: &mut [bool; 4]) -> Reading {
+fn pad_reading(pad: &Gamepad, stick_moved: &mut [bool; 4]) -> Reading {
     let mut r = Reading::default();
     if !pad.connected() {
         return r;
     }
+    r.present = true;
     let axis = |a| pad.axis(a) as i32;
     // the triggers 0 .. 32767 each: the left one up, the right one down
     let z = axis(SDL_GAMEPAD_AXIS_LEFT_TRIGGER) - axis(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
@@ -281,6 +530,17 @@ fn pad_reading(pad: Gamepad, stick_moved: &mut [bool; 4]) -> Reading {
         stick_axis(axis(SDL_GAMEPAD_AXIS_RIGHTY), &mut moved[3]),
         0,
     ];
+    // The profiles' axes: the sticks, then each trigger as a pedal (0 .. 32767 as SDL has it
+    // made -32768 at rest .. 32767 pressed).
+    let pedal = |a| (axis(a) * 2 - 32768).clamp(-32768, 32767);
+    r.profile_axes[..6].copy_from_slice(&[
+        r.axes[0],
+        r.axes[1],
+        r.axes[3],
+        r.axes[4],
+        pedal(SDL_GAMEPAD_AXIS_LEFT_TRIGGER),
+        pedal(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER),
+    ]);
     for (n, &b) in PAD_BUTTONS.iter().enumerate() {
         if pad.button(b) {
             r.buttons |= 1 << n;
@@ -460,21 +720,38 @@ impl Backend for SdlBackend {
         };
         let mut r = Reading::default();
         // The device's joystick, open until it has gone (none then).
-        let Some(joystick) = d.joystick.filter(|j| j.connected()) else {
-            if d.joystick.is_some() {
+        let Some(joystick) = d
+            .opened
+            .as_ref()
+            .and_then(Opened::joystick)
+            .filter(|j| j.connected())
+        else {
+            if d.opened.is_some() {
                 let gone = format!("joystick {device}: \"{}\" has gone", d.info.name);
                 self.warn(gone);
             }
             return r;
         };
-        if let Some(pad) = d.gamepad {
+        if let Some(rumble) = d.rumble.as_mut() {
+            rumble.update(joystick);
+        }
+        if let Some(pad) = d.opened.as_ref().and_then(Opened::gamepad) {
             return pad_reading(pad, &mut d.stick_moved);
         }
+        r.present = true;
         for (n, axis) in r
             .axes
             .iter_mut()
             .enumerate()
             .take(d.info.axes.count_ones() as usize)
+        {
+            *axis = joystick.axis(n as i32) as i32;
+        }
+        for (n, axis) in r
+            .profile_axes
+            .iter_mut()
+            .enumerate()
+            .take(d.info.profile_axes as usize)
         {
             *axis = joystick.axis(n as i32) as i32;
         }
@@ -493,8 +770,38 @@ impl Backend for SdlBackend {
         let Some(d) = self.devices.get_mut(device) else {
             return;
         };
-        let Some(haptic) = d.haptic else {
+        d.known.insert(id, (effect.clone(), start || playing));
+        if let Some(rumble) = d.rumble.as_mut() {
+            let since = rumble.effects.get(&id).and_then(|(_, since)| *since);
+            let since = if start {
+                Some(std::time::Instant::now())
+            } else if playing {
+                since
+            } else {
+                None
+            };
+            rumble.effects.insert(id, (effect.clone(), since));
+            rumble.set_at = Some(std::time::Instant::now());
             return;
+        }
+        let Some(haptic) = d.haptic.as_ref() else {
+            return;
+        };
+        // Without SDL's device gain, the strength is each effect's: its gain and its envelope's
+        // levels scaled by it.
+        let scaled;
+        let effect = if d.features & SDL_GAIN == 0 && d.gain < 10_000 {
+            let mut e = effect.clone();
+            e.gain = (e.gain as u64 * d.gain as u64 / 10_000) as u32;
+            if let Some(envelope) = e.envelope.as_mut() {
+                for level in [0, 2] {
+                    envelope[level] = (envelope[level] as u64 * d.gain as u64 / 10_000) as u32;
+                }
+            }
+            scaled = e;
+            &scaled
+        } else {
+            effect
         };
         let sdl = match sdl_effect(effect, d.features) {
             Ok(e) => e,
@@ -531,17 +838,27 @@ impl Backend for SdlBackend {
         let Some(d) = self.devices.get_mut(device) else {
             return;
         };
+        d.known.remove(&id);
+        if let Some(rumble) = d.rumble.as_mut() {
+            rumble.effects.remove(&id);
+        }
         if let Some(sdl_id) = d.effects.remove(&id)
-            && let Some(haptic) = d.haptic
+            && let Some(haptic) = d.haptic.as_ref()
         {
             haptic.destroy_effect(sdl_id);
         }
     }
 
     fn gain(&mut self, device: usize, gain: u32) {
+        if let Some(d) = self.devices.get_mut(device) {
+            d.gain = gain.min(10_000);
+        }
+        if let Some(rumble) = self.devices.get_mut(device).and_then(|d| d.rumble.as_mut()) {
+            rumble.gain = gain.min(10_000);
+        }
         if let Some(d) = self.devices.get(device)
             && d.features & SDL_GAIN != 0
-            && let Some(haptic) = d.haptic
+            && let Some(haptic) = d.haptic.as_ref()
         {
             haptic.set_gain((gain / 100) as i32);
         }
@@ -550,7 +867,7 @@ impl Backend for SdlBackend {
     fn centring(&mut self, device: usize, on: bool) {
         if let Some(d) = self.devices.get(device)
             && d.features & SDL_AUTOCENTER != 0
-            && let Some(haptic) = d.haptic
+            && let Some(haptic) = d.haptic.as_ref()
         {
             haptic.set_autocenter(if on { 100 } else { 0 });
         }
@@ -558,10 +875,16 @@ impl Backend for SdlBackend {
 
     fn acquired(&mut self, device: usize, on: bool) {
         // Given back, a device's effects stop (as DirectInput's exclusive devices do).
-        if !on
-            && let Some(d) = self.devices.get(device)
-            && let Some(haptic) = d.haptic
-        {
+        if on {
+            return;
+        }
+        let Some(d) = self.devices.get_mut(device) else {
+            return;
+        };
+        if let Some(rumble) = d.rumble.as_mut() {
+            rumble.stop(d.opened.as_ref().and_then(Opened::joystick));
+        }
+        if let Some(haptic) = d.haptic.as_ref() {
             haptic.stop_effects();
         }
     }
@@ -578,5 +901,54 @@ mod tests {
         assert_eq!(stick_axis(-32768, &mut moved), 0);
         assert_eq!(stick_axis(5, &mut moved), 5);
         assert_eq!(stick_axis(-32768, &mut moved), -32768);
+    }
+}
+
+#[cfg(test)]
+mod touch_pad_tests {
+    use super::*;
+    use rc2k_core::input::device_id::DeviceId;
+    use rc2k_core::input::profile::{AxisUse, Digital, Kind, Profile};
+    use rc2k_core::input::touch::{Button, PAD_NAME};
+
+    /// Each touch button presses what the default pad profile reads for its action.
+    #[test]
+    fn the_touch_buttons_press_what_the_pad_profile_reads() {
+        let id = DeviceId {
+            name: PAD_NAME.into(),
+            serial: None,
+            nth: 1,
+        };
+        let b = Profile::new(id, Kind::Pad).bindings;
+        let number = |pressed: SDL_GamepadButton| {
+            let at = PAD_BUTTONS
+                .iter()
+                .position(|p| *p == pressed)
+                .expect("a profile button");
+            Some(Digital::Button { button: at as u8 })
+        };
+        let pedal = |axis: SDL_GamepadAxis| {
+            Some(AxisUse::Pedal {
+                axis: axis.0 as u8,
+                rest_high: false,
+            })
+        };
+        for button in Button::ALL {
+            match (button, touch_pad_button(button)) {
+                (Button::Throttle, Err(axis)) => assert_eq!(b.accelerate_axis, pedal(axis)),
+                (Button::Brake, Err(axis)) => assert_eq!(b.brake_axis, pedal(axis)),
+                (Button::Handbrake, Ok(p)) => assert_eq!(b.handbrake, number(p)),
+                (Button::GearUp, Ok(p)) => assert_eq!(b.gear_up, number(p)),
+                (Button::GearDown, Ok(p)) => assert_eq!(b.gear_down, number(p)),
+                (Button::Camera, Ok(p)) => assert_eq!(b.camera, number(p)),
+                (Button::Lights, Ok(p)) => assert_eq!(b.lights, number(p)),
+                // The pause is read from Start as the menus' Escape, not from a binding.
+                (Button::Pause, Ok(p)) => assert_eq!(p.0, SDL_GAMEPAD_BUTTON_START.0),
+                (button, other) => panic!(
+                    "{button:?} presses {:?}",
+                    other.map(|p| p.0).map_err(|a| a.0)
+                ),
+            }
+        }
     }
 }

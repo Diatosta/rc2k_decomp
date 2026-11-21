@@ -38,7 +38,7 @@ pub fn ending(path: &[u8]) -> Result<[u8; 4], Invalid> {
 }
 
 /// The see-through colour of an overlay.
-pub const MAGENTA: u32 = 0xFF00FF;
+pub(crate) const MAGENTA: u32 = 0xFF00FF;
 
 /// Every pixel of the overlay but magenta over the picture: `width` x `height`, the
 /// overlay's rows `from_stride` bytes apart, the picture's `to_stride`. Refused: no width

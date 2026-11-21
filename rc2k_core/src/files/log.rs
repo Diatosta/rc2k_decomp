@@ -211,11 +211,16 @@ pub fn entry(enabled: i32, level: impl FnOnce() -> u32) -> Entry {
 }
 
 /// The most bytes a log line keeps: bytes are stored while the line is no longer than this.
-pub const LINE_LIMIT: usize = 0x93E42C - 0x93E080;
+pub(crate) const LINE_LIMIT: usize = 0x93E42C - 0x93E080;
 
 /// A line and the new line-start flag: at a line's start (flag 1) `indent` spaces (0 .. 80),
 /// then the message (cut at `LINE_LIMIT`), then "\r\n" (a new line starts) or a space.
-pub fn format_line(msg: &[u8], newline: bool, indent: i32, line_start: u32) -> (Vec<u8>, u32) {
+pub(crate) fn format_line(
+    msg: &[u8],
+    newline: bool,
+    indent: i32,
+    line_start: u32,
+) -> (Vec<u8>, u32) {
     let mut out = Vec::new();
     let mut flag = line_start;
     if flag == 1 {
@@ -249,15 +254,13 @@ pub enum Message {
 /// What `start` has found out by the log's start.
 #[derive(Clone, Debug, Default)]
 pub struct Machine {
-    /// `logfile::date_text`'s text, the version and a second text if any.
+    /// `logfile::date_text`'s text and the version.
     pub date: Vec<u8>,
     pub version: Vec<u8>,
-    pub second: Option<Vec<u8>>,
-    /// The processor's family, flags, name; clock, FPU, MMX, 3DNow, SSE.
+    /// The processor's family, flags, name; FPU, MMX, 3DNow, SSE.
     pub cpu_family: i32,
     pub cpu_flags: u32,
     pub cpu_name: Vec<u8>,
-    pub clock: i32,
     pub fpu: i32,
     pub mmx: i32,
     pub has_3dnow: i32,
@@ -282,9 +285,6 @@ pub fn head(m: &Machine) -> Vec<(Message, bool)> {
         (Text(m.date.clone()), true),
         (Text(m.version.clone()), true),
     ];
-    if let Some(second) = &m.second {
-        out.push((Text(second.clone()), true));
-    }
     out.push((t(b""), true));
     out.extend([
         (t(b"cpu="), false),
@@ -293,8 +293,7 @@ pub fn head(m: &Machine) -> Vec<(Message, bool)> {
         (Text(m.cpu_name.clone()), true),
     ]);
     for (name, v) in [
-        (&b"clk="[..], m.clock),
-        (b"fpu=", m.fpu),
+        (&b"fpu="[..], m.fpu),
         (b"mmx=", m.mmx),
         (b"amdk3d=", m.has_3dnow),
         (b"katmai=", m.katmai),
@@ -345,12 +344,7 @@ mod head_tests {
         assert_eq!(format_line(b"ab", false, 2, 0), (b"ab ".to_vec(), 0));
         let h = head(&Machine::default());
         assert_eq!(h[0], (Message::Text(b"Log started".to_vec()), false));
-        assert_eq!(h.len(), 39);
-        let second = Machine {
-            second: Some(b"x".to_vec()),
-            ..Machine::default()
-        };
-        assert_eq!(head(&second)[3], (Message::Text(b"x".to_vec()), true));
+        assert_eq!(h.len(), 37);
         assert_eq!(free_kb(8, 512, 4), 16);
         assert_eq!(free_kb(0x1000, 0x1000, 0x40000), u32::MAX);
         // The cluster's bytes wrap in 32 bits.

@@ -6,8 +6,8 @@ use crate::strings::format::{Pad, decimal};
 use std::ops::RangeInclusive;
 
 /// A CD-ROM's drive type and a RAM disk's: not offered.
-pub const CD_ROM: u32 = 5;
-pub const RAM_DISK: u32 = 6;
+pub(crate) const CD_ROM: u32 = 5;
+pub(crate) const RAM_DISK: u32 = 6;
 
 /// String ids of the size units, from KB up.
 pub const KB: u32 = 0xA6;

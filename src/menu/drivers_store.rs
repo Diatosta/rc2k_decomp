@@ -1,221 +1,204 @@
-//! The championship's drivers: the 180 computer drivers' records (0x94 bytes), the -1 that ends
-//! them for the walks (`menu::standings::drivers`), and the 180 name entries (0x14 bytes) a
-//! driver's first dword picks.
-//! No layout of their own: the savegame holds the records as bytes (`saves::gather_savegame`,
-//! `load_savegame`) and `shuffle_drivers` copies one as bytes, through `records_to_bytes` /
-//! `records_from_bytes` (the fields' dwords in declaration order, which the test pins to the
-//! file's offsets). The event code works on the records by field (`menu::standings::drivers`
-//! walks them).
-//! The fields' meanings are readings (`nationality`, `car` and `flag` at +8, +0x14 and +0x18:
-//! the time entries and the section screen say class, nationality and car).
+//! The championship's drivers: the 180 computer drivers' records (0x94 bytes) and the -1 that
+//! ends them for the walks (`menu::standings::walked`). A driver's name entry is its string
+//! `NAME_STRINGS + entry`.
+//! Plain fields behind one `RefCell` (the game's thread alone reads and writes them, each borrow
+//! lasting one statement). The savegame holds the records as bytes (`saves::gather_savegame`,
+//! `load_savegame`): `DriverTable::to_bytes` / `load_bytes` give and take the fields' dwords in
+//! declaration order, which the test pins to the file's offsets.
+//! The fields' meanings are readings (`class`, `nation` and `car`: the time entries and the
+//! section screen say class, nationality and car).
 
-use crate::memory::session::PlainDword;
-use crate::menu::owner::Cars;
+use crate::memory::session::GameThread;
+use std::cell::{Ref, RefCell, RefMut};
+
+/// How many drivers there are.
+pub const DRIVER_COUNT: usize = 180;
 
 /// A driver's record (0x94 bytes).
-#[derive(rc2k_derive::Cells)]
+#[derive(Clone, Copy)]
 pub struct Driver {
-    /// +0: the name entry, also the computer team's number (`menu::find_cpu_team`).
-    pub name_entry: PlainDword,
-    /// +4: 1 in all 180 shipped records; read by no code (saved with the record).
-    pub unknown_04: PlainDword,
-    /// +8: the class (a time entry's group, +0x1C).
-    pub class: PlainDword,
-    /// +0xC: the stage's time (`menu::calc_cpu_times`; a time entry's time).
-    pub time: PlainDword,
-    /// +0x10: the event's total time, each stage's added.
-    pub total: PlainDword,
-    /// +0x14: the nationality (a time entry's +8, the flag's sprite; `var\name.cfg`'s first
+    /// The name entry, also the computer team's number (`menu::find_cpu_team`).
+    pub name_entry: u32,
+    /// 1 in all 180 shipped records; read by no code (saved with the record).
+    pub reserved_04: u32,
+    /// The class (the `group` of a time entry).
+    pub class: u32,
+    /// The stage's time (`menu::calc_cpu_times`; a time entry's time).
+    pub time: u32,
+    /// The event's total time, each stage's added.
+    pub total: u32,
+    /// The nationality (a time entry's `nation`, the flag's sprite; `var\name.cfg`'s first
     /// number).
-    pub nation: PlainDword,
-    /// +0x18: the car (a time entry's +0x10; `name.cfg`'s second number).
-    pub car: PlainDword,
-    /// +0x1C: 0 in all 180 shipped records; read by no code (saved with the record).
-    pub unknown_1c: PlainDword,
-    /// +0x20: 0 in all 180 shipped records and put back to 0 at an event's start (`begin`); read by
+    pub nation: u32,
+    /// The car (a time entry's `car`; `name.cfg`'s second number).
+    pub car: u32,
+    /// 0 in all 180 shipped records; read by no code (saved with the record).
+    pub reserved_1c: u32,
+    /// 0 in all 180 shipped records and put back to 0 at an event's start (`begin`); read by
     /// no code (saved with the record).
-    pub unread_zero_20: PlainDword,
-    /// +0x24: 1 while in the event (`IN_EVENT`), 4 once dropped out
+    pub unread_zero_20: u32,
+    /// 1 while in the event (`IN_EVENT`), 4 once dropped out
     /// (`rc2k_core::menu::event_races::DROPPED`).
-    pub in_event: PlainDword,
-    /// +0x28: 0 in all 180 shipped records; read by no code (saved with the record).
-    pub unknown_28: PlainDword,
-    /// +0x2C: twelve figures set to 100 at an event's start (the car's condition).
-    pub condition: [PlainDword; 12],
-    /// +0x5C: the result slots: six sections' overall points and their total, then six
+    pub in_event: u32,
+    /// 0 in all 180 shipped records; read by no code (saved with the record).
+    pub reserved_28: u32,
+    /// Twelve figures set to 100 at an event's start (the car's condition).
+    pub condition: [u32; 12],
+    /// The result slots: six sections' overall points and their total, then six
     /// sections' stage points and their total (`menu::clear_result_slots`,
     /// `menu::award_overall_points`, `menu::award_stage_points`).
-    pub results: [PlainDword; 14],
+    pub results: [u32; 14],
 }
+
+/// A driver's record in the savegame, in bytes.
+pub(super) const DRIVER_LEN: usize = 0x94;
+
+/// The dwords of a record.
+const WORDS: usize = DRIVER_LEN / 4;
 
 impl Driver {
     /// Driver `index` of the championship: the fields the 180 shipped records share are
     /// filled in (see `DRIVER_ROWS` for the ones that differ).
     const fn new(index: u32, [class, nation, car]: [u32; 3]) -> Self {
         Self {
-            name_entry: PlainDword::new(index),
-            unknown_04: PlainDword::new(1),
-            class: PlainDword::new(class),
-            time: PlainDword::new(0),
-            total: PlainDword::new(0),
-            nation: PlainDword::new(nation),
-            car: PlainDword::new(car),
-            unknown_1c: PlainDword::new(0),
-            unread_zero_20: PlainDword::new(0),
-            in_event: PlainDword::new(IN_EVENT),
-            unknown_28: PlainDword::new(0),
-            condition: [const { PlainDword::new(100) }; 12],
+            name_entry: index,
+            reserved_04: 1,
+            class,
+            time: 0,
+            total: 0,
+            nation,
+            car,
+            reserved_1c: 0,
+            unread_zero_20: 0,
+            in_event: IN_EVENT,
+            reserved_28: 0,
+            condition: [100; 12],
             // Six sections' overall points and their total (the last of them 0), then the
             // same for the stage points.
             results: [
-                const { PlainDword::new(0xFFFF_FFFF) },
-                const { PlainDword::new(0xFFFF_FFFF) },
-                const { PlainDword::new(0xFFFF_FFFF) },
-                const { PlainDword::new(0xFFFF_FFFF) },
-                const { PlainDword::new(0xFFFF_FFFF) },
-                const { PlainDword::new(0xFFFF_FFFF) },
-                const { PlainDword::new(0) },
-                const { PlainDword::new(0xFFFF_FFFF) },
-                const { PlainDword::new(0xFFFF_FFFF) },
-                const { PlainDword::new(0xFFFF_FFFF) },
-                const { PlainDword::new(0xFFFF_FFFF) },
-                const { PlainDword::new(0xFFFF_FFFF) },
-                const { PlainDword::new(0xFFFF_FFFF) },
-                const { PlainDword::new(0) },
+                0xFFFF_FFFF,
+                0xFFFF_FFFF,
+                0xFFFF_FFFF,
+                0xFFFF_FFFF,
+                0xFFFF_FFFF,
+                0xFFFF_FFFF,
+                0,
+                0xFFFF_FFFF,
+                0xFFFF_FFFF,
+                0xFFFF_FFFF,
+                0xFFFF_FFFF,
+                0xFFFF_FFFF,
+                0xFFFF_FFFF,
+                0,
             ],
         }
     }
-}
 
-/// A driver's record in the savegame, in bytes.
-pub const DRIVER_LEN: usize = 0x94;
-
-const _: () = assert!(core::mem::size_of::<Driver>() == DRIVER_LEN);
-
-/// The bytes of `records` as the savegame holds them: each record's dwords in the file's order
-/// (the fields' declaration order; `the_records_are_the_files_bytes` holds it to the offsets).
-pub fn records_to_bytes(records: &[Driver]) -> Vec<u8> {
-    records
-        .iter()
-        .flat_map(crate::memory::cells::flatten)
-        .collect()
-}
-
-/// `records_to_bytes`' inverse: `bytes` (a whole number of records for `records`, else refused,
-/// writing nothing) set into `records`.
-pub fn records_from_bytes(records: &[Driver], bytes: &[u8]) -> Result<(), crate::errors::BadInput> {
-    if bytes.len() != records.len() * DRIVER_LEN {
-        return Err(crate::errors::BadInput(
-            "saved drivers of another length than the table",
-        ));
+    /// The record's dwords in the file's order (the fields' declaration order).
+    fn words(&self) -> [u32; WORDS] {
+        let mut out = [0u32; WORDS];
+        out[..11].copy_from_slice(&[
+            self.name_entry,
+            self.reserved_04,
+            self.class,
+            self.time,
+            self.total,
+            self.nation,
+            self.car,
+            self.reserved_1c,
+            self.unread_zero_20,
+            self.in_event,
+            self.reserved_28,
+        ]);
+        out[11..23].copy_from_slice(&self.condition);
+        out[23..].copy_from_slice(&self.results);
+        out
     }
-    struct Writer<'a>(&'a [u8]);
-    impl crate::memory::cells::CellVisitor for Writer<'_> {
-        fn enter(&mut self, _: &'static str) {}
-        fn index(&mut self, _: usize) {}
-        fn leave(&mut self) {}
-        fn leaf(&mut self, _: &[u8]) {}
-        fn run(&mut self, run: crate::memory::cells::CellRun<'_>) {
-            let (now, rest) = self.0.split_at(run.len());
-            run.store(0, now);
-            self.0 = rest;
+
+    /// The record `words` (the file's order) hold.
+    fn from_words(w: &[u32; WORDS]) -> Self {
+        Self {
+            name_entry: w[0],
+            reserved_04: w[1],
+            class: w[2],
+            time: w[3],
+            total: w[4],
+            nation: w[5],
+            car: w[6],
+            reserved_1c: w[7],
+            unread_zero_20: w[8],
+            in_event: w[9],
+            reserved_28: w[10],
+            condition: std::array::from_fn(|k| w[11 + k]),
+            results: std::array::from_fn(|k| w[23 + k]),
         }
     }
-    let (chunks, _) = bytes.as_chunks::<DRIVER_LEN>();
-    for (record, bytes) in records.iter().zip(chunks) {
-        crate::memory::cells::Cells::visit(record, &mut Writer(&bytes[..]));
-    }
-    Ok(())
 }
 
-/// A driver's +0x24 while in the event.
-pub const IN_EVENT: u32 = 1;
+/// A driver's `in_event` while in the event.
+pub(super) const IN_EVENT: u32 = 1;
 
 impl Driver {
     /// Back in the event with no times (`menu::reset_drivers`).
-    pub fn reset(&self) {
-        self.in_event.set(IN_EVENT);
-        self.time.set(0);
-        self.total.set(0);
+    pub fn reset(&mut self) {
+        self.in_event = IN_EVENT;
+        self.time = 0;
+        self.total = 0;
     }
 
-    /// An event's start (`menu::begin_event`, `menu::reset_single_event`): no times, +0x20
-    /// 0, in the event.
-    pub fn begin(&self) {
+    /// An event's start (`menu::begin_event`, `menu::reset_single_event`): no times, the
+    /// unread field 0, in the event.
+    pub fn begin(&mut self) {
         self.reset();
-        self.unread_zero_20.set(0);
+        self.unread_zero_20 = 0;
     }
 
     /// The twelve condition figures back at 100 (`menu::reset_driver_condition`).
-    pub fn reset_condition(&self) {
-        for c in &self.condition {
-            c.set(100);
-        }
+    pub(super) fn reset_condition(&mut self) {
+        self.condition = [100; 12];
     }
 
     /// The result slots emptied (`menu::clear_result_slots`).
-    pub fn clear_results(&self) {
-        for (k, slot) in self.results.iter().enumerate() {
-            slot.set(rc2k_core::menu::event::empty_result_slot(k));
+    pub fn clear_results(&mut self) {
+        for (k, slot) in self.results.iter_mut().enumerate() {
+            *slot = rc2k_core::menu::event::empty_result_slot(k);
         }
     }
 
     /// The overall points of section `section` (0 .. 5; `menu::award_overall_points`).
-    pub fn overall(&self, section: usize) -> &PlainDword {
-        &self.results[section]
+    pub fn overall(&mut self, section: usize) -> &mut u32 {
+        &mut self.results[section]
     }
 
     /// The total of the overall points.
-    pub fn overall_total(&self) -> &PlainDword {
-        &self.results[6]
+    pub(super) fn overall_total(&mut self) -> &mut u32 {
+        &mut self.results[6]
     }
 
     /// The stage points of section `section` (0 .. 5; `menu::award_stage_points`).
-    pub fn stage(&self, section: usize) -> &PlainDword {
-        &self.results[7 + section]
+    pub fn stage(&mut self, section: usize) -> &mut u32 {
+        &mut self.results[7 + section]
     }
 
     /// The total of the stage points.
-    pub fn stage_total(&self) -> &PlainDword {
-        &self.results[13]
+    pub(super) fn stage_total(&mut self) -> &mut u32 {
+        &mut self.results[13]
     }
 }
 
-/// A driver's name entry (0x14 bytes): the string's id and four dwords.
-#[derive(rc2k_derive::Cells)]
-pub struct DriverName {
-    pub string: PlainDword,
-    pub unknown_04: [PlainDword; 4],
-}
-
-impl DriverName {
-    /// Name entry `index`: its string id is `0x5A5 + index`, its last dword 100 in all 180;
-    /// `NAME_ROWS` holds the three that differ.
-    const fn new(index: u32, [a, b, c]: [u32; 3]) -> Self {
-        Self {
-            string: PlainDword::new(0x5A5 + index),
-            unknown_04: [
-                PlainDword::new(a),
-                PlainDword::new(b),
-                PlainDword::new(c),
-                PlainDword::new(100),
-            ],
-        }
-    }
-}
-
-#[derive(rc2k_derive::Cells)]
-pub struct DriverTable {
-    pub drivers: [Driver; 180],
+/// The records and the walks' end.
+pub struct DriverTables {
+    pub drivers: [Driver; DRIVER_COUNT],
     /// -1, the walks' end.
-    pub end: PlainDword,
-    /// The 180 name entries a driver's first dword picks.
-    pub names: [DriverName; 180],
+    pub end: u32,
 }
+
+/// The drivers' records and their end mark, behind one `RefCell`.
+pub struct DriverTable(GameThread<RefCell<DriverTables>>);
 
 /// The columns of the 180 driver records that differ from driver to driver, one row a
-/// driver (the row number is the driver's number and its name entry): class (+8), nation
-/// (+0x14), car (+0x18). Every other field is the same in all 180 (`Driver::new`).
+/// driver (the row number is the driver's number and its name entry): class, nation
+/// and car. Every other field is the same in all 180 (`Driver::new`).
 #[rustfmt::skip]
 const DRIVER_ROWS: [[u32; 3]; 180] = [
     [0, 0, 4], // 0
@@ -400,223 +383,82 @@ const DRIVER_ROWS: [[u32; 3]; 180] = [
     [3, 19, 21], // 179
 ];
 
-/// The columns of the 180 name entries that differ, one row an entry (the row number is
-/// the entry's number): the dwords at +4, +8 and +0xC. The string id (+0) is `0x5A5 +
-/// number` and the dword at +0x10 is 100 in all 180 (`DriverName::new`).
-#[rustfmt::skip]
-const NAME_ROWS: [[u32; 3]; 180] = [
-    [0, 9, 10], // 0
-    [1, 8, 4], // 1
-    [2, 7, 8], // 2
-    [3, 6, 5], // 3
-    [4, 5, 3], // 4
-    [5, 4, 8], // 5
-    [6, 3, 7], // 6
-    [7, 8, 6], // 7
-    [8, 8, 9], // 8
-    [9, 3, 6], // 9
-    [10, 8, 1], // 10
-    [11, 5, 7], // 11
-    [12, 7, 6], // 12
-    [13, 9, 5], // 13
-    [15, 8, 4], // 14
-    [14, 7, 7], // 15
-    [16, 6, 4], // 16
-    [17, 5, 3], // 17
-    [18, 4, 5], // 18
-    [19, 5, 8], // 19
-    [20, 6, 6], // 20
-    [21, 4, 7], // 21
-    [22, 8, 9], // 22
-    [23, 7, 10], // 23
-    [24, 6, 10], // 24
-    [25, 5, 10], // 25
-    [26, 9, 2], // 26
-    [27, 8, 1], // 27
-    [28, 7, 5], // 28
-    [29, 6, 3], // 29
-    [30, 5, 5], // 30
-    [31, 8, 5], // 31
-    [32, 7, 10], // 32
-    [33, 9, 4], // 33
-    [34, 4, 8], // 34
-    [35, 3, 5], // 35
-    [36, 5, 3], // 36
-    [37, 2, 8], // 37
-    [38, 1, 7], // 38
-    [39, 9, 6], // 39
-    [0, 5, 4], // 40
-    [1, 4, 6], // 41
-    [2, 4, 10], // 42
-    [3, 4, 2], // 43
-    [4, 4, 6], // 44
-    [5, 4, 5], // 45
-    [6, 4, 4], // 46
-    [7, 4, 7], // 47
-    [8, 4, 4], // 48
-    [9, 3, 3], // 49
-    [10, 2, 5], // 50
-    [11, 1, 8], // 51
-    [12, 6, 6], // 52
-    [13, 5, 7], // 53
-    [15, 4, 9], // 54
-    [14, 3, 10], // 55
-    [16, 2, 10], // 56
-    [17, 1, 10], // 57
-    [18, 7, 2], // 58
-    [19, 9, 1], // 59
-    [20, 4, 5], // 60
-    [21, 3, 3], // 61
-    [22, 5, 5], // 62
-    [23, 2, 5], // 63
-    [24, 1, 10], // 64
-    [25, 9, 4], // 65
-    [26, 8, 8], // 66
-    [27, 7, 5], // 67
-    [28, 6, 3], // 68
-    [29, 5, 8], // 69
-    [30, 4, 7], // 70
-    [31, 5, 6], // 71
-    [32, 6, 9], // 72
-    [33, 4, 6], // 73
-    [34, 8, 10], // 74
-    [35, 7, 2], // 75
-    [36, 6, 6], // 76
-    [37, 5, 5], // 77
-    [38, 9, 4], // 78
-    [39, 8, 7], // 79
-    [0, 7, 4], // 80
-    [1, 6, 3], // 81
-    [2, 5, 5], // 82
-    [3, 8, 8], // 83
-    [4, 7, 6], // 84
-    [5, 9, 7], // 85
-    [6, 4, 9], // 86
-    [7, 3, 10], // 87
-    [8, 5, 10], // 88
-    [9, 2, 10], // 89
-    [0, 9, 7], // 90
-    [0, 8, 4], // 91
-    [12, 8, 5], // 92
-    [13, 7, 3], // 93
-    [15, 6, 5], // 94
-    [14, 5, 5], // 95
-    [16, 4, 10], // 96
-    [17, 5, 4], // 97
-    [18, 6, 8], // 98
-    [19, 4, 5], // 99
-    [0, 8, 3], // 100
-    [37, 7, 8], // 101
-    [11, 6, 9], // 102
-    [23, 5, 6], // 103
-    [24, 9, 9], // 104
-    [25, 8, 6], // 105
-    [26, 7, 10], // 106
-    [27, 6, 2], // 107
-    [0, 8, 6], // 108
-    [29, 8, 5], // 109
-    [30, 7, 4], // 110
-    [31, 9, 7], // 111
-    [32, 4, 4], // 112
-    [33, 3, 3], // 113
-    [34, 5, 5], // 114
-    [35, 2, 8], // 115
-    [36, 1, 6], // 116
-    [37, 9, 7], // 117
-    [38, 8, 9], // 118
-    [0, 7, 10], // 119
-    [11, 8, 5], // 120
-    [0, 5, 9], // 121
-    [0, 4, 9], // 122
-    [0, 8, 1], // 123
-    [0, 6, 5], // 124
-    [0, 9, 3], // 125
-    [0, 8, 5], // 126
-    [0, 7, 5], // 127
-    [8, 6, 10], // 128
-    [9, 5, 4], // 129
-    [10, 9, 8], // 130
-    [11, 8, 5], // 131
-    [12, 7, 3], // 132
-    [0, 6, 8], // 133
-    [0, 7, 7], // 134
-    [14, 8, 6], // 135
-    [16, 7, 9], // 136
-    [0, 9, 6], // 137
-    [18, 4, 10], // 138
-    [19, 3, 2], // 139
-    [0, 5, 6], // 140
-    [0, 4, 5], // 141
-    [0, 6, 4], // 142
-    [0, 9, 7], // 143
-    [24, 8, 4], // 144
-    [25, 7, 3], // 145
-    [26, 6, 5], // 146
-    [27, 5, 8], // 147
-    [28, 4, 6], // 148
-    [29, 5, 7], // 149
-    [30, 6, 9], // 150
-    [31, 4, 10], // 151
-    [32, 8, 10], // 152
-    [33, 7, 10], // 153
-    [34, 6, 2], // 154
-    [35, 5, 1], // 155
-    [36, 9, 5], // 156
-    [0, 8, 3], // 157
-    [0, 7, 5], // 158
-    [0, 6, 5], // 159
-    [0, 5, 10], // 160
-    [37, 8, 4], // 161
-    [0, 7, 8], // 162
-    [3, 9, 5], // 163
-    [4, 4, 3], // 164
-    [5, 3, 8], // 165
-    [37, 5, 7], // 166
-    [0, 2, 6], // 167
-    [0, 1, 9], // 168
-    [13, 9, 6], // 169
-    [10, 8, 10], // 170
-    [11, 7, 2], // 171
-    [12, 6, 6], // 172
-    [13, 5, 5], // 173
-    [15, 4, 4], // 174
-    [14, 5, 7], // 175
-    [16, 6, 4], // 176
-    [17, 4, 3], // 177
-    [18, 8, 5], // 178
-    [19, 7, 8], // 179
-];
-
 impl DriverTable {
     pub const fn new() -> Self {
-        let mut drivers = [const { Driver::new(0, [0, 0, 0]) }; 180];
-        let mut names = [const { DriverName::new(0, [0, 0, 0]) }; 180];
+        let mut drivers = [Driver::new(0, [0, 0, 0]); DRIVER_COUNT];
         let mut k = 0;
-        while k < 180 {
+        while k < DRIVER_COUNT {
             drivers[k] = Driver::new(k as u32, DRIVER_ROWS[k]);
-            names[k] = DriverName::new(k as u32, NAME_ROWS[k]);
             k += 1;
         }
-        DriverTable {
+        DriverTable(GameThread::new(RefCell::new(DriverTables {
             drivers,
-            end: PlainDword::new(0xFFFF_FFFF),
-            names,
+            end: 0xFFFF_FFFF,
+        })))
+    }
+
+    /// The tables, to read: no borrow outlives the statement that reads them.
+    pub fn read(&self) -> Ref<'_, DriverTables> {
+        self.0.get().borrow()
+    }
+
+    /// The tables, to write.
+    pub fn write(&self) -> RefMut<'_, DriverTables> {
+        self.0.get().borrow_mut()
+    }
+
+    /// `f` on each of the first `count` drivers.
+    pub fn each(&self, count: usize, f: fn(&mut Driver)) {
+        self.write().drivers[..count].iter_mut().for_each(f);
+    }
+
+    /// The bytes of the 180 records as the savegame holds them: each record's dwords in the
+    /// file's order (`the_records_are_the_files_bytes` holds it to the offsets).
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.read()
+            .drivers
+            .iter()
+            .flat_map(|d| d.words().into_iter().flat_map(u32::to_le_bytes))
+            .collect()
+    }
+
+    /// `to_bytes`' inverse: `bytes` (the 180 records, else refused, writing nothing) set into
+    /// the records.
+    pub fn load_bytes(&self, bytes: &[u8]) -> Result<(), crate::errors::BadInput> {
+        if bytes.len() != DRIVER_COUNT * DRIVER_LEN {
+            return Err(crate::errors::BadInput(
+                "saved drivers of another length than the table",
+            ));
         }
+        let mut tables = self.write();
+        let (chunks, _) = bytes.as_chunks::<DRIVER_LEN>();
+        for (driver, chunk) in tables.drivers.iter_mut().zip(chunks) {
+            let (words, _) = chunk.as_chunks::<4>();
+            let words: [u32; WORDS] = std::array::from_fn(|k| u32::from_le_bytes(words[k]));
+            *driver = Driver::from_words(&words);
+        }
+        Ok(())
+    }
+
+    /// Drivers `a` and `b` changed places (`menu::shuffle_drivers`).
+    pub fn swap(&self, a: usize, b: usize) {
+        self.write().drivers.swap(a, b);
     }
 }
 
+/// The string id of the first name entry; entry `n` is `NAME_STRINGS + n`.
+const NAME_STRINGS: u32 = 0x5A5;
+
 /// The string id of name entry `entry` (a driver's first dword). An entry past the 180 is
 /// refused (a 1999 bug fixed: it read on past them).
-pub fn name_string(cars: &Cars, entry: u32) -> Result<u32, crate::errors::BadInput> {
-    Ok(cars
-        .drivers
-        .names
-        .get(entry as usize)
-        .ok_or(crate::errors::BadInput(
+pub fn name_string(entry: u32) -> Result<u32, crate::errors::BadInput> {
+    if (entry as usize) < DRIVER_COUNT {
+        Ok(NAME_STRINGS + entry)
+    } else {
+        Err(crate::errors::BadInput(
             "a driver's name entry past the 180",
-        ))?
-        .string
-        .get())
+        ))
+    }
 }
 
 #[cfg(test)]
@@ -648,9 +490,9 @@ mod tests {
     #[test]
     fn the_records_are_the_files_bytes() {
         let table = DriverTable::new();
-        let expected: Vec<u8> = (0..180).flat_map(file_record).collect();
-        let bytes = records_to_bytes(&table.drivers);
-        assert_eq!(bytes.len(), 180 * DRIVER_LEN);
+        let expected: Vec<u8> = (0..DRIVER_COUNT as u32).flat_map(file_record).collect();
+        let bytes = table.to_bytes();
+        assert_eq!(bytes.len(), DRIVER_COUNT * DRIVER_LEN);
         assert!(
             bytes == expected,
             "the records' bytes differ from the file's"
@@ -658,9 +500,23 @@ mod tests {
         // Another table takes them and gives them back; a wrong length writes nothing.
         let other = DriverTable::new();
         let changed: Vec<u8> = (0..bytes.len()).map(|n| (n * 7 + 3) as u8).collect();
-        records_from_bytes(&other.drivers, &changed).unwrap();
-        assert!(records_to_bytes(&other.drivers) == changed);
-        assert!(records_from_bytes(&other.drivers, &changed[1..]).is_err());
-        assert!(records_to_bytes(&other.drivers) == changed);
+        other.load_bytes(&changed).unwrap();
+        assert!(other.to_bytes() == changed);
+        assert!(other.load_bytes(&changed[1..]).is_err());
+        assert!(other.to_bytes() == changed);
+    }
+
+    /// Two records changing places is the bytes of both swapped.
+    #[test]
+    fn a_swap_changes_places() {
+        let table = DriverTable::new();
+        let before = table.to_bytes();
+        table.swap(3, 100);
+        let after = table.to_bytes();
+        let record = |bytes: &[u8], k: usize| bytes[k * DRIVER_LEN..(k + 1) * DRIVER_LEN].to_vec();
+        assert_eq!(record(&after, 3), record(&before, 100));
+        assert_eq!(record(&after, 100), record(&before, 3));
+        table.swap(7, 7);
+        assert!(table.to_bytes() == after);
     }
 }

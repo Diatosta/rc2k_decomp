@@ -13,11 +13,11 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 /// WaitForSingleObject's answers.
-pub const WAIT_OBJECT_0: u32 = 0;
+const WAIT_OBJECT_0: u32 = 0;
 pub const WAIT_TIMEOUT: u32 = 0x102;
 pub const WAIT_FAILED: u32 = u32::MAX;
 /// A wait with no end.
-pub const INFINITE: u32 = u32::MAX;
+pub(super) const INFINITE: u32 = u32::MAX;
 
 #[derive(Debug)]
 enum State {
@@ -73,8 +73,22 @@ fn object(handle: u32) -> Option<Arc<Object>> {
 static NEXT_ID: AtomicU32 = AtomicU32::new(1);
 
 thread_local! {
+    #[cfg_attr(
+        target_os = "android",
+        allow(
+            clippy::missing_const_for_thread_local,
+            reason = "clippy reports an initializer that is already const when building for Android"
+        )
+    )]
     static ID: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
     /// Whether `spawn` made the thread (`exit_thread` unwinds only there).
+    #[cfg_attr(
+        target_os = "android",
+        allow(
+            clippy::missing_const_for_thread_local,
+            reason = "clippy reports an initializer that is already const when building for Android"
+        )
+    )]
     static SPAWNED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
@@ -222,7 +236,7 @@ pub fn spawn(name: &str, id: u32, routine: impl FnOnce() + Send + 'static) -> Op
             if let Err(payload) = ended
                 && !payload.is::<ThreadExit>()
             {
-                crate::standalone::finish(
+                crate::platform::ffi::process::finish(
                     &format!(
                         "sync: the thread {id} ({:?}) panicked",
                         std::thread::current().name()
@@ -239,7 +253,10 @@ pub fn spawn(name: &str, id: u32, routine: impl FnOnce() + Send + 'static) -> Op
 /// unwinds to the thread's start. On another thread it ends the program.
 pub fn exit_thread() -> ! {
     if !SPAWNED.with(std::cell::Cell::get) {
-        crate::standalone::finish("sync: a thread not started here was to end itself", 1);
+        crate::platform::ffi::process::finish(
+            "sync: a thread not started here was to end itself",
+            1,
+        );
     }
     std::panic::resume_unwind(Box::new(ThreadExit))
 }

@@ -37,8 +37,8 @@ pub struct MarkSwitches {
 }
 
 /// The switch bytes' first offset in the car block, and their number.
-pub const FIRST_SWITCH: u32 = 0xAC0;
-pub const SWITCH_BYTES: usize = 0x11;
+pub(crate) const FIRST_SWITCH: u32 = 0xAC0;
+pub(crate) const SWITCH_BYTES: usize = 0x11;
 
 /// The switches of the car part matrices (the broken parts' bytes are cut twice: same as once).
 pub fn mark_switches(p: &PartState) -> MarkSwitches {
@@ -107,7 +107,7 @@ pub fn steering(word: u32) -> u32 {
 }
 
 /// An axle value x 0x10000 / 1000; None where the division would overflow.
-pub fn per_thousand(v: i64) -> Option<u32> {
+pub(crate) fn per_thousand(v: i64) -> Option<u32> {
     let q = v * 0x1_0000 / 1000;
     (i32::MIN as i64..=i32::MAX as i64)
         .contains(&q)

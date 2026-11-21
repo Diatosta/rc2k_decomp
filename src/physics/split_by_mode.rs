@@ -2,22 +2,22 @@
 //! `place`) into the place field; 1 `physics::rank_split_time`; 3 `physics::compare_split_times`;
 //! otherwise nothing.
 //!
-//! Callers: `physics::take_split`, `physics::take_split_counted`. Refuses what the steps refuse.
+//! Refuses what the steps refuse.
 use crate::errors::Refused;
 use crate::physics::compare_split_times::compare_split_times;
 use crate::physics::rank_split_time::rank_split_time;
 use crate::physics::split_tables_store::SplitTables;
-use crate::race::groups_store::PanelAndOverlay;
 use crate::race::league_store::League;
+use crate::race::overlay_store::OverlayBlock;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::splits::{SplitFigure, split_figure};
 
 // Core: `rc2k_core::physics::splits::split_figure`.
-pub fn split_by_mode(
+pub(super) fn split_by_mode(
     o: crate::owners::Owners<'static>,
-    split_tables: &SplitTables,
-    league: &League,
-    panel_and_overlay: &PanelAndOverlay,
+    split_tables: &mut SplitTables,
+    league: &mut League,
+    overlay: &std::cell::RefCell<OverlayBlock>,
     shared: &RaceShared,
     car_blocks: &crate::race::blocks_store::CarBlocks,
 ) -> Result<(), Refused> {
@@ -26,7 +26,7 @@ pub fn split_by_mode(
             shared.car().split_gaps[0].set(car_blocks.cars[0].mode2_place.get());
             Ok(())
         }
-        SplitFigure::Rank => rank_split_time(o, split_tables, panel_and_overlay, shared),
+        SplitFigure::Rank => rank_split_time(o, split_tables, overlay, shared),
         SplitFigure::Compare => {
             compare_split_times(league, shared.work.get(), &shared.state, shared.car())
         }

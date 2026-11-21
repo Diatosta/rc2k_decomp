@@ -1,27 +1,27 @@
 //! `scene::build_texture_catalogue`: gets memory for every texture that is needed, making the
 //! textures smaller group by group until it is had.
 //!
-//! The listing is one list of 432 steps of a few kinds, which `scene/texture_steps.rs` holds
-//! as a table (made by `tools/texture_catalogue`): log a text or a number; count a reduction in
+//! The listing is one list of 352 steps of a few kinds, which `scene/texture_steps.rs` holds
+//! as a table: log a text or a number; count a reduction in
 //! the counters (0x100 of them); raise the level a tag's textures are needed at
 //! (`scene::raise_texture_needs`: a higher level is a smaller texture); try
 //! (`scene::try_allocate_textures`), which ends the list when it succeeds; release what a
 //! failed try took (`gfx::release_all_textures`); and a group of steps skipped when a flag is
 //! set.
 //!
-//! Before the list the counters are zeroed and the eight step flags set: 1 for the first, 0
-//! for the others. So the list reads: try as things are; else your cars 2 .. 8 down from 256 to
-//! 128, try; and so on through the other cars, the scenery, the sky, the front end, each time
-//! one group one step smaller. After a successful try: "Allocated textures OK -", the needs
-//! counted once more for the log, a rule. After the last failed one: "Cant allocate enough
-//! textures" and fatal error 0x80600403. One caller, `scene::set_up_textures`.
+//! Before the list the counters are zeroed and the eight step flags set: 1 for the first, 0 for the
+//! others. So the list reads: try as things are; else your cars 2 .. 8 down from 256 to 128, try;
+//! and so on through the other cars, the scenery, the sky, the front end, each time one group one
+//! step smaller. After a successful try: "Allocated textures OK -", the needs counted once more for
+//! the log, a rule. After the last failed one: "Cant allocate enough textures" and fatal error
+//! 0x80600403.
 
-use crate::errors::{FatalError, Refused};
+use crate::errors::{BadInput, FatalError, Refused};
 use crate::logfile::log_int::log_int;
-use crate::scene::count_texture_needs::count_texture_needs_in_game;
+use crate::scene::count_texture_needs::count_texture_needs;
 use crate::scene::raise_texture_needs::raise_texture_needs;
 use crate::scene::texture_steps::{DONE, FAILED, STEPS};
-use crate::scene::try_allocate_textures::try_allocate_textures_in_game;
+use crate::scene::try_allocate_textures::try_allocate_textures;
 use std::ffi::CStr;
 
 // ---- game data ----
@@ -70,7 +70,6 @@ fn run(
     steps: &'static [Step],
     call: &mut dyn FnMut(Call) -> Result<bool, Refused>,
 ) -> Result<bool, Refused> {
-    let textures = &scene.textures;
     for step in steps {
         match *step {
             Step::Text(text, newline) => {
@@ -83,12 +82,12 @@ fn run(
                 call(Call::Raise { level, tag })?;
             }
             Step::Count(index) => {
-                let counter = crate::scene::texture_places_store::cell_at(
-                    textures.places.get(),
-                    crate::scene::texture_places_store::PlacesTable::Counters,
-                    index,
-                )?;
-                counter.set(counter.get().wrapping_add(1));
+                let mut places = scene.texture_places_mut();
+                let counter = places
+                    .counters
+                    .get_mut(index as usize)
+                    .ok_or(BadInput("a counter past the texture places' counters"))?;
+                *counter = counter.wrapping_add(1);
             }
             Step::Try => {
                 if call(Call::Try)? {
@@ -102,7 +101,8 @@ fn run(
                 call(Call::CountNeeds)?;
             }
             Step::Unless(flag, inner) => {
-                if textures.places.get().step_flags[flag].get() == 0 && run(scene, inner, call)? {
+                let skipped = scene.texture_places().step_flags[flag] != 0;
+                if !skipped && run(scene, inner, call)? {
                     return Ok(true);
                 }
             }
@@ -115,12 +115,12 @@ pub fn build_texture_catalogue(
     call: &mut dyn FnMut(Call) -> Result<bool, Refused>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let textures = &scene.textures;
-    for counter in &textures.places.get().counters {
-        counter.set(0);
-    }
-    for (n, flag) in textures.places.get().step_flags.iter().enumerate() {
-        flag.set((n == 0) as u32);
+    {
+        let mut places = scene.texture_places_mut();
+        places.counters.fill(0);
+        for (n, flag) in places.step_flags.iter_mut().enumerate() {
+            *flag = (n == 0) as u32;
+        }
     }
     if run(scene, &STEPS, call)? {
         run(scene, &DONE, call)?;
@@ -145,10 +145,10 @@ pub fn build_texture_catalogue_in_game(
                 Call::Raise { level, tag } => {
                     raise_texture_needs(level, tag, scene);
                 }
-                Call::Try => return Ok(try_allocate_textures_in_game(shared, scene, gfx, d3d)?),
-                Call::Release => crate::platform::direct3d::release_all_textures(gfx),
+                Call::Try => return Ok(try_allocate_textures(shared, scene, gfx, d3d)?),
+                Call::Release => crate::d3d::device::release_all_textures(gfx),
                 Call::CountNeeds => {
-                    count_texture_needs_in_game(scene)?;
+                    count_texture_needs(scene)?;
                 }
             }
             Ok(false)

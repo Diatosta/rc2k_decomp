@@ -14,8 +14,9 @@ use crate::audio::owner::Audio;
 use crate::audio::sample_data::SampleData;
 use crate::audio::samples::SampleFile;
 use crate::audio::store::{AudioShared, CHANNEL_IDLE};
-use crate::memory::session::{Plain, PlainBytes, PlainDword};
-use crate::memory::{ListCells, MemoryList};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::{Plain, PlainDword};
+use crate::memory::{MemoryList, PlainList};
 use rc2k_core::audio::commands::SoundList;
 use rc2k_core::audio::voices::MixerChannel;
 
@@ -27,8 +28,6 @@ pub struct AudioOwn {
     pub audio_turn_tick: PlainDword,
     /// The mode DirectSound was opened with.
     pub opened_sound_mode: PlainDword,
-    /// 1 when a DirectSound buffer was lost (the thread restores them).
-    pub sound_buffer_lost: PlainDword,
     /// 1 when 3D settings are waiting for the listener's commit.
     pub commit_3d: PlainDword,
     /// The primary buffer's volume kept at start (1: none).
@@ -38,7 +37,7 @@ pub struct AudioOwn {
     /// {format flag, channels} twice: 0x100 mono, 0x200 stereo.
     pub sample_channel_flags: [PlainDword; 4],
     /// The samples' memory (a `MemoryList`).
-    pub sample_memory: ListCells,
+    pub sample_memory: PlainList,
     /// The first voice on the playing list (an address; 0: none).
     pub playing_voices: PlainDword,
     /// The first voice on the stopping list.
@@ -60,7 +59,7 @@ pub struct AudioOwn {
     /// The mixer's write place.
     pub write_cursor: PlainDword,
     /// The work buffer's memory (a `MemoryList`).
-    pub sample_buffer_memory: ListCells,
+    pub sample_buffer_memory: PlainList,
     /// The work buffer for reading samples (an address).
     pub sample_buffer: PlainDword,
     /// Its bytes.
@@ -73,20 +72,18 @@ pub struct AudioOwn {
     pub sound_list_loaded: Plain<Option<SoundList>>,
     /// The tune played when the music stops.
     pub next_tune: PlainDword,
-    /// `;3files\music\00.wav`, the tune's two digits are put at +0xE.
-    pub music_path: PlainBytes<24>,
+    /// `;3files\music\00.wav`, the tune's two digits are put at byte 14.
+    pub music_path: PlainBuffer<24>,
     /// The 0xC00 bytes a stream's file head is read into (an address; 0: not taken yet).
     pub stream_header: PlainDword,
     /// The header's memory (a `MemoryList`).
-    pub stream_header_memory: ListCells,
-    /// A3D's interface id.
-    pub a3d_iid: PlainBytes<16>,
+    pub stream_header_memory: PlainList,
     /// The 3D listener's interface id.
-    pub iid_listener: PlainBytes<16>,
+    pub iid_listener: PlainBuffer<16>,
     /// The 3D buffer's interface id.
-    pub iid_sound_3d_buffer: PlainBytes<16>,
+    pub iid_sound_3d_buffer: PlainBuffer<16>,
     /// The property set's interface id.
-    pub iid_property_set: PlainBytes<16>,
+    pub iid_property_set: PlainBuffer<16>,
     /// The IDirectSound object (an address; 0: none).
     pub direct_sound: PlainDword,
     /// The primary buffer.
@@ -95,8 +92,8 @@ pub struct AudioOwn {
     pub sound_listener: PlainDword,
     /// What `Lock` gives: two pointers and their sizes.
     pub locked_parts: [PlainDword; 4],
-    /// The primary buffer's `DSBCAPS` (its bytes at +8).
-    pub primary_caps: PlainBytes<20>,
+    /// The primary buffer's `DSBCAPS` (its size in bytes in the third dword).
+    pub primary_caps: PlainBuffer<20>,
     /// The `DSBUFFERDESC` a buffer is made with.
     pub buffer_description: Plain<BufferDescription>,
     /// The `WAVEFORMATEX` a buffer is made with.
@@ -105,31 +102,18 @@ pub struct AudioOwn {
     pub volume_table: [PlainDword; 65],
     /// The voice manager's IKsPropertySet.
     pub voice_manager: PlainDword,
-    /// 1 = the splash pair acts.
-    pub a3d_splash_kept: PlainDword,
-    pub a3d_ready: PlainDword,
-    pub a3d_object: PlainDword,
     /// EAX's IKsPropertySet.
     pub eax_properties: PlainDword,
     /// The room asked for (6 at start).
     pub eax_room: PlainDword,
     /// The room set (6 at start).
     pub eax_room_set: PlainDword,
-    /// The race's environment (`ENVIRONMENT`) last set (1.0 at start).
-    pub environment_kept: PlainDword,
-    /// A3D's class id.
-    pub a3d_clsid: PlainBytes<16>,
-    pub a3d2_interface: PlainDword,
-    /// 1 = A3D is the sound.
-    pub use_a3d: PlainDword,
-    /// A3D2's class id.
-    pub a3d2_clsid: PlainBytes<16>,
-    /// A3D2's interface id.
-    pub a3d2_iid: PlainBytes<16>,
     /// The sounds' sample bytes: the work buffer, the stream's header and the kept samples.
     pub sample_data: SampleData,
     /// The mixing buffer: a turn's left and right dwords, from `mix_channels` to `write_mix`.
     pub mix: std::sync::Mutex<[i32; MIX_BUFFER_LEN as usize / 4]>,
+    /// The channel lists `mix_channels` builds each turn, kept between turns.
+    pub mix_scratch: std::sync::Mutex<crate::audio::mixer::MixScratch>,
 }
 
 impl AudioOwn {
@@ -138,7 +122,6 @@ impl AudioOwn {
             shared,
             audio_turn_tick: PlainDword::new(0),
             opened_sound_mode: PlainDword::new(0),
-            sound_buffer_lost: PlainDword::new(0),
             commit_3d: PlainDword::new(0),
             primary_volume_kept: PlainDword::new(0x1),
             sample_bits_flags: [
@@ -153,7 +136,7 @@ impl AudioOwn {
                 PlainDword::new(0x200),
                 PlainDword::new(0x2),
             ],
-            sample_memory: ListCells::new(MemoryList {
+            sample_memory: PlainList::new(MemoryList {
                 head: 0x0,
                 total: 0x0,
                 cursor: 0x0,
@@ -169,7 +152,7 @@ impl AudioOwn {
             mix_shift: PlainDword::new(0),
             play_cursor: PlainDword::new(0),
             write_cursor: PlainDword::new(0),
-            sample_buffer_memory: ListCells::new(MemoryList {
+            sample_buffer_memory: PlainList::new(MemoryList {
                 head: 0x0,
                 total: 0x0,
                 cursor: 0x0,
@@ -190,30 +173,26 @@ impl AudioOwn {
             unit_volume_factor: PlainDword::new(0x40),
             sound_list_loaded: Plain::new(None),
             next_tune: PlainDword::new(0),
-            music_path: PlainBytes::new([
+            music_path: PlainBuffer::new([
                 0x3b, 0x33, 0x66, 0x69, 0x6c, 0x65, 0x73, 0x5c, 0x6d, 0x75, 0x73, 0x69, 0x63, 0x5c,
                 0x30, 0x30, 0x2e, 0x77, 0x61, 0x76, 0, 0, 0, 0,
             ]),
             stream_header: PlainDword::new(0),
-            stream_header_memory: ListCells::new(MemoryList {
+            stream_header_memory: PlainList::new(MemoryList {
                 head: 0x0,
                 total: 0x0,
                 cursor: 0x0,
                 remaining: 0x0,
             }),
-            a3d_iid: PlainBytes::new([
-                0x83, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
-                0xe5, 0x60,
-            ]),
-            iid_listener: PlainBytes::new([
+            iid_listener: PlainBuffer::new([
                 0x84, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
                 0xe5, 0x60,
             ]),
-            iid_sound_3d_buffer: PlainBytes::new([
+            iid_sound_3d_buffer: PlainBuffer::new([
                 0x86, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
                 0xe5, 0x60,
             ]),
-            iid_property_set: PlainBytes::new([
+            iid_property_set: PlainBuffer::new([
                 0x30, 0xac, 0xef, 0x31, 0x5c, 0x51, 0xd0, 0x11, 0xa9, 0xaa, 0, 0xaa, 0, 0x61, 0xbe,
                 0x93,
             ]),
@@ -221,7 +200,7 @@ impl AudioOwn {
             primary_buffer: PlainDword::new(0),
             sound_listener: PlainDword::new(0),
             locked_parts: [const { PlainDword::new(0) }; 4],
-            primary_caps: PlainBytes::new([0; 20]),
+            primary_caps: PlainBuffer::new([0; 20]),
             buffer_description: Plain::new(BufferDescription {
                 size: 0x0,
                 flags: 0x0,
@@ -306,29 +285,12 @@ impl AudioOwn {
                 PlainDword::new(0x0),
             ],
             voice_manager: PlainDword::new(0),
-            a3d_splash_kept: PlainDword::new(0),
-            a3d_ready: PlainDword::new(0),
-            a3d_object: PlainDword::new(0),
             eax_properties: PlainDword::new(0),
             eax_room: PlainDword::new(0x6),
             eax_room_set: PlainDword::new(0x6),
-            environment_kept: PlainDword::new(0x3f800000),
-            a3d_clsid: PlainBytes::new([
-                0xe0, 0xee, 0xf1, 0xd8, 0x34, 0xf6, 0xcf, 0x11, 0x87, 0, 0, 0xa0, 0x24, 0x5d, 0x91,
-                0x8b,
-            ]),
-            a3d2_interface: PlainDword::new(0),
-            use_a3d: PlainDword::new(0),
-            a3d2_clsid: PlainBytes::new([
-                0x24, 0x2c, 0xfa, 0x92, 0x3c, 0x25, 0xd2, 0x11, 0x90, 0xfb, 0, 0x60, 0x8, 0xa1,
-                0xf4, 0x41,
-            ]),
-            a3d2_iid: PlainBytes::new([
-                0x80, 0x2, 0xc4, 0xe4, 0xba, 0xcc, 0xd2, 0x11, 0x9d, 0xcf, 0, 0x50, 0x4, 0x11,
-                0x58, 0x2f,
-            ]),
             sample_data: SampleData::new(),
             mix: std::sync::Mutex::new([0; MIX_BUFFER_LEN as usize / 4]),
+            mix_scratch: std::sync::Mutex::new(crate::audio::mixer::MixScratch::default()),
         }
     }
 }

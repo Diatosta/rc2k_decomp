@@ -5,10 +5,10 @@
 
 /// The six digits are the time's remainder by this (an hour and a half in hundredths:
 /// minutes go up to 89).
-pub const WRAP: u32 = 0x57E40;
+pub(crate) const WRAP: u32 = 0x57E40;
 /// The divisions after it: tens of minutes, minutes, tens of seconds, seconds, tenths;
 /// what is left is the hundredths.
-pub const DIVISORS: [u32; 5] = [60000, 6000, 1000, 100, 10];
+pub(crate) const DIVISORS: [u32; 5] = [60000, 6000, 1000, 100, 10];
 
 /// A time's digits (`HudBlock.digits[0]` ..): its size (negatives wrap) by `WRAP`, then by
 /// `DIVISORS`; each plus `base` (the first digit's rectangle).
@@ -28,8 +28,9 @@ pub fn time_digits(value: u32, base: u32) -> [u32; 6] {
     d
 }
 
+#[cfg(test)]
 /// The tenths' digit, 10 and the hundredths' digit the divisions leave.
-pub fn division_leftovers(d: &[u32; 6]) -> [u32; 3] {
+pub(crate) fn division_leftovers(d: &[u32; 6]) -> [u32; 3] {
     [d[4], 10, d[5]]
 }
 
@@ -73,14 +74,15 @@ pub fn leading_digits(value: u32) -> [(u32, usize, bool); 3] {
     out
 }
 
+#[cfg(test)]
 /// Whether `HudBlock.leading` is left set after `leading_digits`: no digit but the last drawn.
-pub fn leading_left(value: u32) -> bool {
+pub(crate) fn leading_left(value: u32) -> bool {
     !leading_digits(value)[..2]
         .iter()
         .any(|&(_, _, drawn)| drawn)
 }
 
-/// The stage panel's rectangle by the record's +0x28 / +0x30 (none for -1): the number held
+/// The stage panel's rectangle by the record's stage field (none for -1): the number held
 /// to 0 .. 0x16 (signed) from 0x29.
 pub fn stage_rect(field: u32) -> Option<u32> {
     if field == u32::MAX {
@@ -89,7 +91,7 @@ pub fn stage_rect(field: u32) -> Option<u32> {
     Some((field as i32).clamp(0, 0x16) as u32 + 0x29)
 }
 
-/// The needle's sign by the record's +0xCC (+0xD0): its rectangle and
+/// The needle's sign by the record's needle field: its rectangle and
 /// texture: 0x5E on 0xC0, or with the field set 0x60 on 0xC2.
 pub fn needle_sign(field: u32) -> (u32, u32) {
     if field != 0 {
@@ -99,8 +101,9 @@ pub fn needle_sign(field: u32) -> (u32, u32) {
     }
 }
 
+#[cfg(test)]
 /// A sprite's rectangle's offset in the sheet.
-pub fn rect_offset(rect: u32) -> u32 {
+pub(crate) fn rect_offset(rect: u32) -> u32 {
     rect.wrapping_mul(0x10)
 }
 

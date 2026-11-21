@@ -76,7 +76,7 @@ pub struct Car<T> {
     pub car: u32,
     /// The four numbers shown in a row.
     pub numbers: [u32; 4],
-    /// Whether the last two are shown (car +0xB0, +0xCC not 0); "-" in their place if not.
+    /// Whether the last two are shown (two of the car's fields not 0); "-" in their place if not.
     pub shown: [bool; 2],
 }
 
@@ -87,7 +87,7 @@ pub struct Title {
     pub a8_mode: bool,
     /// The saved section's title string.
     pub section: u32,
-    /// The saved stage's number (its record's +0x40): "n/6" after the title unless 0.
+    /// The saved stage's number (its record's stage field): "n/6" after the title unless 0.
     pub stage: u32,
 }
 

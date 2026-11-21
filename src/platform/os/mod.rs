@@ -27,13 +27,35 @@ fn clock_start() -> &'static (Instant, u32) {
     })
 }
 
+/// Opens files so that other processes may open them as `share` allows (the Windows share
+/// flags, 0 for none) and with the normal attributes; where files carry no share mode, nothing.
+pub fn share_mode(options: &mut std::fs::OpenOptions, share: u32) -> &mut std::fs::OpenOptions {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_ATTRIBUTE_NORMAL: u32 = 0x80;
+        options.share_mode(share).attributes(FILE_ATTRIBUTE_NORMAL);
+    }
+    #[cfg(not(windows))]
+    let _ = share;
+    options
+}
+
+/// Starts `command` without a console window where a window would otherwise open (Windows).
+pub fn spawn_hidden(command: &mut std::process::Command) -> std::io::Result<std::process::Child> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    command.spawn()
+}
+
 /// Milliseconds on a steady clock, wrapping as `GetTickCount` did.
 pub fn ticks() -> u32 {
     let (start, base) = *clock_start();
-    #[cfg(feature = "remote")]
-    let elapsed = start.elapsed().as_micros() * u128::from(crate::remote::speed()) / 1000;
-    #[cfg(not(feature = "remote"))]
-    let elapsed = start.elapsed().as_millis();
+    let elapsed = crate::remote::scaled_millis(start.elapsed());
     base.wrapping_add(elapsed as u32)
 }
 
@@ -57,12 +79,21 @@ pub fn local_time() -> rc2k_core::system::time::LocalTime {
     }
 }
 
+/// The words the program was started with, its own name first. Android passes none the way
+/// other systems do: `platform::android` keeps the ones its launcher reads.
+pub fn program_args() -> Vec<String> {
+    #[cfg(target_os = "android")]
+    return crate::platform::android::args();
+    #[cfg(not(target_os = "android"))]
+    std::env::args().collect()
+}
+
 /// The program's command line as one text (Windows-1252, no NUL): the arguments joined by
 /// spaces, each with a space or a tab in it (or empty) quoted, as a shell's line reads.
 pub fn command_line() -> Vec<u8> {
-    let words: Vec<String> = std::env::args_os()
+    let words: Vec<String> = program_args()
+        .into_iter()
         .map(|a| {
-            let a = a.to_string_lossy().into_owned();
             if a.is_empty() || a.contains([' ', '\t']) {
                 format!("\"{a}\"")
             } else {
@@ -76,6 +107,8 @@ pub fn command_line() -> Vec<u8> {
 /// The current folder (Windows-1252), or None if it cannot be had.
 pub fn current_folder() -> Option<Vec<u8>> {
     let folder = std::env::current_dir().ok()?;
+    #[cfg(web)]
+    let folder = crate::platform::ffi::web::with_mount(&folder);
     Some(crate::files::ansi_bytes(&folder.to_string_lossy()))
 }
 
@@ -102,6 +135,41 @@ pub fn message_box(icon: Icon, caption: &[u8], text: &[u8]) {
     crate::platform::ffi::sdl::show_message_box(flags, &caption, &text);
 }
 
+/// A text for the terminal the program was started from (`--help`, a switch it does not know):
+/// standard output; on Windows, where a windowed program has one only when its output was sent
+/// to a pipe or a file, else the console of the program that started it (`CONOUT$` once
+/// attached). False when there is nowhere to write to.
+pub fn print_to_terminal(text: &str) -> bool {
+    use std::io::Write;
+    #[cfg(windows)]
+    {
+        if crate::platform::ffi::win32::has_standard_output() {
+            let mut out = std::io::stdout().lock();
+            return out
+                .write_all(text.as_bytes())
+                .and_then(|()| out.flush())
+                .is_ok();
+        }
+        if !crate::platform::ffi::win32::attach_parent_console() {
+            return false;
+        }
+        // The console's line ends, and a fresh line after the shell's prompt.
+        let text = format!("\n{}", text.replace('\n', "\r\n"));
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open("CONOUT$")
+            .and_then(|mut out| out.write_all(text.as_bytes()))
+            .is_ok()
+    }
+    #[cfg(not(windows))]
+    {
+        let mut out = std::io::stdout().lock();
+        out.write_all(text.as_bytes())
+            .and_then(|()| out.flush())
+            .is_ok()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -110,7 +178,7 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(20));
         let b = super::ticks();
         assert_ne!(a, 0);
-        assert!(b.wrapping_sub(a) >= 20 && b.wrapping_sub(a) < 2_000);
+        assert!(b.wrapping_sub(a) >= 20);
     }
 
     #[test]

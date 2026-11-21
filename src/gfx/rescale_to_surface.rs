@@ -24,7 +24,7 @@ pub struct Rescaled {
     generation: u64,
     last_parts: Option<[u8; 3]>,
     last_scratch: Option<[u8; 4]>,
-    #[cfg(feature = "remote")]
+    /// A running fold of the pixels, for the course hash (always 0 without the test driver).
     fold: u64,
     work: rc2k_core::gfx::picture::Work,
 }
@@ -92,6 +92,17 @@ pub fn rescale_to_surface(
             == 0;
     // On the screen the GPU keeps the picture as the frame's background when it can: the canvas
     // is not written.
+    if size == 4
+        && surface.row_gap.get() == 0
+        && surface.pixels.get() == crate::gfx::locked_pixels::SCREEN
+        && gfx
+            .drawing
+            .on_picture
+            .load(std::sync::atomic::Ordering::Relaxed)
+            == 0
+    {
+        crate::render::wash::note_pixels(made.generation, &made.pixels, width, height);
+    }
     let by_background = size == 4
         && surface.row_gap.get() == 0
         && surface.pixels.get() == crate::gfx::locked_pixels::SCREEN
@@ -100,7 +111,7 @@ pub fn rescale_to_surface(
             .on_picture
             .load(std::sync::atomic::Ordering::Relaxed)
             == 0
-        && crate::platform::direct3d::screen(system.session.screen.get()).is_some_and(|screen| {
+        && crate::d3d::device::screen(system.session.screen.get()).is_some_and(|screen| {
             screen.width == width as usize
                 && screen.height == height as usize
                 && crate::render::background::defer_pixels(&screen, made.generation, &made.pixels)
@@ -128,10 +139,9 @@ pub fn rescale_to_surface(
         }
     }
     if let Some(scratch) = made.last_scratch {
-        gfx.pixel.formats.scratch.write(&scratch);
+        gfx.pixel.formats.scratch.set(scratch);
     }
-    #[cfg(feature = "remote")]
-    crate::race::course_hash::note_texture_row(u32::MAX, 0, 0, &made.fold.to_le_bytes());
+    crate::remote::texture_row(u32::MAX, 0, 0, &made.fold.to_le_bytes());
     let work = &made.work;
     rescaler.step_x.set(work.step_x);
     rescaler.step_x_fraction.set(work.step_x_fraction);
@@ -155,19 +165,25 @@ fn rescale_pixels(
 ) -> Result<Rescaled, Refused> {
     let [from_width, from_height, width, height, _, size, alpha] = key;
     let from: u32 = gfx.pictures.decoder.pixels.get();
-    #[cfg(feature = "remote")]
     let mut fold = 0u64;
     // The rows' offsets, read once; a row past the table ends the program as `row_address` does.
     let rows: Vec<u32> = (0..from_height).map(|row| row_address(row, gfx)).collect();
     let mut last_parts = None;
     let mut last_scratch = None;
-    let mut pixels = Vec::with_capacity(width as usize * height as usize * size as usize);
+    // On a screen wider than 4:3 the picture keeps its shape in the middle and the sides show its
+    // wash, as beside a menu.
+    let centre = if size == 4 {
+        rc2k_core::scene::view_window::design_width(width, height)
+    } else {
+        width
+    };
+    let mut pixels = Vec::with_capacity(centre as usize * height as usize * size as usize);
     let work = crate::gfx::picture::with_buffer(&gfx.pictures.buffers, from, |decoded| {
         rc2k_core::gfx::picture::rescale(
             &rc2k_core::gfx::picture::Sizes {
                 from_width,
                 from_height,
-                width,
+                width: centre,
                 height,
             },
             &|row, byte| match decoded.get(rows[row as usize].wrapping_add(byte) as usize) {
@@ -182,10 +198,7 @@ fn rescale_pixels(
                 let components = u32::from_le_bytes([parts[0], parts[1], parts[2], 0]) | alpha;
                 let (pixel, scratch) = rc2k_core::gfx::pixels::pack(format, components);
                 last_scratch = scratch.or(last_scratch);
-                #[cfg(feature = "remote")]
-                {
-                    fold = fold.rotate_left(5).wrapping_mul(0x0100_0000_01B3) ^ u64::from(pixel);
-                }
+                fold = crate::remote::fold_pixel(fold, pixel);
                 if size == 2 {
                     pixels.extend_from_slice(&(pixel as u16).to_le_bytes());
                 } else {
@@ -195,6 +208,10 @@ fn rescale_pixels(
         )
         .expect("the sizes were checked")
     })?;
+    if let Some(wide) = rc2k_core::gfx::screen_wash::centred_in_wash(&pixels, centre, width, height)
+    {
+        pixels = wide;
+    }
     static GENERATIONS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
     Ok(Rescaled {
         key,
@@ -202,7 +219,6 @@ fn rescale_pixels(
         generation: GENERATIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
         last_parts,
         last_scratch,
-        #[cfg(feature = "remote")]
         fold,
         work,
     })

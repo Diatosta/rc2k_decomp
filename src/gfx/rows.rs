@@ -104,7 +104,7 @@ mod tests {
 
     #[test]
     fn rows_are_reached_by_pitch_and_bounded_to_their_extent() {
-        let memory = Arc::new(crate::memory::pool::PoolBytes::from_vec(vec![
+        let memory = Arc::new(crate::platform::pool::PoolBytes::from_vec(vec![
             0xAAu8;
             4 * 8
         ]));

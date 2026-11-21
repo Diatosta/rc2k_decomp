@@ -4,7 +4,8 @@
 //! screens name their slot by `slot::*`; the 20 slots no ported screen names keep their
 //! starting values.
 
-use crate::memory::session::PlainDword;
+use crate::memory::session::GameThread;
+use std::cell::RefCell;
 
 /// The screens' slots (an index into both arrays), by the screen that uses it.
 pub mod slot {
@@ -48,8 +49,11 @@ pub mod slot {
     pub const ARCADE_BEST_SCORES: usize = 42;
     pub const BEST_CLASS_SCORES: usize = 43;
     pub const BEST_OVERALL_SCORES: usize = 44;
+    pub const ADVANCED: usize = 45;
     pub const VISUAL_PREFERENCES: usize = 46;
     pub const VISUAL_OPTIONS: usize = 47;
+    pub const PLAYER_AXES: usize = 48;
+    pub const PLAYER_AXIS: usize = 49;
     pub const PLAYER1_CONTROLLER: usize = 50;
     pub const PLAYER1_BUTTONS: usize = 51;
     pub const PLAYER2_CONTROLLER: usize = 52;
@@ -96,227 +100,45 @@ pub mod slot {
 /// The number of slots.
 pub const SLOTS: usize = 103;
 
-#[derive(rc2k_derive::Cells)]
-pub struct ScreenItems {
-    /// The item highlighted when the screen was last left.
-    pub current: [PlainDword; SLOTS],
-    /// The item a screen starts on.
-    pub first: [PlainDword; SLOTS],
-}
+/// The item a screen starts on, by slot.
+const FIRST: [u32; SLOTS] = [
+    0x2, 0x2, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0xb, 0xb, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1,
+    0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x2, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x2,
+    0x2, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x2, 0x2, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1,
+    0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x16, 0x1, 0x1, 0x1, 0x1,
+    0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1,
+    0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x3, 0x1,
+];
+
+/// The screens' kept items: plain values behind one `RefCell`, the game's thread alone reading and
+/// writing them, each borrow lasting one statement.
+pub struct ScreenItems(GameThread<RefCell<[u32; SLOTS]>>);
 
 impl ScreenItems {
     pub const fn new() -> Self {
-        ScreenItems {
-            current: [
-                PlainDword::new(0x2),
-                PlainDword::new(0x2),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x2),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x2),
-                PlainDword::new(0x2),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x4),
-                PlainDword::new(0x2),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x16),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x3),
-                PlainDword::new(0x1),
-            ],
-            first: [
-                PlainDword::new(0x2),
-                PlainDword::new(0x2),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0xb),
-                PlainDword::new(0xb),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x2),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x2),
-                PlainDword::new(0x2),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x4),
-                PlainDword::new(0x2),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x16),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x1),
-                PlainDword::new(0x3),
-                PlainDword::new(0x1),
-            ],
-        }
+        ScreenItems(GameThread::new(RefCell::new([
+            0x2, 0x2, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1,
+            0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x2, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1,
+            0x1, 0x1, 0x1, 0x2, 0x2, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x2, 0x2, 0x1, 0x2, 0x2, 0x1,
+            0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1,
+            0x1, 0x1, 0x1, 0x16, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1,
+            0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x3,
+            0x1,
+        ])))
+    }
+
+    /// The item highlighted when the screen of `slot` was last left.
+    pub fn current(&self, slot: usize) -> u32 {
+        self.0.get().borrow()[slot]
+    }
+
+    /// Keeps `item` as the one highlighted in the screen of `slot`.
+    pub fn set_current(&self, slot: usize, item: u32) {
+        self.0.get().borrow_mut()[slot] = item;
+    }
+
+    /// The item the screen of `slot` starts on.
+    pub fn first(&self, slot: usize) -> u32 {
+        FIRST[slot]
     }
 }

@@ -1,7 +1,7 @@
 //! The stage panel for the stage the game has selected, on a screen whose titles are menu
 //! items: instead of drawing the group's and the table's titles it stores their string ids in
 //! items 0 and 1 of the current menu, and it builds the heading text (string 0x482) in its own
-//! buffer without drawing it. Used by the stage selection screen ("Escolha Etapa"); which of the
+//! buffer without drawing it. Used by the stage selection screen ("Select Stage"); which of the
 //! two screen loops that use it was seen is not known. The record rows come from one of two
 //! best-time tables and are skipped while a table is missing (see
 //! `stage_panel::draw_records_for_group`).
@@ -15,7 +15,7 @@ use crate::screens::stage_panel::{
 use crate::text::draw_text::Canvas;
 
 /// The string ids this function gives menu items 0 and 1: the group's and the table's titles.
-pub fn menu_titles(
+pub(super) fn menu_titles(
     menus: &Menus,
     system: &crate::system::owner::System,
 ) -> Result<Option<(u32, u32)>, BadInput> {
@@ -56,10 +56,7 @@ pub fn draw_selected_stage_menu(
     race.shared.state.settings.direction.set(sel.group);
     item_1.set(table_title);
 
-    build_second_heading(
-        crate::strings::append_string_by_id::StringOwners::of(o),
-        sel.record,
-    )?;
+    build_second_heading(o, sel.record)?;
     draw_stage_body(o, gfx, sel.record, true, canvas)?;
     draw_records_for_group(o, system, sel.group, sel.record, canvas)
 }

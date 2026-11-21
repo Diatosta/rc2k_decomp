@@ -2,20 +2,18 @@
 //! (`physics::queue_notice`) is not empty: the first entry's id goes into `notice_id`,
 //! `notice_time_b` = 0x32, `notice_time` = 0x12C (by the look of them, times to show it), the count
 //! goes down by 1, and the three lists move down one (0x1F dwords each).
-//!
-//! Caller: `physics::car_physics_step`, right after `physics::damage_notices`, every physics step.
 
 use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;
 use crate::physics::queue_notice::{load, store};
 use rc2k_core::physics::notices::Notice;
 
-pub fn take_notice(car: &Car) {
+pub(super) fn take_notice(car: &Car) {
     let was = Notice {
         id: car.notice_id.get(),
         shown: car.notice_shown.get(),
         time: car.notice_time.get(),
-        w708: car.notice_time_b.get(),
+        second_time: car.notice_time_b.get(),
         ..Notice::default()
     };
     let queue = load(car);
@@ -24,7 +22,7 @@ pub fn take_notice(car: &Car) {
         return;
     }
     set_changed(&car.notice_id, was.id, notice.id);
-    set_changed(&car.notice_time_b, was.w708, notice.w708);
+    set_changed(&car.notice_time_b, was.second_time, notice.second_time);
     set_changed(&car.notice_time, was.time, notice.time);
     store(car, &queue, &now);
 }

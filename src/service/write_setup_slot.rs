@@ -4,9 +4,10 @@
 //! `slot` is 0 .. 99. The file: "CRSU", 0, version 0x50000, `packed_local_time`, the slot's
 //! 0x20-byte name from the set-ups' names, then the chosen tyre, the car's brake balance, the
 //! chosen ride height and suspension stiffness, the car's steering sensitivity and the chosen
-//! gear ratio. The name is taken from the slot list, so the caller puts it there first; nothing
-//! takes it out again if the write fails. Refuses a slot past 99 and a missing player.
+//! gear ratio. The name is taken from the slot list, so the caller puts it there first and takes it
+//! out again if the write fails (`edit_setup_name`). Refuses a slot past 99 and a missing player.
 
+use crate::clock::packed_local_time::packed_local_time;
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::write_file::write_file_from;
@@ -17,7 +18,6 @@ use crate::service::pages::{
 };
 use crate::service::read_setup_slot::{NAME_LEN, SETUP_FILE_LEN, SLOT_COUNT, slot_name};
 use crate::service::state::current_player;
-use crate::system::packed_local_time::packed_local_time;
 
 /// The set-up file's bytes: the chosen tyre, ride height, suspension stiffness and gear ratio
 /// from the service's items, the brake balance and steering sensitivity from the car's player.
@@ -43,7 +43,7 @@ fn setup_file_bytes(
 }
 
 /// True if the file was written.
-pub fn write_setup_slot(
+pub(super) fn write_setup_slot(
     menus: &Menus,
     service: &'static Service,
     slot: u32,

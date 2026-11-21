@@ -4,7 +4,8 @@
 
 use crate::errors::Refused;
 use crate::hud::draw_icon::draw_icon;
-use crate::hud::owner::{Hud, Pen};
+use crate::hud::owner::Hud;
+use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 
 /// One icon: the shift, the row and the view (`Panel::lights`).
@@ -21,7 +22,7 @@ pub struct IconStyle {
     pub draws: &'static [IconDraw],
 }
 
-pub static LAYOUT_0: IconStyle = IconStyle {
+pub(super) static LAYOUT_0: IconStyle = IconStyle {
     scale: 0,
     draws: &[IconDraw {
         shift: 0,
@@ -29,7 +30,7 @@ pub static LAYOUT_0: IconStyle = IconStyle {
         view: 0,
     }],
 };
-pub static LAYOUT_1: IconStyle = IconStyle {
+pub(super) static LAYOUT_1: IconStyle = IconStyle {
     scale: 2,
     draws: &[
         IconDraw {
@@ -44,7 +45,7 @@ pub static LAYOUT_1: IconStyle = IconStyle {
         },
     ],
 };
-pub static LAYOUT_2: IconStyle = IconStyle {
+pub(super) static LAYOUT_2: IconStyle = IconStyle {
     scale: 1,
     draws: &[
         IconDraw {
@@ -61,18 +62,14 @@ pub static LAYOUT_2: IconStyle = IconStyle {
 };
 
 /// Draws `style`'s icons.
-pub fn icons(frame: &Frame, hud: &Hud, pen: Pen, style: &IconStyle) -> Result<(), Refused> {
-    hud.block
-        .icon_scale
-        .set(hud.block.icon_scales[style.scale].get());
+pub fn icons(frame: &Frame, hud: &mut Hud, pen: Pen, style: &IconStyle) -> Result<(), Refused> {
+    hud.block.icon_scale = hud.block.icon_scales[style.scale];
     for (n, d) in style.draws.iter().enumerate() {
         if n > 0 {
-            hud.block
-                .texture
-                .set(hud.block.texture.get().wrapping_add(1));
+            hud.block.texture = hud.block.texture.wrapping_add(1);
         }
-        hud.block.icon_shift.set(d.shift);
-        let lights = &frame.panel_and_overlay.get().panel.lights[d.view];
+        hud.block.icon_shift = d.shift;
+        let lights = frame.panel.borrow().lights[d.view];
         draw_icon(frame, hud, pen, lights, d.row)?;
     }
     Ok(())

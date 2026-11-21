@@ -45,7 +45,7 @@ const MODES: [[u32; 4]; MODE_COUNT as usize] = [
 /// file, 4 open or create for writing.
 pub const MODE_COUNT: u32 = 5;
 
-pub const NO_HANDLE: u32 = u32::MAX;
+pub(super) const NO_HANDLE: u32 = u32::MAX;
 
 /// The handle, or None if the file could not be opened. The last file path is the resolved
 /// path afterwards, either way. Refuses what `resolve_path` refuses and a mode the table does
@@ -57,7 +57,7 @@ pub const NO_HANDLE: u32 = u32::MAX;
 /// open-or-create and a truncation, so a hidden or system file is replaced where
 /// `CREATE_ALWAYS` with normal attributes would fail. `path` is without its NUL.
 pub fn open_by_mode(path: &[u8], mode: u32) -> Result<Option<u32>, BadInput> {
-    let _timed = crate::race::load_times::scope(crate::race::load_times::Category::FileRead);
+    let _timed = crate::logfile::load_times::scope(crate::logfile::load_times::Category::FileRead);
     if mode >= MODE_COUNT {
         return Err(BadInput("a file mode past the table"));
     }
@@ -68,21 +68,13 @@ pub fn open_by_mode(path: &[u8], mode: u32) -> Result<Option<u32>, BadInput> {
     options
         .read(access & GENERIC_READ != 0)
         .write(access & GENERIC_WRITE != 0);
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::OpenOptionsExt;
-        const FILE_ATTRIBUTE_NORMAL: u32 = 0x80;
-        options.share_mode(share).attributes(FILE_ATTRIBUTE_NORMAL);
-    }
-    #[cfg(not(windows))]
-    let _ = share;
+    crate::platform::os::share_mode(&mut options, share);
     match disposition {
         CREATE_NEW => options.create_new(true),
         CREATE_ALWAYS => options.create(true).truncate(true),
         OPEN_ALWAYS => options.create(true),
         _ => &mut options, // OPEN_EXISTING
     };
-    #[cfg(feature = "remote")]
     crate::remote::note_open(&resolved);
     let Ok(file) = options.open(crate::files::host_path(&resolved)) else {
         return Ok(None);
@@ -112,22 +104,11 @@ fn with_file<R>(
 /// (the bytes read, whether the read succeeded): one `ReadFile` into a Rust buffer. A
 /// short read is not a failure.
 pub fn read_slice(file: u32, into: &mut [u8]) -> (u32, bool) {
-    let _timed = crate::race::load_times::scope(crate::race::load_times::Category::FileRead);
+    let _timed = crate::logfile::load_times::scope(crate::logfile::load_times::Category::FileRead);
     match with_file(file, |f| f.read(into)) {
         Ok(n) => (n as u32, true),
         Err(_) => (0, false),
     }
-}
-
-/// `read` into dwords (a typed store's, their bytes in order); what the file does not
-/// reach is kept.
-pub fn read_cells(file: u32, cells: &[impl crate::memory::session::Cell32]) -> (u32, bool) {
-    let mut bytes: Vec<u8> = cells.iter().flat_map(|c| c.bits().to_le_bytes()).collect();
-    let got = read_slice(file, &mut bytes);
-    for (c, b) in cells.iter().zip(bytes.as_chunks::<4>().0) {
-        c.set_bits(u32::from_le_bytes(*b));
-    }
-    got
 }
 
 /// `write` from dwords (their bytes in order).
@@ -166,14 +147,14 @@ pub fn handle_size(file: u32) -> Option<u32> {
 }
 
 /// The file's last write time as DOS date << 16 | time, or None.
-pub fn file_time(file: u32) -> Option<u32> {
+fn file_time(file: u32) -> Option<u32> {
     let modified = with_file(file, |f| f.metadata().and_then(|m| m.modified())).ok()?;
     rc2k_core::files::dos_time::from_ticks(ticks_of(modified)?)
 }
 
 /// A DOS date << 16 | time put on the file as its last access and write
 /// time; whether it worked (not for fields that are not a time).
-pub fn set_file_time(file: u32, dos: u32) -> bool {
+fn set_file_time(file: u32, dos: u32) -> bool {
     let Some(time) = rc2k_core::files::dos_time::to_ticks(dos).and_then(time_of) else {
         return false;
     };
@@ -213,7 +194,7 @@ pub fn close(file: u32) -> bool {
 /// The game's file primitives as the core's file system: paths resolve as the game's do (a
 /// refusal is an error, the last file path is set), handles are `FILES`'. A path is its bytes
 /// without a NUL.
-pub struct GameFiles<'a>(std::marker::PhantomData<&'a [u8]>);
+pub(super) struct GameFiles<'a>(std::marker::PhantomData<&'a [u8]>);
 
 impl GameFiles<'_> {
     pub fn new() -> Self {

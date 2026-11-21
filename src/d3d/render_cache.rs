@@ -1,6 +1,6 @@
 //! The render states' and the current texture's cache as the drawing sees it: each part of a
 //! frame drawn beside the others (`scene::workers::draw_parts`) keeps its own (`OwnCache`,
-//! `scene::workers::PartScratch::cache`). The first part's is the game's own (the game's thread
+//! `scene::scratch_store::PartScratch::cache`). The first part's is the game's own (the game's thread
 //! draws part 0 and everything outside the parts, so it is always in use); a part other than
 //! the first starts from the cache as the list began, and what it leaves is put back into the
 //! first's by `run_states` (the states it set) and `merge_texture`.
@@ -8,7 +8,7 @@
 use std::cell::Cell;
 
 use crate::render::STATES;
-use crate::scene::workers::PartScratch;
+use crate::scene::scratch_store::PartScratch;
 
 /// The cache: each state's last value, the texture set last.
 #[derive(Clone)]
@@ -85,12 +85,12 @@ pub fn set_kept(part: &PartScratch, state: usize, value: u32) {
 }
 
 /// Every state's last value as `part` has it.
-pub fn all_kept(part: &PartScratch) -> [u32; STATES] {
+pub(super) fn all_kept(part: &PartScratch) -> [u32; STATES] {
     current(active(part)).kept
 }
 
 /// The first part's states now.
-pub fn stored_kept(first: &OwnCache) -> [u32; STATES] {
+pub(super) fn stored_kept(first: &OwnCache) -> [u32; STATES] {
     current(first).kept
 }
 
@@ -112,20 +112,20 @@ pub fn same_texture(a: &Cache, b: &Cache) -> bool {
 
 /// The texture `run` left into the first part's cache `first` (a piece drawn aside that set
 /// one, `run_states::carry_set`).
-pub fn put_texture(first: &OwnCache, run: &Cache) {
+pub(super) fn put_texture(first: &OwnCache, run: &Cache) {
     first.texture.set(run.texture);
 }
 
 /// A part left `run`: its texture goes into the first part's cache (`first`) if it changed
 /// from `start`.
-pub fn merge_texture(first: &OwnCache, run: &Cache, start: &Cache) {
+pub(super) fn merge_texture(first: &OwnCache, run: &Cache, start: &Cache) {
     if run.texture != start.texture {
         first.texture.set(run.texture);
     }
 }
 
 /// The state values a part left.
-pub fn left_kept(run: &Cache, state: usize) -> u32 {
+pub(super) fn left_kept(run: &Cache, state: usize) -> u32 {
     run.kept[state]
 }
 

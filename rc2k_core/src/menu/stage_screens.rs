@@ -6,14 +6,14 @@ use crate::Invalid;
 pub const CHAMPIONSHIP: u32 = 2;
 
 /// The event type of the time trial.
-pub const TIME_TRIAL: u32 = 3;
+pub(crate) const TIME_TRIAL: u32 = 3;
 
 /// The stage speeches' table has this many entries.
-pub const STAGE_SPEECHES: u32 = 0x40;
+pub(crate) const STAGE_SPEECHES: u32 = 0x40;
 
 /// The highest section the rally speeches' and welcome pictures' tables are read at; a higher
 /// one is refused.
-pub const LAST_SECTION: u32 = 0x20;
+pub(crate) const LAST_SECTION: u32 = 0x20;
 
 /// The speeches play in the championship only.
 pub fn championship(mode: u32) -> bool {

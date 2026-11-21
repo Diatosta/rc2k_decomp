@@ -9,7 +9,7 @@ use rc2k_core::strings::table::Source;
 /// What is returned for a text kept in a variable: the text's address, which as the next string id
 /// (`text_from_ids`) is past every table entry. Any id past the table does the same, nothing being
 /// appended for it.
-pub const AFTER_VARIABLE_TEXT: u32 = 0x8000_0000;
+const AFTER_VARIABLE_TEXT: u32 = 0x8000_0000;
 
 /// The owners the text of a string id can come from: the made texts live in the screens' text
 /// buffers, the menus' notice, and the installer's rows, names and variables; the driver names in
@@ -17,8 +17,8 @@ pub const AFTER_VARIABLE_TEXT: u32 = 0x8000_0000;
 #[derive(Clone, Copy)]
 pub struct StringOwners<'a> {
     pub strings: &'a crate::strings::owner::Strings,
-    pub menus: &'a crate::menu::owner::Menus,
-    pub install: &'a crate::install::owner::Install,
+    pub menus: &'a dyn crate::strings::string_table::MadeTextBuffers,
+    pub install: &'a dyn crate::strings::string_table::MadeTextBuffers,
     pub system: &'a crate::system::owner::System,
 }
 
@@ -33,6 +33,19 @@ impl<'a> StringOwners<'a> {
     }
 }
 
+/// The text of an own id (`rc2k_core::strings::own`) in the language the game loaded, English
+/// where its file lacks it; none for an id no page uses.
+pub fn own_text(strings: &crate::strings::owner::Strings, id: u32) -> Vec<u8> {
+    let file = strings
+        .language
+        .own
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    rc2k_core::strings::own::text(id, *file)
+        .unwrap_or_default()
+        .to_vec()
+}
+
 /// `emit` receives each run of bytes to append. Returns the value described at
 /// `AFTER_VARIABLE_TEXT`.
 pub fn append_string_by_id(
@@ -40,7 +53,7 @@ pub fn append_string_by_id(
     id: u32,
     emit: &mut impl FnMut(&[u8]),
 ) -> Result<u32, BadInput> {
-    let fault = crate::menu::event_flow::Fault::default();
+    let fault = crate::errors::Fault::default();
     let source = Source::of(id, || fault.ok(driver_name_slot(o.strings, id)) != 0);
     fault.check()?;
     let direct = match source {
@@ -49,6 +62,7 @@ pub fn append_string_by_id(
             o.strings,
             driver_name_slot(o.strings, id)?,
         )?),
+        Source::Own => Some(own_text(o.strings, id)),
         Source::Table => None,
     };
     match direct {

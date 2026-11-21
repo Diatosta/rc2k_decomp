@@ -1,6 +1,5 @@
 //! The turn's update of the voices, every 20 ms. By the mode: with voices' own buffers the
-//! buffers' way, here; with the game's mixer `audio::update_mixer_voices`; else nothing. A3D is
-//! refused.
+//! buffers' way, here; with the game's mixer `audio::update_mixer_voices`; else nothing.
 //!
 //! The buffers' way, in three passes:
 //! - the stopping list: a voice sounding is stopped; every voice's state 0, its channel freed, and
@@ -14,25 +13,22 @@
 //! Then in 3D: with EAX the room is set when the room asked is not the one set, or the
 //! environment is not the one kept; and the 3D settings are committed when marked.
 //!
-//! Refuses, before anything: a list that does not end within 0x200 voices; a playing voice that
+//! Refuses, before anything: a list that does not end within `VOICES` voices; a playing voice that
 //! does not loop without its channel or buffer; a voice to stop without its buffer; a marked
 //! voice's volume or pan past the volume table.
 
 use crate::audio::own::AudioThread;
 use crate::audio::voices::{GamePool, voice_of};
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 
 const MODE_MIXER: u32 = 0x4_0000;
 
-pub fn update_voices(audio: &AudioThread) -> Result<(), Refused> {
+pub(super) fn update_voices(audio: &AudioThread) -> Result<(), Refused> {
     use rc2k_core::audio::voices::{Lists, Room, Step, update_buffers};
-    if audio.state.use_a3d.get() == 1 {
-        return Err(BadInput("A3D (the chunk at 0x40CB2A)").into());
-    }
     let mode = audio.state.sound_mode.get();
     if mode & crate::audio::make_buffer::MODE_OWN_BUFFERS == 0 {
         if mode & MODE_MIXER != 0 {
-            crate::audio::update_mixer_voices::update_mixer_voices_in_game(audio)?;
+            crate::audio::update_mixer_voices::update_mixer_voices(audio)?;
         }
         return Ok(());
     }
@@ -45,8 +41,6 @@ pub fn update_voices(audio: &AudioThread) -> Result<(), Refused> {
     let mut room = Room {
         asked: audio.state.eax_room.get(),
         set: audio.state.eax_room_set.get(),
-        environment: audio.environment.get(),
-        kept: audio.state.environment_kept.get(),
         commit: audio.state.commit_3d.get(),
     };
     let store = |l: &Lists, room: &Room| {
@@ -54,7 +48,6 @@ pub fn update_voices(audio: &AudioThread) -> Result<(), Refused> {
         audio.state.stopping_voices.set(l.stopping);
         audio.state.channels_used.set(l.channels_used);
         audio.state.eax_room_set.set(room.set);
-        audio.state.environment_kept.set(room.kept);
         audio.state.commit_3d.set(room.commit);
     };
     let mut pool = GamePool::new(audio);
@@ -63,9 +56,7 @@ pub fn update_voices(audio: &AudioThread) -> Result<(), Refused> {
         use crate::audio::{buffer_play as play, buffer_settings as set};
         match step {
             Step::IsPlaying(at) => {
-                return Ok(play::is_playing(&audio.state, &voice_of(&audio.state, at))?
-                    & play::PLAYING
-                    != 0);
+                return Ok(play::is_playing(&voice_of(&audio.state, at))? & play::PLAYING != 0);
             }
             Step::Room => {
                 crate::audio::set_eax_room::in_game(&audio.state)?;
@@ -74,7 +65,7 @@ pub fn update_voices(audio: &AudioThread) -> Result<(), Refused> {
                 play::commit_3d(&audio.state)?;
             }
             Step::Frequency(at) => {
-                set::set_buffer_frequency(&audio.state, &voice_of(&audio.state, at))?;
+                set::set_buffer_frequency(&voice_of(&audio.state, at))?;
             }
             Step::Volume(at) => {
                 set::set_buffer_volume(&audio.state, &voice_of(&audio.state, at))?;
@@ -86,13 +77,13 @@ pub fn update_voices(audio: &AudioThread) -> Result<(), Refused> {
                 set::set_buffer_place(&voice_of(&audio.state, at))?;
             }
             Step::Rewind(at) => {
-                play::rewind_buffer(&audio.state, &voice_of(&audio.state, at))?;
+                play::rewind_buffer(&voice_of(&audio.state, at))?;
             }
             Step::Play(at) => {
-                play::play_buffer(&audio.state, &voice_of(&audio.state, at))?;
+                play::play_buffer(&voice_of(&audio.state, at))?;
             }
             Step::Stop(at) => {
-                play::stop_buffer(&audio.state, &voice_of(&audio.state, at))?;
+                play::stop_buffer(&voice_of(&audio.state, at))?;
             }
         }
 

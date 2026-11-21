@@ -1,14 +1,13 @@
 //! The look-ups of the championship's results pages in the ranked times (0x9C-byte
-//! `RankedTime` entries, -1 ends them; +0x14 the stage's time, +0x18 the rally's, +0x1C the
-//! class, +0x44 the position), each ending in a fatal error when it finds nothing:
+//! `RankedTime` entries, -1 ends them; `key` the stage's time, `rally_time` the rally's, `group` the
+//! class, `figure` the position), each ending in a fatal error when it finds nothing:
 //! `find_ranked_entry` (a class at a position; 0x8070A7F9), `find_ranked_position` (0x8070A7FF),
 //! `find_champ_position` (in the championship's history, 0x78-byte `ChampEntry` entries;
 //! 0x8070A7FC) and `first_overall_time` (the first entry with a class, else the first entry;
 //! its rally or stage time; 0x8070A982).
 //!
-//! Callers: the results pages (`screens::results_pages`). Every entry is compared before the end
-//! mark is looked at (the first one too). Refuses (before anything) a search that runs 0x400
-//! entries without the end mark.
+//! Every entry is compared before the end mark is looked at (the first one too). Refuses (before
+//! anything) a search that runs 0x400 entries without the end mark.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::standings::{with_a, with_b};
@@ -35,7 +34,7 @@ const NO_CLASS: FatalError = FatalError {
 };
 
 /// From a table's first entry on, the first entry `wanted` takes (a copy); at the end mark
-/// `none` (converted: `rc2k_core::menu::standings::search`).
+/// `none` (the rule is `rc2k_core::menu::standings::search`).
 fn search<T: Walked + Copy + Default>(
     t: &Table<T>,
     wanted: impl Fn(&T) -> bool,

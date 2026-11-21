@@ -61,7 +61,7 @@ pub fn two_column_panel(see: u32) -> [Quad; 5] {
 /// The two columns' x.
 pub const COLUMNS: [u32; 2] = [0x43, 0x192];
 /// The rows' first y and their step.
-pub const RULES_Y: u32 = 0x5F;
+pub(crate) const RULES_Y: u32 = 0x5F;
 pub const BOXES_Y: u32 = 0x45;
 pub const ROW_STEP: u32 = 0x1D;
 /// The rows in a column.

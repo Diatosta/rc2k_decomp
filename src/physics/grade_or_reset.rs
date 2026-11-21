@@ -1,7 +1,5 @@
 //! With `driver_kind` 2, `reset_grades_at` (the work copy's grades reset); otherwise
 //! `rate_damage` (its damage made into grades and failures).
-//!
-//! Caller: `physics::set_handling`, first.
 
 use crate::physics::rate_damage::rate_damage;
 use crate::physics::reset_car_grades::reset_grades_at;
@@ -10,7 +8,7 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 
 /// `CAR.driver_kind` 2 resets the grades.
-pub fn grade_or_reset(damage: &DamageModel, numbers: &Numbers, shared: &RaceShared) {
+pub fn grade_or_reset(damage: &mut DamageModel, numbers: &Numbers, shared: &RaceShared) {
     if shared.car().driver_kind.get() == 2 {
         reset_grades_at(
             numbers,

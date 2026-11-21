@@ -3,9 +3,9 @@
 //! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the tests compare against
 //! recorded vectors (`data/vectors`).
 
-use crate::math::cells::{Cells, load};
+use crate::math::cells::Cells;
 use crate::math::x87_float::{ONE, compare, ld, stf};
-use crate::scene::x87_mem::{Base, cells, fld, fnstsw, fstp80};
+use crate::math::x87_mem::{Base, cells, fld, fnstsw, fstp80};
 
 /// `scene::normalise_vector3`: the three floats each times 1 over their length (the root of the
 /// squares, the last two added first).
@@ -18,6 +18,18 @@ pub fn normalise(v: &(impl Cells + ?Sized)) {
     v.set_float(2, stf(z));
     v.set_float(1, stf(y));
     v.set_float(0, stf(x));
+}
+
+/// `normalise` on three plain floats, the same steps.
+pub fn normalise_plain(v: &mut [f32; 3]) {
+    let f = |k: usize| ld(v[k]);
+    let (x, y, z) = (f(0), f(1), f(2));
+    let length = (x * x + (y * y + z * z)).sqrt();
+    let t10 = ONE / length;
+    let (x, y, z) = (f(0) * t10, f(1) * t10, f(2) * t10);
+    v[2] = stf(z);
+    v[1] = stf(y);
+    v[0] = stf(x);
 }
 
 /// `scene::dot_product3`: the dot product x x' + (y y' + z z'), unrounded.
@@ -57,25 +69,21 @@ fn cosine(a: impl Base, b: impl Base, s: impl Base) {
     fnstsw(s, 0x0, t3); // status word C3 C2 C0 (TOP not modelled)
 }
 
-/// `scene::angle_between_vectors`: the two vectors normalised in
-/// place (in order), their dot product kept as a float, and the angle whose cosine it
-/// is found by 16 halvings from pi / 2 by pi / 4 (floats each step; out when the compare
-/// is unordered); the last compare's C0 .. C2 in the shared FPU status cell.
-/// Returns the angle (a float, loaded).
-pub fn angle_between_vectors(
-    a: &(impl Cells + ?Sized),
-    b: &(impl Cells + ?Sized),
-    work: &crate::effects::work_store::MarksWork,
+/// `angle_between_vectors` on plain float vectors.
+pub fn angle_between_vectors_plain(
+    a: &mut [f32; 3],
+    b: &mut [f32; 3],
+    work: &std::cell::RefCell<crate::effects::work_store::MarksWork>,
 ) -> [u8; 10] {
-    let mut angle = crate::math::x87::loaded(work.cosine_start.get());
-    let mut step = crate::math::x87::loaded(work.cosine_step.get());
-    normalise(b);
-    normalise(a);
-    let dot = crate::scene::matrix3::rounded(dot_product3(load(a), load(b)));
-    let half: u32 = work.cosine_half.get();
+    let mut angle = crate::math::x87::loaded(work.borrow().cosine_start);
+    let mut step = crate::math::x87::loaded(work.borrow().cosine_step);
+    normalise_plain(b);
+    normalise_plain(a);
+    let dot = crate::math::matrix3::rounded(dot_product3(a.map(f32::to_bits), b.map(f32::to_bits)));
+    let half: u32 = work.borrow().cosine_half;
     for _ in 0..16 {
         let status = cosine_against(angle.to_bits(), dot);
-        work.fpu_status.set(status);
+        work.borrow_mut().fpu_status = status;
         match status {
             0x400 => break,
             0x100 => angle = crate::math::x87::sub(angle, step),
@@ -83,75 +91,8 @@ pub fn angle_between_vectors(
         }
         step = crate::math::x87::mul(step, half);
     }
-    crate::scene::matrix3::extended(angle)
+    crate::math::matrix3::extended(angle)
 }
 
 #[cfg(test)]
-mod reference_vectors {
-    use super::*;
-    use crate::test_support::vectors::{Differential, Kind, differential};
-
-    #[test]
-    fn normalise_matches_the_assembly() {
-        let test = Differential {
-            name: "scene.vector3.normalise",
-            cases: 8000,
-            seed: 4,
-            kinds: [Kind::Float; 3],
-            fill: &|rng, m| {
-                let moderate = rng.below(2) == 0;
-                for d in m.iter_mut() {
-                    *d = if moderate { rng.moderate() } else { rng.fl() };
-                }
-            },
-            plain: &|c| normalise(c),
-        };
-        differential(test);
-    }
-
-    #[test]
-    fn dot_matches_the_assembly() {
-        // a, b, the 80-bit result (3 dwords)
-        let test = Differential {
-            name: "scene.vector3.dot",
-            cases: 8000,
-            seed: 5,
-            kinds: [Kind::Exact; 9],
-            fill: &|rng, m| {
-                let moderate = rng.below(2) == 0;
-                for d in m.iter_mut().take(6) {
-                    *d = if moderate { rng.moderate() } else { rng.fl() };
-                }
-                m[6..].fill(0xAAAA_AAAA);
-            },
-            plain: &|c| dot(c, &c[3..], &c[6..]),
-        };
-        differential(test);
-    }
-
-    #[test]
-    fn cosine_matches_the_assembly() {
-        // the angle, the float it is compared with (often the cosine itself), the status
-        let test = Differential {
-            name: "scene.vector3.cosine",
-            cases: 8000,
-            seed: 6,
-            kinds: [Kind::Exact; 3],
-            fill: &|rng, m| {
-                m[0] = rng.angle();
-                m[1] = match rng.below(3) {
-                    0 => rc2k_core::math::portable::cos(f32::from_bits(m[0]) as f64) as f32,
-                    1 => rng.unit(),
-                    _ => f32::from_bits(rng.fl()),
-                }
-                .to_bits();
-                m[2] = 0;
-            },
-            plain: &|c| {
-                cosine(c, &c[1..], &c[2..]);
-                c[2].set(c[2].get() & 0x700);
-            },
-        };
-        differential(test);
-    }
-}
+mod tests;

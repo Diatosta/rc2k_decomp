@@ -1,10 +1,14 @@
 //! `sound::wait_for_commands`: waits until the audio thread has taken every command.
 //!
-//! Two "end of turn" commands (0xA) are queued; then, while commands are waiting: a millisecond's
-//! sleep, the window's messages (`system::pump_messages`), and the quit switch at 1 ends the wait.
-//! Fourteen callers.
+//! An "end of turn" command is queued; then the thread sleeps until the audio thread has taken
+//! every command and ended that turn (`sound::queue::wait_a_while`: the audio thread is told
+//! and does not pause meanwhile). Every `STRETCH` of a long wait the window's messages are
+//! taken, and the quit switch ends the wait.
 
-use crate::sound::queue::{END_OF_TURN, pending, send_command_in};
+use crate::sound::queue::{END_OF_TURN, send_command_in, wait_a_while};
+
+/// The longest the wait goes without the window's messages being taken.
+const STRETCH: std::time::Duration = std::time::Duration::from_millis(10);
 
 // ---- game data ----
 
@@ -22,16 +26,12 @@ impl Parts for Game {
         send_command_in(self.o.audio, END_OF_TURN);
     }
 
-    fn pending(&mut self) -> bool {
-        pending(self.o.audio)
-    }
-
-    fn sleep_a_millisecond(&mut self) {
-        crate::system::sleep::sleep(1);
+    fn wait_a_while(&mut self) -> bool {
+        wait_a_while(self.o.audio, STRETCH)
     }
 
     fn pump_messages(&mut self) {
-        crate::platform::pump_messages_now(self.o);
+        crate::shell::frame::pump_messages_now(self.o);
     }
 
     fn quitting(&mut self) -> bool {

@@ -9,15 +9,16 @@
 //!
 //! The x87 runs (with the integer steps between) are plain Rust over `X` (`math/x87_float.rs`).
 //!
-//! Caller: `physics::track_checkpoints`. Raises fatal error 0x80601843 as above. Refuses (before
-//! anything) a split past 0x40, a checkpoint past 0x1418, no faces or points.
+//! Raises fatal error 0x80601843 as above. Refuses (before anything) a split past 0x40, a
+//! checkpoint past 0x1418, no faces or points.
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, FatalError, Refused};
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
 use crate::physics::car_store::Car;
-use crate::physics::ground_store::GroundWork;
+use crate::physics::figures::SPLIT_DISTANCE;
+use crate::physics::ground_query::GroundSearch;
 use crate::physics::split_tables_store::SplitTables;
 use crate::physics::step_families::CheckpointInputs;
 use crate::physics::tables_store::PhysicsTables;
@@ -26,64 +27,43 @@ use crate::race::owner_course::Course;
 use rc2k_core::physics::progress;
 use std::cmp::Ordering;
 
-/// The distance from `point`: the whole-number gaps (`GroundWork.ground_x` and `ground_z` less the
-/// point's x and z; the last one is left in the scratch dword), their squares added, square-rooted,
+/// The distance from `point`: the whole-number gaps (the search's `x` and `z` less the
+/// point's x and z), their squares added, square-rooted,
 /// x `one_over_65536`, into the split point distance.
-fn distance(
-    tables: &PhysicsTables,
-    numbers: &Numbers,
-    ground: &GroundWork,
-    point: [u32; 3],
-    scene: &crate::scene::owner::Scene,
-) {
-    let drawing = &scene.drawing;
+fn distance(tables: &PhysicsTables, numbers: &Numbers, ground: &GroundSearch, point: [u32; 3]) {
     let word = |k: usize| point[k] as i32;
-    let dx = word(0).wrapping_sub(ground.ground_x.get() as i32);
-    drawing.scene.get().scratch.set(dx as u32);
+    let dx = word(0).wrapping_sub(ground.x as i32);
     let first = int(dx);
-    let dz = word(2).wrapping_sub(ground.ground_z.get() as i32);
-    drawing.scene.get().scratch.set(dz as u32);
+    let dz = word(2).wrapping_sub(ground.z as i32);
     let second = int(dz);
     tables
         .split_point_distance
         .st((first * first + second * second).sqrt() * numbers.one_over_65536.ld());
 }
 
-/// The angle from `point` to the car, into `scratch`: the gaps (the car's x and z less the point's,
-/// through the scratch dword), the arctangent, over pi, x `half` x `k65536`, rounded into the
-/// scratch, its low 16 bits.
-fn angle(
-    numbers: &Numbers,
-    ground: &GroundWork,
-    point: [u32; 3],
-    scene: &crate::scene::owner::Scene,
-) {
-    let drawing = &scene.drawing;
+/// The angle from `point` to the car: the gaps (the car's x and z less the point's), the
+/// arctangent, over pi, x `half` x `k65536`, rounded; its low 16 bits.
+fn angle(numbers: &Numbers, ground: &GroundSearch, point: [u32; 3]) -> u32 {
     let word = |k: usize| point[k] as i32;
-    let dx = (ground.ground_x.get() as i32).wrapping_sub(word(0));
-    drawing.scene.get().scratch.set(dx as u32);
+    let dx = (ground.x as i32).wrapping_sub(word(0));
     let y = int(dx);
-    let dz = (ground.ground_z.get() as i32).wrapping_sub(word(2));
-    drawing.scene.get().scratch.set(dz as u32);
+    let dz = (ground.z as i32).wrapping_sub(word(2));
     let x = int(dz);
     let turns = y.atan2_over_pi(x) * numbers.half.ld() * numbers.k65536.ld();
-    let turns = to_int(turns) as u32;
-    drawing.scene.get().scratch.set(turns);
-    drawing.scene.get().scratch.set(turns & 0xFFFF);
+    to_int(turns) as u32 & 0xFFFF
 }
 
 /// The split's checkpoint and its face's first point's number, refused or fatal as said.
 fn point(
     split_tables: &SplitTables,
     course: &Course,
-    checkpoints: &crate::race::checkpoints_store::Checkpoints,
+    checkpoints: crate::race::checkpoints_store::CheckpointsRef,
     car: &Car,
 ) -> Result<(u32, u32), Refused> {
     let split = car.splits_passed.get();
-    let cp =
-        progress::check_split_point(split, || split_tables.checkpoints[1 + split as usize].get())?;
-    let face = crate::race::checkpoints_store::face_run_on(checkpoints, cp as usize).get();
-    if !progress::face_known(face, course.course.get().course_face_count.get()) {
+    let cp = progress::check_split_point(split, || split_tables.checkpoints[1 + split as usize])?;
+    let face = crate::race::checkpoints_store::face_run_on(checkpoints, cp as usize);
+    if !progress::face_known(face, course.course.borrow().course_face_count) {
         return Err(FatalError {
             code: progress::SEGMENT_FATAL,
             message: "\u{1}",
@@ -103,111 +83,38 @@ fn point(
 /// Whether the car has passed the split's point.
 // Core: `rc2k_core::physics::progress::{check_split_point, face_known, passed_point}` (the distance
 // and the angle stay x87).
-pub fn passed_split_point(
-    c: &CheckpointInputs<'_>,
-    scene: &crate::scene::owner::Scene,
-) -> Result<bool, Refused> {
-    if c.finish.no_place.get() != 0 {
+pub fn passed_split_point(c: &CheckpointInputs<'_>) -> Result<bool, Refused> {
+    if c.no_place != 0 {
         return Ok(false);
     }
-    let (cp, pt) = point(c.physics.split_tables(), c.course, c.checkpoints, c.car)?;
+    let (cp, pt) = point(&c.physics.split_tables(), c.course, c.checkpoints, c.car)?;
     // The point read from `race::scene_points`; the x87 runs read a copy.
     let pt = crate::race::scene_points::point_number(
         c.course.reads(),
         &crate::race::scene_points::no_own(),
         pt,
     )?;
-    c.physics.ground().ground_x.set(c.car.position[0].get());
-    c.physics.ground().ground_z.set(c.car.position[2].get());
-    distance(c.tables, c.numbers, c.physics.ground(), pt, scene);
+    {
+        let mut search = c.physics.ground_search().borrow_mut();
+        search.x = c.car.position.bits_at(0);
+        search.z = c.car.position.bits_at(2);
+    }
+    distance(c.tables, c.numbers, &c.physics.ground_search().borrow(), pt);
     let within = !matches!(
         c.tables
             .split_point_distance
             .get()
-            .partial_cmp(&c.tables.split_distance.get()),
+            .partial_cmp(&SPLIT_DISTANCE),
         Some(Ordering::Greater | Ordering::Equal)
     );
     if !within {
         return Ok(false);
     }
-    angle(c.numbers, c.physics.ground(), pt, scene);
-    let car_angle = scene.drawing.scene.get().scratch.get() << 16;
-    c.tables.split_word.set(car_angle);
-    let heading = crate::race::checkpoints_store::angle_run_on(c.checkpoints, cp as usize).get();
-    c.tables.split_heading.set(heading);
+    let car_angle = angle(c.numbers, &c.physics.ground_search().borrow(), pt) << 16;
+    let heading = crate::race::checkpoints_store::angle_run_on(c.checkpoints, cp as usize);
     let (carry, _) = progress::passed_point(car_angle, heading);
     Ok(carry)
 }
 
 #[cfg(test)]
-mod reference_vectors {
-    use super::*;
-
-    /// The point in a test's operand buffer.
-    fn point_at(s: usize) -> [u32; 3] {
-        // SAFETY: the operand buffer is leased for the run and holds the three dwords.
-        unsafe {
-            crate::test_support::vectors::block_vectors::at(s)
-                .cast::<[u32; 3]>()
-                .read_unaligned()
-        }
-    }
-    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
-
-    #[test]
-    fn distance_and_angle_match_the_assembly() {
-        let blocks = vec![
-            Block {
-                name: "passed_split_point distance",
-                operands: vec![
-                    Operand::RaceBlock {
-                        reads: &[(0x239824, In::I), (0x23982C, In::I), (0x1C5DA0, In::F)],
-                        writes: &[(0x22400C, Out::I), (0x214D04, Out::F)],
-                    },
-                    Operand::Buffer {
-                        reads: &[(0, In::I), (8, In::I)],
-                        writes: &[],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    distance(
-                        crate::test_support::own::race().shared.physics_tables.get(),
-                        crate::test_support::own::race().course.numbers.get(),
-                        crate::test_support::own::race().physics.ground(),
-                        point_at(a[1]),
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-            Block {
-                name: "passed_split_point angle",
-                operands: vec![
-                    Operand::RaceBlock {
-                        reads: &[
-                            (0x239824, In::I),
-                            (0x23982C, In::I),
-                            (0x1C5E40, In::F),
-                            (0x1C5D98, In::F),
-                        ],
-                        writes: &[(0x22400C, Out::I)],
-                    },
-                    Operand::Buffer {
-                        reads: &[(0, In::I), (8, In::I)],
-                        writes: &[],
-                    },
-                ],
-                ulps: 0,
-                plain: |a| {
-                    angle(
-                        crate::test_support::own::race().course.numbers.get(),
-                        crate::test_support::own::race().physics.ground(),
-                        point_at(a[1]),
-                        crate::test_support::own::scene(),
-                    );
-                },
-            },
-        ];
-        sparse("physics.passed_split_point", &blocks, 6000, 202);
-    }
-}
+mod tests;

@@ -1,123 +1,136 @@
-//! The object slots' kinds and the texture level tables: the slots' kinds, the objects' kinds, the
-//! object and point totals, the car's mark textures, the 3D switch, the level sizes and the three
-//! 0x400-entry tables of texture tags and levels. The kind texture tables follow
+//! The object slots' kinds and the texture level tables. `ObjectKinds` (the loaded objects' kinds,
+//! the points loaded so far and the 3D switch) is what the drawing parts read, a plain record lent as a copy;
+//! `TextureLevels` (the slots' kinds, the faces loaded, the level sizes and the three 0x400-entry
+//! tables of texture tags and levels) is plain fields only the game's thread reaches
+//! (`scene::owner::Scene::texture_levels`). The kind texture tables follow
 //! (`scene::kind_texture_store`).
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::PlainDword;
+use crate::memory::session::{DrawPlain, PlainRead};
 
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
-pub struct ObjectTables {
-    /// Each object slot's kind (`scene::load_front_end_objects`,
-    /// `scene::set_up_front_end_scene`, `race::objects`; cleared by `scene::clear_slot_kinds`).
-    /// [64] is the kind kept by `race::objects` (`scene::draw_object_polygon`).
-    pub slot_kinds: [PlainDword; 256],
+/// What the drawing parts read of the objects' tables: a plain record (`session::DrawPlain`)
+/// written on the game's thread, read there and, as a copy made when a drawing scope opens, by the
+/// parts through their reads (`scene::workers::DrawReads`).
+#[derive(Clone)]
+pub struct ObjectKinds {
     /// Each loaded object's kind (`scene::load_object`, `scene::objects`,
     /// `scene::list_object_face`, `physics::face_contact`, `drive::animate_lit_faces`).
-    pub object_kinds: [PlainDword; 256],
-    /// The faces loaded so far (`scene::add_object_shape`, `scene::load_object`).
-    pub face_count: PlainDword,
+    pub object_kinds: [u32; 256],
     /// The points loaded so far (`scene::add_object_shape`, `scene::project_point`,
     /// `scene::place_object_points`).
-    pub point_count: PlainDword,
-    /// Where the shape's normals are in its file (`scene::add_object_shape`). Not used: nothing
-    /// reads it, so the address is not kept here.
-    pub normals_at: PlainDword,
-    /// The textures of the car's marks and the menus' kind bytes. Unused: the drawing has its
-    /// own in `scene::car_marks`.
-    pub car_mark_textures: [PlainDword; 256],
-    /// The car's letter number, a second copy, never read; unused.
-    pub car_letter_b: PlainDword,
+    pub point_count: u32,
     /// Whether the Direct3D device is drawing: 0 until `race::draw_race_scene` first sets it to
     /// 1 (nothing sets it back); while 0 the texture, depth-clear and polygon functions skip
-    /// the device. The switch the texture and polygon functions test
-    /// (`scene::clear_depth_buffer`, `scene::submit_polygon`, `race::draw_race_scene`,
+    /// the device (`scene::clear_depth_buffer`, `scene::submit_polygon`, `race::draw_race_scene`,
     /// `race::frame_views`).
-    pub d3d_drawing_on: PlainDword,
-    /// Seven dwords between the 3D switch and the level sizes; nothing reads or writes them (a
-    /// gap).
-    pub unknown_c14: [PlainDword; 7],
-    /// What a texture of each level takes, in k (`scene::texture_needs`).
-    pub level_sizes: [PlainDword; 4],
-    /// The levels' mip figures (`scene::try_allocate_textures`).
-    pub level_mips: [PlainDword; 8],
-    /// Set when the other levels are in use (`scene::texture_levels`).
-    pub other_levels: PlainDword,
-    /// Each texture's tag (`scene::texture_needs`, `scene::texture_levels`).
-    pub texture_tags: [PlainDword; 1024],
-    /// The level each texture is needed at in the system memory (-1 for none; reset to 0xFF by
-    /// `scene::reset_texture_tables`). [256] is the mud texture's halvings (`race::mud_texel`).
-    pub system_levels: [PlainDword; 1024],
-    /// The same for the video memory.
-    pub video_levels: [PlainDword; 1024],
+    pub d3d_drawing_on: u32,
 }
 
-impl ObjectTables {
-    /// The kind of `object`: the object numbers the game's code passes are not all bounded
-    /// by the table, so a number past it reads on into the fields after it, in order, to the
-    /// end of the record (a number past that ends the program).
+impl ObjectKinds {
+    /// The kind of `object` (an object number past the table ends the program).
     pub fn object_kind(&self, object: u32) -> u32 {
-        if let Some(kind) = self.object_kinds.get(object as usize) {
-            return kind.get();
+        match self.object_kinds.get(object as usize) {
+            Some(&kind) => kind,
+            None => crate::memory::host_hooks::end(
+                "an object's kind",
+                crate::errors::BadInput("an object number past the kinds' table"),
+            ),
         }
-        crate::memory::session::read_runs(
-            &[
-                &self.object_kinds,
-                &self.face_count,
-                &self.point_count,
-                &self.normals_at,
-                &self.car_mark_textures,
-                &self.car_letter_b,
-                &self.d3d_drawing_on,
-                &self.unknown_c14,
-                &self.level_sizes,
-                &self.level_mips,
-                &self.other_levels,
-                &self.texture_tags,
-                &self.system_levels,
-                &self.video_levels,
-            ],
-            object as usize,
-            "an object's kind",
-        )
-        .unwrap_or_else(|e| crate::fatal::raise::end("an object's kind", e))
     }
-}
 
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
-
-impl ObjectTables {
     /// The store with its first values (every field not named here starts at zero).
     pub const fn new() -> Self {
         Self {
-            d3d_drawing_on: PlainDword::new(1),
-            unknown_c14: [
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0x100),
-                PlainDword::new(0x80),
-                PlainDword::new(0x40),
-                PlainDword::new(0x20),
-            ],
-            level_sizes: [
-                PlainDword::new(0x80),
-                PlainDword::new(0x20),
-                PlainDword::new(8),
-                PlainDword::new(2),
-            ],
-            level_mips: [
-                PlainDword::new(2),
-                PlainDword::new(1),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-            ],
-            ..ZeroCells::ZERO
+            object_kinds: [0; 256],
+            point_count: 0,
+            d3d_drawing_on: 1,
+        }
+    }
+}
+
+/// The tables as one reader finds them: the game's thread's own (read through the store when used),
+/// or a drawing part's copy.
+#[derive(Clone, Copy)]
+pub enum ObjectKindsRef<'a> {
+    Store(&'a DrawPlain<ObjectKinds>),
+    Copy(&'a ObjectKinds),
+}
+
+impl ObjectKindsRef<'_> {
+    /// The kind of `object` (an object number past the table ends the program).
+    pub fn object_kind(self, object: u32) -> u32 {
+        match self {
+            Self::Store(store) => store.borrow().object_kind(object),
+            Self::Copy(tables) => tables.object_kind(object),
+        }
+    }
+
+    /// Every object's kind.
+    pub fn object_kinds(self) -> [u32; 256] {
+        match self {
+            Self::Store(store) => store.borrow().object_kinds,
+            Self::Copy(tables) => tables.object_kinds,
+        }
+    }
+
+    /// The points loaded so far.
+    pub fn point_count(self) -> u32 {
+        match self {
+            Self::Store(store) => store.borrow().point_count,
+            Self::Copy(tables) => tables.point_count,
+        }
+    }
+
+    /// Whether the device is drawing (not 0).
+    pub fn d3d_drawing_on(self) -> u32 {
+        match self {
+            Self::Store(store) => store.borrow().d3d_drawing_on,
+            Self::Copy(tables) => tables.d3d_drawing_on,
+        }
+    }
+}
+
+impl<'a> From<&'a PlainRead<ObjectKinds>> for ObjectKindsRef<'a> {
+    fn from(copy: &'a PlainRead<ObjectKinds>) -> Self {
+        Self::Copy(copy)
+    }
+}
+
+/// The slots' kinds and the texture level tables: plain fields, reached by the game's thread alone.
+#[derive(Clone)]
+pub struct TextureLevels {
+    /// Each object slot's kind (`scene::load_front_end_objects`,
+    /// `scene::set_up_front_end_scene`, `race::objects`; cleared by `scene::clear_slot_kinds`).
+    /// [64] is the kind kept by `race::objects` (`scene::draw_object_polygon`).
+    pub slot_kinds: [u32; 256],
+    /// The faces loaded so far (`scene::add_object_shape`, `scene::load_object`).
+    pub face_count: u32,
+    /// What a texture of each level takes, in k (`scene::texture_needs`).
+    pub level_sizes: [u32; 4],
+    /// The levels' mip figures (`scene::try_allocate_textures`).
+    pub level_mips: [u32; 8],
+    /// Set when the other levels are in use (`scene::texture_levels`).
+    pub other_levels: u32,
+    /// Each texture's tag (`scene::texture_needs`, `scene::texture_levels`).
+    pub texture_tags: [u32; 1024],
+    /// The level each texture is needed at in the system memory (-1 for none; reset to 0xFF by
+    /// `scene::reset_texture_tables`). [256] is the mud texture's halvings (`race::mud_texel`).
+    pub system_levels: [u32; 1024],
+    /// The same for the video memory.
+    pub video_levels: [u32; 1024],
+}
+
+impl TextureLevels {
+    /// The tables with their first values (every field not named here starts at zero).
+    pub const fn new() -> Self {
+        Self {
+            slot_kinds: [0; 256],
+            face_count: 0,
+            level_sizes: [0x80, 0x20, 8, 2],
+            level_mips: [2, 1, 0, 0, 0, 0, 0, 0],
+            other_levels: 0,
+            texture_tags: [0; 1024],
+            system_levels: [0; 1024],
+            video_levels: [0; 1024],
         }
     }
 }
@@ -126,34 +139,14 @@ impl ObjectTables {
 mod tests {
     use super::*;
 
-    /// Every object number from the table to the end of the record gives the entry of
-    /// the fields after the table.
+    /// The tables start as the game has them.
     #[test]
-    fn object_kind_runs_on_through_the_fields_after() {
-        use core::slice::from_ref;
-        let t = Box::new(ObjectTables::new());
-        let parts: [&[PlainDword]; 14] = [
-            &t.object_kinds,
-            from_ref(&t.face_count),
-            from_ref(&t.point_count),
-            from_ref(&t.normals_at),
-            &t.car_mark_textures,
-            from_ref(&t.car_letter_b),
-            from_ref(&t.d3d_drawing_on),
-            &t.unknown_c14,
-            &t.level_sizes,
-            &t.level_mips,
-            from_ref(&t.other_levels),
-            &t.texture_tags,
-            &t.system_levels,
-            &t.video_levels,
-        ];
-        let chain: Vec<&PlainDword> = parts.into_iter().flatten().collect();
-        for (n, cell) in chain.iter().enumerate() {
-            cell.set(0x6000 + n as u32);
-        }
-        for n in 0..chain.len() {
-            assert_eq!(t.object_kind(n as u32), 0x6000 + n as u32, "object {n}");
-        }
+    fn the_tables_start_as_the_game_has_them() {
+        let levels = TextureLevels::new();
+        assert_eq!(levels.level_sizes, [0x80, 0x20, 8, 2]);
+        assert_eq!(levels.level_mips, [2, 1, 0, 0, 0, 0, 0, 0]);
+        let kinds = ObjectKinds::new();
+        assert_eq!(kinds.d3d_drawing_on, 1);
+        assert_eq!(kinds.object_kind(255), 0);
     }
 }

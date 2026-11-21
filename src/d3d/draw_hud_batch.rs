@@ -1,31 +1,28 @@
-//! `d3d::draw_hud_batch`: draws the HUD's batch, an indexed list of triangles of transformed
-//! and lit vertices. The HUD block's vertices and indices (16 bits) and their counts are the
-//! input. One caller, `hud::flush_batch`. The rasteriser draws each triangle
-//! (`platform::direct3d::draw_triangles`); the result is 0.
+//! `d3d::draw_hud_batch`: draws the HUD's batch, an indexed list of triangles of transformed and
+//! lit vertices. The HUD block's vertices and indices (16 bits) and their counts are the input. The
+//! rasteriser draws each triangle (`d3d::device::draw_triangles`); the result is 0.
 
 /// Draws the HUD's batch.
-pub fn draw_hud_batch(part: &crate::scene::workers::PartScratch, hud: &crate::hud::owner::Hud) {
-    // The vertices and indices are the HUD block's (`hud::store`).
+pub fn draw_hud_batch(
+    part: &crate::scene::scratch_store::PartScratch,
+    hud: &crate::hud::owner::Hud,
+) {
+    // The vertices and indices are the HUD block's (`hud::block_store`).
     let past = |what: &str| -> ! {
         crate::fatal::raise::end(what, crate::errors::BadInput("past the HUD's batch"))
     };
-    crate::platform::direct3d::draw_triangles(
+    crate::d3d::device::draw_triangles(
         part,
-        hud.block.vertex_count.get(),
-        hud.block.index_count.get(),
+        hud.block.vertex_count,
+        hud.block.index_count,
         |n| {
-            let Some(v) = hud.block.vertices.get(n as usize) else {
+            let Some(v) = hud.block.vertices.get(usize::from(n)) else {
                 past("a vertex")
             };
-            crate::d3d::wire_vertex(
-                [v.x.get(), v.y.get(), v.z.get(), v.rhw.get()],
-                v.colour.get(),
-                v.specular.get(),
-                [v.u.get(), v.v.get()],
-            )
+            crate::d3d::wire_vertex([v.x, v.y, v.z, v.rhw], v.colour, v.specular, [v.u, v.v])
         },
         |k| match hud.block.indices.get(k) {
-            Some(i) => i.get(),
+            Some(&i) => i,
             None => past("an index"),
         },
     );

@@ -1,10 +1,9 @@
 //! `scene::reset_objects`: empties the objects' tables before they are loaded.
 //!
 //! The points' memory zeroed (its room `CourseLists.object_points_room`, in dwords); the slots'
-//! first points, numbers of points and normals, first faces and numbers of faces zeroed; the
-//! object point count = 1 (point 0 is never an object's), the faces' number and the faces'
-//! memory used = 0; every slot's kind = -1. One caller, `scene::load_front_end_objects`.
-//! Refuses points' room without memory.
+//! first points, numbers of points and normals, first faces and numbers of faces zeroed; the object
+//! point count = 1 (point 0 is never an object's), the faces' number and the faces' memory used =
+//! 0; every slot's kind = -1. Refuses points' room without memory.
 
 use crate::errors::BadInput;
 
@@ -14,8 +13,8 @@ pub fn reset_objects(
 ) -> Result<(), BadInput> {
     {
         let (memory, room): (u32, u32) = (
-            course.lists.get().object_points.get(),
-            course.lists.get().object_points_room.get(),
+            course.lists.borrow().object_points,
+            course.lists.borrow().object_points_room,
         );
         if memory == 0 && room >= 4 {
             return Err(BadInput("room for the objects' points without memory"));
@@ -23,23 +22,23 @@ pub fn reset_objects(
         if room >> 2 != 0 {
             course.stage.object_points.clear((room >> 2) as usize * 4)?;
         }
-        for table in [
-            &scene.objects.slots.get().first_point,
-            &scene.objects.slots.get().point_counts,
-            &scene.objects.slots.get().normal_counts,
-            &scene.objects.slots.get().first_face,
-            &scene.objects.slots.get().face_counts,
-        ] {
-            for cell in table {
-                cell.set(0);
-            }
+        {
+            let mut slots = scene.objects.slots.borrow_mut();
+            slots.first_point.fill(0);
+            slots.point_counts.fill(0);
+            slots.normal_counts.fill(0);
+            slots.first_face.fill(0);
+            slots.face_counts.fill(0);
         }
-        scene.objects.tables.get().point_count.set(1);
-        scene.objects.tables.get().face_count.set(0);
-        scene.object_work().face_cursor.set(0u32);
-        for kind in &scene.objects.tables.get().object_kinds {
-            kind.set(u32::MAX);
-        }
+        scene.objects.tables.borrow_mut().point_count = 1;
+        scene.texture_levels_mut().face_count = 0;
+        scene.object_work_mut().face_cursor = 0u32;
+        scene
+            .objects
+            .tables
+            .borrow_mut()
+            .object_kinds
+            .fill(u32::MAX);
         Ok(())
     }
 }

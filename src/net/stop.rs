@@ -10,8 +10,8 @@ pub fn stop(o: crate::owners::Owners<'static>, net: &Net, lines: &NetTexts) -> R
     let vars = &net.vars;
     net.race_slot.end();
     while vars.receiver.receiving.get() != 0 {
-        crate::system::sleep::sleep(1);
-        crate::platform::pump_messages_now(o);
+        crate::clock::sleep::sleep(1);
+        crate::shell::frame::pump_messages_now(o);
         if o.system.session.flags.quitting.is_set() && vars.receive_done.get() == 1 {
             break;
         }

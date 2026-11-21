@@ -6,7 +6,7 @@ use rc2k_core::menu::items::{
     HIDDEN, IN_GAME_OPTIONS, Look, hidden_in_game_options, shown_in_game_option,
 };
 
-/// Item `n` given its look: +0x14, +0x48, +0x1C.
+/// Item `n` given its look: its string, its state (skip mark) and what is behind its text.
 pub fn set(tables: &Tables, n: u32, look: Look) -> Result<(), crate::errors::BadInput> {
     let item = tables
         .menus
@@ -15,9 +15,11 @@ pub fn set(tables: &Tables, n: u32, look: Look) -> Result<(), crate::errors::Bad
         .items(&tables.menus)
         .get(n as usize)
         .ok_or(crate::errors::BadInput("an item past the in-game options"))?;
-    item.string.set(look.string);
-    item.skip_mark.set(look.state);
-    item.behind.set(look.behind);
+    item.update(|state| {
+        state.string = look.string;
+        state.skip_mark = look.state;
+        state.behind = look.behind;
+    });
     Ok(())
 }
 
@@ -36,6 +38,15 @@ pub fn show_in_game_options(menus: &Menus) -> Result<(), crate::errors::BadInput
     let tables = &menus.tables;
     for n in IN_GAME_OPTIONS {
         set(tables, n, shown_in_game_option(n))?;
+    }
+    Ok(())
+}
+
+/// The items of the cars' specifications hidden, as for any number of players that has none
+/// (the network lobby has its own car button).
+pub fn hide_car_specs(menus: &Menus) -> Result<(), crate::errors::BadInput> {
+    for n in IN_GAME_OPTIONS {
+        set(&menus.tables, n, HIDDEN)?;
     }
     Ok(())
 }

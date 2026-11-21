@@ -6,7 +6,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_marker_pair::marker_calls;
 use crate::gfx::owner::Gfx;
-use crate::memory::session::{DwordLike, PlainDword};
+use crate::menu::menus_store::ItemString;
 use crate::menu::owner::Screens;
 use crate::records::stages_store::RecordRef;
 use crate::records::stages_store::TrackField;
@@ -21,7 +21,7 @@ use crate::text::draw_text::Canvas;
 // ---- game data ----
 
 // mmss: receives the finish time
-// the summary copy[1]: copy of entry +0x34
+// the summary copy[1]: a copy of the entry's rivals field
 const SECOND_HEADING_STRING: u32 = 0x482;
 
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
@@ -39,14 +39,15 @@ pub fn group_title(group: u32) -> Result<u32, BadInput> {
 /// add one only after a section's last record, `menu::view_stage_loop` puts back what it
 /// took, and a savegame holds what the game saved; a section the table has not is refused by
 /// the record look-ups before any title is drawn. Refused past the field.
-pub fn section_title(
+pub(super) fn section_title(
     lists: &crate::menu::lists_store::MenuLists,
     section: u32,
 ) -> Result<u32, BadInput> {
     lists
+        .read()
         .section_titles
         .get(section as usize)
-        .map(PlainDword::get)
+        .copied()
         .ok_or(BadInput("a section past its title"))
 }
 
@@ -67,12 +68,13 @@ pub fn label(
 /// Builds the second heading ("<string 0x482> n/6: name") in its own buffer. Three of the
 /// four panels build it; only `draw_time_trial_stage_info` also draws it (the text it
 /// returns, with its NUL).
-pub fn build_second_heading(
-    so: crate::strings::append_string_by_id::StringOwners<'_>,
+pub(super) fn build_second_heading(
+    o: crate::owners::Owners<'_>,
     record: RecordRef,
 ) -> Result<Vec<u8>, Refused> {
+    let so = crate::strings::append_string_by_id::StringOwners::of(o);
     let bytes = heading_text(so, record, SECOND_HEADING_STRING)?;
-    so.menus
+    o.menus
         .text_buffers
         .stage_heading
         .write_at(0, &bytes, "the second stage heading")?;
@@ -81,15 +83,15 @@ pub fn build_second_heading(
 
 /// Everything from the map markers down to the numbered line at the bottom left, for the
 /// stage `record`. `marker_palette` is whatever the caller passes for the markers (unused).
-/// `keep_entry_34` is the one store that two of the panels add: the entry's field at +0x34 into
+/// `keep_entry_34` is the one store that two of the panels add: the entry's rivals field into
 /// RaceState.settings.rivals[1].
 ///
-/// The stage's track pack entry holds most of what is shown: +0x08 index of its duration,
-/// +0x0C length in hundredths of a mile (0 = none), +0x10 first of three description strings,
-/// +0x14 weather string, +0x1C temperature, +0x20 wind in tenths of a mile per hour,
-/// +0x24/+0x28/+0x2C/+0x30 surface percentages, +0x38 a number and +0x3C which of two labels
-/// goes with it. The record gives +0x10, the start time as hours * 100 + minutes.
-pub fn draw_stage_body(
+/// The stage's track pack entry holds most of what is shown: the index of its duration, its
+/// length in hundredths of a mile (0 = none), the first of three description strings, the
+/// weather string, the temperature, the wind in tenths of a mile per hour, four surface
+/// percentages, a number and which of two labels goes with it. The record gives the start time
+/// as hours * 100 + minutes.
+pub(super) fn draw_stage_body(
     o: crate::owners::Owners<'static>,
     gfx: &Gfx,
     record: RecordRef,
@@ -102,7 +104,7 @@ pub fn draw_stage_body(
 /// `draw_stage_body` with the two headings (surface, weather) in `heading_font`: the rally
 /// stage page (`screens::draw_rally_stage_info`) uses `FontObjects.objects[14].first_char`, the
 /// others `FontObjects.objects[17].first_char`.
-pub fn draw_stage_body_in(
+pub(super) fn draw_stage_body_in(
     o: crate::owners::Owners<'static>,
     gfx: &Gfx,
     record: RecordRef,
@@ -122,17 +124,17 @@ pub fn draw_stage_body_in(
         // (`trakpak_entry::Track::get`), and every field here may be reached so.
         let stages = &o.system.records().stage_tables;
         let track = track_of(stages, record)?;
-        let fault = crate::menu::event_flow::Fault::default();
+        let fault = crate::errors::Fault::default();
         let f = |field: TrackField| fault.ok(track.get(stages, field));
         let made = Entry {
             // `MenuLists::durations` (the stage durations) has 37 entries; a duration index past it
             // is refused.
-            duration: menus
+            duration: *menus
                 .lists
+                .read()
                 .durations
                 .get(f(TrackField::Duration) as usize)
-                .ok_or(BadInput("a stage duration past the 37"))?
-                .get(),
+                .ok_or(BadInput("a stage duration past the 37"))?,
             length: f(TrackField::Length),
             description: f(TrackField::Description),
             weather: f(TrackField::Weather),
@@ -164,7 +166,7 @@ pub fn draw_stage_body_in(
 
 /// The panel's screen for `rc2k_core::screens::stage_panel`: the best times' names copied
 /// out of their tables (`HeldText::Held`), the game's texts drawn where they are.
-pub type PanelScreen<'a> = GameScreen<
+pub(super) type PanelScreen<'a> = GameScreen<
     'a,
     rc2k_core::screens::stage_panel::Font,
     rc2k_core::screens::stage_panel::Work,
@@ -173,7 +175,7 @@ pub type PanelScreen<'a> = GameScreen<
 
 /// Stage `stage`'s best time (its first) in `table`, copied out. Refuses no table and a stage
 /// past it.
-pub fn best_of(
+pub(super) fn best_of(
     table: &crate::menu::event_flow::StageTable,
     stage: u32,
 ) -> Result<rc2k_core::saves::entries::BestTime, crate::errors::BadInput> {
@@ -185,9 +187,9 @@ pub fn best_of(
         .ok_or(crate::errors::BadInput("a stage past its best times table"))
 }
 
-/// The record rows, with the stage's best time (the record's +0x3C its stage) from
+/// The record rows, with the stage's best time (the record's table number its stage) from
 /// `table`. Returns whether the last text was too wide for its box.
-pub fn draw_records_from(
+pub(super) fn draw_records_from(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     table: &crate::menu::event_flow::StageTable,
@@ -205,7 +207,7 @@ pub fn draw_records_from(
 /// group 1 is selected, else from the usual one, and not at all while either the group 1
 /// table or the chosen one is missing. Returns whether the last text was too wide
 /// for its box (false when nothing is drawn).
-pub fn draw_records_for_group(
+pub(super) fn draw_records_for_group(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     group: u32,
@@ -229,15 +231,13 @@ pub fn draw_records_for_group(
 
 // ---- support ----
 
-/// The string id (+0x14) of item `n` (from 0) of the current menu, or None without a menu
+/// The string id of item `n` (from 0) of the current menu, or None without a menu
 /// (or past its end).
-pub fn menu_item_id<'a>(
+pub(super) fn menu_item_id<'a>(
     screens: &'a Screens,
     tables: &'a crate::menu::menus_store::MenuTables,
     n: u32,
-) -> Option<&'a dyn DwordLike> {
+) -> Option<ItemString<'a>> {
     let menu = screens.loop_flags.menu.get().ok()?;
-    menu.items(tables)
-        .get(n as usize)
-        .map(|i| &i.string as &dyn DwordLike)
+    menu.items(tables).get(n as usize).map(|i| i.string_id())
 }

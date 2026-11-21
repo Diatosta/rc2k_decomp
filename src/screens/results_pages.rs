@@ -5,8 +5,7 @@
 //!   section's first record), the rally's times, the first time the class's, and the rows of the
 //!   class by position.
 //! - `draw_overall_rally_results`: the same with titles 0x4EB / 0x4EE, the first time the first
-//!   classed entry's and the rows by position alone. A player's row is "retired or not finished"
-//!   by its +0x14 where the others' are by +0x18 (kept as is).
+//!   classed entry's and the rows by position alone.
 //! - `draw_class_stage_results`: the heading `screens::draw_record_heading`, the stage's times,
 //!   the class's first time and rows.
 //! - `draw_overall_stage_results`: as the last with the overall first time (the gaps' base) and
@@ -38,48 +37,42 @@ enum Heading {
 #[derive(Clone, Copy)]
 pub struct Page {
     heading: Heading,
-    /// The time drawn and its gap: +0x18 the rally's, +0x14 the stage's.
+    /// The time drawn and its gap: the rally's (`rally_time`) or the stage's (`stage_time`).
     time: u32,
     /// The "not timed" check's field for others' rows and for a player's.
     check: (u32, u32),
     /// The first time: true the class's (`find_class_time`), false the first classed
     /// entry's (`first_overall_time`).
     by_class: bool,
-    /// The first time also kept as the overall first time.
-    keep_overall: bool,
 }
 
-pub const CLASS_RALLY: Page = Page {
+const CLASS_RALLY: Page = Page {
     heading: Heading::Titles(0x4EA, 0x4ED),
     time: 0x18,
     check: (0x18, 0x18),
     by_class: true,
-    keep_overall: false,
 };
 pub const OVERALL_RALLY: Page = Page {
     heading: Heading::Titles(0x4EB, 0x4EE),
     time: 0x18,
-    check: (0x18, 0x14),
+    check: (0x18, 0x18),
     by_class: false,
-    keep_overall: false,
 };
-pub const CLASS_STAGE: Page = Page {
+const CLASS_STAGE: Page = Page {
     heading: Heading::Record,
     time: 0x14,
     check: (0x14, 0x14),
     by_class: true,
-    keep_overall: false,
 };
-pub const OVERALL_STAGE: Page = Page {
+const OVERALL_STAGE: Page = Page {
     heading: Heading::Record,
     time: 0x14,
     check: (0x14, 0x14),
     by_class: false,
-    keep_overall: true,
 };
 
 /// Draws one page.
-pub fn draw_results_page(
+fn draw_results_page(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     page: &Page,
@@ -87,7 +80,7 @@ pub fn draw_results_page(
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     let menus = o.menus;
-    let class = menus.screens.event.shown.class.get();
+    let class = menus.screens.event.read().shown.class;
     if !section_there(menus, system)? {
         return Err(BadInput("a section past the record table").into());
     }
@@ -97,7 +90,7 @@ pub fn draw_results_page(
     } else {
         first_overall_time(2, rally, tables)?
     };
-    let first_row = menus.play.champ_view.rows.first_row.get();
+    let first_row = menus.play.champ_view.read().rows.first_row;
     let end = first_row.wrapping_add(10);
     // every row found before anything is drawn
     let mut rows = Vec::new();
@@ -121,15 +114,15 @@ pub fn draw_results_page(
     {
         let heading = match page.heading {
             Heading::Titles(normal, alternative) => Drawn::Titles {
-                title: if menus.screens.state.menus.rally_done.is_set() {
+                title: if menus.screens.state.read().menus.rally_done {
                     alternative
                 } else {
                     normal
                 },
-                name: if menus.play.champ_view.event_mode.get() == 0x13 {
+                name: if menus.play.champ_view.read().event_mode == 0x13 {
                     crate::screens::stage_panel::section_title(
                         &menus.lists,
-                        menus.screens.event.section.get(),
+                        menus.screens.event.read().section,
                     )?
                 } else {
                     record_at(menus, system, 0)?
@@ -142,7 +135,7 @@ pub fn draw_results_page(
                 Drawn::Drawn
             }
         };
-        // A time field of the page's (+0x14 the time, +0x18 the total).
+        // A time field of the page's (`stage_time` the time, `rally_time` the total).
         let time_at = |e: &rc2k_core::saves::entries::BestTime, at: u32| {
             if at == 0x18 {
                 e.head.rally_time
@@ -172,7 +165,6 @@ pub fn draw_results_page(
             heading,
             first,
             first_row,
-            page.keep_overall,
             show_hours(o.strings),
             &rows,
         )?;
@@ -182,7 +174,7 @@ pub fn draw_results_page(
 
 /// `results_page`: the pages the typed tables run.
 macro_rules! results_page_entry {
-    ($module:ident, $name:literal, $address:expr, $page:expr) => {
+    ($module:ident, $page:expr) => {
         pub mod $module {
             use super::*;
             /// Run by the typed tables (`menu::table_calls`).
@@ -203,27 +195,7 @@ macro_rules! results_page_entry {
     };
 }
 
-results_page_entry!(
-    class_rally,
-    "screens::draw_class_rally_results",
-    0x4A3376,
-    CLASS_RALLY
-);
-results_page_entry!(
-    overall_rally,
-    "screens::draw_overall_rally_results",
-    0x4A37E2,
-    OVERALL_RALLY
-);
-results_page_entry!(
-    class_stage,
-    "screens::draw_class_stage_results",
-    0x4A2111,
-    CLASS_STAGE
-);
-results_page_entry!(
-    overall_stage,
-    "screens::draw_overall_stage_results",
-    0x4A2F46,
-    OVERALL_STAGE
-);
+results_page_entry!(class_rally, CLASS_RALLY);
+results_page_entry!(overall_rally, OVERALL_RALLY);
+results_page_entry!(class_stage, CLASS_STAGE);
+results_page_entry!(overall_stage, OVERALL_STAGE);

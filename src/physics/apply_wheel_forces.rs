@@ -1,18 +1,17 @@
 //! Applies the 0x17 force records (`forces`, the wheels' among them) to the work car with
 //! `physics::apply_forces`.
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::errors::Refused;
 use crate::physics::apply_forces::apply_forces;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 const COUNT: usize = 0x17;
 
-pub fn apply_wheel_forces(
+pub(super) fn apply_wheel_forces(
     car: &Car,
+    numbers: &Numbers,
     tables: &PhysicsTables,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    apply_forces(car, tables, &tables.forces[..COUNT], scene)
+    apply_forces(car, numbers, &tables.forces[..COUNT])
 }

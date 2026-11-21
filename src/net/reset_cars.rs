@@ -11,7 +11,8 @@ use rc2k_core::net::cars;
 type Reset = (fn(&Car) -> &PlainDword, u32);
 
 /// A car's block's dwords set before it is cleared, in order: the car's number + 1 in
-/// +0xAA8, +0x684 4, +0x28 2, +0x34, +0x30, +0x20, +0x3C 0x80.
+/// `start_slot_value`, `camera_view` 4, `gear_ratio_setting` 2, then 0x80 in `suspension_stiffness`,
+/// `ride_height`, `brake_balance` and `steering_sensitivity`.
 fn reset_fields(car: u32) -> [Reset; 7] {
     [
         (|c| &c.start_slot_value, car + 1),
@@ -23,7 +24,7 @@ fn reset_fields(car: u32) -> [Reset; 7] {
         (|c| &c.steering_sensitivity, 0x80),
     ]
 }
-pub fn reset_cars(race: &Race) -> Result<(), crate::errors::BadInput> {
+pub(super) fn reset_cars(race: &Race) -> Result<(), crate::errors::BadInput> {
     for car in 0..cars::CARS {
         let block = race.shared.race_car(car as usize)?;
         for (field, v) in reset_fields(car) {
@@ -40,7 +41,7 @@ pub fn reset_cars(race: &Race) -> Result<(), crate::errors::BadInput> {
 mod tests {
     use super::*;
 
-    /// Each field sits where the core's table had its offset in the car's block.
+    /// Each field sits where the core's table had its position in the car's block.
     #[test]
     fn the_fields_sit_where_the_offsets_were() {
         let car = crate::test_support::own::race().shared.car();

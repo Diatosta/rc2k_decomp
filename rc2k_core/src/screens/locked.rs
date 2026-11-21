@@ -2,8 +2,8 @@
 //! opens everything.
 
 /// The cheat bits that open item 3 (bit 0x11) and the stages (bit 0).
-pub const ITEM_3_CHEAT: u32 = 0x11;
-pub const STAGES_CHEAT: u32 = 0;
+pub(crate) const ITEM_3_CHEAT: u32 = 0x11;
+pub(crate) const STAGES_CHEAT: u32 = 0;
 
 /// What a note step decides: whether the box is put up.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

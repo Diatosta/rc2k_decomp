@@ -7,7 +7,7 @@ use crate::Invalid;
 /// The light records' count (0x134 bytes each).
 pub const LIGHT_RECORDS: u32 = 0x22;
 
-/// Refused: a car file number (`race::car_file_number` of block +0x24) without a light record.
+/// Refused: a car file number (`race::car_file_number` of the block's car) without a light record.
 pub fn check_light_record(n: u32) -> Result<(), Invalid> {
     if n >= LIGHT_RECORDS {
         return Err(Invalid(
@@ -17,27 +17,27 @@ pub fn check_light_record(n: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// The notice count (block +0xFAC): when not 0, the record's +0x30 set and the count
-/// less one.
+/// The block's notice count: when not 0, the record's notice flag is set and the count
+/// is one less.
 pub fn count_down(count: u32) -> Option<u32> {
     (count != 0).then(|| count - 1)
 }
 
-/// A level (record +0x4C0, +0x4C4) from the caller's rounded float: held to 0 ..= 7.
+/// A level of the record from the caller's rounded float: held to 0 ..= 7.
 pub fn level(v: i32) -> u32 {
     let v = if v < 0 { 0 } else { v };
     let v = if v.wrapping_sub(7) < 0 { v } else { 7 };
     v as u32
 }
 
-/// Whether wheel k's record word is cleared: its switch (block +0x600 + 4k) 0 and bit
-/// 5 + k of block +0x298 set.
+/// Whether wheel k's record word is cleared: the wheel's switch in the block 0 and bit
+/// 5 + k of the block's wheel bits set.
 pub fn wheel_cleared(switch: u32, bits: u32, k: u32) -> bool {
     switch == 0 && bits >> (5 + k) & 1 != 0
 }
 
-/// A hole in the six dwords copied to block +0x700.
-pub const HOLE: u32 = 0x8000_0000;
+/// A hole in the six dwords copied into the block.
+pub(crate) const HOLE: u32 = 0x8000_0000;
 
 /// The holes filled in place, in order: each from the next entry (round) that is not a
 /// hole, at most six looked at (all holes: it stays).
@@ -58,7 +58,7 @@ pub fn fill_holes(values: &mut [u32; 6]) {
 }
 
 /// Whether the cars are shown (`ViewerAndKinds.marks_settings.sound_objects_shown`): the lead
-/// car's file not 0x21 and the first record's +0x258 (`laps()`, read only then) 10 or more.
+/// car's file not 0x21 and the first record's lap word (`laps()`, read only then) 10 or more.
 /// Gives (the flag, that word when read).
 pub fn cars_shown(lead_file: u32, laps: impl FnOnce() -> u32) -> (bool, Option<u32>) {
     if lead_file == 0x21 {

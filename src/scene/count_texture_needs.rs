@@ -17,31 +17,31 @@ use crate::logfile::log_int::log_int;
 
 /// The four totals. Reads only.
 fn totals(scene: &crate::scene::owner::Scene) -> Result<[u32; 4], BadInput> {
-    let objects = &scene.objects;
     // Logic: `rc2k_core::scene::textures::count_needs`.
-    let (totals, _) = crate::scene::textures::with_cells(
-        [
-            &objects.tables.get().system_levels,
-            &objects.tables.get().video_levels,
-        ],
-        |[system, video]| {
-            rc2k_core::scene::textures::count_needs(system, video, |level| {
-                crate::scene::try_allocate_textures::level_size(objects.tables.get(), level)
-            })
-        },
+    let levels = scene.texture_levels();
+    let (totals, _) = rc2k_core::scene::textures::count_needs(
+        &levels.system_levels,
+        &levels.video_levels,
+        |level| crate::scene::try_allocate_textures::level_size(&levels, level),
     )?;
     Ok(totals.to_array())
 }
 
-/// `log`: what writes a piece of the line: a text, or a number.
-pub fn count_texture_needs(
-    log: &mut dyn FnMut(Result<&'static std::ffi::CStr, u32>, bool),
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), BadInput> {
+/// The totals stored and written into the game's log.
+pub fn count_texture_needs(scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+    // One piece of the line: a text, or a number.
+    let log = |piece: Result<&'static std::ffi::CStr, u32>, newline: bool| match piece {
+        Ok(text) => crate::logfile::log_write::log_nul(&text, newline, 1),
+        Err(number) => log_int(number as i32, newline, 1),
+    };
     let totals = totals(scene)?;
-    for (cell, total) in scene.textures.places.get().totals.iter().zip(totals) {
-        cell.set(total);
+    {
+        let mut places = scene.texture_places_mut();
+        places.video_kilobytes = totals[0];
+        places.system_kilobytes = totals[1];
+        places.system_textures = totals[3];
     }
+    scene.textures.place_slots.borrow_mut().video_textures = totals[2];
     log(Ok(c"VID"), false);
     log(Err(totals[0]), false);
     log(Ok(c"k in"), false);
@@ -52,15 +52,4 @@ pub fn count_texture_needs(
     log(Err(totals[3]), false);
     log(Ok(c"texs"), true);
     Ok(())
-}
-
-/// Into the game's log.
-pub fn count_texture_needs_in_game(scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
-    count_texture_needs(
-        &mut |piece, newline| match piece {
-            Ok(text) => crate::logfile::log_write::log_nul(&text, newline, 1),
-            Err(number) => log_int(number as i32, newline, 1),
-        },
-        scene,
-    )
 }

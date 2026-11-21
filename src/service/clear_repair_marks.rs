@@ -8,7 +8,7 @@ use crate::errors::BadInput;
 use crate::service::owner::Service;
 use crate::service::state::{marks, store_marks};
 
-pub fn clear_repair_marks(service: &Service) -> Result<(), BadInput> {
+pub(super) fn clear_repair_marks(service: &Service) -> Result<(), BadInput> {
     let mut t = marks(service);
     rc2k_core::service::repairs::clear(&mut t)?;
     store_marks(service, &t);

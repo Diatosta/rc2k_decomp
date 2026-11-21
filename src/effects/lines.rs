@@ -3,11 +3,11 @@
 //! the eight settings blocks (0x4C8 apart) by the face's kind, and then made shares of what
 //! they were.
 
-use crate::effects::paths::Paths;
+use crate::effects::paths_store::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::memory::owned::Owned;
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::session::PlainDword;
 use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::race::owner_course::Course;
 use crate::scene::object_slots_store::SlotTable;
@@ -18,16 +18,11 @@ use rc2k_core::effects::lines as core;
 /// A settings block is a car record's part (`core::BLOCKS_AT` from the settings).
 const _: () = assert!(crate::race::effects_settings_store::CAR_BLOCK + 0x60 == core::BLOCKS_AT);
 
-/// The lines of two faces (`from`, `to`): for each of `from`'s points (+0x10, 0x10 apart)
-/// the length to `to`'s, added to the whole number at `sum`.
-fn lines(
-    course: &Course,
-    paths: &Paths,
-    from: u32,
-    to: u32,
-    sum: &PlainDword,
-) -> Result<(), Refused> {
-    lines_with(course, paths, from, to, sum, x87_length)?;
+/// The lines of two faces (`from`, `to`): for each of `from`'s points (the point numbers in the
+/// 0x10-byte entries after the face's header) the length to `to`'s, added to the whole number at
+/// `sum`.
+fn lines(course: &Course, from: u32, to: u32, sum: &PlainDword) -> Result<(), Refused> {
+    lines_with(course, from, to, sum, x87_length)?;
     Ok(())
 }
 
@@ -39,7 +34,6 @@ fn x87_length(d: [i32; 3], sum: i32) -> i32 {
 /// `lines` with the length worked out by `length`.
 fn lines_with(
     course: &Course,
-    paths: &Paths,
     from: u32,
     to: u32,
     sum: &PlainDword,
@@ -47,7 +41,7 @@ fn lines_with(
 ) -> Result<(), Refused> {
     {
         let count = course.stage.object_faces.word(from)?;
-        let points: u32 = course.lists.get().object_points.get();
+        let points: u32 = course.lists.borrow().object_points;
         let mut n = 0u32;
         while n != count {
             let (a, b) = (
@@ -60,9 +54,6 @@ fn lines_with(
                 course.stage.object_points.point(p)?,
                 course.stage.object_points.point(q)?,
             );
-            for (cell, v) in paths.lines_work.difference.iter().zip(d) {
-                cell.set(v);
-            }
             sum.set(length(d.map(|v| v as i32), sum.get() as i32) as u32);
             n += 1;
         }
@@ -71,11 +62,10 @@ fn lines_with(
 }
 
 /// `effects::measure_slot_lines`: faces `from` and `to`, block `block`: for each
-/// of the block's 8 slots whose kind (the low byte of +0xD0 ..) is the face's +7, its
-/// lines into the slot's sum (+0xF0 ..). The x87's, for `measure_lines`.
-pub fn measure_slot_lines(
+/// of the block's 8 slots whose kind (the low byte of `slot_kinds`) is the face's slot byte, its
+/// lines into the slot's sum (`slot_sums`). The x87's, for `measure_lines`.
+fn measure_slot_lines(
     course: &Course,
-    paths: &Paths,
     from: u32,
     to: u32,
     block: &CarEffects,
@@ -86,27 +76,19 @@ pub fn measure_slot_lines(
                 block.slot_kinds[k as usize].get(),
                 course.stage.object_faces.byte(from + 7)?,
             ) {
-                lines_with(
-                    course,
-                    paths,
-                    from,
-                    to,
-                    &block.slot_sums[k as usize],
-                    x87_length,
-                )?;
+                lines_with(course, from, to, &block.slot_sums[k as usize], x87_length)?;
             }
         }
     }
     Ok(())
 }
 
-/// `effects::measure_kind_lines`: faces `from` and `to`, block `block`: for each
-/// of the block's 0x11 kinds (the low byte of +0x130 ..) that is the face's +6, with the
-/// face's +0xB 1: its point count added to +0x240 .., its lines into +0x1B8 ... The x87's,
-/// for `measure_lines`.
-pub fn measure_kind_lines(
+/// `effects::measure_kind_lines`: faces `from` and `to`, block `block`: for each of the block's
+/// 0x11 kinds (the low byte of `kinds`) that is the face's kind byte, with the face's line kind 1:
+/// its point count added to `kind_counts`, its lines into `kind_sums`. The x87's, for
+/// `measure_lines`.
+fn measure_kind_lines(
     course: &Course,
-    paths: &Paths,
     from: u32,
     to: u32,
     block: &CarEffects,
@@ -124,14 +106,7 @@ pub fn measure_kind_lines(
                         .get()
                         .wrapping_add(course.stage.object_faces.word(from)?),
                 );
-                lines_with(
-                    course,
-                    paths,
-                    from,
-                    to,
-                    &block.kind_sums[k as usize],
-                    x87_length,
-                )?;
+                lines_with(course, from, to, &block.kind_sums[k as usize], x87_length)?;
             }
         }
     }
@@ -165,14 +140,14 @@ impl core::Blocks for GameBlocks<'_> {
         self.2
             .objects
             .slots
-            .get()
+            .borrow()
             .slot_value(SlotTable::FaceCounts, object as usize)
     }
     fn first_face(&self, object: u32) -> u32 {
         self.2
             .objects
             .slots
-            .get()
+            .borrow()
             .slot_value(SlotTable::FirstFace, object as usize)
     }
 }
@@ -196,30 +171,30 @@ fn measured(
         .collect())
 }
 
-/// `effects::measure_lines`: `LinesWork.any` 0; for the blocks (+0x5C of the
-/// settings, the last first), every one with `LinesWork.every` 1 or else those with +0xC set
-/// (then `LinesWork.any` 1): the block in `LinesWork.current`, its sums cleared (+0x1C .. +0x30,
-/// +0xF0 .., +0x1B8 .., +0x240 ..); for each face of its first object (+0) with the other's
-/// (+4) same: a face of kind 0x1C (+6) with a line kind (+0xB) 1 .. 6 has its lines summed
-/// into +0x18 + 4 kind; then `measure_slot_lines`, `measure_kind_lines`. With
+/// `effects::measure_lines`: `LinesWork.any` 0; for the blocks (the settings' `cars_copy`, the last
+/// first), every one with `LinesWork.every` 1 or else those with `morph_kept` set (then
+/// `LinesWork.any` 1): the block in `LinesWork.current`, its sums cleared (`face_sums`,
+/// `slot_sums`, `kind_sums`, `kind_counts`); for each face of its first `object` with the
+/// `second_object`'s same: a face of kind 0x1C with a line kind 1 .. 6 has its lines summed into
+/// the `face_sums` entry of that line kind; then `measure_slot_lines`, `measure_kind_lines`. With
 /// `LinesWork.shares` 1 each sum then becomes 100 less its share of 100 of what it was
-/// (+0x34 .., +0x110 .., +0x1FC ..), with a `finit` after the first six; a share of 0 gives
-/// 0x80000000, the integer indefinite of the x87's division by 0.
-/// Refuses more than 8 blocks, an object past 0xFF, faces past the course's faces.
-// Converted: `rc2k_core::effects::lines::{measured, block_at}` (the lengths and shares
+/// (`face_shares`, `slot_shares`, `kind_shares`), with a `finit` after the first six; a share of 0
+/// gives 0x80000000, the integer indefinite of the x87's division by 0. Refuses more than 8 blocks,
+/// an object past 0xFF, faces past the course's faces.
+// The logic is in `rc2k_core::effects::lines::{measured, block_at}` (the lengths and shares
 // stay x87: its `finit` between)
 pub fn measure_lines(
     course: &Course,
-    faces_table: &crate::scene::faces_store::Faces,
+    faces_table: crate::scene::faces_store::FacesRef,
     paths: &Paths,
     scene: &Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
         let marks = effects.settings()?;
-        let every = paths.lines_work.every.get() == 1;
+        let every = paths.lines_work.borrow().every == 1;
         let blocks = measured(scene, effects, every)?;
-        paths.lines_work.any.set(0u32);
+        paths.lines_work.borrow_mut().any = 0u32;
         let count = marks.cars_copy.get() as i32;
         let mut todo = blocks.into_iter().peekable();
         for k in (0..count.max(0) as u32).rev() {
@@ -232,7 +207,7 @@ pub fn measure_lines(
             let block = &marks.cars[k as usize];
             todo.next();
             if !every {
-                paths.lines_work.any.set(1u32);
+                paths.lines_work.borrow_mut().any = 1u32;
             }
             for cell in &block.face_sums {
                 cell.set(0);
@@ -245,21 +220,19 @@ pub fn measure_lines(
                 block.kind_counts[n].set(0);
             }
             for n in 0..(faces as i32).max(0) as u32 {
-                let from: u32 =
-                    crate::scene::objects::face_cell(faces_table, (first_a + n) as usize).get();
-                let to: u32 =
-                    crate::scene::objects::face_cell(faces_table, (first_b + n) as usize).get();
+                let from: u32 = crate::scene::objects::face(faces_table, (first_a + n) as usize);
+                let to: u32 = crate::scene::objects::face(faces_table, (first_b + n) as usize);
                 if course.stage.object_faces.byte(from + 6)? == 0x1C {
                     let kind = course.stage.object_faces.byte(from + 0xB)? as u32;
                     if (1..=6).contains(&kind) {
-                        lines(course, paths, from, to, &block.face_sums[kind as usize - 1])?;
+                        lines(course, from, to, &block.face_sums[kind as usize - 1])?;
                     }
                 }
-                measure_slot_lines(course, paths, from, to, block)?;
-                measure_kind_lines(course, paths, from, to, block)?;
+                measure_slot_lines(course, from, to, block)?;
+                measure_kind_lines(course, from, to, block)?;
             }
-            if paths.lines_work.shares.get() == 1 {
-                let hundred = effects.setup.floats.hundred.get();
+            if paths.lines_work.borrow().shares == 1 {
+                let hundred = effects.setup.floats.hundred;
                 let share = |at: &PlainDword, of: &PlainDword| {
                     // A share of nothing (no line of that kind measured) is the x87's
                     // integer indefinite, 0x80000000, which the marks then read as the sum
@@ -287,22 +260,22 @@ pub fn measure_lines(
     Ok(())
 }
 
-/// `effects::measure_starting_sums`: `measure_lines` with every block and no
-/// shares; then for each block (the last first) its sums moved to where the shares are made
-/// from (+0x1C .. +0x30 to +0x34 .., +0xF0 .. to +0x110 .., +0x1B8 .. to +0x1FC ..) and
-/// cleared; then the measure-every flag 0 and the make-shares flag 1. Refuses as
-/// `measure_lines` with every block, before writing anything.
-// Converted: `rc2k_core::effects::lines::{measured, block_at}`
-pub fn measure_starting_sums(
+/// `effects::measure_starting_sums`: `measure_lines` with every block and no shares; then for each
+/// block (the last first) its sums moved to where the shares are made from (`face_sums` to
+/// `face_shares`, `slot_sums` to `slot_shares`, `kind_sums` to `kind_shares`) and cleared; then the
+/// measure-every flag 0 and the make-shares flag 1. Refuses as `measure_lines` with every block,
+/// before writing anything.
+// The logic is in `rc2k_core::effects::lines::{measured, block_at}`
+fn measure_starting_sums(
     course: &Course,
-    faces_table: &crate::scene::faces_store::Faces,
+    faces_table: crate::scene::faces_store::FacesRef,
     paths: &Paths,
     scene: &Scene,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     measured(scene, effects, true)?;
-    paths.lines_work.every.set(1u32);
-    paths.lines_work.shares.set(0u32);
+    paths.lines_work.borrow_mut().every = 1u32;
+    paths.lines_work.borrow_mut().shares = 0u32;
     measure_lines(course, faces_table, paths, scene, effects)?;
     let marks = effects.settings()?;
     let count = marks.cars_copy.get() as i32;
@@ -324,17 +297,18 @@ pub fn measure_starting_sums(
             }
         }
     }
-    paths.lines_work.every.set(0u32);
-    paths.lines_work.shares.set(1u32);
+    paths.lines_work.borrow_mut().every = 0u32;
+    paths.lines_work.borrow_mut().shares = 1u32;
     Ok(())
 }
 
-/// The settings blocks' base points (each block's +0x8C): 12 bytes a point of the block's
-/// object, counted on the block's +0x4C list. A block's +0x8C (and `MorphWork.taken`)
+/// The settings blocks' base points (each block's `point_block`): 12 bytes a point of the
+/// block's object, counted on the block's `points_list`. A block's `point_block` (and
+/// `Paths::morph_taken`)
 /// holds its table's number + 1; `effects::tidy_marks` gives them back with the lists.
 /// (`Paths::block_points`.)
 ///
-/// The table `+0x8C` names (its number + 1).
+/// The table `point_block` names (its number + 1).
 fn block_points(paths: &Paths, handle: u32) -> Result<&Owned<Vec<[u32; 3]>>, BadInput> {
     (handle as usize)
         .checked_sub(1)
@@ -343,17 +317,17 @@ fn block_points(paths: &Paths, handle: u32) -> Result<&Owned<Vec<[u32; 3]>>, Bad
 }
 
 /// Base point `n` of the table `handle` names (`effects::morph_object_points`).
-pub fn block_point(paths: &Paths, handle: u32, n: u32) -> Result<[u32; 3], BadInput> {
+pub(super) fn block_point(paths: &Paths, handle: u32, n: u32) -> Result<[u32; 3], BadInput> {
     block_points(paths, handle)?
         .with(|t| t.get(n as usize).copied())?
         .ok_or(BadInput("a base point past its table"))
 }
 
-/// `effects::copy_block_points`: the points of block `block`'s object (+0): the object's
-/// point count of 12 bytes from its first point, to the table the block's +0x8C names.
+/// `effects::copy_block_points`: the points of block `block`'s `object`: the object's
+/// point count of 12 bytes from its first point, to the table the block's `point_block` names.
 /// Refuses an object past 0xFF.
-// Converted: `rc2k_core::effects::lines::check_object`
-pub fn copy_block_points(
+// The logic is in `rc2k_core::effects::lines::check_object`
+fn copy_block_points(
     course: &Course,
     paths: &Paths,
     block: &CarEffects,
@@ -363,11 +337,11 @@ pub fn copy_block_points(
         let object = block.object.get();
         core::check_object(object)?;
         let to = block_points(paths, block.point_block.get())?;
-        let count = scene.objects.slots.get().point_counts[object as usize].get() as i32;
-        let first: u32 = scene.objects.slots.get().first_point[object as usize].get();
+        let count = scene.objects.slots.borrow().point_counts[object as usize] as i32;
+        let first: u32 = scene.objects.slots.borrow().first_point[object as usize];
         let mut from = first
             .wrapping_mul(12)
-            .wrapping_add(course.lists.get().object_points.get());
+            .wrapping_add(course.lists.borrow().object_points);
         for n in 0..count.max(0) as usize {
             let point = course.stage.object_points.point(from)?;
             to.with(|t| t.get_mut(n).map(|p| *p = point))?
@@ -379,14 +353,15 @@ pub fn copy_block_points(
 }
 
 /// `effects::set_up_blocks`, step 14: `measure_starting_sums`; then for each block (the last
-/// first) +0x90 .. +0xCC -1, a block of 12 bytes a point of its object taken on its +0x4C
-/// (`Paths::block_points`, its number + 1 into the taken count and +0x8C), `copy_block_points`,
-/// and +0x90 .. +0xAC the eight floats of `LinesWork.block_start`. Refuses as
+/// first) `factors` and `kept_factors` -1, a block of 12 bytes a point of its object taken on
+/// its `points_list` (`Paths::block_points`, its number + 1 into the taken count and
+/// `point_block`), `copy_block_points`, and `factors` the eight floats of
+/// `LinesWork.block_start`. Refuses as
 /// `measure_starting_sums`, before anything is taken.
-// Converted: `rc2k_core::effects::lines::{measured, block_at}`
-pub fn set_up_blocks(
+// The logic is in `rc2k_core::effects::lines::{measured, block_at}`
+pub(super) fn set_up_blocks(
     course: &Course,
-    faces_table: &crate::scene::faces_store::Faces,
+    faces_table: crate::scene::faces_store::FacesRef,
     paths: &Paths,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
@@ -404,7 +379,7 @@ pub fn set_up_blocks(
         let points: u32 = scene
             .objects
             .slots
-            .get()
+            .borrow()
             .slot_value(SlotTable::PointCounts, block.object.get() as usize);
         let bytes = points
             .checked_mul(12)
@@ -415,59 +390,18 @@ pub fn set_up_blocks(
             .ok_or(BadInput("more than 8 settings blocks"))?;
         table.take(&block.points_list, bytes, vec![[0; 3]; points as usize])?;
         let taken = k + 1;
-        paths.morph_work.taken.set(taken);
+        paths.morph_taken.set(taken);
         block.point_block.set(taken);
         copy_block_points(course, paths, block, scene)?;
-        for n in 0..8 {
-            let v = x87::loaded(&paths.lines_work.block_start[n]);
-            block.factors[n].set(v);
+        for (factor, start) in block
+            .factors
+            .iter()
+            .zip(crate::effects::lines_store::BLOCK_START)
+        {
+            factor.set(x87::loaded(start));
         }
     }
     Ok(())
-}
-
-/// The block lines' work (`lines`).
-#[derive(rc2k_derive::Cells)]
-pub struct LinesWork {
-    /// The eight values a block's +0x90 .. starts with
-    pub block_start: [PlainFloat; 8],
-    /// The last line's x, y, z differences
-    pub difference: [PlainDword; 3],
-    /// The block being measured. Not used: nothing reads it
-    pub current: PlainDword,
-    /// Measure every block
-    pub every: PlainDword,
-    /// Make the shares
-    pub shares: PlainDword,
-    /// A marked block was measured
-    pub any: PlainDword,
-}
-
-impl LinesWork {
-    /// The values the game starts with.
-    pub const fn new() -> Self {
-        LinesWork {
-            block_start: [
-                PlainFloat::new(1.0),
-                PlainFloat::new(1.0),
-                PlainFloat::new(1.0),
-                PlainFloat::new(1.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-                PlainFloat::new(0.0),
-            ],
-            difference: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
-            current: PlainDword::new(0x0),
-            every: PlainDword::new(0x0),
-            shares: PlainDword::new(0x0),
-            any: PlainDword::new(0x0),
-        }
-    }
 }
 
 #[cfg(test)]
@@ -479,7 +413,7 @@ mod lines_work_tests {
         let _lock = crate::test_support::test_lock();
         let paths = &crate::test_support::own::effects().paths;
         let figures = crate::memory::figures();
-        let memory = crate::memory::ListCells::empty();
+        let memory = crate::memory::PlainList::empty();
         let list = &memory;
         paths.block_points[2]
             .take(list, 24, vec![[1, 2, 3], [4, 5, 6]])

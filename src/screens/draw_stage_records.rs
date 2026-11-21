@@ -17,9 +17,6 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-const ROW_1_Y: i32 = 0x1FC;
-const ROW_2_Y: i32 = 0x213;
-
 /// The game's selection: a group, a table in that group and a record in that table.
 #[derive(Clone, Copy, Debug)]
 pub struct Selection {
@@ -36,9 +33,9 @@ pub struct Selection {
 /// None while the tables are not there.
 pub fn selection_in(menus: &Menus, system: &System) -> Result<Option<Selection>, BadInput> {
     let screens = &menus.screens;
-    let group: u32 = screens.event.stage.group.get();
-    let index: u32 = screens.event.stage.number.get();
-    let sub: u32 = screens.event.stage.sub.get();
+    let group: u32 = screens.event.read().stage.group;
+    let index: u32 = screens.event.read().stage.number;
+    let sub: u32 = screens.event.read().stage.sub;
     let table = system
         .records()
         .stage_tables
@@ -55,22 +52,18 @@ fn selected_record(menus: &Menus, system: &System) -> Result<Option<(RecordRef, 
     Ok(selection_in(menus, system)?.map(|s| (s.record, s.sub)))
 }
 
-/// Where the top-speed row's values are in the selected record, and the y its car's sprite is
-/// drawn at: the stage panels' (`draw_stage_records`) and the time trial's
-/// (`TIME_TRIAL_ROWS`, whose car sprite sits on the first row's y).
+/// Where the top-speed row's values are in the selected record: the stage panels'
+/// (`draw_stage_records`) and the time trial's (`TIME_TRIAL_ROWS`).
 pub struct Rows {
     pub holder: RecordHolder,
-    pub car_y: i32,
 }
 
 pub const STAGE_ROWS: Rows = Rows {
     holder: RecordHolder::Fastest,
-    car_y: ROW_2_Y,
 };
 
-pub const TIME_TRIAL_ROWS: Rows = Rows {
+pub(super) const TIME_TRIAL_ROWS: Rows = Rows {
     holder: RecordHolder::TimeTrial,
-    car_y: ROW_1_Y,
 };
 
 /// Returns whether the last text was too wide for its box. Refuses a missing record table and what
@@ -86,7 +79,7 @@ pub fn draw_stage_records(
 
 /// `draw_stage_records` with the top-speed row's places given. The logic is in
 /// `rc2k_core::screens::stage_panel::records`.
-pub fn draw_records_rows(
+pub(super) fn draw_records_rows(
     o: crate::owners::Owners<'static>,
     system: &System,
     entry: &rc2k_core::saves::entries::BestTime,
@@ -94,7 +87,7 @@ pub fn draw_records_rows(
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let menus = o.menus;
-    use rc2k_core::screens::stage_panel::{CarRow, Holder};
+    use rc2k_core::screens::stage_panel::Holder;
     {
         // Refused without a record table (the first row is drawn after this).
         let Some((record, _)) = selected_record(menus, system)? else {
@@ -122,16 +115,10 @@ pub fn draw_records_rows(
             car: held.car,
             figure: held.speed,
         };
-        let car_row = if rows.car_y == ROW_1_Y {
-            CarRow::First
-        } else {
-            CarRow::Second
-        };
         rc2k_core::screens::stage_panel::records(
             &mut PanelScreen::new(canvas, o),
             best,
             top,
-            car_row,
             show_hours(o.strings),
             units(o.strings),
         )

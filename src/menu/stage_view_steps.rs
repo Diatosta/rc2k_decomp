@@ -20,39 +20,40 @@
 //! than 256 pages; a speech list entry past 0x40 or null; a section past 0x20 for the speeches
 //! and pictures; what `item_at` refuses.
 
+use crate::errors::Fault;
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::champ_store::ChampView;
-use crate::menu::event_flow::Fault;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::owners::Owners;
 use crate::records::find_record::{find_record_in, has_section};
 use crate::records::stages_store::RecordRef;
+use crate::sound::store::CarStream;
 use crate::system::owner::System;
 use rc2k_core::menu::stage_screens;
 
 /// The record `index` / `section` pick.
 fn stage_record(screens: &Screens, system: &System) -> Result<RecordRef, Refused> {
     let table = system.records().stage_tables.championship();
-    let section = screens.event.section.get();
+    let section = screens.event.read().section;
     if !has_section(&system.records().stage_tables, table, section, 600)? {
         return Err(BadInput("a section past the record table").into());
     }
     Ok(find_record_in(
         &system.records().stage_tables,
         table,
-        screens.event.stage_in_section.get() as i32,
+        screens.event.read().stage_in_section as i32,
         section,
     )?)
 }
 
 fn championship(champ: &ChampView) -> bool {
-    stage_screens::championship(champ.event_mode.get())
+    stage_screens::championship(champ.read().event_mode)
 }
 
 fn small_section(menus: &Menus) -> Result<u32, Refused> {
     Ok(stage_screens::small_section(
-        menus.screens.event.section.get(),
+        menus.screens.event.read().section,
     )?)
 }
 
@@ -65,7 +66,7 @@ pub fn count_stage_pages(screens: &Screens, system: &System) -> Result<(), Refus
     });
     fault.check()?;
     let n = n.ok_or(BadInput("more than 256 stage pages"))?;
-    screens.event.stage.pages.set(n);
+    screens.event.write().stage.pages = n;
     Ok(())
 }
 
@@ -88,13 +89,15 @@ pub fn play_stage_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
             return Err(e.into());
         }
         let at = at?;
-        sound.race.car_stream.get().on.set(1);
-        sound.race.car_stream.get().stream.set(at);
-        sound.race.car_stream.get().place.set(0);
+        *sound.race.car_stream.get().borrow_mut() = CarStream {
+            on: 1,
+            stream: at,
+            place: 0,
+        };
         crate::sound::start_stream::start_stream(
             o,
-            crate::menu::texts_store::speech_entry(&menus.texts, &audio.sample_names, at, 0)?,
-            menus.options.snapshot().speech_level,
+            crate::menu::texts_store::speech_entry(&audio.sample_names, at, 0)?,
+            menus.options.snapshot().menu_voices_volume,
         );
     }
     Ok(())
@@ -103,8 +106,8 @@ pub fn play_stage_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
 /// `menu::play_rally_speech`: a key taken (and dropped), then the rally's speech.
 pub fn play_rally_speech(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (menus, input) = (o.menus, o.input);
-    let section = stage_screens::rally_speech(menus.play.champ_view.event_mode.get(), || {
-        menus.screens.event.section.get()
+    let section = stage_screens::rally_speech(menus.play.champ_view.read().event_mode, || {
+        menus.screens.event.read().section
     })?
     .unwrap_or(0);
     crate::input::take_key::take_key(input);
@@ -112,19 +115,19 @@ pub fn play_rally_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
         crate::sound::start_stream::start_stream(
             o,
             menus.lists.rally_speech(section as usize)?,
-            menus.options.snapshot().speech_level,
+            menus.options.snapshot().menu_voices_volume,
         );
     }
     Ok(())
 }
 
-/// `menu::load_welcome_picture`: the section's welcome picture under the title bar,
-/// converted; not loaded: the fatal error 0x80712345.
+/// `menu::load_welcome_picture`: the section's welcome picture under the title bar;
+/// not loaded: the fatal error 0x80712345.
 pub fn load_welcome_picture(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let section = small_section(menus)?;
     let championship = matches!(
-        stage_screens::welcome(menus.play.champ_view.event_mode.get()),
+        stage_screens::welcome(menus.play.champ_view.read().event_mode),
         stage_screens::Welcome::Championship
     );
     let path = crate::menu::texts_store::text_at(
@@ -146,31 +149,29 @@ pub fn load_welcome_picture(o: Owners<'static>) -> Result<(), Refused> {
         }
         .into());
     }
-    crate::gfx::convert_picture::convert_picture_now_in(o.gfx, o.system)?;
+    crate::gfx::convert_picture::convert_picture_now_in(o.gfx)?;
     Ok(())
 }
 
 /// `menu::previous_stage_page` (`up` false) / `next_stage_page`: the page stepped, the
 /// stage's map drawn and its speech played.
-pub fn step_stage_page(o: Owners<'static>, up: bool) -> Result<(), Refused> {
+pub(super) fn step_stage_page(o: Owners<'static>, up: bool) -> Result<(), Refused> {
     let menus = o.menus;
     let screens = &menus.screens;
     let (page, pages) = (
-        screens.event.stage.page.get(),
-        screens.event.stage.pages.get(),
+        screens.event.read().stage.page,
+        screens.event.read().stage.pages,
     );
     let page = rc2k_core::menu::steps::stage_page(page, pages, up);
-    screens.event.stage.page.set(page);
-    screens
-        .event
-        .stage_in_section
-        .set(screens.event.stage.first_on_page.get().wrapping_add(page));
+    screens.event.write().stage.page = page;
+    screens.event.write().stage_in_section =
+        screens.event.read().stage.first_on_page.wrapping_add(page);
     crate::menu::stage_choice::draw_stage_map(o)?;
     play_stage_speech(o)
 }
 
-/// The stage item's two looks: (+0x1C, +0x20, +0x50).
-pub fn style_stage_item(menus: &Menus, b: bool) -> Result<(), Refused> {
+/// The stage item's two looks: what is behind its text, its sprite and its highlight font.
+pub(super) fn style_stage_item(menus: &Menus, b: bool) -> Result<(), Refused> {
     use crate::menu::item_sprites_store::ItemSprite;
     let item = crate::menu::item_at::item_at(menus, 1)?;
     let (a, c, font) = if b {
@@ -186,8 +187,10 @@ pub fn style_stage_item(menus: &Menus, b: bool) -> Result<(), Refused> {
             crate::gfx::typefaces::fonts::STAGE_TITLE,
         )
     };
-    item.behind.set(a);
-    item.sprites.set(c)?;
-    item.highlight_font.set(font);
+    item.update(|item| {
+        item.behind = a;
+        item.sprites = c;
+        item.highlight_font = font;
+    });
     Ok(())
 }

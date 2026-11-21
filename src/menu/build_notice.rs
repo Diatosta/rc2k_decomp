@@ -2,14 +2,12 @@
 //! the two.
 //!
 //! Only when the notice kind (the byte from the language's `.loc` file) is 2. The first line
-//! ("Copyright (c) Magnetic Fields (Software Design) Ltd, 1999. All rights reserved.") becomes
-//! "(c) 2000 Actualize Ltd and Magnetic Fields (Software Design) Ltd, " and the second
-//! ("Copyright (c) Actualize Ltd, 1999. ..") is emptied. The text is put together in the shared
-//! text buffer from pieces of the two lines themselves: two characters from the second line's
-//! eleventh on, "2000", fourteen from its twelfth on, " and", 0x26 from the first line's
-//! twelfth on, a space and a NUL; then it is copied over the first line. One caller,
-//! `system::main_loop`. Calling it twice builds from the changed lines. Rust callers run its
-//! `entry` (`routes.rs`).
+//! ("Copyright (c) Magnetic Fields (Software Design) Ltd, 1999. All rights reserved.") becomes "(c)
+//! 2000 Actualize Ltd and Magnetic Fields (Software Design) Ltd, " and the second ("Copyright (c)
+//! Actualize Ltd, 1999. ..") is emptied. The text is put together in the shared text buffer from
+//! pieces of the two lines themselves: two characters from the second line's eleventh on, "2000",
+//! fourteen from its twelfth on, " and", 0x26 from the first line's twelfth on, a space and a NUL;
+//! then it is copied over the first line. Calling it twice builds from the changed lines.
 
 use crate::strings::owner::Strings;
 use rc2k_core::menu::notice::{
@@ -18,7 +16,7 @@ use rc2k_core::menu::notice::{
 
 pub fn build_notice(menus: &Menus, strings: &Strings) {
     let panels = &menus.panels;
-    if crate::strings::load_language::notice_kind(strings) != BUILDS {
+    if crate::strings::locale::notice_kind(strings) != BUILDS {
         return;
     }
     let first: [u8; FIRST_READ] =
@@ -33,23 +31,23 @@ pub fn build_notice(menus: &Menus, strings: &Strings) {
     panels.notice.notice_second.set(0, 0);
 }
 
-use crate::memory::session::{PlainBytes, with_runs};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::with_runs;
 use crate::menu::owner::Menus;
 
 /// The build notice's two lines.
-#[derive(rc2k_derive::Cells)]
 pub struct BuildNotice {
     /// The first line, "Copyright ... Magnetic Fields ..." (`menu::build_notice`).
-    pub notice_first: PlainBytes<78>,
+    pub notice_first: PlainBuffer<78>,
     /// The second line, "Copyright ... Actualize Ltd ...", and the web address after it.
-    pub notice_second: PlainBytes<94>,
+    pub notice_second: PlainBuffer<94>,
 }
 
 impl BuildNotice {
     pub const fn new() -> Self {
         BuildNotice {
-    notice_first: PlainBytes::new(with_runs::<78>(&[(0, b"Copyright \xa9 Magnetic Fields (Software Design) Ltd, 1999. All rights reserved.")])),
-    notice_second: PlainBytes::new(with_runs::<94>(&[(0, b"Copyright \xa9 Actualize Ltd, 1999. All rights reserved.\x00http:\x01/\x01/\x01www.rallychampionship.co.uk\x01/")])),
+    notice_first: PlainBuffer::new(with_runs::<78>(&[(0, b"Copyright \xa9 Magnetic Fields (Software Design) Ltd, 1999. All rights reserved.")])),
+    notice_second: PlainBuffer::new(with_runs::<94>(&[(0, b"Copyright \xa9 Actualize Ltd, 1999. All rights reserved.\x00http:\x01/\x01/\x01www.rallychampionship.co.uk\x01/")])),
         }
     }
 }

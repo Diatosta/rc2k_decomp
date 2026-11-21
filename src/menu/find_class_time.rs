@@ -1,9 +1,8 @@
-//! `menu::find_class_time`: the first entry of the list (0x9C bytes each) whose class (+0x1C)
-//! is the given one, or the end mark's (-1) when none is: its +0x18 when asked for that, else
-//! its +0x14.
+//! `menu::find_class_time`: the first entry of the list (0x9C bytes each) whose `group`
+//! is the given one, or the end mark's (-1) when none is: its `rally_time` when asked for that,
+//! else its `key` (the stage time).
 //!
-//! Caller: `screens::draw_class_times` (the first time of the class). Refuses a list without
-//! its end in 0x400 entries.
+//! Refuses a list without its end in 0x400 entries.
 
 use crate::errors::BadInput;
 use crate::menu::standings::with_a;
@@ -12,7 +11,7 @@ use rc2k_core::saves::entries::BestTime;
 const LIMIT: u32 = 0x400;
 
 /// The entry of table A the search stops at (a copy).
-pub fn class_entry(
+fn class_entry(
     class: u32,
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<BestTime, BadInput> {

@@ -3,10 +3,9 @@
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
-use crate::strings::case::CaseTable;
 
 /// The characters no folder name may hold. The `\` in it is never compared: a `\` is a separator.
-pub const NOT_IN_NAMES: &[u8] = b"\"+*,;=/:<>?\\{}[]|\x7f";
+pub(crate) const NOT_IN_NAMES: &[u8] = b"\"+*,;=/:<>?\\{}[]|\x7f";
 
 /// The longest path taken, less one (the installer's places are 0x100 bytes).
 pub const LONGEST: usize = 0xF8;
@@ -38,19 +37,19 @@ fn is_slash(c: u8) -> bool {
 }
 
 /// A directory's path in the installer's form, with its NUL; `None` if it is not one that is
-/// taken. The form: lower case (`case`), `\` for every `/`, and a `\` at the end. An empty path
+/// taken. The form: the case as typed, `\` for every `/`, and a `\` at the end (names are
+/// compared without case where they are compared). An empty path
 /// stands for the current directory (`current`, asked only then; `None`: not written). Otherwise
 /// it must start with `\\` or `//`, or with a drive letter and `:`, after which a `\` is put if
 /// there is none. Refused: a path of `LONGEST` bytes or more.
 pub fn normalise<E: From<Invalid>>(
     path: &[u8],
-    case: &CaseTable,
     current: impl FnOnce() -> Result<Option<Vec<u8>>, E>,
 ) -> Result<Option<Vec<u8>>, E> {
     if path.len() >= LONGEST {
         return Err(Invalid("a path longer than the installer's places").into());
     }
-    let plain = |c: u8| case.lower(if c == b'/' { b'\\' } else { c });
+    let plain = |c: u8| if c == b'/' { b'\\' } else { c };
     let mut out = Vec::new();
     let rest: Vec<u8> = if path.is_empty() {
         let Some(mut directory) = current()? else {
@@ -63,7 +62,7 @@ pub fn normalise<E: From<Invalid>>(
     } else if path.starts_with(b"\\\\") || path.starts_with(b"//") {
         path.to_vec()
     } else if path.get(1) == Some(&b':') {
-        out.extend([case.lower(path[0]), b':']);
+        out.extend([path[0], b':']);
         if !path.get(2).is_some_and(|&c| is_slash(c)) {
             out.push(b'\\');
         }
@@ -95,24 +94,29 @@ mod tests {
 
     #[test]
     fn normalised() {
-        let case = CaseTable::ascii();
         let none = || -> Result<Option<Vec<u8>>, Invalid> { Ok(None) };
-        let n = |p: &[u8]| normalise(p, &case, none).unwrap();
-        assert_eq!(n(b"C:\\Games\\RC2k"), Some(b"c:\\games\\rc2k\\\0".to_vec()));
+        let n = |p: &[u8]| normalise(p, none).unwrap();
+        assert_eq!(n(b"C:\\Games\\RC2k"), Some(b"C:\\Games\\RC2k\\\0".to_vec()));
         assert_eq!(n(b"c:"), Some(b"c:\\\0".to_vec()));
-        assert_eq!(n(b"D:/Mixed/Case/"), Some(b"d:\\mixed\\case\\\0".to_vec()));
-        assert_eq!(n(b"E:File"), Some(b"e:\\file\\\0".to_vec()));
+        assert_eq!(n(b"D:/Mixed/Case/"), Some(b"D:\\Mixed\\Case\\\0".to_vec()));
+        assert_eq!(n(b"E:File"), Some(b"E:\\File\\\0".to_vec()));
         assert_eq!(
             n(b"//Server/Share"),
-            Some(b"\\\\server\\share\\\0".to_vec())
+            Some(b"\\\\Server\\Share\\\0".to_vec())
         );
         assert_eq!(n(b"relative"), None);
         assert_eq!(n(b""), None);
         let here = || -> Result<Option<Vec<u8>>, Invalid> { Ok(Some(b"Z:\\Here".to_vec())) };
+        assert_eq!(normalise(b"", here), Ok(Some(b"Z:\\Here\\\0".to_vec())));
+        // A mixed-case folder is kept as typed, and a name differing only in case is the same
+        // folder when compared without case.
+        let typed = n(b"c:\\Games\\RC2k").unwrap();
+        let lower = n(b"C:\\games\\rc2k").unwrap();
+        assert_ne!(typed, lower);
         assert_eq!(
-            normalise(b"", &case, here),
-            Ok(Some(b"z:\\here\\\0".to_vec()))
+            crate::strings::case::CaseTable::ascii().compare(&typed, &lower),
+            std::cmp::Ordering::Equal
         );
-        assert!(normalise(&[b'a'; LONGEST], &case, none).is_err());
+        assert!(normalise(&[b'a'; LONGEST], none).is_err());
     }
 }

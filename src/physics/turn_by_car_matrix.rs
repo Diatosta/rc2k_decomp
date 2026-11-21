@@ -3,17 +3,16 @@
 //! floats).
 //!
 //! `physics::turn_by_inverse` is the same with the car's `car_inverse_matrix` (made by
-//! `race::invert_car_matrix` with `scene::invert_turn`). Callers: the cars' physics under
-//! `drive::race_step`, six calls.
+//! `race::invert_car_matrix` with `scene::invert_turn`).
 
 use crate::math::cells::Cells;
+use crate::math::matrix3::{extended, rounded_value};
 use crate::physics::car_store::Car;
-use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 
 /// The point `v` turned by the matrix `m`: loaded as z, y, x, turned by `rotate_point` and stored
 /// back as floats.
-pub fn turn_cells(m: &(impl Cells + ?Sized), v: &(impl Cells + ?Sized)) {
+pub(super) fn turn_cells(m: &(impl Cells + ?Sized), v: &(impl Cells + ?Sized)) {
     let point = std::array::from_fn(|k| extended(v.float(k)));
     let out = rotate_point(m, point);
     for (k, e) in out.iter().enumerate() {
@@ -21,6 +20,6 @@ pub fn turn_cells(m: &(impl Cells + ?Sized), v: &(impl Cells + ?Sized)) {
     }
 }
 
-pub fn turn_by_car_matrix(car: &Car, v: &(impl Cells + ?Sized)) {
+pub(super) fn turn_by_car_matrix(car: &Car, v: &(impl Cells + ?Sized)) {
     turn_cells(&car.crash_matrix, v);
 }

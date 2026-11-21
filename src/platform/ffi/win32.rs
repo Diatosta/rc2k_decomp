@@ -1,5 +1,5 @@
 //! Win32 behind safe functions (`windows-sys`): the system's own facts for `os` (version,
-//! volume, names, language, drives, memory, error mode, priority, page mapping, the stack
+//! names, language, drives, memory, page mapping, the stack
 //! and image bounds, ending the process) and the shell links of the Start menu items
 //! (`install::shortcuts`, COM's `IShellLinkW` through its vtables).
 //!
@@ -11,10 +11,7 @@
 #![allow(unsafe_code)]
 
 use windows_sys::Win32::Globalization::GetSystemDefaultLCID;
-use windows_sys::Win32::Storage::FileSystem::{
-    GetDiskFreeSpaceA, GetDriveTypeA, GetVolumeInformationA,
-};
-use windows_sys::Win32::System::Diagnostics::Debug::{SetErrorMode, THREAD_ERROR_MODE};
+use windows_sys::Win32::Storage::FileSystem::{GetDiskFreeSpaceA, GetDriveTypeA};
 use windows_sys::Win32::System::Memory::{
     MEM_COMMIT, MEM_RESERVE, MEM_RESET, PAGE_READWRITE, VirtualAlloc,
 };
@@ -22,10 +19,9 @@ use windows_sys::Win32::System::SystemInformation::{
     GetVersionExA, GlobalMemoryStatus, MEMORYSTATUS, OSVERSIONINFOA,
 };
 use windows_sys::Win32::System::Threading::{
-    ExitProcess, GetCurrentProcess, GetCurrentThreadStackLimits, SetPriorityClass, TerminateProcess,
+    ExitProcess, GetCurrentProcess, GetCurrentThreadStackLimits, TerminateProcess,
 };
 use windows_sys::Win32::System::WindowsProgramming::{GetComputerNameA, GetUserNameA};
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetKeyboardType;
 
 /// `OSVERSIONINFOA` (0x94 bytes) as `GetVersionExA` fills it.
 pub fn version_record() -> [u8; 0x94] {
@@ -50,31 +46,6 @@ pub fn version_record() -> [u8; 0x94] {
         }
         record
     }
-}
-
-/// The current drive's serial number and the first 12 bytes of its name, if they can be had.
-pub fn volume() -> Option<(u32, [u8; 12])> {
-    let (mut serial, mut name) = (0u32, [0u8; 12]);
-    // SAFETY: out-parameters of their sizes; no root (the current drive).
-    let worked = unsafe {
-        GetVolumeInformationA(
-            std::ptr::null(),
-            name.as_mut_ptr(),
-            name.len() as u32,
-            &raw mut serial,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            0,
-        )
-    } != 0;
-    worked.then_some((serial, name))
-}
-
-/// `GetKeyboardType(1)`: the keyboard's subtype.
-pub fn keyboard_subtype() -> u32 {
-    // SAFETY: a plain value.
-    unsafe { GetKeyboardType(1) as u32 }
 }
 
 /// A name the system writes into `room` bytes (its NUL among them): the name, if any.
@@ -157,18 +128,6 @@ pub fn memory() -> [u32; 4] {
         m.dwAvailPageFile as u32,
         m.dwTotalPageFile as u32,
     ]
-}
-
-/// `SetErrorMode`: the mode set, the one before returned.
-pub fn set_error_mode(mode: u32) -> u32 {
-    // SAFETY: a plain value.
-    unsafe { SetErrorMode(mode as THREAD_ERROR_MODE) }
-}
-
-/// `SetPriorityClass` of the process.
-pub fn set_priority_class(class: u32) {
-    // SAFETY: the process's own pseudo-handle and a plain value.
-    unsafe { SetPriorityClass(GetCurrentProcess(), class) };
 }
 
 /// `len` bytes of zeroed, readable and writable pages for the program's life (a pool block):
@@ -566,15 +525,15 @@ impl SampledThread {
                 return None;
             }
             let mut context: CONTEXT = std::mem::zeroed();
-            context.ContextFlags = crate::platform::arch::CONTEXT_CONTROL;
+            context.ContextFlags = crate::platform::ffi::arch::CONTEXT_CONTROL;
             let got = GetThreadContext(thread, &raw mut context) != 0;
             ResumeThread(thread);
-            got.then(|| crate::platform::arch::ip(&context))
+            got.then(|| crate::platform::ffi::arch::ip(&context))
         }
     }
 }
 
-/// The unhandled-exception filter: reports an access violation (`standalone::report_fault`,
+/// The unhandled-exception filter: reports an access violation (`process::report_fault`,
 /// which ends the program) and passes every other exception on. Reads the system's records
 /// only; what the report calls is listed at `report_fault`.
 ///
@@ -592,11 +551,11 @@ unsafe extern "system" fn on_exception(
         if record.ExceptionCode != windows_sys::Win32::Foundation::EXCEPTION_ACCESS_VIOLATION {
             return CONTINUE_SEARCH;
         }
-        crate::standalone::report_fault(
+        crate::platform::ffi::process::report_fault(
             record.ExceptionAddress.expose_provenance(),
             record.ExceptionInformation[1],
             record.ExceptionInformation[0] != 0,
-            crate::platform::arch::sp(context),
+            crate::platform::ffi::arch::sp(context),
         )
     }
 }
@@ -634,6 +593,25 @@ pub fn install_fault_reporter() {
             on_exception,
         ));
     }
+}
+
+/// The terminal that started the program, if one did: a windowed program has no console of
+/// its own, so it joins its parent's to write there. False when there is none (started from
+/// Explorer).
+pub fn attach_parent_console() -> bool {
+    use windows_sys::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole};
+    // SAFETY: a plain call with a constant; it changes only this process's console.
+    unsafe { AttachConsole(ATTACH_PARENT_PROCESS) != 0 }
+}
+
+/// Whether the program was given a standard output (a pipe or a file the starting command sent
+/// its output to). A windowed program started at a console prompt has none.
+pub fn has_standard_output() -> bool {
+    use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
+    use windows_sys::Win32::System::Console::{GetStdHandle, STD_OUTPUT_HANDLE};
+    // SAFETY: a plain call with a constant; the handle is only compared.
+    let handle = unsafe { GetStdHandle(STD_OUTPUT_HANDLE) };
+    !handle.is_null() && handle != INVALID_HANDLE_VALUE
 }
 
 #[cfg(test)]

@@ -57,20 +57,20 @@ pub fn options_file(time: u32, pieces: &[&[u8]]) -> Vec<u8> {
 }
 
 /// A car setup's file.
-pub const SETUP: [u8; 4] = *b"CRSU";
-pub const SETUP_VERSION: u32 = 0x5_0000;
+pub(crate) const SETUP: [u8; 4] = *b"CRSU";
+pub(crate) const SETUP_VERSION: u32 = 0x5_0000;
 pub const SETUP_LEN: usize = 0x48;
-pub const SETUP_NAME_LEN: usize = 0x20;
+pub(crate) const SETUP_NAME_LEN: usize = 0x20;
 
 /// A head of these letters and version.
-pub fn head_with(letters: [u8; 4], version: u32, time: u32) -> [u8; HEAD_LEN] {
+pub(crate) fn head_with(letters: [u8; 4], version: u32, time: u32) -> [u8; HEAD_LEN] {
     let mut h = head(letters, time);
     h[8..12].copy_from_slice(&version.to_le_bytes());
     h
 }
 
 /// Whether `block` begins with a head of these letters and version.
-pub fn head_ok_with(block: &[u8], letters: [u8; 4], version: u32) -> bool {
+pub(crate) fn head_ok_with(block: &[u8], letters: [u8; 4], version: u32) -> bool {
     block.len() >= HEAD_LEN && block[..4] == letters && block[8..12] == version.to_le_bytes()
 }
 
@@ -90,12 +90,26 @@ pub const SAVEGAME: [u8; 4] = *b"R5SG";
 pub const SAVEGAME_VERSION: u32 = 0x5_1122;
 /// A replay's file.
 pub const REPLAY: [u8; 4] = *b"REPL";
-pub const REPLAY_VERSION: u32 = 0x5_0400;
+pub(crate) const REPLAY_VERSION: u32 = 0x5_0400;
 
 /// The slot's name (at +0x10), if the head has these letters and version.
 pub fn slot_name(file: &[u8], letters: [u8; 4], version: u32) -> Option<[u8; SETUP_NAME_LEN]> {
     (file.len() >= 0x30 && head_ok_with(file, letters, version))
         .then(|| file[0x10..0x30].try_into().unwrap())
+}
+
+/// A replay's name (at +0x10), if the head is a replay's of a version this program reads (with
+/// or without the extra tape).
+pub fn replay_name(file: &[u8]) -> Option<[u8; SETUP_NAME_LEN]> {
+    slot_name(file, REPLAY, REPLAY_VERSION)
+        .or_else(|| slot_name(file, REPLAY, crate::race::replay::HEADER_VERSION_EXTRA_TAPE))
+        .or_else(|| {
+            slot_name(
+                file,
+                crate::race::replay_v2::MAGIC.to_le_bytes(),
+                crate::race::replay_v2::VERSION,
+            )
+        })
 }
 
 /// A slot's head and name, the first 48 bytes of its file.

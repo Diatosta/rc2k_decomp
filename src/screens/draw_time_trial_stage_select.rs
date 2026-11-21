@@ -47,10 +47,7 @@ pub fn draw_time_trial_stage_select(
     if !table.is_taken() {
         return Err(BadInput("no time trial best-times table: the original reads near 0").into());
     }
-    build_second_heading(
-        crate::strings::append_string_by_id::StringOwners::of(o),
-        sel.record,
-    )?;
+    build_second_heading(o, sel.record)?;
     draw_stage_body(o, gfx, sel.record, true, canvas)?;
     let best = crate::screens::stage_panel::best_of(
         table,

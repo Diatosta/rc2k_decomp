@@ -5,20 +5,21 @@ use crate::errors::Refused;
 use crate::net::lobby::{lock_surface, run_frame};
 use crate::race::viewer_screen_store::NetTexts;
 
-pub const STATUS_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
+pub(super) const STATUS_FONT: crate::gfx::typefaces::FontId =
+    crate::gfx::typefaces::fonts::STAGE_TITLE;
 
-/// An empty frame, then string `id` shown on the background and a second's sleep (not
+/// An empty frame, then string `id` shown on the background and a second's pause, which a key ends (not
 /// when the lock fails). Shared with `net::hosting`, `net::joining`, `net::stopping`.
 pub fn status(o: crate::owners::Owners<'static>, id: u32) -> Result<(), Refused> {
     run_frame(o, || Ok::<(), Refused>(()))?;
-    if !lock_surface(o.gfx, o.system) {
+    let Some(locked) = lock_surface(o.gfx, o.system) else {
         return Ok(());
-    }
-    crate::net::message_frame::string_frame_locked(o, id, STATUS_FONT, 0x316, 0x6F)?;
-    crate::system::sleep::sleep(1000);
+    };
+    crate::net::message_frame::string_frame_locked(o, locked, id, STATUS_FONT, 0x316, 0x6F)?;
+    crate::system::pause::pause(o, 1000);
     Ok(())
 }
-pub fn connecting(
+pub(super) fn connecting(
     o: crate::owners::Owners<'static>,
     lines: &NetTexts,
     connection: u32,

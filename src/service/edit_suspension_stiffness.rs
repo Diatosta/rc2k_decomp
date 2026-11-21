@@ -6,7 +6,7 @@ use crate::menu::owner::Menus;
 use crate::service::pages::{SUSPENSION_STIFFNESS, change_page};
 use crate::system::owner::System;
 
-pub fn edit_suspension_stiffness(
+pub(super) fn edit_suspension_stiffness(
     menus: &Menus,
     system: &System,
     input: &crate::input::owner::Input,

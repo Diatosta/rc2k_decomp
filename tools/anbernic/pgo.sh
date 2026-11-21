@@ -2,7 +2,7 @@
 # The handheld's profile for a profile-guided build (PGO): builds the game instrumented
 # (`-C profile-generate`, `--cfg rc2k_pgo` so that it writes its counts as it ends), runs it on
 # the handheld through tools/anbernic/pgo_train.py, and merges the counts into
-# target/a64-pgo/rc2k.profdata. `./deploy_standalone.sh anbernic pgo` then builds with it.
+# target/a64-pgo/rc2k.profdata. `./build.sh handheld --pgo` then builds with it.
 #
 # The profile only steers the compiler's layout and inlining: the program does the same with or
 # without it. Functions changed since the training are built as without it, so train again
@@ -25,7 +25,6 @@ if [ "$want" != "$have" ]; then
 fi
 
 docker build -q -t rc2k-anbernic tools/anbernic >/dev/null
-tools/anbernic/run.sh tools/build_ffmpeg.sh a64
 tools/anbernic/run.sh env CARGO_TARGET_DIR=target/a64-pgo \
     CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C target-cpu=cortex-a53 -C profile-generate=$COUNTS --cfg rc2k_pgo" \
     cargo build --release --target aarch64-unknown-linux-gnu --features remote --bin rc2k
@@ -33,7 +32,8 @@ tools/anbernic/run.sh env CARGO_TARGET_DIR=target/a64-pgo \
 "${SSH[@]}" "pkill -x rc2k_remote; rm -rf $COUNTS; mkdir -p $COUNTS; true"
 "${SSH[@]}" "cat > $GAME/rc2k_remote; chmod +x $GAME/rc2k_remote" \
     < target/a64-pgo/aarch64-unknown-linux-gnu/release/rc2k
-RC2K_REMOTE_HOST="$HOST" python3 tools/anbernic/pgo_train.py "${1:-85}"
+RC2K_REMOTE_HOST="$HOST" RC2K_REMOTE_KEY="${RC2K_REMOTE_KEY:-${ANBERNIC_KEY:-$HOME/.ssh/rg34xxsp}}" \
+    python3 tools/anbernic/pgo_train.py "${1:-85}"
 
 rm -rf target/a64-pgo/counts
 mkdir -p target/a64-pgo/counts

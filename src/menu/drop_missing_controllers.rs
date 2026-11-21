@@ -1,26 +1,14 @@
-//! `menu::drop_missing_controllers`: a car whose number at +0x2C is above
-//! the controller count gets 0 there.
-//!
-//! For each of the four players, compared unsigned. A reading of what the two are:
-//! the controller count is counted up by the function that lists the game controllers
-//! (`input::joystick_found`, at most 0x10), so +0x2C is the player's controller, 0 being none.
-//! Callers: `menu::run_front_end` (before the main menu) and `saves::load_savegame`. Refuses a
-//! missing player. Rust callers run its `entry` (`routes.rs`).
+//! `menu::drop_missing_controllers`: each player's controller number worked out from the
+//! controller the player chose (`input::device_ids::give_chosen`): where it is in the table
+//! now, none while it is not plugged in. The game itself only made a number past the
+//! controller count none, so a player whose controller was not plugged in at start lost the
+//! choice, and one whose controllers came in another order got another controller.
 
 use crate::errors::BadInput;
 use crate::input::owner::Input;
 use crate::menu::owner::Menus;
-use crate::menu::player_names::cars;
 
 pub fn drop_missing_controllers(menus: &Menus, input: &Input) -> Result<(), BadInput> {
-    let play = &menus.play;
-    let most = input.devices.controller_count.get();
-    for car in cars(play) {
-        let c = car.get().controller;
-        let kept = rc2k_core::menu::steps::kept_controller(c, most);
-        if kept != c {
-            car.update(|p| p.controller = kept);
-        }
-    }
+    crate::input::device_ids::give_chosen(menus, input);
     Ok(())
 }

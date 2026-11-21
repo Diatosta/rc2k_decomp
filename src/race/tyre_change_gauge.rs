@@ -1,13 +1,10 @@
 //! `race::tyre_change_gauge`: the roadside tyre change's gauge, timed by a button (the low byte
 //! of the input device's `bits`). The state is the device's (`input_devices[player]`): `gauge`
-//! (0 .. 0xFFFF), `stage` (-1 waiting for the button to be let go, 0 running, 1 done, 2 a
-//! developer's press) and `clock` (the start's clock, then the time).
-//! - Mode 0 starts it: the clock (`system::tick_count`) goes into `clock`, `gauge` is 0, `stage`
+//! (0 .. 0xFFFF), `stage` (-1 waiting for the button to be let go, 0 running, 1 done) and `clock` (the start's clock, then the time).
+//! - Mode 0 starts it: the clock (`clock::tick_count`) goes into `clock`, `gauge` is 0, `stage`
 //!   -1 and `race::draw_tyre_change` draws; then as -1.
 //! - -1: the button is read; let go, `stage` becomes 0. Result 0.
-//! - 0: the button is read; pressed: on the developer's machine `stage`
-//!   becomes 2 and it goes on as 2, else it is done. Not pressed: running.
-//! - 2: with the gauge at 0xF618 or more it is running, else done.
+//! - 0: the button is read; pressed: it is done. Not pressed: running.
 //! - running: if the clock less the start is 60000 or more, the gauge is 0 and it is done; else
 //!   the gauge is that x 0x10000 / 500, low 16 bits. Result 0.
 //! - done: the time is worked out from 0x10000 less the gauge (a logarithm of the square root of
@@ -20,8 +17,7 @@
 //!
 //! The result also goes into the machine's scratch dword.
 //!
-//! Called by `race::tyre_change` (twice), which reads only the result. Refuses (before anything)
-//! a player past 7 or a missing device.
+//! Refuses (before anything) a player past 7 or a missing device.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::types::InputDevice;
@@ -32,12 +28,12 @@ use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 /// The press time's constants: `TyreChange::{time_base, time_scale, gauge_unit, log_two_ten}` and
 /// `one`.
 fn constants(race: &Race) -> [f32; 5] {
-    let shared = &race.shared;
+    let tyre = race.shared.tyre_change();
     [
-        shared.tyre_change().time_base.get(),
-        shared.tyre_change().time_scale.get(),
-        shared.tyre_change().gauge_unit.get(),
-        shared.tyre_change().log_two_ten.get(),
+        tyre.time_base,
+        tyre.time_scale,
+        tyre.gauge_unit,
+        tyre.log_two_ten,
         race.viewer_panel().one.get(),
     ]
 }
@@ -72,7 +68,7 @@ impl GameIo {
 impl Io for GameIo {
     type Error = Refused;
     fn tick(&mut self) -> Result<u32, Refused> {
-        Ok(crate::system::tick_count::tick_count(
+        Ok(crate::clock::tick_count::tick_count(
             &self.o.system.session.picture_clock,
         ))
     }
@@ -85,35 +81,22 @@ impl Io for GameIo {
         let shared = &race.shared;
         self.store(g);
         // The drawing takes the device itself (its x87 turn reads the gauge).
-        crate::race::draw_tyre_change::draw_tyre_change(
-            crate::strings::append_string_by_id::StringOwners::of(self.o),
-            race,
-            shared,
-            self.device,
-            self.o.gfx,
-            self.o.strings,
-        )
+        crate::race::draw_tyre_change::draw_tyre_change(self.o, race, shared, self.device)
     }
     fn press_time(&mut self, s: u32) -> u32 {
         press_time(self.race, s as i32) as u32
     }
-    fn developer(&mut self) -> bool {
-        self.o.system.machine().developer.get() == 1
-    }
     fn record(&mut self) -> u32 {
-        self.race.shared.tyre_change().record.get()
+        self.race.shared.tyre_change().record
     }
     fn beaten(&mut self, time: u32) {
-        let shared = &self.race.shared;
-        shared.tyre_change().record.set(time);
+        let mut tyre = self.race.shared.tyre_change_mut();
+        tyre.record = time;
         // The 30 bytes of the player's name in `Names.player_names`: the first player's, or the
         // second's for player 1.
-        let from = 0x20 * (shared.tyre_change().player.get() != 0) as usize;
-        for n in 0..30 {
-            shared
-                .tyre_change()
-                .record_name
-                .set(n, self.o.menus.play.slots.names.player_names.get(from + n));
+        let from = 0x20 * (tyre.player != 0) as usize;
+        for (n, byte) in tyre.record_name[..30].iter_mut().enumerate() {
+            *byte = self.o.menus.play.slots.names.player_names.get(from + n);
         }
     }
 }
@@ -127,7 +110,7 @@ pub fn tyre_change_gauge(o: Owners<'static>, start: bool, player: u32) -> Result
     let Some(d) = input.devices.input_device(player as usize)? else {
         return Err(BadInput("a tyre change player without a device").into());
     };
-    race.shared.tyre_change().player.set(player);
+    race.shared.tyre_change_mut().player = player;
     let mut io = GameIo { o, race, device: d };
     let mut gauge = Gauge {
         gauge: d.gauge.get(),
@@ -146,7 +129,7 @@ pub fn tyre_change_gauge(o: Owners<'static>, start: bool, player: u32) -> Result
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::race::asm_test::{Rng, at_each_control_word, lock};
+    use crate::race::asm_test::{Rng, at_each_control_word};
     use crate::race::viewer_screen_store::VIEWER_PANEL;
     use crate::test_support::own::race;
     use crate::test_support::vectors::{Recorder, word};
@@ -155,21 +138,21 @@ mod reference_vectors {
     fn constants() -> [f32; 5] {
         let tyre = race().shared.tyre_change();
         [
-            tyre.time_base.get(),
-            tyre.time_scale.get(),
-            tyre.gauge_unit.get(),
-            tyre.log_two_ten.get(),
+            tyre.time_base,
+            tyre.time_scale,
+            tyre.gauge_unit,
+            tyre.log_two_ten,
             VIEWER_PANEL.one.get(),
         ]
     }
 
     /// The five constants set.
     fn set_constants(v: [f32; 5]) {
-        let tyre = race().shared.tyre_change();
-        tyre.time_base.set(v[0]);
-        tyre.time_scale.set(v[1]);
-        tyre.gauge_unit.set(v[2]);
-        tyre.log_two_ten.set(v[3]);
+        let mut tyre = race().shared.tyre_change_mut();
+        tyre.time_base = v[0];
+        tyre.time_scale = v[1];
+        tyre.gauge_unit = v[2];
+        tyre.log_two_ten = v[3];
         VIEWER_PANEL.one.set(v[4]);
     }
 
@@ -187,7 +170,6 @@ mod reference_vectors {
     /// disagree at the last bit and the sum falls on a whole number; counted.
     #[test]
     fn press_time_matches() {
-        let _l = lock();
         let _kept = Kept(constants());
         let mut r = Rng(31);
         let mut file = Recorder::replay("race.tyre_change_gauge.press_time");

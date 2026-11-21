@@ -12,7 +12,7 @@ pub struct RaceClock {
 }
 
 /// The least time between turns, in milliseconds.
-pub const TURN_MS: u32 = 20;
+pub(crate) const TURN_MS: u32 = 20;
 
 impl RaceClock {
     /// Set going at `now`: 50 turns a second, none counted (the step left as it was).

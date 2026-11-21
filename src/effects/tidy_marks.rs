@@ -1,6 +1,6 @@
 //! `effects::tidy_marks`: the effects' memory given back at a stage's unload. Its steps: for each
-//! of the settings' +0x5C cars from the first, its list at +0x2E8 freed and its +0x328 made the
-//! taken cell, then `memory::free_list` of the ring list, the surface list, the two mask lists, the
+//! of the settings' `cars_copy` cars from the first, its `points_list` freed and its `point_block`
+//! made the taken cell, then `memory::free_list` of the ring list, the surface list, the two mask lists, the
 //! places list and the links list.
 //!
 //! Works on the effects settings.
@@ -8,27 +8,33 @@
 //! Refuses (before anything) null settings, a cars' count below 0 or above 8, and a list that holds
 //! a block (`free_list`'s refusal; no block is put on a list any more).
 
+use crate::effects::mask_store::MaskBlockList;
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
-use crate::memory::ListCells;
+use crate::memory::HeldList;
 use crate::memory::free_list::free_list;
+use crate::memory::session::PlainDword;
 
-// The cars' loop starts from the settings' +0x29C (car 0).
+// The cars' loop starts from the first car's record.
 const MOST_CARS: i32 = 8;
 /// The six lists, in the order freed.
-fn lists(effects: &Effects) -> [&ListCells; 6] {
+fn with_lists<R>(effects: &Effects, f: impl FnOnce([&dyn HeldList; 6]) -> R) -> R {
     let (ring, masks, blocks) = (&effects.ring, &effects.masks, &effects.blocks);
-    [
-        &ring.pool.list,      // g_marksRingList
-        &ring.work.list,      // RingWork.list
-        &masks.blocks.list_b, // g_marksBMaskList
-        &masks.blocks.list_a, // MaskBlocks.list_a[0]
-        &blocks.places.list,  // g_marksPlacesList
-        &blocks.links.list,   // g_marksLinksList
-    ]
+    let (second, first) = (
+        MaskBlockList::new(&masks.blocks, true),
+        MaskBlockList::new(&masks.blocks, false),
+    );
+    f([
+        &ring.pool.list,
+        &ring.work,
+        &second,
+        &first,
+        &blocks.places.list,
+        &blocks.links.list,
+    ])
 }
 /// Each car's list, worked out without writing (none for a count past the refusals).
-fn car_lists(effects: &Effects) -> Result<Vec<&ListCells>, BadInput> {
+fn car_lists(effects: &Effects) -> Result<Vec<&[PlainDword; 4]>, BadInput> {
     let marks = effects.settings()?;
     let count = (marks.cars_copy.get() as i32).clamp(0, MOST_CARS) as u32;
     Ok((0..count)
@@ -40,7 +46,9 @@ fn car_lists(effects: &Effects) -> Result<Vec<&ListCells>, BadInput> {
 fn any_holds_blocks(effects: &Effects) -> Result<bool, Refused> {
     Ok(
         crate::effects::try_any(car_lists(effects)?.iter(), |&l| Ok(l.get().head != 0))?
-            || crate::effects::try_any(lists(effects).iter(), |&l| Ok(l.get().head != 0))?,
+            || with_lists(effects, |lists| {
+                crate::effects::try_any(lists.iter(), |&l| Ok(l.get().head != 0))
+            })?,
     )
 }
 
@@ -60,11 +68,14 @@ pub fn tidy_marks(effects: &Effects) -> Result<(), Refused> {
         if let Some(points) = paths.block_points.get(n as usize) {
             points.give_back();
         }
-        car.point_block.set(paths.morph_work.taken.get());
+        car.point_block.set(paths.morph_taken.get());
     }
-    for list in lists(effects) {
-        free_list(list)?;
-    }
+    with_lists(effects, |lists| {
+        for list in lists {
+            free_list(list)?;
+        }
+        Ok::<(), BadInput>(())
+    })?;
     // The particles and the masks went with their lists.
     effects.particles.ring.give_back();
     ring.entries.give_back();

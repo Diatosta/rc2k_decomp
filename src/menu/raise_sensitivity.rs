@@ -1,7 +1,7 @@
 //! `menu::raise_sensitivity`: the player's controller sensitivity up by one.
 //!
 //! `controller_sensitivity` + 1, held at 100 (signed). An action of the four players' details
-//! pages. The menus and draw lists run its `entry` (`menu::table_calls`).
+//! pages.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

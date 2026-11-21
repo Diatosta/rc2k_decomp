@@ -10,204 +10,128 @@
 //!   `extra` out and, for set 1, the `divisor` copy) and `KindConsts` (the constants and the
 //!   light), once for each set. Set 1 is `kind_values::first`, set 2 `kind_values::second`.
 
-use crate::memory::session::{PlainDword, PlainFloat};
+use core::cell::Cell;
 
 /// A quad's work area (0xF8 bytes, three copies: `overlay_quad`, `shadow_quad`, `plane_quad`). The
 /// offsets are from its start.
-#[derive(rc2k_derive::Cells)]
 pub struct QuadWork {
-    /// +0x0: the quad's place (z, y, x as `kind_values` writes it, a reading): the kind's two
+    /// The quad's place (z, y, x as `kind_values` writes it, a reading): the kind's two
     /// triples blended
-    pub place: [PlainFloat; 3],
-    /// +0x10: the light's way turned by the matrix (`draw_shadow`), a reading
-    pub light_turned: [PlainFloat; 3],
-    /// +0x1C: the matrix turned about z by the angle (`turn_matrix3`); its rows are made the
+    pub place: [f32; 3],
+    /// The light's way turned by the matrix (`draw_shadow`), a reading
+    pub light_turned: [f32; 3],
+    /// The matrix turned about z by the angle (`turn_matrix3`); its rows are made the
     /// frame's
-    pub matrix: [PlainFloat; 9],
-    /// +0x4C: the quad's two sides: the kind's triple (`copied`), then (0, difference y, minus
+    pub matrix: [f32; 9],
+    /// The quad's two sides: the kind's triple (`copied`), then (0, difference y, minus
     /// difference x)
-    pub sides: [[PlainFloat; 3]; 2],
-    /// +0x70: the sides made one long and square (`normalise_vector3`, `cross_product3`); the light
+    pub sides: [[f32; 3]; 2],
+    /// The sides made one long and square (`normalise_vector3`, `cross_product3`); the light
     /// turned is stored in the third
-    pub frame: [[PlainFloat; 3]; 3],
-    /// +0x94: the corner of the mark corners table (-1: none), the kind's `count`
-    pub corner: PlainDword,
-    /// +0x98: the kind's size over its divisor (`kind_values`)
-    pub ratio: PlainFloat,
-    /// +0x9C: the kind's size times its constant (`kind_values`)
-    pub size: PlainFloat,
-    /// +0xA0: the kind's start times its constant
-    pub start: PlainFloat,
-    /// +0xA4: the angle line below the split: the factor
-    pub step: PlainFloat,
-    /// +0xA8: the split of the angle's two lines: the kind's `low` (signed compare of the bits)
-    pub low: PlainFloat,
-    /// +0xAC: the kind's `high`
-    pub high: PlainFloat,
-    /// +0xB0: the angle line above the split: its base
-    pub middle: PlainFloat,
-    /// +0xB4: the angle line above the split: its factor
-    pub slope: PlainFloat,
-    /// +0xB8: the factor the quad is drawn in by (`corners_in`)
-    pub spread: PlainFloat,
-    /// +0xBC: the way between two corners, made one long (`normalise_vector3`)
-    pub way: [PlainFloat; 3],
-    /// +0xC8: the quad's four corners (z, y, x), turned to the view then projected
-    pub corners: [[PlainFloat; 3]; 4],
+    pub frame: [[f32; 3]; 3],
+    /// The corner of the mark corners table (-1: none), the kind's `count`
+    pub corner: u32,
+    /// The kind's size over its divisor (`kind_values`)
+    pub ratio: f32,
+    /// The kind's size times its constant (`kind_values`)
+    pub size: f32,
+    /// The kind's start times its constant
+    pub start: f32,
+    /// The angle line below the split: the factor
+    pub step: f32,
+    /// The split of the angle's two lines: the kind's `low` (signed compare of the bits)
+    pub low: f32,
+    /// The kind's `high`
+    pub high: f32,
+    /// The angle line above the split: its base
+    pub middle: f32,
+    /// The angle line above the split: its factor
+    pub slope: f32,
+    /// The factor the quad is drawn in by (`corners_in`)
+    pub spread: f32,
+    /// The way between two corners, made one long (`normalise_vector3`)
+    pub way: [f32; 3],
+    /// The quad's four corners (z, y, x), turned to the view then projected
+    pub corners: [[f32; 3]; 4],
 }
 
 impl QuadWork {
+    /// A quad as its set 1 starts (what the layout tests zero from).
+    #[cfg(test)]
+    pub(super) const fn new() -> Self {
+        Self::new_1()
+    }
+
     /// The second shadow's (`draw_shadow::second`) quad.
-    pub const fn new_1() -> Self {
+    pub(super) const fn new_1() -> Self {
         Self {
-            place: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(125536.0),
-                PlainFloat::new(0.0),
-            ],
-            light_turned: [const { PlainFloat::new(0.0) }; 3],
-            matrix: [const { PlainFloat::new(0.0) }; 9],
-            sides: [
-                [
-                    PlainFloat::new(1.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(-1.0),
-                    PlainFloat::new(-1.0),
-                ],
-            ],
-            frame: [
-                [
-                    PlainFloat::new(1.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(-1.0),
-                    PlainFloat::new(-1.0),
-                ],
-                [const { PlainFloat::new(0.0) }; 3],
-            ],
-            corner: PlainDword::new(0x4),
-            ratio: PlainFloat::new(32768.0),
-            size: PlainFloat::new(65536.0),
-            start: PlainFloat::new(0.0),
-            step: PlainFloat::new(0.0),
-            low: PlainFloat::new(0.0),
-            high: PlainFloat::new(0.0),
-            middle: PlainFloat::new(0.0),
-            slope: PlainFloat::new(0.0),
-            spread: PlainFloat::new(0.0),
-            way: [const { PlainFloat::new(0.0) }; 3],
-            corners: [const { [const { PlainFloat::new(0.0) }; 3] }; 4],
+            place: [0.0, 125536.0, 0.0],
+            light_turned: [0.0; 3],
+            matrix: [0.0; 9],
+            sides: [[1.0, 0.0, 0.0], [0.0, -1.0, -1.0]],
+            frame: [[1.0, 0.0, 0.0], [0.0, -1.0, -1.0], [0.0; 3]],
+            corner: 0x4,
+            ratio: 32768.0,
+            size: 65536.0,
+            start: 0.0,
+            step: 0.0,
+            low: 0.0,
+            high: 0.0,
+            middle: 0.0,
+            slope: 0.0,
+            spread: 0.0,
+            way: [0.0; 3],
+            corners: [[0.0; 3]; 4],
         }
     }
 }
 
 impl QuadWork {
     /// The first shadow's (`draw_shadow::first`) quad.
-    pub const fn new_2() -> Self {
+    pub(super) const fn new_2() -> Self {
         Self {
-            place: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(125536.0),
-                PlainFloat::new(0.0),
-            ],
-            light_turned: [const { PlainFloat::new(0.0) }; 3],
-            matrix: [const { PlainFloat::new(0.0) }; 9],
-            sides: [
-                [
-                    PlainFloat::new(1.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(-1.0),
-                    PlainFloat::new(-1.0),
-                ],
-            ],
-            frame: [
-                [
-                    PlainFloat::new(1.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(-1.0),
-                    PlainFloat::new(-1.0),
-                ],
-                [const { PlainFloat::new(0.0) }; 3],
-            ],
-            corner: PlainDword::new(0x4),
-            ratio: PlainFloat::new(32768.0),
-            size: PlainFloat::new(65536.0),
-            start: PlainFloat::new(0.0),
-            step: PlainFloat::new(0.0),
-            low: PlainFloat::new(0.0),
-            high: PlainFloat::new(0.0),
-            middle: PlainFloat::new(0.0),
-            slope: PlainFloat::new(0.0),
-            spread: PlainFloat::new(0.0),
-            way: [const { PlainFloat::new(0.0) }; 3],
-            corners: [const { [const { PlainFloat::new(0.0) }; 3] }; 4],
+            place: [0.0, 125536.0, 0.0],
+            light_turned: [0.0; 3],
+            matrix: [0.0; 9],
+            sides: [[1.0, 0.0, 0.0], [0.0, -1.0, -1.0]],
+            frame: [[1.0, 0.0, 0.0], [0.0, -1.0, -1.0], [0.0; 3]],
+            corner: 0x4,
+            ratio: 32768.0,
+            size: 65536.0,
+            start: 0.0,
+            step: 0.0,
+            low: 0.0,
+            high: 0.0,
+            middle: 0.0,
+            slope: 0.0,
+            spread: 0.0,
+            way: [0.0; 3],
+            corners: [[0.0; 3]; 4],
         }
     }
 }
 
 impl QuadWork {
     /// The plane's (`draw_plane`) quad.
-    pub const fn new_3() -> Self {
+    pub(super) const fn new_3() -> Self {
         Self {
-            place: [
-                PlainFloat::new(0.0),
-                PlainFloat::new(125536.0),
-                PlainFloat::new(0.0),
-            ],
-            light_turned: [const { PlainFloat::new(0.0) }; 3],
-            matrix: [const { PlainFloat::new(0.0) }; 9],
-            sides: [
-                [
-                    PlainFloat::new(1.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(-1.0),
-                    PlainFloat::new(-1.0),
-                ],
-            ],
-            frame: [
-                [
-                    PlainFloat::new(1.0),
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(0.0),
-                ],
-                [
-                    PlainFloat::new(0.0),
-                    PlainFloat::new(-1.0),
-                    PlainFloat::new(-1.0),
-                ],
-                [const { PlainFloat::new(0.0) }; 3],
-            ],
-            corner: PlainDword::new(0x4),
-            ratio: PlainFloat::new(32768.0),
-            size: PlainFloat::new(65536.0),
-            start: PlainFloat::new(0.0),
-            step: PlainFloat::new(0.0),
-            low: PlainFloat::new(0.0),
-            high: PlainFloat::new(0.0),
-            middle: PlainFloat::new(0.0),
-            slope: PlainFloat::new(0.0),
-            spread: PlainFloat::new(0.0),
-            way: [const { PlainFloat::new(0.0) }; 3],
-            corners: [const { [const { PlainFloat::new(0.0) }; 3] }; 4],
+            place: [0.0, 125536.0, 0.0],
+            light_turned: [0.0; 3],
+            matrix: [0.0; 9],
+            sides: [[1.0, 0.0, 0.0], [0.0, -1.0, -1.0]],
+            frame: [[1.0, 0.0, 0.0], [0.0, -1.0, -1.0], [0.0; 3]],
+            corner: 0x4,
+            ratio: 32768.0,
+            size: 65536.0,
+            start: 0.0,
+            step: 0.0,
+            low: 0.0,
+            high: 0.0,
+            middle: 0.0,
+            slope: 0.0,
+            spread: 0.0,
+            way: [0.0; 3],
+            corners: [[0.0; 3]; 4],
         }
     }
 }
@@ -243,7 +167,7 @@ pub struct KindTables {
 }
 
 /// Set 1's tables.
-pub static TABLES_1: KindTables = KindTables {
+pub(super) static TABLES_1: KindTables = KindTables {
     copied: [const { [1.0, 0.0, 0.0] }; 34],
     from: [
         [0.0, -1.0, -1.0],
@@ -372,7 +296,7 @@ pub static TABLES_1: KindTables = KindTables {
 };
 
 /// Set 2's tables.
-pub static TABLES_2: KindTables = KindTables {
+pub(super) static TABLES_2: KindTables = KindTables {
     copied: [const { [1.0, 0.0, 0.0] }; 34],
     from: [
         [0.0, -1.0, -1.0],
@@ -500,68 +424,66 @@ pub static TABLES_2: KindTables = KindTables {
 };
 
 /// Set 1's two outs after its quad.
-#[derive(rc2k_derive::Cells)]
 pub struct KindExtras1 {
-    /// +0x0: the kind's `extra` times `extra_k`, the lift along the up
-    pub extra: PlainFloat,
-    /// +4: `divisor` copied (the first set only)
-    pub divisor_copy: PlainFloat,
+    /// The kind's `extra` times `extra_k`, the lift along the up
+    pub extra: Cell<f32>,
+    /// `divisor` copied (the first set only)
+    pub divisor_copy: Cell<f32>,
 }
 
 impl KindExtras1 {
     /// Set 1's outs.
     pub const fn new() -> Self {
         Self {
-            extra: PlainFloat::new(0.0),
-            divisor_copy: PlainFloat::new(0.0),
+            extra: Cell::new(0.0),
+            divisor_copy: Cell::new(0.0),
         }
     }
 }
 
 /// Set 2's out after its quad.
-#[derive(rc2k_derive::Cells)]
 pub struct KindExtra2 {
-    /// +0x0: the kind's `extra` times `extra_k`, the lift along the up
-    pub extra: PlainFloat,
+    /// The kind's `extra` times `extra_k`, the lift along the up
+    pub extra: Cell<f32>,
 }
 
 impl KindExtra2 {
     /// Set 2's out.
     pub const fn new() -> Self {
         Self {
-            extra: PlainFloat::new(0.0),
+            extra: Cell::new(0.0),
         }
     }
 }
 
 /// A set's constants and light (0x54 bytes). The offsets are from its start.
 pub struct KindConsts {
-    /// +0x0: the kind's size is multiplied by it (`kind_values` c0)
+    /// The kind's size is multiplied by it (`kind_values` c0)
     pub size_k: f32,
-    /// +0x4: the kind's `start` is multiplied by it (c1)
+    /// The kind's `start` is multiplied by it (c1)
     pub start_k: f32,
-    /// +0x8: the step's last factor (c2)
+    /// The step's last factor (c2)
     pub step_k: f32,
-    /// +0xC: the kind's `middle` is multiplied by it (c3)
+    /// The kind's `middle` is multiplied by it (c3)
     pub middle_k: f32,
-    /// +0x10: the slope's last factor (c4)
+    /// The slope's last factor (c4)
     pub slope_k: f32,
-    /// +0x14: the kind's `spread` is multiplied by it (c5)
+    /// The kind's `spread` is multiplied by it (c5)
     pub spread_k: f32,
-    /// +0x18: the kind's `extra` is multiplied by it (c6)
+    /// The kind's `extra` is multiplied by it (c6)
     pub extra_k: f32,
-    /// +0x1C: the place's blends: for each of the triple's three parts, two factors (c7 .. c12)
+    /// The place's blends: for each of the triple's three parts, two factors (c7 .. c12)
     pub place_k: [f32; 6],
-    /// +0x34: what the y part is taken from after the blend (c13)
+    /// What the y part is taken from after the blend (c13)
     pub place_less: f32,
-    /// +0x38: the light's way, turned by the matrix into `light_turned` (`draw_shadow`)
+    /// The light's way, turned by the matrix into `light_turned` (`draw_shadow`)
     pub light: [f32; 3],
-    /// +0x44: what each corner's depth is lowered by (`draw_shadow`)
+    /// What each corner's depth is lowered by (`draw_shadow`)
     pub lifts: [f32; 4],
 }
 
 /// Set 1's constants.
-pub static CONSTS_1: KindConsts = KindConsts {
+pub(super) static CONSTS_1: KindConsts = KindConsts {
     size_k: 65.536_f32,
     start_k: 0.017453292_f32,
     step_k: 0.017453292_f32,
@@ -576,7 +498,7 @@ pub static CONSTS_1: KindConsts = KindConsts {
 };
 
 /// Set 2's constants.
-pub static CONSTS_2: KindConsts = KindConsts {
+pub(super) static CONSTS_2: KindConsts = KindConsts {
     size_k: 65.536_f32,
     start_k: 0.017453292_f32,
     step_k: 0.017453292_f32,

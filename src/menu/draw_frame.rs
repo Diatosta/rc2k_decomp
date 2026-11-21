@@ -3,11 +3,10 @@
 //!
 //! Makes the menu the current one (`loop_flags.menu`). Unless the game is quitting:
 //! `copy_picture_to_surface` (the background), lock the surface, and if that worked `draw_menu`,
-//! `run_draw_list` and unlock. 89 callers, the screen loops. Rust callers run its `entry`
-//! (`routes.rs`).
+//! `run_draw_list` and unlock.
 
 use crate::errors::Refused;
-use crate::menu::frame_callback::{copy_picture, draw_menu, lock_failed};
+use crate::menu::frame_callback::{copy_picture, draw_menu};
 use crate::owners::Owners;
 
 /// Draws one frame of `menu`.
@@ -21,11 +20,12 @@ pub fn draw_frame(
         return Ok(());
     }
     copy_picture(o.gfx, o.system)?;
-    if lock_failed(o.gfx, o.system) {
-        return Ok(());
-    }
-    draw_menu(o, menu)?;
-    crate::menu::run_draw_list::run_draw_list(o)?;
-    crate::platform::unlock_surface(o.gfx);
+    crate::gfx::with_locked_surface::with_locked_surface(
+        crate::gfx::with_locked_surface::lock(o.gfx, o.system),
+        || {
+            draw_menu(o, menu)?;
+            crate::menu::run_draw_list::run_draw_list(o)
+        },
+    )?;
     Ok(())
 }

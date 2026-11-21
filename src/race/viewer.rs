@@ -12,8 +12,8 @@ use crate::race::owner::Race;
 
 /// The slot number of `var\tmprpl` as it is.
 pub const LAST_RACE: u32 = 0xDE;
-/// The length of a camera table: 0x708 blocks of 8 bytes.
-pub const TABLE_LEN: usize = 0x3840;
+/// The length of a camera table: `MOST_BLOCKS` blocks of 8 bytes.
+pub const TABLE_LEN: usize = 8 * rc2k_core::race::viewer::MOST_BLOCKS as usize;
 /// A byte of the blocks' cameras (8 bytes a block), met by its offset from the first block's
 /// cameras. The offset is not checked against the table: a camera step from camera 0 reads the
 /// byte before it, the last byte of the replay block read (`block`, which ends where the cameras
@@ -28,7 +28,7 @@ pub fn camera_byte(offset: u32) -> CameraByte {
 
 impl CameraByte {
     /// The byte `n` blocks on (8 bytes each).
-    pub fn blocks_on(self, n: u32) -> CameraByte {
+    pub(super) fn blocks_on(self, n: u32) -> CameraByte {
         CameraByte(self.0.wrapping_add(n.wrapping_mul(8)))
     }
 

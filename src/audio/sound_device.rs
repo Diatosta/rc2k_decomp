@@ -1,17 +1,16 @@
 //! DirectSound's device and primary buffer, given back and asked after: `audio::release_primary`,
-//! `read_caps`, `release_a3d`, `close_sound`. Their logging and calls go through a `Part`, so that
+//! `read_caps`, `close_sound`. Their logging and calls go through a `Part`, so that
 //! the tests can stand them in.
 
-use crate::audio::a3d::{open_a3d, open_a3d2};
 use crate::audio::own::AudioOwn;
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::Dword;
 use crate::system::owner::System;
 
-const CAPS_TEXT: &std::ffi::CStr = c"AUD: sound caps: flgs/pri/min/max:\t"; // "AUD: sound caps: flgs/pri/min/max:\t"
-const MAX_HW_TEXT: &std::ffi::CStr = c" maxhw: all/static/stream (free)\t"; // " maxhw: all/static/stream (free)\t"
-const MAX_3D_TEXT: &std::ffi::CStr = c" max3d: all/static/stream (free)\t"; // " max3d: all/static/stream (free)\t"
-const CLOSE_TEXT: &std::ffi::CStr = c"AUD: close sound"; // "AUD: close sound"
+const CAPS_TEXT: &std::ffi::CStr = c"AUD: sound caps: flgs/pri/min/max:\t";
+const MAX_HW_TEXT: &std::ffi::CStr = c" maxhw: all/static/stream (free)\t";
+const MAX_3D_TEXT: &std::ffi::CStr = c" max3d: all/static/stream (free)\t";
+const CLOSE_TEXT: &std::ffi::CStr = c"AUD: close sound";
 
 /// A text to the log at level 2, with a line's end or not.
 pub fn log_text(text: &std::ffi::CStr, end: bool) {
@@ -29,22 +28,17 @@ pub fn log_number(value: u32, end: bool) {
 }
 
 /// The primary buffer stopped.
-pub fn stop_primary(state: &AudioOwn) {
+pub(super) fn stop_primary(state: &AudioOwn) {
     crate::audio::thread_parts::stop_primary(state);
 }
 
 /// The 3D listener released.
-pub fn release_listener(state: &AudioOwn) {
+pub(super) fn release_listener(state: &AudioOwn) {
     crate::audio::thread_parts::release_sound_listener(state);
 }
 
-/// The A3D object released.
-pub fn release_a3d_object(state: &AudioOwn) {
-    release_a3d(state);
-}
-
 /// The primary buffer's format set for `mode` (at the mix rate setting): false when it failed.
-pub fn set_primary_format(state: &AudioOwn, mode: u32) -> Result<bool, Refused> {
+pub(super) fn set_primary_format(state: &AudioOwn, mode: u32) -> Result<bool, Refused> {
     let rate = state.mix_rate_setting.get();
     crate::audio::primary::set_primary_format(state, mode, rate)
 }
@@ -55,7 +49,7 @@ pub fn open_listener(state: &AudioOwn, system: &System) -> Result<bool, Refused>
 }
 
 /// DirectSound opened (GUID `guid`) with the game's variables: false when it failed.
-pub fn open_sound_in_game(
+pub(super) fn open_sound_in_game(
     state: &AudioOwn,
     system: &'static System,
     guid: u32,
@@ -65,12 +59,12 @@ pub fn open_sound_in_game(
     })
 }
 
-/// Unless A3D or no primary buffer: stopped, its kept volume put back, the listener released, the
+/// Unless there is no primary buffer: stopped, its kept volume put back, the listener released, the
 /// buffer released and forgotten.
 pub fn release_primary(state: &AudioOwn) {
     {
         let p = state.primary_buffer.get();
-        if crate::audio::buffer_settings::a3d(state) || p == 0 {
+        if p == 0 {
             return;
         }
         stop_primary(state);
@@ -94,7 +88,7 @@ pub fn read_caps(state: &AudioOwn) -> Result<bool, Refused> {
         if ds == 0 {
             return Err(BadInput("no DirectSound to ask (the original calls through 0)").into());
         }
-        // `DSCAPS` zeroed, its size, then `GetCaps`'s dwords at +4 .. +0x10.
+        // `DSCAPS` zeroed, its size, then `GetCaps`'s first four result dwords.
         for n in (0..0x60).step_by(4) {
             caps.set_u32(n, 0);
         }
@@ -129,22 +123,8 @@ pub fn read_caps(state: &AudioOwn) -> Result<bool, Refused> {
     }
 }
 
-/// The A3D object released and forgotten.
-pub fn release_a3d(state: &AudioOwn) {
-    let o = state.a3d_object.get();
-    if o != 0 {
-        crate::platform::sound::release(o);
-        state.a3d_object.set(0);
-    }
-    state.a3d_ready.set(0);
-}
-
-/// DirectSound's cooperative level 1 (normal), released, forgotten, then `release_a3d`. Refuses
-/// A3D.
-pub fn close_sound(state: &AudioOwn, system: &System) -> Result<(), Refused> {
-    if crate::audio::buffer_settings::a3d(state) {
-        return Err(BadInput("A3D (0x40CAD9)").into());
-    }
+/// DirectSound's cooperative level 1 (normal), released, forgotten.
+pub(super) fn close_sound(state: &AudioOwn, system: &System) -> Result<(), Refused> {
     {
         let ds = state.direct_sound.get();
         if ds != 0 {
@@ -154,18 +134,17 @@ pub fn close_sound(state: &AudioOwn, system: &System) -> Result<(), Refused> {
             state.direct_sound.set(0);
         }
     }
-    release_a3d_object(state);
     Ok(())
 }
 
-const OPEN_TEXT: &std::ffi::CStr = c"AUD: open sound"; // "AUD: open sound"
+const OPEN_TEXT: &std::ffi::CStr = c"AUD: open sound";
 const OPEN_FAILED_TEXT: &std::ffi::CStr = c"AUD: open failed rc=";
 
 /// `DirectSoundCreate` for the device's GUID: the device, or the failure's result.
-pub type CreateSound<'a> = &'a mut dyn FnMut(u32) -> Result<u32, i32>;
+type CreateSound<'a> = &'a mut dyn FnMut(u32) -> Result<u32, i32>;
 
-/// The standalone program's DirectSound on SDL (`platform::sound`), whatever the GUID.
-pub fn game_direct_sound_create(_guid: u32, focus: &'static Dword) -> Result<u32, i32> {
+/// The program's DirectSound on SDL (`platform::sound`), whatever the GUID.
+fn game_direct_sound_create(_guid: u32, focus: &'static Dword) -> Result<u32, i32> {
     crate::platform::sound::create_device(focus)
 }
 
@@ -180,9 +159,6 @@ impl rc2k_core::audio::device::Opening for Open<'_> {
     fn mode(&mut self) -> u32 {
         self.state.sound_mode.get()
     }
-    fn set_mode(&mut self, mode: u32) {
-        self.state.sound_mode.set(mode);
-    }
     fn log_open(&mut self, guid: u32) -> Result<(), Refused> {
         log_text(OPEN_TEXT, false);
         log_hex(guid, true);
@@ -192,13 +168,6 @@ impl rc2k_core::audio::device::Opening for Open<'_> {
         log_text(OPEN_FAILED_TEXT, false);
         log_hex(code, true);
         Ok(())
-    }
-    // True when it failed.
-    fn open_a3d2(&mut self, _: u32) -> Result<bool, Refused> {
-        Ok(!open_a3d2(self.state)?)
-    }
-    fn open_a3d(&mut self, _: u32) -> Result<bool, Refused> {
-        Ok(!open_a3d(self.state)?)
     }
     fn create(&mut self, guid: u32) -> i32 {
         // A failed `DirectSoundCreate` leaves its out-variable as it was.
@@ -216,8 +185,7 @@ impl rc2k_core::audio::device::Opening for Open<'_> {
     }
 }
 
-/// "AUD: open sound" and the GUID logged; mode bit 0x2000: `open_a3d2`, which done is all;
-/// failing, the mode's 0x3000 bits flipped. Then only with bit 0x1000: `open_a3d`, failing which
+/// "AUD: open sound" and the GUID logged; then only with bit 0x1000:
 /// `DirectSoundCreate`; cooperative level 3. A failure (or no bit 0x1000) logs "AUD: open failed
 /// rc=" and a code (the GUID, or the call's result) and gives false.
 pub fn open_sound(

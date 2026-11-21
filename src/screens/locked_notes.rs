@@ -29,8 +29,8 @@ pub fn note_locked_item_3(o: crate::owners::Owners<'static>) -> Result<(), Refus
     show(
         o,
         rc2k_core::screens::locked::item_3(
-            o.menus.play.cheats.cheats.get(),
-            o.menus.screens.loop_flags.item.get(),
+            o.menus.play.cheats.read().cheats,
+            o.menus.screens.loop_flags.read().item,
             o.race.shared.state.settings.a8_game.get(),
         ),
     )
@@ -40,10 +40,10 @@ pub fn note_locked_item_3(o: crate::owners::Owners<'static>) -> Result<(), Refus
 /// (`Arcade.levels_won[item - 2]`) is not open (1), the message box.
 pub fn note_locked_stage(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
-    let fault = crate::menu::event_flow::Fault::default();
+    let fault = crate::errors::Fault::default();
     let note = rc2k_core::screens::locked::stage(
-        menus.play.cheats.cheats.get(),
-        menus.screens.loop_flags.item.get(),
+        menus.play.cheats.read().cheats,
+        menus.screens.loop_flags.read().item,
         |index| {
             // The screen has eight items: item n is the stage `levels_won[n - 2]`, items 1 and
             // 7 are not asked about. Item 0 (index -2) lies before the table, in bytes nothing

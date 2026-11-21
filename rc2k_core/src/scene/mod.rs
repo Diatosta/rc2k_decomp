@@ -23,7 +23,6 @@ pub mod projection;
 pub mod reflection;
 pub mod render_states;
 pub mod shown;
-pub mod sort_keys;
 pub mod stage_objects;
 pub mod texture_coordinates;
 pub mod texture_levels;

@@ -1,8 +1,8 @@
-//! Draws a time's text one character at a time, each with the font's fixed width (+0x1C) set to 6
-//! for ':' and '.', 0x10 for the others, so that the digits keep their columns; at most 11
-//! characters, up to the NUL.
-//! Each character is drawn as a text of its own (the character and a NUL as a value; the buffer is
-//! not touched); x moves on by the width. The font's +0x1C is 0 at the end.
+//! Draws a time's text one character at a time, each with the font's fixed width (`box_width`) set
+//! to 6 for ':' and '.', 0x10 for the others, so that the digits keep their columns; at most 11
+//! characters, up to the NUL. Each character is drawn as a text of its own (the character and a NUL
+//! as a value; the buffer is not touched); x moves on by the width. The font's `box_width` is 0 at
+//! the end.
 
 use crate::errors::Refused;
 

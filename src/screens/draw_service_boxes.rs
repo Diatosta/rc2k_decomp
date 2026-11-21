@@ -62,7 +62,7 @@ const BACKDROP_BOXES: [[u32; 4]; 30] = [
 
 /// The see-through value shared by the boxes.
 fn see_through(screens: &Screens) -> u32 {
-    screens.state.service_ui.box_colour_a.get()
+    screens.state.read().service_ui.box_colour_a
 }
 
 /// A quad in the colour of the item being drawn, see-through.
@@ -74,7 +74,7 @@ fn shade(o: Owners<'static>, x: u32, y: u32, w: u32, h: u32) -> Result<(), Refus
         y,
         w,
         h,
-        screens.state.service_ui.box_colour_b.get(),
+        screens.state.read().service_ui.box_colour_b,
         see_through(screens),
     )
 }
@@ -93,21 +93,21 @@ fn set_item_colour(menus: &Menus, item: u32) {
     } else {
         RED
     };
-    menus.screens.state.service_ui.box_colour_b.set(colour);
+    menus.screens.state.write().service_ui.box_colour_b = colour;
 }
 
 /// Whether the cursor is on `item` and its highlight blinks on.
 fn blinking(screens: &Screens, item: u32) -> bool {
-    screens.loop_flags.item.get() == item
-        && !screens.state.menus.service_flag.is_set()
-        && screens.draw_work.blink.is_set()
+    screens.loop_flags.read().item == item
+        && !screens.state.read().menus.service_flag
+        && screens.draw_work.read().blink
 }
 
 /// Like [`blinking`], and also whenever the item's service box is turned over.
 fn blinking_or_turned_over(screens: &Screens, item: u32) -> bool {
-    screens.loop_flags.item.get() == item
-        && (screens.state.service_ui.box_shown.is_set()
-            || (!screens.state.menus.service_flag.is_set() && screens.draw_work.blink.is_set()))
+    screens.loop_flags.read().item == item
+        && (screens.state.read().service_ui.box_shown
+            || (!screens.state.read().menus.service_flag && screens.draw_work.read().blink))
 }
 
 /// A bar or panel: its filled box and the black outline round it, highlighted when the cursor
@@ -230,7 +230,7 @@ pub fn draw_service_boxes(o: Owners<'static>) -> Result<(), Refused> {
             w,
             h,
             BACKDROP,
-            menus.screens.state.service_ui.fade_full.get(),
+            menus.screens.state.read().service_ui.fade_full,
         )?;
     }
     panel(o, HEADER_ITEM, [0x42, 0x44, 0x29D, 0x1B], BLUE)?;

@@ -1,19 +1,20 @@
 //! Draws the map's tiles into its picture: locks the given texture, then fills 8 x 8 tiles of 16 x
 //! 16 pixels from the given tile on. A tile is the pixels `map_tiles` holds for it (0x80 x 0x80
-//! pointers, 16 x 16 pixels each) or, for a tile without them or outside the 0x80 x 0x80, the
-//! the map's black colour; the pixels are written as words on a surface of 2 bytes a pixel and as
+//! pointers, 16 x 16 pixels each) or, for a tile without them or outside the 0x80 x 0x80, the the
+//! map's black colour; the pixels are written as words on a surface of 2 bytes a pixel and as
 //! dwords on any other, at the tile's place on the locked surface (`surface`). The texture is
-//! unlocked at the end. Called by the map's scroll (`map_tiles`). Refused (after the lock,
-//! unlocking first): a null surface, and a null tile table with a tile inside the 0x80 x 0x80.
+//! unlocked at the end. Refused (after the lock, unlocking first): a null surface, and a null tile
+//! table with a tile inside the 0x80 x 0x80.
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::memory::owned::Owned;
-use crate::race::game_map::{GameMap, Tile};
+use crate::race::game_map_store::GameMap;
+use crate::race::game_map_store::Tile;
 use crate::race::owner_frame::Frame;
 use rc2k_core::race::map::TILE;
 
-pub fn blit_map_tiles(
+pub(super) fn blit_map_tiles(
     frame: &Frame,
     game_map: &Owned<GameMap>,
     texture: u32,
@@ -24,9 +25,9 @@ pub fn blit_map_tiles(
     let drawing = &gfx.drawing;
     use crate::d3d::{lock_texture::lock_texture_in, unlock_texture::unlock_texture};
     use rc2k_core::race::map::{
-        BLITTED, any_inside, check_tiles, pixel_width, row_gap, tile_index, tile_row,
+        BLITTED, any_inside, check_tiles, pixel_width, tile_index, tile_row,
     };
-    if { lock_texture_in(gfx, texture) }?.carry {
+    if !lock_texture_in(gfx, texture)? {
         return Ok(());
     }
     let (bytes, pitch, pixels) = (
@@ -39,9 +40,8 @@ pub fn blit_map_tiles(
         { unlock_texture(gfx, texture) }?;
         return Err(e.into());
     }
-    frame.map().row_gap.set(row_gap(pitch, bytes));
     let surface = crate::gfx::rows::Rows::new(pixels, pitch, drawing.draw_surface.height.get());
-    let black = frame.map().black.get();
+    let black = frame.map().black;
     for row in 0..BLITTED {
         for col in 0..BLITTED {
             let (x, y) = (first_x.wrapping_add(col), first_y.wrapping_add(row));

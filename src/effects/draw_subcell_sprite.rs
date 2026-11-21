@@ -2,7 +2,7 @@
 //! (x, y, z) turned by the view matrix into the draw work's place (the depth also whole in
 //! the ring's `whole`); unless the depth is at or below the nearest depth (a signed compare
 //! of the bits): the four vertices' specular `scene::fog_at` of the depth, colour the
-//! entry's +0x90 | 0xFF000000, texture places from the subcell's entry in the subcell
+//! entry's car tag | 0xFF000000, texture places from the subcell's entry in the subcell
 //! places, depth times the depth scale; half the side (the size's bits as a float, times
 //! the view scale / depth); the corners about the projected place; `effects::clip_quad`,
 //! and unless all is outside `scene::draw_fan` and the polygon's vertex count 4.
@@ -10,7 +10,6 @@
 //! The x87 blocks are plain Rust on the x87 model (`math::x87_float`). Refuses, before anything, a
 //! subcell past the table's 0x400, a null entry, and the fog's and the clip's refusals.
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
@@ -24,21 +23,26 @@ const SUBCELLS: u32 = 0x400;
 
 /// The place turned by the view.
 fn turn(
-    view_matrix: &[crate::memory::session::PlainFloat; 16],
+    view_matrix: &crate::scene::matrix::Matrix,
     ring: &Ring,
     p: &[[u8; 10]; 3],
     effects: &crate::effects::owner::Effects,
 ) {
-    turn_x87(view_matrix, p, &ring.work, &effects.frame.draw_work);
+    turn_x87(
+        view_matrix,
+        p,
+        &mut ring.work.borrow_mut(),
+        &mut effects.frame.draw_work.borrow_mut(),
+    );
 }
 
 /// The square about the projected place.
 fn square(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     effects: &crate::effects::owner::Effects,
 ) {
-    square_x87(front, buffer, &effects.frame.draw_work);
+    square_x87(front, buffer, &mut effects.frame.draw_work.borrow_mut());
 }
 
 /// `subcell` is the subcell's number, `size` a float's bits, `entry` the ring entry.
@@ -46,7 +50,7 @@ fn square(
     clippy::too_many_arguments,
     reason = "the original's registers, the effects' groups and the owners"
 )]
-pub fn draw_subcell_sprite(
+pub(super) fn draw_subcell_sprite(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     masks: &Masks,
     ring: &Ring,
@@ -68,23 +72,30 @@ pub fn draw_subcell_sprite(
     if effects.setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    turn(view.view_matrix, ring, &place, effects);
+    turn(&view.view_matrix, ring, &place, effects);
     if crate::math::x87::bits_at_or_below(
-        effects.frame.draw_work.turned[2].get(),
-        effects.frame.draw_work.near.get(),
+        effects.frame.draw_work.borrow().turned[2],
+        effects.frame.draw_work.borrow().near,
     ) {
         return Ok(());
     }
-    let fogged = fog_at(view.fog, ring.work.whole.get())?;
+    let fogged = fog_at(view.fog, ring.work.borrow().whole)?;
     let colour = crate::effects::ring_entries::entry(ring, entry)?.car_tag | 0xFF00_0000;
     for item in buffer.vertices.iter().take(4) {
         item.specular.set(fogged);
         item.colour.set(colour);
     }
-    effects.frame.draw_work.half[0].set(f32::from_bits(size));
+    effects.frame.draw_work.borrow_mut().half[0] = f32::from_bits(size);
     let at = subcell << 4;
-    let place =
-        |n: usize| f32::from_bits(masks.surface.places.get_u32(0x400 + at as usize + 4 * n));
+    let place = |n: usize| {
+        f32::from_bits(
+            masks
+                .surface
+                .borrow()
+                .places
+                .get_u32(0x400 + at as usize + 4 * n),
+        )
+    };
     let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
     for (n, (u, v)) in [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
         .into_iter()
@@ -101,239 +112,100 @@ pub fn draw_subcell_sprite(
     scene
         .scratch
         .front_end_polygon()
-        .polygon_vertex_count
-        .set(4);
+        .scalars
+        .borrow_mut()
+        .polygon_vertex_count = 4;
     Ok(())
 }
 
-use crate::effects::frame_state::DrawWork;
+use crate::effects::frame_state_store::DrawWork;
 use crate::effects::plain::st_cell;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
 
 /// `turn`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn turn_x87(
-    view_matrix: &[crate::memory::session::PlainFloat; 16],
+    view_matrix: &crate::scene::matrix::Matrix,
     p: &[[u8; 10]; 3],
-    w: &RingWork,
-    dw: &DrawWork,
+    w: &mut RingWork,
+    dw: &mut DrawWork,
 ) {
     let t0 = bh::from_f80(p[2]);
     let t1 = bh::from_f80(p[1]);
     let t2 = bh::from_f80(p[0]);
-    let t3 = view_matrix[0].ld();
+    let t3 = bh::ld(view_matrix[0]);
     let t4 = t3 * t2;
-    let t5 = view_matrix[4].ld();
+    let t5 = bh::ld(view_matrix[4]);
     let t6 = t5 * t1;
-    let t7 = view_matrix[8].ld();
+    let t7 = bh::ld(view_matrix[8]);
     let t8 = t7 * t0;
     let t9 = t6 + t8;
     let t10 = t4 + t9;
-    let t11 = t10 + view_matrix[12].ld();
-    let t12 = view_matrix[1].ld();
+    let t11 = t10 + bh::ld(view_matrix[12]);
+    let t12 = bh::ld(view_matrix[1]);
     let t13 = t12 * t2;
-    let t14 = view_matrix[5].ld();
+    let t14 = bh::ld(view_matrix[5]);
     let t15 = t14 * t1;
-    let t16 = view_matrix[9].ld();
+    let t16 = bh::ld(view_matrix[9]);
     let t17 = t16 * t0;
     let t18 = t15 + t17;
     let t19 = t13 + t18;
-    let t20 = t19 + view_matrix[13].ld();
-    let t21 = view_matrix[2].ld();
+    let t20 = t19 + bh::ld(view_matrix[13]);
+    let t21 = bh::ld(view_matrix[2]);
     let t22 = t2 * t21;
-    let t23 = view_matrix[6].ld();
+    let t23 = bh::ld(view_matrix[6]);
     let t24 = t1 * t23;
-    let t25 = view_matrix[10].ld();
+    let t25 = bh::ld(view_matrix[10]);
     let t26 = t0 * t25;
     let t27 = t26 + t24;
     let t28 = t22 + t27;
-    let t29 = t28 + view_matrix[14].ld();
-    dw.turned[0].st(t11);
-    dw.turned[1].st(t20);
-    w.whole.set(bh::to_int(t29) as u32);
-    dw.turned[2].st(t29);
+    let t29 = t28 + bh::ld(view_matrix[14]);
+    dw.turned[0] = bh::stf(t11);
+    dw.turned[1] = bh::stf(t20);
+    w.whole = bh::to_int(t29) as u32;
+    dw.turned[2] = bh::stf(t29);
 }
 
 /// `square`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn square_x87(
-    front: &crate::scene::polygon_work::PolygonWork,
+    front: &crate::scene::polygon_work_store::PolygonWork,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
-    dw: &DrawWork,
+    dw: &mut DrawWork,
 ) {
-    let t0 = ld(front.window.view_scale.get());
-    let t1 = t0 / dw.turned[2].ld();
-    let t2 = dw.turned[2].ld();
-    let t3 = t2 * dw.z_k.ld();
+    let t0 = ld(front.window.borrow().view_scale);
+    let t1 = t0 / bh::ld(dw.turned[2]);
+    let t2 = bh::ld(dw.turned[2]);
+    let t3 = t2 * bh::ld(dw.z_k);
     st_cell(&buffer.vertices[0].z, t3);
     st_cell(&buffer.vertices[1].z, t3);
     st_cell(&buffer.vertices[2].z, t3);
     st_cell(&buffer.vertices[3].z, t3);
-    let t4 = dw.half[0].ld();
+    let t4 = bh::ld(dw.half[0]);
     let t5 = t4 * t1;
-    dw.half[0].st(t5);
-    dw.half[1].st(t5);
-    let t6 = t1 * dw.turned[0].ld();
-    let t7 = t1 * dw.turned[1].ld();
+    dw.half[0] = bh::stf(t5);
+    dw.half[1] = bh::stf(t5);
+    let t6 = t1 * bh::ld(dw.turned[0]);
+    let t7 = t1 * bh::ld(dw.turned[1]);
     let t8 = -t7;
-    let t9 = t8 + front.window.view_centre[1].ld();
-    let t10 = t9 - dw.half[1].ld();
+    let t9 = t8 + crate::math::x87_float::ld(front.window.borrow().view_centre[1]);
+    let t10 = t9 - bh::ld(dw.half[1]);
     st_cell(&buffer.vertices[0].y, t10);
-    let t11 = t9 - dw.half[1].ld();
+    let t11 = t9 - bh::ld(dw.half[1]);
     st_cell(&buffer.vertices[1].y, t11);
-    let t12 = t9 + dw.half[1].ld();
+    let t12 = t9 + bh::ld(dw.half[1]);
     st_cell(&buffer.vertices[2].y, t12);
-    let t13 = t9 + dw.half[1].ld();
+    let t13 = t9 + bh::ld(dw.half[1]);
     st_cell(&buffer.vertices[3].y, t13);
-    let t14 = t6 + front.window.view_centre[0].ld();
-    let t15 = t14 - dw.half[0].ld();
+    let t14 = t6 + crate::math::x87_float::ld(front.window.borrow().view_centre[0]);
+    let t15 = t14 - bh::ld(dw.half[0]);
     st_cell(&buffer.vertices[0].x, t15);
-    let t16 = t14 + dw.half[0].ld();
+    let t16 = t14 + bh::ld(dw.half[0]);
     st_cell(&buffer.vertices[1].x, t16);
-    let t17 = t14 + dw.half[0].ld();
+    let t17 = t14 + bh::ld(dw.half[0]);
     st_cell(&buffer.vertices[2].x, t17);
-    let t18 = t14 - dw.half[0].ld();
+    let t18 = t14 - bh::ld(dw.half[0]);
     st_cell(&buffer.vertices[3].x, t18);
 }
 
 #[cfg(test)]
-mod reference_vectors {
-    use crate::effects::asm_layout::with_laid;
-    use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::staged_vertices as staged;
-    use crate::effects::asm_test::{Op, Spec, recorded_writes};
-    use crate::effects::frame_state::DrawWork;
-    use crate::effects::ring_store::RingWork;
-
-    #[test]
-    fn turn_x87_matches() {
-        const SPEC: Spec = Spec {
-            operands: &[
-                Op::RaceBlock {
-                    reads: &[
-                        (0x1EA2CC, F32),
-                        (0x1EA2D0, F32),
-                        (0x1EA2D4, F32),
-                        (0x1EA2DC, F32),
-                        (0x1EA2E0, F32),
-                        (0x1EA2E4, F32),
-                        (0x1EA2EC, F32),
-                        (0x1EA2F0, F32),
-                        (0x1EA2F4, F32),
-                        (0x1EA2FC, F32),
-                        (0x1EA300, F32),
-                        (0x1EA304, F32),
-                    ],
-                    writes: &[],
-                },
-                Op::Base {
-                    lo: 0x186931,
-                    hi: 0x1D0826,
-                    reads: &[],
-                    writes: &[
-                        (0x186995, F32),
-                        (0x186999, F32),
-                        (0x18699D, F32),
-                        (0x1D0780, I32),
-                    ],
-                },
-                Op::Base {
-                    lo: 0x0,
-                    hi: 0x1E,
-                    reads: &[(0x0, F80), (0xA, F80), (0x14, F80)],
-                    writes: &[],
-                },
-            ],
-            sincos: false,
-        };
-        recorded_writes("effects.draw_subcell_sprite.turn_x87", &SPEC, |b| {
-            with_laid::<RingWork, _>(b[1], |w| {
-                with_laid::<DrawWork, _>(b[1], |dw| {
-                    // SAFETY: `at` checks that the ten bytes lie in the operand's test buffer,
-                    // which the recorded run keeps alive and nothing else reaches meanwhile;
-                    // unaligned.
-                    let place: [[u8; 10]; 3] = std::array::from_fn(|n| unsafe {
-                        (b[2] + 10 * n)
-                            .at(0, 10)
-                            .cast::<[u8; 10]>()
-                            .read_unaligned()
-                    });
-                    super::turn_x87(
-                        &crate::test_support::own::race()
-                            .frame
-                            .matrices
-                            .get()
-                            .view_matrix,
-                        &place,
-                        w,
-                        dw,
-                    );
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn square_x87_matches() {
-        const SPEC: Spec = Spec {
-            operands: &[
-                Op::RaceBlock {
-                    reads: &[(0x224088, F32), (0x22409C, F32), (0x2240A0, F32)],
-                    writes: &[],
-                },
-                Op::Base {
-                    lo: 0x0,
-                    hi: 0x6C,
-                    reads: &[],
-                    writes: &[
-                        (0x0, F32),
-                        (0x4, F32),
-                        (0x8, F32),
-                        (0x20, F32),
-                        (0x24, F32),
-                        (0x28, F32),
-                        (0x40, F32),
-                        (0x44, F32),
-                        (0x48, F32),
-                        (0x60, F32),
-                        (0x64, F32),
-                        (0x68, F32),
-                    ],
-                },
-                Op::Base {
-                    lo: 0x186931,
-                    hi: 0x186A31,
-                    reads: &[
-                        (0x186975, F32),
-                        (0x186979, F32),
-                        (0x186995, F32),
-                        (0x186999, F32),
-                        (0x18699D, F32),
-                        (0x186A2D, F32),
-                    ],
-                    writes: &[(0x186975, F32), (0x186979, F32)],
-                },
-            ],
-            sincos: false,
-        };
-        recorded_writes("effects.draw_subcell_sprite.square_x87", &SPEC, |b| {
-            with_laid::<DrawWork, _>(b[2], |dw| {
-                staged(
-                    b[1],
-                    &[
-                        0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
-                    ],
-                    || {
-                        super::square_x87(
-                            crate::owners::Owners::the()
-                                .scene
-                                .scratch
-                                .front_end_polygon(),
-                            &crate::d3d::vertices_store::VERTICES,
-                            dw,
-                        );
-                    },
-                );
-            });
-        });
-    }
-}
+mod tests;

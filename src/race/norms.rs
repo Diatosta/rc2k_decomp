@@ -13,7 +13,7 @@ use crate::race::scratch_store::FrameScratch;
 /// of 0 makes it 0; -0.0 parts become 0. Gives the vector's bits and the length's bits.
 pub fn normalised(numbers: &Numbers, v: [u32; 3]) -> ([u32; 3], u32) {
     let mut v = v;
-    let (length, zero) = x87::normalise_in_place(&mut v, &numbers.zero);
+    let (length, zero) = x87::normalise_in_place(&mut v, numbers.zero);
     for part in &mut v {
         if zero || *part == 0x8000_0000 {
             *part = 0;
@@ -25,19 +25,16 @@ pub fn normalised(numbers: &Numbers, v: [u32; 3]) -> ([u32; 3], u32) {
 /// Makes `work_vector` one long (`normalised`); the length goes into `scratch`.
 pub fn normalise_work_vector(
     numbers: &Numbers,
-    scratch: &FrameScratch,
+    scratch: &mut FrameScratch,
     scene: &crate::scene::owner::Scene,
 ) {
-    let v = crate::memory::session::read_first(&scratch.work_vector);
-    let (v, length) = normalised(numbers, v);
-    crate::memory::session::write_first(&scratch.work_vector, &v);
-    scene.drawing.scene.get().scratch.set(length);
+    let (v, length) = normalised(numbers, scratch.work_vector);
+    scratch.work_vector = v;
+    scene.draw_work_mut().scratch = length;
 }
 
 /// A triangle's normal worked out from its points.
 struct TriangleNormal {
-    /// The three points and the two edges from the first, as the physics reads them back.
-    plane_work: [u32; 15],
     /// The normalised normal's bits.
     normal: [u32; 3],
     /// The normal's length before it was made one long, bits.
@@ -64,23 +61,14 @@ fn triangle_normal(race: &Race, [a, b, c]: [u32; 3]) -> Result<TriangleNormal, B
         b[2].wrapping_sub(a[2]),
         c[2].wrapping_sub(a[2]),
     ];
-    let mut work = [0i32; 15];
-    work[..3].copy_from_slice(&a);
-    work[3..6].copy_from_slice(&b);
-    work[6..9].copy_from_slice(&c);
-    work[9..].copy_from_slice(&d);
     let cross = [
         x87::int_product_difference(d[5], d[2], d[3], d[4]),
         x87::int_product_difference(d[1], d[4], d[5], d[0]),
         x87::int_product_difference(d[3], d[0], d[1], d[2]),
     ]
     .map(f32::to_bits);
-    let (normal, length) = normalised(race.course.numbers.get(), cross);
-    Ok(TriangleNormal {
-        plane_work: work.map(|v| v as u32),
-        normal,
-        length,
-    })
+    let (normal, length) = normalised(&race.course.numbers, cross);
+    Ok(TriangleNormal { normal, length })
 }
 
 /// One face's results.
@@ -101,8 +89,6 @@ pub struct Normals {
     pub faces: Vec<FaceNormals>,
     /// The work vector at the end.
     pub work_vector: [u32; 3],
-    /// The last triangle's plane work, if any was made.
-    pub plane_work: Option<[u32; 15]>,
     /// The last length the work left in the scene's scratch word, if any.
     pub scratch: Option<u32>,
 }
@@ -110,24 +96,22 @@ pub struct Normals {
 /// Every face's normals, starting from the work vector `work_vector`: a triangle whose points are
 /// not all below the scene's point count keeps the vector the last one left. Reads the loaded
 /// course and writes nothing. Refused: no faces, 0x100000 or more, or a read past a table.
-pub fn face_normals(
+fn face_normals(
     race: &Race,
-    scratch: &crate::scene::workers::DrawingScratch,
+    scratch: &crate::scene::scratch_store::DrawingScratch,
     work_vector: [u32; 3],
 ) -> Result<Normals, Refused> {
     use rc2k_core::race::faces::{
         NORMAL_TRIANGLES, normal_made, repeated_points, takes_normals, with_repeated,
     };
-    let count: u32 = race.course.course.get().course_face_count.get();
+    let count: u32 = race.course.course.borrow().course_face_count;
     rc2k_core::race::faces::check_face_count(count)?;
-    let points: u32 = race.course.course.get().scene_point_count.get();
+    let points: u32 = race.course.course.borrow().scene_point_count;
     // The fourth corner the last drawn face left is -1 for a face of three points.
-    let fourth_corner_set =
-        crate::race::face_work::last_fourth_corner(&race.shared, scratch) != u32::MAX;
+    let fourth_corner_set = crate::race::face_work::last_fourth_corner(scratch) != u32::MAX;
     let mut out = Normals {
         faces: Vec::new(),
         work_vector,
-        plane_work: None,
         scratch: None,
     };
     for face in 0..count {
@@ -142,7 +126,6 @@ pub fn face_normals(
             let [a, b, c] = triangle.map(|k| corners[k]);
             if normal_made([a, b, c], points) {
                 let made = triangle_normal(race, [a, b, c])?;
-                out.plane_work = Some(made.plane_work);
                 out.work_vector = made.normal;
                 out.scratch = Some(made.length);
             }
@@ -160,10 +143,10 @@ pub fn face_normals(
 /// Works out the normals (`face_normals`) and stores them in the faces and
 /// the work vector, plane work and scratch word the work leaves.
 /// Refuses no faces or 0x100000 or more.
-pub fn store_norms(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let count: u32 = race.course.course.get().course_face_count.get();
+pub(super) fn store_norms(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let count: u32 = race.course.course.borrow().course_face_count;
     rc2k_core::race::faces::check_face_count(count)?;
-    let work_vector = crate::memory::session::read_first(&race.frame.scratch().work_vector);
+    let work_vector = race.frame.scratch().work_vector;
     let normals = face_normals(race, &scene.scratch, work_vector)?;
     for made in &normals.faces {
         crate::race::course_places::update_face_number(&race.course, made.face, |f| {
@@ -183,12 +166,9 @@ pub fn store_norms(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
             }
         }
     }
-    if let Some(plane_work) = normals.plane_work {
-        crate::memory::session::write_bits(&race.physics.ground().normal_work, plane_work);
-    }
-    crate::memory::session::write_first(&race.frame.scratch().work_vector, &normals.work_vector);
+    race.frame.scratch_mut().work_vector = normals.work_vector;
     if let Some(length) = normals.scratch {
-        scene.drawing.scene.get().scratch.set(length);
+        scene.draw_work_mut().scratch = length;
     }
     Ok(())
 }
@@ -218,7 +198,6 @@ mod tests {
         assert_eq!(normals.faces.len(), 1);
         assert_eq!(normals.faces[0].normals, [up, up]);
         assert_eq!(normals.work_vector, up);
-        assert!(normals.plane_work.is_some());
     }
 
     #[test]
@@ -228,6 +207,6 @@ mod tests {
             face_normals(race, &crate::owners::Owners::the().scene.scratch, [7, 8, 9]).unwrap()
         });
         assert_eq!(normals.faces[0].normals, [[7, 8, 9]; 2]);
-        assert_eq!((normals.plane_work, normals.scratch), (None, None));
+        assert_eq!(normals.scratch, None);
     }
 }

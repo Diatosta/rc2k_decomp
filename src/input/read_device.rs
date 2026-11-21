@@ -1,34 +1,59 @@
-//! A device's four readings (steering, brake, throttle, the bits) from its bindings (record
-//! layout: `input/devices.rs`), after polling it. Each of steering left / right, throttle and
-//! brake is its key down, or its axis (times its sign, below 0 made 0), or a button, "all of
-//! it" being 0xFFFFFF00 for left and 0x100 for the others, setting bit 0x1000 (steering),
-//! 0x4000 (throttle) or 0x2000 (brake); the steering is left plus right; on
-//! a digital device every reading not 0 is made all of it. Eight buttons become bits 1 .. 0x80
-//! and the hat the top two bytes of the bits. Refuses (before anything) a bound key past 0xFF
-//! and an axis's place past the record.
+//! A device's four readings (steering, brake, throttle, the bits) in the race, from the
+//! controller as SDL reads it through the player's profile for it (`input::profiles`,
+//! `rc2k_core::input::profile::readings`) and the keys the player bound: a key or a digital
+//! binding gives all of a reading, setting bit 0x1000 (steering), 0x4000 (throttle) or 0x2000
+//! (brake); an axis binding gives its value. Eight buttons become bits 1 .. 0x80 and the hat
+//! the top two bytes of the bits. A device not being read keeps its readings, one that is not
+//! there reads as its keys.
 
 use crate::errors::Refused;
-use crate::input::devices::{joy_state, key_table, record_bytes};
-use crate::input::store::Devices;
+use crate::input::devices::key_table;
+use crate::input::owner::Input;
 use crate::input::types::InputDevice;
+use rc2k_core::input::profile::{ACTIONS, Keys};
 
-/// The device `record` read (see the header). Converted: `rc2k_core::input::devices::read_device`; the bindings are checked before the poll,
-/// the record read again after it.
-pub fn read_device(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
-    use rc2k_core::input::devices;
-    devices::check_bindings(&record_bytes(record))?;
-    { crate::input::poll_device::poll_device(devices, record) }?;
-    let Some(r) = devices::read_device(
-        &record_bytes(record),
-        &key_table(devices),
-        &joy_state(devices),
-    )?
-    else {
+/// The device `record` (number `device`) read (see the header). The poll that copies the
+/// device's state into the record, for the pages that show it, comes first.
+pub(super) fn read_device(
+    input: &Input,
+    device: usize,
+    record: &InputDevice,
+) -> Result<(), Refused> {
+    let devices = &input.devices;
+    crate::input::poll_device::poll_device(devices, record)?;
+    if record.reading.get() != 1 {
         return Ok(());
+    }
+    // None for a player on the keyboard: the keys alone.
+    let profile = crate::input::profiles::race_profile(input, device);
+    let table = key_table(devices);
+    let mut keys = Keys::default();
+    for (down, binding) in keys.0.iter_mut().zip(record.bindings.iter()) {
+        *down = table[binding.key.get() as usize & 0xFF] & 0x80 != 0;
+    }
+    debug_assert_eq!(record.bindings.len(), ACTIONS);
+    let raw = crate::input::di_objects::profile_reading(record.device.get());
+    // The controller's profile says whether its hat and buttons are a shifter's.
+    let shifter = profile.as_ref().is_some_and(|p| p.shifter);
+    let r = rc2k_core::input::profile::readings(profile.as_ref(), raw.as_ref(), &keys, shifter);
+    // With the H shifter, a gate asks for its gear and the lever out of the gates leaves the gear
+    // up / down bindings working (each controller's gate state kept between readings).
+    let bits = if shifter {
+        static GATES: std::sync::Mutex<Vec<rc2k_core::input::profile::ShifterGate>> =
+            std::sync::Mutex::new(Vec::new());
+        let mut gates = GATES
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if gates.len() <= device {
+            gates.resize(device + 1, Default::default());
+        }
+        gates[device].next(r.bits)
+    } else {
+        r.bits
     };
     record.readings[0].set(r.steering);
     record.readings[1].set(r.brake);
     record.readings[2].set(r.throttle);
-    record.bits.set(r.bits);
+    record.bits.set(bits);
     Ok(())
 }

@@ -10,9 +10,9 @@ use crate::screens::service_boxes::quad;
 pub fn draw_two_column_panel(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     // The logic is in `rc2k_core::screens::panels::two_column_panel`.
-    for a in
-        rc2k_core::screens::panels::two_column_panel(menus.screens.state.service_ui.fade_full.get())
-    {
+    for a in rc2k_core::screens::panels::two_column_panel(
+        menus.screens.state.read().service_ui.fade_full,
+    ) {
         quad(o, a.x, a.y, a.w, a.h, a.colour, a.see)?;
     }
     crate::screens::draw_column_rules::draw_column_rules(o)?;

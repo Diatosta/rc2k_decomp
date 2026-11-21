@@ -95,7 +95,7 @@ fn scaled(v: u32, size: u32, of: u32) -> (u32, u32) {
 }
 
 /// The share loaded held to 0 ..= 100 (signed).
-pub fn held_share(share: u32) -> u32 {
+pub(crate) fn held_share(share: u32) -> u32 {
     (share as i32).clamp(0, 0x64) as u32
 }
 
@@ -113,14 +113,22 @@ pub fn loading_bar(width: u32, height: u32, share: u32) -> Bar {
     }
 }
 
+/// The top left of the network loading list of `lines` lines `line_height` tall on a `width` x
+/// `height` screen: inside the loading picture's 4:3 middle (a wider screen has only the picture's
+/// wash at its sides), a 40th of the middle in from its left edge (clear of the picture's car,
+/// and room for the list's box), the list centred half way down the screen.
+pub fn list_origin(width: u32, height: u32, lines: u32, line_height: u32) -> (i32, i32) {
+    let middle = crate::scene::view_window::design_width(width, height) as i32;
+    let left = (width as i32 - middle) / 2 + middle / 40;
+    let top = (height as i32 - (lines * line_height) as i32) / 2;
+    (left, top)
+}
+
 /// The four corners (x, y) of a rectangle, from the top left; whole numbers made floats.
 pub fn quad_corners(x0: i32, x1: i32, y0: i32, y1: i32) -> [(f32, f32); 4] {
     let (x0, x1, y0, y1) = (x0 as f32, x1 as f32, y0 as f32, y1 as f32);
     [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
 }
-
-/// The scene state mark while the bar is on.
-pub const FRAME_MARK: u32 = 8;
 
 /// A frame is tried with the window active and the surfaces not lost (`lost` not 1).
 pub fn frame_tried(active: u32, lost: u32) -> bool {
@@ -135,6 +143,16 @@ pub fn restored(lost_before: u32, lost_after: u32) -> (u32, bool, bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_list_lies_inside_the_4_by_3_middle_half_way_down() {
+        // 4:3: at the left, a 40th in, centred.
+        assert_eq!(list_origin(800, 600, 2, 20), (20, 280));
+        // 16:9 (a middle of 1440 from 240) and 32:9 (the same middle from 1200).
+        assert_eq!(list_origin(1920, 1080, 2, 20), (240 + 36, 520));
+        let (left, top) = list_origin(3840, 1080, 3, 20);
+        assert_eq!((left, top), (1200 + 36, 510));
+    }
 
     #[test]
     fn frames() {

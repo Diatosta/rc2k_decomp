@@ -4,7 +4,7 @@ use crate::errors::BadInput;
 use crate::logfile::numeric::{Body, NumberText, log_number};
 
 /// The text of a signed number, with `flags` for `format_u32`.
-pub fn signed_text(value: u32, flags: u8) -> Vec<u8> {
+pub(super) fn signed_text(value: u32, flags: u8) -> Vec<u8> {
     rc2k_core::files::log::signed(
         value as i32,
         rc2k_core::strings::format::Pad::from_flags(flags),

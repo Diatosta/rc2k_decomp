@@ -10,7 +10,7 @@ pub const PLAYERS: u32 = 4;
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct Player {
-    /// Record +0x00: nothing reads or writes it (the saved games carry it as it is).
+    /// Nothing reads or writes it (the saved games carry it as it is).
     pub unused_0: u32,
     /// The player's nationality (0 Great Britain, 1 Argentina, ..; `CaptionTables.nationalities[0]`
     /// has their strings, the flag is sprite 0x1C + it).
@@ -26,7 +26,8 @@ pub struct Player {
     /// in the saved game).
     pub saved_start_section: u32,
     /// Whose name in the four name buffers is the player's: 0 none, n the name of player n - 1.
-    /// The saved games hold the buffer's address here instead (`to_file_bytes`).
+    /// The saved games hold the player's name number (`saves::name_id`) here instead
+    /// (`to_file_bytes`).
     pub name_number: u32,
     pub keys: [u8; 12],
     /// The number on the player's car, 1 .. 90, chosen on the player details page.
@@ -39,30 +40,31 @@ pub struct Player {
     /// The controller's sensitivity, 0 .. 3 (string 0x3A1 + it on the controller page;
     /// the bindings' texts go by it, `screens::controls::Binding::kind`).
     pub sensitivity_level: u32,
-    /// The learned pedals' axes (+0x3A the second pedal's, +0x3B the first's;
+    /// The learned pedals' axes (the second pedal's byte is the third, the first's the fourth;
     /// `screens::learning::pedal`), handed to the device's set-up as one dword.
     pub axis_codes: [u8; 4],
-    /// The controller's mode (bit 0; string 0x56D + it).
+    /// Kept as the old record has it so a saved file round-trips; nothing reads it now (the H
+    /// shifter switch is the controller profile's `shifter`).
     pub controller_mode: u32,
-    /// +0x40: the stick's end zone in percent of its travel (0 at start): the share at the
+    /// The stick's end zone in percent of its travel (0 at start): the share at the
     /// far end that counts as full. The controller page's first slider; with the centre dead
     /// zone it leaves the rest of 100 (`lower_end_zone`, `raise_dead_zone`).
-    /// `input::set_up_device` copies it to the device's `end_zone` (+0x14). Sure: the
+    /// `input::set_up_device` copies it to the device's `end_zone`. Sure: the
     /// device fields' names and the defaults (0 here, 10 below).
     pub end_zone_pct: u32,
-    /// +0x44: the stick's centre dead zone in percent (10 at start): the share around the
-    /// middle that reads as 0. The second slider; copied to the device's `dead_zone` (+0x18).
+    /// The stick's centre dead zone in percent (10 at start): the share around the
+    /// middle that reads as 0. The second slider; copied to the device's `dead_zone`.
     pub centre_dead_zone_pct: u32,
     /// The device's strength, 0 .. 100 in tens (`step_strength`;
     /// shown for a device that has it).
     pub strength: u32,
-    /// Record +0x4C: the word between `strength` and the bindings; no page or race
+    /// The word between `strength` and the bindings; no page or race
     /// copy reads it (the device set-up reads the car's copy of it as a gap).
     pub unused_4c: u32,
     /// The controller's bindings (`ControlsBlock`), which the controller pages copy out
     /// (`screens::pick_player_n`) and back (`menu::keep_player_keys`).
     pub bindings: ControlsBlock,
-    /// Record +0x7C .. +0x84: nothing reads or writes it.
+    /// Nothing reads or writes it.
     pub unused_7c: [u8; 8],
     /// Zeroed for each player by `menu::begin_event` and `menu::reset_single_event`; nothing
     /// reads it.
@@ -71,7 +73,7 @@ pub struct Player {
     pub time: u32,
     /// The event's total time (`menu::reset_player_totals`; 0 at `menu::begin_event`).
     pub total: u32,
-    /// The car's class, 0 .. 3 (its description's +8, `menu::take_shown_car`; the
+    /// The car's class, 0 .. 3 (its description's class, `menu::take_shown_car`; the
     /// standings' group).
     pub class: u32,
     /// The stage's figure (the time trial's; 0 at `menu::ready_players`).
@@ -103,23 +105,23 @@ pub struct Player {
     pub codriver_sex: u32,
     // The visual preferences (the page of `menu::visual_preferences_loop`), each 0 or 1,
     // flipped by `menu::toggle_*`.
-    /// "mapa local".
+    /// "local map".
     pub map_area: u32,
-    /// "retrovisor".
+    /// "rear-view mirror".
     pub rear_mirror: u32,
-    /// "contador de rotações".
+    /// "rev counter".
     pub rev_counter: u32,
-    /// "informação do carro".
+    /// "car information".
     pub car_info: u32,
-    /// "barra de mensagens".
+    /// "message bar".
     pub message_display: u32,
-    /// "barra de progresso".
+    /// "progress bar".
     pub progress_bar: u32,
-    /// "informação do piloto".
+    /// "driver information".
     pub driver_info: u32,
-    /// "notas informativas".
+    /// "pace notes".
     pub pace_notes: u32,
-    /// "indicador de unidades": 0 imperial, 1 metric.
+    /// "units indicator": 0 imperial, 1 metric.
     pub metric_units: u32,
     /// The wear of the car's parts, 31 words (the race's `wear[0..31]`); `tyre_wear` goes on
     /// with the next five.
@@ -131,9 +133,9 @@ pub struct Player {
     /// The car's eight impact marks (`impact_octant_marks`, 0 .. 1 floats' bits, one per
     /// octant of a hit's direction), carried from stage to stage; a body repair zeroes them.
     pub impact_marks: [u32; 8],
-    /// Record +0x26C .. +0x274: nothing reads or writes it.
+    /// Nothing reads or writes it.
     pub unused_26c: [u8; 8],
-    /// +0x274: the A8 championship's start section, 0 .. 6 (`SCREEN_FLOW.start_section_a8`;
+    /// The A8 championship's start section, 0 .. 6 (`SCREEN_FLOW.start_section_a8`;
     /// player 0's, kept in the saved game).
     pub saved_start_section_a8: u32,
     /// The car's state bits (the tyres' and the body's are set by a repair, `workshop`; -1
@@ -141,7 +143,7 @@ pub struct Player {
     pub state_flags: u32,
     /// The word the last race left for the car (the race's result `word`).
     pub result_word: u32,
-    /// The controller's steering sensitivity, 0 .. 100 ("sensibilidade da direcção"; the
+    /// The controller's steering sensitivity, 0 .. 100 ("steering sensitivity"; the
     /// player details page shows it as a marker at x + 2 * it).
     pub controller_sensitivity: u32,
     /// The HUD's bits: set to -1 for every player by `menu::clear_hud_bits` at an event's
@@ -168,10 +170,12 @@ impl Player {
     }
 
     /// The record as the saved game keeps it: the layout of `to_le_bytes`, with the word at
-    /// +0x18 the address of the name's buffer (`name_address(player)`), or 0 without a name.
-    pub fn to_file_bytes(&self, name_address: impl Fn(usize) -> u32) -> [u8; 0x28c] {
+    /// +0x18 the file's number of the player's name (`saves::name_id::NameId`), or 0 without a name.
+    pub fn to_file_bytes(&self) -> [u8; 0x28c] {
         let mut b = self.to_le_bytes();
-        let at = self.name_player().map_or(0, name_address);
+        let at = self.name_player().map_or(0, |player| {
+            crate::saves::name_id::NameId::of_player(player).to_file()
+        });
         b[0x18..0x1c].copy_from_slice(&at.to_le_bytes());
         b
     }
@@ -205,13 +209,6 @@ impl Player {
         *self = Self::from_le_bytes(b);
     }
 
-    /// One byte stored by offset.
-    pub fn store_byte(&mut self, at: usize, v: u8) {
-        let mut b = self.to_le_bytes();
-        b[at] = v;
-        *self = Self::from_le_bytes(b);
-    }
-
     /// Dwords stored by byte offset, as the event's tables list them.
     pub fn store(&mut self, stores: &[crate::menu::standings::Store]) {
         let mut b = self.to_le_bytes();
@@ -223,12 +220,12 @@ impl Player {
 }
 
 /// The controller's bindings: 0x2C bytes, 11 little-endian dwords, kept in the player's record
-/// (+0x50), in the keys' table and in the controller pages' copy.
+/// (`bindings`), in the keys' table and in the controller pages' copy.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ControlsBlock([u8; CONTROLS_LEN]);
 
 /// The bindings' bytes.
-pub const CONTROLS_LEN: usize = 0x2C;
+pub(crate) const CONTROLS_LEN: usize = 0x2C;
 
 impl ControlsBlock {
     /// The block from its bytes.
@@ -415,15 +412,17 @@ pub enum Setting {
 }
 
 impl Player {
+    #[cfg(test)]
     /// The first dead zone one less while above 0 (signed).
-    pub fn lower_end_zone(&mut self) {
+    pub(crate) fn lower_end_zone(&mut self) {
         if (self.end_zone_pct as i32) > 0 {
             self.end_zone_pct -= 1;
         }
     }
 
+    #[cfg(test)]
     /// The second dead zone one less unless 0.
-    pub fn lower_centre_dead_zone(&mut self) {
+    pub(crate) fn lower_centre_dead_zone(&mut self) {
         if self.centre_dead_zone_pct != 0 {
             self.centre_dead_zone_pct = self.centre_dead_zone_pct.wrapping_sub(1);
         }
@@ -439,25 +438,21 @@ impl Player {
         }
     }
 
-    /// `menu::take_shown_car`: the car of a car list's entry (its +0 the car's number, +8
-    /// its class) given to the player.
+    /// `menu::take_shown_car`: the car of a car list's entry (its car number and its
+    /// class) given to the player.
     pub fn take_car(&mut self, number: u32, class: u32) {
         self.car_number = number;
         self.class = class;
     }
 
-    /// Binding `k` (0 .. 10; +0x50 + 4 k).
+    /// Binding `k` (0 .. 10).
     pub fn binding(&self, k: usize) -> u32 {
         self.bindings.word(k)
     }
 
-    pub fn set_binding(&mut self, k: usize, v: u32) {
+    #[cfg(test)]
+    pub(crate) fn set_binding(&mut self, k: usize, v: u32) {
         self.bindings.set_word(k, v);
-    }
-
-    /// The controller mode's bit 0 turned over.
-    pub fn toggle_controller_mode(&mut self) {
-        self.controller_mode ^= 1;
     }
 
     /// The setting's dword.
@@ -584,14 +579,14 @@ impl Player {
     }
 }
 
-/// `menu::set_player_entry_kind`: the current player's +0xD0 for a score: 1 at 100 or more
+/// `menu::set_player_entry_kind`: the current player's `entry` for a score: 1 at 100 or more
 /// (signed), else 2.
 pub fn entry_kind(score: i32) -> u32 {
     if score >= 100 { 1 } else { 2 }
 }
 
 /// Up by one, back to 0 after `last`.
-pub fn wrap_up(value: u32, last: u32) -> u32 {
+pub(crate) fn wrap_up(value: u32, last: u32) -> u32 {
     if value == last {
         0
     } else {
@@ -600,7 +595,7 @@ pub fn wrap_up(value: u32, last: u32) -> u32 {
 }
 
 /// Down by one, to `last` from 0.
-pub fn wrap_down(value: u32, last: u32) -> u32 {
+pub(crate) fn wrap_down(value: u32, last: u32) -> u32 {
     if value == 0 {
         last
     } else {
@@ -650,7 +645,7 @@ pub const KEY_ESCAPE: u8 = 1;
 
 /// The work copy with `key` put at `place`; false (nothing changed) if the key is reserved.
 /// A key the copy already has gets the place's old key (the two swap).
-pub fn place_key(keys: &mut [u8; KEYS], place: usize, key: u8, reserved: &[u8]) -> bool {
+pub(crate) fn place_key(keys: &mut [u8; KEYS], place: usize, key: u8, reserved: &[u8]) -> bool {
     if let Some(had) = keys.iter().position(|&k| k == key) {
         keys[had] = keys[place];
     } else if reserved.contains(&key) {
@@ -665,8 +660,8 @@ pub fn place_key(keys: &mut [u8; KEYS], place: usize, key: u8, reserved: &[u8]) 
 pub enum Redefined {
     /// No key, or a reserved one: the page goes on waiting.
     Waiting,
-    /// The copy goes to the player and the redefining ends; `placed`: the key was put in
-    /// (the place then becomes 999).
+    /// The copy goes to the player and the redefining ends (the place becomes 999 either
+    /// way); `placed`: the key was put in, not Escape.
     Done { keys: [u8; KEYS], placed: bool },
 }
 
@@ -758,6 +753,22 @@ mod tests {
         b
     }
 
+    /// A saved game's four cars, each with its player's name number at +0x18, are the same
+    /// bytes after the load (which sets the name by the car's place) and the save.
+    #[test]
+    fn a_saved_game_with_every_name_number_is_the_same_bytes() {
+        use crate::saves::name_id::NameId;
+        let bytes = numbered();
+        for k in 0..4 {
+            let mut file = bytes;
+            file[0x18..0x1c].copy_from_slice(&NameId::of_player(k).to_file().to_le_bytes());
+            let mut loaded = Player::from_file_bytes(file);
+            assert_eq!(loaded.name_player(), None);
+            loaded.set_name_player(k);
+            assert_eq!(loaded.to_file_bytes(), file);
+        }
+    }
+
     #[test]
     fn the_saved_record_carries_the_names_address() {
         let address = |k: usize| 0x0075_5784 + 0x20 * k as u32;
@@ -769,13 +780,13 @@ mod tests {
             // The file has what the game wrote: the record with the address at +0x18.
             let mut expected = bytes;
             expected[0x18..0x1c].copy_from_slice(&address(k).to_le_bytes());
-            assert_eq!(p.to_file_bytes(address), expected);
+            assert_eq!(p.to_file_bytes(), expected);
         }
         let mut none = Player::from_le_bytes(bytes);
         none.name_number = 0;
         let mut expected = bytes;
         expected[0x18..0x1c].fill(0);
-        assert_eq!(none.to_file_bytes(address), expected);
+        assert_eq!(none.to_file_bytes(), expected);
         assert_eq!(none.name_player(), None);
         none.name_number = 5;
         assert_eq!(none.name_player(), None);
@@ -900,7 +911,5 @@ mod tests {
         assert_eq!(p.strength, 100);
         p.step_strength(false);
         assert_eq!(p.strength, 90);
-        p.toggle_controller_mode();
-        assert_eq!(p.controller_mode, 1);
     }
 }

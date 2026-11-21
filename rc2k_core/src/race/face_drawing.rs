@@ -91,11 +91,10 @@ pub fn corner_in_sight(depth: u32, x: u32, near: f32, slope: f32) -> Option<InSi
     None
 }
 
-/// The polygon colour times the object's tint byte by byte ((a x b) >> 8): four bytes with
-/// MMX, else the low three.
-pub fn tinted(tint: u32, colour: u32, mmx: bool) -> u32 {
+/// The polygon colour times the object's tint byte by byte ((a x b) >> 8).
+pub fn tinted(tint: u32, colour: u32) -> u32 {
     let mut out = 0;
-    for k in 0..if mmx { 4 } else { 3 } {
+    for k in 0..4 {
         let p = (((tint >> (8 * k)) & 0xFF) * ((colour >> (8 * k)) & 0xFF)) >> 8;
         out |= p << (8 * k);
     }
@@ -252,8 +251,7 @@ mod tests {
 
     #[test]
     fn tints_backs_sides() {
-        assert_eq!(tinted(0xFF_80_40_FF, 0x80_80_FF_02, true), 0x7F_40_3F_01);
-        assert_eq!(tinted(0xFF_80_40_FF, 0x80_80_FF_02, false), 0x00_40_3F_01);
+        assert_eq!(tinted(0xFF_80_40_FF, 0x80_80_FF_02), 0x7F_40_3F_01);
         assert!(tints(1) && !tints(0));
         assert!(has_back(8) && !has_back(0));
         assert!(turns_last_pair(5) && !turns_last_pair(u32::MAX));

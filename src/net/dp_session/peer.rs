@@ -4,16 +4,47 @@
 use super::*;
 
 impl Session {
-    /// Joins the session whose host is at `at`: the session, or DirectPlay's result.
-    pub fn join(at: SocketAddr, signal: Signal) -> Result<Arc<Session>, u32> {
-        let mut stream = TcpStream::connect_timeout(&at, Duration::from_secs(5))
+    /// Joins the session whose host is at `at`, answering a locked host with `password`.
+    pub fn join_with(at: SocketAddr, signal: Signal, password: &[u8]) -> Result<Arc<Session>, u32> {
+        let stream = TcpStream::connect_timeout(&at, Duration::from_secs(5))
             .map_err(|_| DPERR_NOCONNECTION)?;
         let _ = stream.set_nodelay(true);
+        Session::join_over(Box::new(stream), at.port(), signal, password)
+    }
+
+    /// Joins over a connection already made to the host (`port` is what the session reports).
+    pub fn join_over(
+        mut stream: Box<dyn Wire>,
+        port: u16,
+        signal: Signal,
+        password: &[u8],
+    ) -> Result<Arc<Session>, u32> {
         write_frame(&mut stream, &W::default().u8(JOIN).raw(MAGIC).0)
             .map_err(|_| DPERR_NOCONNECTION)?;
         let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
-        let answer = read_frame(&mut stream).map_err(|_| DPERR_TIMEOUT)?;
+        let answer = read_frame(&mut stream).map_err(|e| match e.kind() {
+            // A host that ends the connection on the first frame is of an older version.
+            std::io::ErrorKind::UnexpectedEof
+            | std::io::ErrorKind::ConnectionReset
+            | std::io::ErrorKind::ConnectionAborted => DPERR_VERSION,
+            _ => DPERR_TIMEOUT,
+        })?;
         let _ = stream.set_read_timeout(None);
+        let mut answer = answer;
+        if answer.first() == Some(&CHALLENGE) {
+            // A locked session: the proof of the password for this challenge.
+            let mut r = R(&answer[1..]);
+            let (Some(salt), Some(challenge)) = (r.raw(), r.raw()) else {
+                return Err(DPERR_NOCONNECTION);
+            };
+            let key = rc2k_core::net::password::key(&salt, password);
+            let proof = rc2k_core::net::password::proof(&challenge, &key);
+            write_frame(&mut stream, &W::default().u8(PROOF).raw(&proof).0)
+                .map_err(|_| DPERR_NOCONNECTION)?;
+            let _ = stream.set_read_timeout(Some(Duration::from_secs(10)));
+            answer = read_frame(&mut stream).map_err(|_| DPERR_TIMEOUT)?;
+            let _ = stream.set_read_timeout(None);
+        }
         let mut r = R(&answer);
         match r.u8() {
             Some(WELCOME) => {}
@@ -27,28 +58,50 @@ impl Session {
             desc,
             ..Default::default()
         };
-        for _ in 0..r.u32().ok_or(bad)? {
-            let id = r.u32().ok_or(bad)?;
-            world.players.insert(id, r.player().ok_or(bad)?);
+        // What the host lists is held to the limits every change is: a host that lists more, or
+        // longer, is not one of this game's.
+        let players = r.u32().ok_or(bad)?;
+        if players as usize > PLAYERS_MOST {
+            return Err(bad);
         }
-        for _ in 0..r.u32().ok_or(bad)? {
+        for _ in 0..players {
             let id = r.u32().ok_or(bad)?;
-            world.groups.insert(id, r.group().ok_or(bad)?);
+            let player = r.player().ok_or(bad)?;
+            if !fits(&player.name, &player.data) {
+                return Err(bad);
+            }
+            world.players.insert(id, player);
+        }
+        let groups = r.u32().ok_or(bad)?;
+        if groups as usize > GROUPS_MOST {
+            return Err(bad);
+        }
+        for _ in 0..groups {
+            let id = r.u32().ok_or(bad)?;
+            let group = r.group().ok_or(bad)?;
+            if !fits(&group.name, &group.data) || group.members.len() > PLAYERS_MOST {
+                return Err(bad);
+            }
+            world.groups.insert(id, group);
         }
         let _ = stream.set_write_timeout(Some(WRITE_WAIT));
-        let session = Session::new(me, world, signal, at.port());
+        let session = Session::new(me, world, signal, port, None);
         let reader = stream.try_clone().map_err(|_| bad)?;
+        let link = Link::new(stream).ok_or(bad)?;
         session
             .links
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .insert(1, stream);
+            .insert(1, link);
         let s = session.clone();
-        std::thread::spawn(move || s.follow_host(reader));
+        std::thread::spawn(move || s.follow_host(reader, HOST_SILENCE));
         Ok(session)
     }
 
-    pub(super) fn follow_host(self: Arc<Self>, mut stream: TcpStream) {
+    /// The host's frames followed until the connection ends, or until nothing has come for
+    /// `silence` (the host pings every second): the session is then lost.
+    pub(super) fn follow_host(self: Arc<Self>, mut stream: Box<dyn Wire>, silence: Duration) {
+        let _ = stream.set_read_timeout(Some(silence));
         while let Ok(frame) = read_frame(&mut stream) {
             let mut r = R(&frame);
             match r.u8() {
@@ -77,6 +130,12 @@ impl Session {
                         (self.signal)(e);
                     }
                 }
+                Some(KICKED) => {
+                    // Put out by the host: the session is lost for this machine, with a line
+                    // for the log saying why.
+                    crate::program_log::log("net: the host put this machine out of the session");
+                    break;
+                }
                 Some(DELIVER) => {
                     let (Some(from), Some(to), Some(data)) = (r.u32(), r.u32(), r.bytes()) else {
                         break;
@@ -103,7 +162,24 @@ impl Session {
                     drop(s);
                     self.answered.notify_all();
                 }
-                _ => break,
+                Some(PING) => {
+                    let Some(stamp) = r.u32() else { break };
+                    self.to_machine(1, &W::default().u8(PONG).u32(stamp).0);
+                }
+                Some(PINGS) => {
+                    let Some(count) = r.u32() else { break };
+                    let mut pings = HashMap::new();
+                    for _ in 0..count.min(CONNECTIONS_MOST as u32) {
+                        let (Some(machine), Some(ms)) = (r.u32(), r.u32()) else {
+                            break;
+                        };
+                        pings.insert(machine, ms);
+                    }
+                    self.lock().pings = pings;
+                }
+                // A kind this machine does not know is passed over.
+                Some(_) => {}
+                None => break,
             }
         }
         self.lose();
@@ -126,7 +202,7 @@ impl Session {
             s.events.values().copied().collect::<Vec<_>>()
         };
         self.answered.notify_all();
-        if !self.stop.load(Ordering::SeqCst) {
+        if !self.stop.is_set() {
             for e in events {
                 (self.signal)(e);
             }

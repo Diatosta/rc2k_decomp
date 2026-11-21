@@ -10,12 +10,12 @@ use crate::Invalid;
 
 /// The list's end and a sound passed over.
 pub const END: u32 = 0xFFFF_FFFF;
-pub const SKIP: u32 = 0xFFFF_FFFE;
+pub(crate) const SKIP: u32 = 0xFFFF_FFFE;
 /// The most entries looked at for the end.
 pub const LIST_ROOM: usize = 0x1000;
 
 /// The list's entries up to its end. Refused: no end within 0x1000 entries, or a sound
-/// of 0x1CD or more.
+/// past the sample records.
 pub fn entries(list: impl Fn(usize) -> u32) -> Result<Vec<u32>, Invalid> {
     let mut out = Vec::new();
     loop {
@@ -24,7 +24,7 @@ pub fn entries(list: impl Fn(usize) -> u32) -> Result<Vec<u32>, Invalid> {
             return Ok(out);
         }
         if entry != SKIP && entry >= SAMPLES {
-            return Err(Invalid("a sound of 0x1CD or more in the list"));
+            return Err(Invalid("a sound past the sample records in the list"));
         }
         out.push(entry);
         if out.len() == LIST_ROOM {
@@ -141,7 +141,7 @@ mod tests {
     fn lists() {
         let list = [1, SKIP, 2, 3, END];
         assert_eq!(entries(|n| list[n]).unwrap(), [1, SKIP, 2, 3]);
-        assert!(entries(|n| [0x1CD, END][n]).is_err());
+        assert!(entries(|n| [SAMPLES, END][n]).is_err());
         assert!(entries(|_| 0).is_err());
         let mut t = Test {
             records: vec![SampleRecord::default(); 4],

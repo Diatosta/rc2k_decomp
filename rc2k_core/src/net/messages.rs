@@ -2,19 +2,32 @@
 //! to wait for everyone (with the round) and the other machines' answers to them, and
 //! the race's messages (top bit set) that go into the sender's inbox.
 
+#[cfg(test)]
 use crate::net::inbox::LONGEST;
 use crate::net::players::State;
 
 /// A chat line: the text follows the byte.
-pub const CHAT: u8 = 0x22;
+pub(crate) const CHAT: u8 = 0x22;
+/// A chat line as the host orders it: the host's number for the line, the author's player id
+/// (4 bytes each, little-endian) and the text follow the byte. Every machine, the author's too,
+/// shows the lines the host sends.
+pub(crate) const CHAT_RELAYED: u8 = 0x23;
 /// The host's call: everyone ready for the race (answered `READY_ANSWER`).
-pub const ALL_READY: u8 = 0x40;
+pub(crate) const ALL_READY: u8 = 0x40;
 pub const READY_ANSWER: u8 = 0x41;
 /// The host's call: everyone done with the race (answered `DONE_ANSWER`).
-pub const ALL_DONE: u8 = 0x50;
+pub(crate) const ALL_DONE: u8 = 0x50;
 pub const DONE_ANSWER: u8 = 0x51;
+/// A machine's loading progress: the byte, then the percentage (0 ..= 100).
+pub const LOADING: u8 = 0x60;
+/// A machine's progress through the stage it is racing: the byte, then the percentage
+/// (0 ..= 100). A copy that does not know the byte drops the message.
+pub const PROGRESS: u8 = 0x61;
+/// A bot's race message, sent by the host for a computer driver's car: the byte, the car's number,
+/// then the sequence byte (top bit set) and the payload as a race message has them.
+pub(crate) const BOT_RACE: u8 = 0x62;
 /// A race message's bit.
-pub const RACE_BIT: u8 = 0x80;
+pub(crate) const RACE_BIT: u8 = 0x80;
 
 /// A message's kind, by its first byte.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -75,9 +88,10 @@ pub fn answer(reply: u8, sync: u8) -> u16 {
     (sync as u16) << 8 | reply as u16
 }
 
+#[cfg(test)]
 /// Whether a race message's bytes after its first (`length`, unsigned: none wraps) fit the
 /// inbox's record.
-pub fn race_fits(length: u32) -> bool {
+pub(crate) fn race_fits(length: u32) -> bool {
     length <= LONGEST
 }
 

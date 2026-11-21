@@ -7,9 +7,8 @@
 //! they are put back (`race::mud_texel`, `race::put_mud_texel`; a texel without the top bit is
 //! left alone). `mud_column` and `mud_row` count the columns and rows (4 each after).
 //!
-//! See `race/mud.rs`. Called by `race::update_mud_texture`, once per splash. Refuses what
-//! `muddy_texel` refuses before anything, and `put_mud_texel`'s later refusals (the counts, the
-//! counters and the random state are put back).
+//! See `race/mud.rs`. Refuses what `muddy_texel` refuses before anything, and `put_mud_texel`'s
+//! later refusals (the counts, the counters and the random state are put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::fade_colour::fade_colour;
@@ -18,7 +17,7 @@ use crate::race::muddy_texel::{strength_at, texture_and_mud};
 use crate::race::owner_shared::RaceShared;
 use crate::race::put_mud_texel::put_mud_texel;
 
-pub const LAST_SPLASHED: u32 = 0x1000;
+pub(super) const LAST_SPLASHED: u32 = 0x1000;
 
 pub fn splash_mud(
     shared: &RaceShared,
@@ -41,14 +40,14 @@ pub fn splash_mud(
     }
     // The pattern value carries from texel to texel: `mud_texel` and `put_mud_texel` hand it back
     // when they skip a place.
-    let mut eax = splash_pattern(shared.random.next_drawing());
-    let mut colours = (eax >> 2) as usize; // the pattern's place: whole dwords
+    let mut pattern = splash_pattern(shared.random.next_drawing());
+    let mut colours = (pattern >> 2) as usize; // the pattern's place: whole dwords
     shared.vars.get().mud_row.set(0u32);
     for row in 0..SPLASH_SIDE {
         shared.vars.get().mud_column.set(0u32);
         for column in 0..SPLASH_SIDE {
-            eax = mud_texel(eax, x, y, scene, gfx, system)?;
-            if muddy(eax) {
+            pattern = mud_texel(pattern, x, y, scene, gfx, system)?;
+            if muddy(pattern) {
                 // The pattern's place is 16 x (0 .. 15) and the splash steps it 16 times:
                 // at most 0xFF, inside the 256 colours.
                 let colour = shared
@@ -58,8 +57,8 @@ pub fn splash_mud(
                     .get(colours)
                     .ok_or(BadInput("a mud colour past the 256"))?
                     .get();
-                let faded = fade_colour(eax, colour, colour >> 24);
-                eax = put_mud_texel(faded | MUD_TOP, x, y, scene, gfx, system)?;
+                let faded = fade_colour(pattern, colour, colour >> 24);
+                pattern = put_mud_texel(faded | MUD_TOP, x, y, scene, gfx, system)?;
             }
             colours += 1;
             x = x.wrapping_add(1);

@@ -9,21 +9,21 @@ const MOST_CARS: u32 = 0x1_0000;
 
 fn wake(sound: &crate::sound::owner::Sound, n: u32) -> Result<(), BadInput> {
     crate::sound::store::SoundObject::of(sound, n & 7)?
-        .in_use
-        .set(1);
+        .borrow_mut()
+        .in_use = 1;
     Ok(())
 }
 
 /// `race::start_race_sounds`: starts the race clock (`sound::start_race_clock`); unless
 /// `RaceSounds.count` is 0 it is held to 1 .. 8 and that many objects are woken. Then the sounds
 /// are let play (`sound::let_sounds_play`) and `RaceClock.started` is set to 1.
-pub fn start_race_sounds(
+pub(super) fn start_race_sounds(
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
-    system: &crate::system::owner::System,
+    picture_clock: &crate::clock::tick_count::PictureClock,
 ) -> Result<(), Refused> {
     crate::sound::race_clock::start_race_clock(
-        crate::system::tick_count::tick_count(&system.session.picture_clock),
+        crate::clock::tick_count::tick_count(picture_clock),
         sound,
     );
     let count: u32 = sound.threads.shared.count.get();
@@ -35,7 +35,7 @@ pub fn start_race_sounds(
         }
     }
     crate::sound::let_sounds_play::let_sounds_play_in(audio);
-    sound.race.clock.get().started.set(1);
+    sound.race.clock.get().borrow_mut().started = 1;
     Ok(())
 }
 
@@ -46,7 +46,7 @@ pub fn wake_car_sounds(
     race: &Race,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
-    system: &crate::system::owner::System,
+    picture_clock: &crate::clock::tick_count::PictureClock,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
     if shared.work.get().in_credits.is_set() {
@@ -59,5 +59,5 @@ pub fn wake_car_sounds(
     for n in 0..cars {
         wake(sound, n)?;
     }
-    start_race_sounds(sound, audio, system)
+    start_race_sounds(sound, audio, picture_clock)
 }

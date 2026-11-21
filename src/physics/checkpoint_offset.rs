@@ -3,8 +3,7 @@
 //! point's, turned by minus the checkpoint's angle (`math::rotate_point_about_y`) into the two
 //! checkpoint offset fields. Otherwise both are 0.
 //!
-//! Caller: `physics::track_checkpoints`. Refuses (before anything) a checkpoint below 0 or past
-//! 0x1418, or no faces or points.
+//! Refuses (before anything) a checkpoint below 0 or past 0x1418, or no faces or points.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::rotate_point_about_y::rotate_point_about_y;
@@ -16,10 +15,10 @@ use rc2k_core::physics::progress::checkpoint_ahead;
 // Core: `rc2k_core::physics::progress::checkpoint_ahead` (the turn stays
 // `math::rotate_point_about_y`'s).
 pub fn checkpoint_offset(
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    engine_tables: crate::math::engine_tables::EngineTablesRef,
     course: &Course,
     vars: &RaceVars,
-    checkpoints: &crate::race::checkpoints_store::Checkpoints,
+    checkpoints: crate::race::checkpoints_store::CheckpointsRef,
     car: &Car,
 ) -> Result<(), Refused> {
     let c = car.checkpoint.get();
@@ -33,19 +32,21 @@ pub fn checkpoint_offset(
     {
         return Err(BadInput("no course faces or points").into());
     }
-    let angle = crate::race::checkpoints_store::angle_run_on(checkpoints, c as usize).get();
-    let face = crate::race::checkpoints_store::face_run_on(checkpoints, c as usize).get();
+    let angle = crate::race::checkpoints_store::angle_run_on(checkpoints, c as usize);
+    let face = crate::race::checkpoints_store::face_run_on(checkpoints, c as usize);
     let point = crate::race::course_places::face_field::<u32>(course.reads(), face, 4)?;
-    let x = car.position[0]
-        .get()
+    let x = car
+        .position
+        .bits_at(0)
         .wrapping_sub(crate::race::scene_points::point_word(
             course.reads(),
             &crate::race::scene_points::no_own(),
             point,
             0,
         )?);
-    let z = car.position[2]
-        .get()
+    let z = car
+        .position
+        .bits_at(2)
         .wrapping_sub(crate::race::scene_points::point_word(
             course.reads(),
             &crate::race::scene_points::no_own(),

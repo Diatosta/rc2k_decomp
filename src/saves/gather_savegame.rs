@@ -7,36 +7,82 @@
 //! - 180 records of 0x94 bytes from the drivers' table.
 //!
 //! Before the cars are copied it also changes them: car 0 gets the two start sections
-//! (`flow.start_section` and `start_section_a8`, at +0x14 and +0x274 of its record), and
-//! every car gets the 0x20 bytes of its name's buffer (the pointer at +0x18) copied to
-//! +0x124, so that the saved copy carries them.
+//! (`flow.start_section` and `start_section_a8`, into `saved_start_section` and
+//! `saved_start_section_a8` of its record), and every car gets the 0x20 bytes of its name's
+//! buffer (the pointer in `name_number`) copied to +0x124 of its saved record, so that the
+//! saved copy carries them.
 //! Refuses, before anything is written: a missing player or a car without that pointer.
 
 use crate::errors::BadInput;
-use crate::memory::cells::Store;
-use crate::memory::session::DwordLike;
+use crate::memory::plain_buffer::PlainBuffer;
 use crate::menu::owner::{Menus, Play};
+use crate::saves::write_savegame_slot::FILE_LEN;
 
 /// The seven variables at the start, in the order they are saved.
-pub fn head(menus: &Menus) -> [&dyn DwordLike; 7] {
-    let event = menus.screens.event.save();
+#[derive(Clone, Copy)]
+pub enum Head {
+    PlayerCount,
+    StagesDone,
+    StageInSection,
+    Section,
+    EventKind,
+    EventMode,
+    ClassMode,
+}
+
+/// One of the head's variables in the menus' state.
+#[derive(Clone, Copy)]
+pub struct HeadWord<'a> {
+    menus: &'a Menus,
+    which: Head,
+}
+
+impl HeadWord<'_> {
+    pub fn get(&self) -> u32 {
+        let m = self.menus;
+        match self.which {
+            Head::PlayerCount => m.screens.event.read().player_count,
+            Head::StagesDone => m.screens.event.read().stages_done,
+            Head::StageInSection => m.screens.event.read().stage_in_section,
+            Head::Section => m.screens.event.read().section,
+            Head::EventKind => m.screens.event.read().event_kind,
+            Head::EventMode => m.play.champ_view.read().event_mode,
+            Head::ClassMode => m.screens.state.read().menus.class_mode,
+        }
+    }
+
+    pub fn set(&self, value: u32) {
+        let m = self.menus;
+        match self.which {
+            Head::PlayerCount => m.screens.event.write().player_count = value,
+            Head::StagesDone => m.screens.event.write().stages_done = value,
+            Head::StageInSection => m.screens.event.write().stage_in_section = value,
+            Head::Section => m.screens.event.write().section = value,
+            Head::EventKind => m.screens.event.write().event_kind = value,
+            Head::EventMode => m.play.champ_view.write().event_mode = value,
+            Head::ClassMode => m.screens.state.write().menus.class_mode = value,
+        }
+    }
+}
+
+/// The seven variables at the start, in the order they are saved.
+pub fn head(menus: &Menus) -> [HeadWord<'_>; 7] {
     [
-        event.player_count,
-        event.stages_done,
-        event.stage_in_section,
-        event.section,
-        event.event_kind,
-        &menus.play.champ_view.event_mode,
-        &menus.screens.state.menus.class_mode,
+        Head::PlayerCount,
+        Head::StagesDone,
+        Head::StageInSection,
+        Head::Section,
+        Head::EventKind,
+        Head::EventMode,
+        Head::ClassMode,
     ]
+    .map(|which| HeadWord { menus, which })
 }
 
 pub use rc2k_core::saves::savegame::{CAR_LEN, CARS, RECORDS_LEN};
 
-/// The four players, if every one has its pointer at +0x18.
-pub fn cars(
-    play: &Play,
-) -> Result<&[crate::memory::session::Shared<crate::menu::player::Player>; CARS], BadInput> {
+/// The four players, if every one has its name pointer in `name_number`.
+pub fn cars(play: &Play) -> Result<[&dyn crate::memory::session::PlayerSlot; CARS], BadInput> {
     if play
         .slots
         .records
@@ -47,36 +93,44 @@ pub fn cars(
             "a car has no pointer at +0x18: the original reads through null",
         ));
     }
-    Ok(&play.slots.records)
+    Ok(play
+        .slots
+        .records
+        .each_ref()
+        .map(|record| record as &dyn crate::memory::session::PlayerSlot))
 }
 
 /// The saved game's bytes put into `file` from byte `base` on.
-pub fn gather_savegame(menus: &Menus, file: &dyn Store, base: usize) -> Result<(), BadInput> {
+pub fn gather_savegame(
+    menus: &Menus,
+    file: &PlainBuffer<FILE_LEN>,
+    base: usize,
+) -> Result<(), BadInput> {
     use rc2k_core::saves::savegame::{RECORDS_AT, car_at};
     let cars = cars(&menus.play)?;
     for (n, at) in head(menus).into_iter().enumerate() {
         // The savegame is a file's bytes.
-        file.store(base + 4 * n, &at.get().to_le_bytes())?;
+        file.write_at(base + 4 * n, &at.get().to_le_bytes(), "the savegame's head")?;
     }
-    cars[0].update(|p| {
-        p.saved_start_section = menus.screens.flow.start_section.get();
-        p.saved_start_section_a8 = menus.screens.flow.start_section_a8.get();
-    });
+    let (start_section, start_section_a8) = {
+        let flow = menus.screens.flow.read();
+        (flow.start_section, flow.start_section_a8)
+    };
+    let mut first = cars[0].get();
+    first.saved_start_section = start_section;
+    first.saved_start_section_a8 = start_section_a8;
+    cars[0].set(first);
     for (n, car) in cars.iter().enumerate() {
         let name = crate::menu::player_names::name_bytes(
             menus,
             crate::menu::player_names::name_of(&car.get())?,
         );
         car.update(|p| p.name_copy = name);
-        file.store(
-            base + car_at(n),
-            &car.get()
-                .to_file_bytes(crate::menu::player_names::name_address),
-        )?;
+        file.write_at(base + car_at(n), &car.get().to_file_bytes(), "a saved car")?;
     }
-    let records = crate::menu::drivers_store::records_to_bytes(&menus.cars.drivers.drivers);
+    let records = menus.cars.drivers.to_bytes();
     debug_assert_eq!(records.len(), RECORDS_LEN);
-    file.store(base + RECORDS_AT, &records)?;
+    file.write_at(base + RECORDS_AT, &records, "the saved drivers")?;
     Ok(())
 }
 
@@ -84,10 +138,11 @@ pub fn gather_savegame(menus: &Menus, file: &dyn Store, base: usize) -> Result<(
 mod tests {
     use super::*;
     use rc2k_core::menu::player::Player;
+    use rc2k_core::saves::name_id::NameId;
     use rc2k_core::saves::savegame::{LEN, car_at};
 
     /// The saved game's cars are each record as it is in memory, with the address of its
-    /// name's buffer at +0x18.
+    /// name's buffer in `name_number`.
     #[test]
     fn the_saved_cars_carry_the_names_addresses() {
         let play = &crate::test_support::own::menus().play;
@@ -98,7 +153,7 @@ mod tests {
             .slots
             .records
             .each_ref()
-            .map(crate::memory::session::Shared::get);
+            .map(crate::memory::session::PlayerSlot::get);
         let original_names = std::array::from_fn::<_, 4, _>(|i| {
             crate::menu::player_names::name_bytes(crate::test_support::own::menus(), i)
         });
@@ -125,7 +180,7 @@ mod tests {
         for (n, car) in play.slots.records.iter().enumerate() {
             // The record, its name address in place of the number.
             let mut expected = car.get();
-            expected.name_number = crate::menu::player_names::name_address(n);
+            expected.name_number = NameId::of_player(n).to_file();
             let at = car_at(n);
             assert_eq!(
                 &file[at..at + 0x28c],
@@ -133,7 +188,7 @@ mod tests {
                 "car {n}"
             );
             let address = u32::from_le_bytes(file[at + 0x18..at + 0x1c].try_into().unwrap());
-            assert_eq!(address, crate::menu::player_names::name_address(n));
+            assert_eq!(address, NameId::of_player(n).to_file());
             assert_eq!(&file[at + 0x124..at + 0x144], &names_before[n][..]);
         }
         buffer.write_at(0, &file_before, "the file").unwrap();
@@ -155,20 +210,19 @@ mod tests {
         let menus = crate::test_support::own::menus();
         let buffer = &crate::test_support::own::saves().save_games.file;
         let file_before = buffer.read_at(0, LEN, "the file").unwrap();
-        let heads_before: Vec<u32> = head(menus).iter().map(|d| d.get()).collect();
+        let heads_before: Vec<u32> = head(menus).iter().map(super::HeadWord::get).collect();
         let players_before = menus
             .play
             .slots
             .records
             .each_ref()
-            .map(crate::memory::session::Shared::get);
+            .map(crate::memory::session::PlayerSlot::get);
         let names_before: [_; 4] =
             std::array::from_fn(|i| crate::menu::player_names::name_bytes(menus, i));
-        let records_before =
-            crate::menu::drivers_store::records_to_bytes(&menus.cars.drivers.drivers);
+        let records_before = menus.cars.drivers.to_bytes();
         let start_before = [
-            menus.screens.flow.start_section.get(),
-            menus.screens.flow.start_section_a8.get(),
+            menus.screens.flow.read().start_section,
+            menus.screens.flow.read().start_section_a8,
         ];
         // A varied state: head values, cars, names, driver records.
         for (n, d) in head(menus).into_iter().enumerate() {
@@ -187,11 +241,7 @@ mod tests {
         let varied_records: Vec<u8> = (0..records_before.len())
             .map(|k| (k.wrapping_mul(2_654_435_761) >> 9) as u8)
             .collect();
-        crate::menu::drivers_store::records_from_bytes(
-            &menus.cars.drivers.drivers,
-            &varied_records,
-        )
-        .unwrap();
+        menus.cars.drivers.load_bytes(&varied_records).unwrap();
         let wrote = records_to_vec(menus);
 
         gather_savegame(menus, buffer, 0).unwrap();
@@ -218,11 +268,11 @@ mod tests {
                 &car.get().name_copy,
             );
         }
-        crate::menu::drivers_store::records_from_bytes(
-            &menus.cars.drivers.drivers,
-            &first[RECORDS_AT..RECORDS_AT + RECORDS_LEN],
-        )
-        .unwrap();
+        menus
+            .cars
+            .drivers
+            .load_bytes(&first[RECORDS_AT..RECORDS_AT + RECORDS_LEN])
+            .unwrap();
         gather_savegame(menus, buffer, 0).unwrap();
         let second = buffer.read_at(0, LEN, "the file").unwrap();
         assert_eq!(records_to_vec(menus), wrote);
@@ -237,19 +287,15 @@ mod tests {
         for (n, name) in names_before.iter().enumerate() {
             crate::menu::player_names::set_name_bytes(menus, n, name);
         }
-        crate::menu::drivers_store::records_from_bytes(
-            &menus.cars.drivers.drivers,
-            &records_before,
-        )
-        .unwrap();
-        menus.screens.flow.start_section.set(start_before[0]);
-        menus.screens.flow.start_section_a8.set(start_before[1]);
+        menus.cars.drivers.load_bytes(&records_before).unwrap();
+        menus.screens.flow.write().start_section = start_before[0];
+        menus.screens.flow.write().start_section_a8 = start_before[1];
 
         assert!(second == first, "the saved game changed through a load");
         assert_eq!((first.len(), sum), (29_276, 13_361_182_919_990_968_310));
     }
 
     fn records_to_vec(menus: &Menus) -> Vec<u8> {
-        crate::menu::drivers_store::records_to_bytes(&menus.cars.drivers.drivers)
+        menus.cars.drivers.to_bytes()
     }
 }

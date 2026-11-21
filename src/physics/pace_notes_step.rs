@@ -8,10 +8,11 @@
 //! (`physics::queue_pace_note`), and `last_pace_call` becomes the target. Then (unless it left at
 //! the start) `physics::expire_car_events`.
 //!
-//! Caller: `physics::car_physics_step`. Refuses what its calls refuse.
+//! Refuses what its calls refuse.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
+use crate::physics::figures::PACE_SCALE;
 use crate::physics::step_families::CheckpointInputs;
 use crate::race::replay_file_store::ReplayFileBlock;
 use crate::race::work_store::RaceWork;
@@ -34,13 +35,13 @@ const ONE_F32: u32 = 0x3F80_0000;
 // Core: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
 pub fn pace_notes_step(
     c: &CheckpointInputs<'_>,
-    scene: &crate::scene::owner::Scene,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     let (physics, numbers, frame_work) = (c.physics, c.numbers, &c.frame_work);
     let (work, vars, replay_file) = (c.work, c.vars, c.shared.replay_file());
-    let (physics_tables, car) = (c.tables, c.car);
+    let car = c.car;
+    let scene_clock = c.shared.run().scene_clock;
     if !calling(
         gates(work, replay_file, car),
         car.driver_kind.get(),
@@ -50,12 +51,11 @@ pub fn pace_notes_step(
     }
     // Multiply, divide, round (the extra division by 1.0 is exact).
     let ahead = crate::math::x87::mul_div_div_to_int(
-        &car.local_velocity[2],
-        &physics_tables.pace_scale,
-        &numbers.eight,
+        car.local_velocity.bits_at(2),
+        PACE_SCALE,
+        numbers.eight,
         ONE_F32,
     );
-    scene.drawing.scene.get().scratch.set(ahead as u32);
     let target = call_target(
         car.reset_checkpoint.get(),
         ahead,
@@ -70,7 +70,7 @@ pub fn pace_notes_step(
                 physics,
                 frame_work,
                 work,
-                physics_tables,
+                scene_clock,
                 car,
                 checkpoint,
                 sound,
@@ -82,6 +82,6 @@ pub fn pace_notes_step(
         }
         car.last_pace_call.set(target);
     }
-    crate::physics::expire_car_events::expire_car_events(car, physics_tables)?;
+    crate::physics::expire_car_events::expire_car_events(car, scene_clock)?;
     Ok(())
 }

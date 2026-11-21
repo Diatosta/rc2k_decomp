@@ -20,8 +20,6 @@ pub enum Font {
 pub enum Work {
     /// The penalty.
     Penalty,
-    A,
-    B,
 }
 
 /// The repair times' columns: left column first in each row.
@@ -38,7 +36,7 @@ pub fn repair_times<S: Screen<Font = Font>>(s: &mut S, times: &[u32; 16]) -> Res
 }
 
 /// The free time the service area gives (`service::state::FREE_SERVICE_TIME`).
-pub const FREE_SERVICE_TIME: i32 = 900;
+pub(crate) const FREE_SERVICE_TIME: i32 = 900;
 const LEFT_X: i32 = 0x42;
 const RIGHT_X: i32 = 0x2DE;
 const Y: i32 = 0x2C;
@@ -65,19 +63,15 @@ pub fn service_time<S: Screen<Font = Font, Work = Work>>(
 ) -> Result<bool, S::Error> {
     let available = budget.wrapping_sub(FREE_SERVICE_TIME);
     s.keep(Work::Penalty, 0);
-    s.keep(Work::A, available as u32);
     if budget.wrapping_sub(repairs) >= FREE_SERVICE_TIME {
         readout(s, (0x48D, Font::Available), available, LEFT_X)?;
         let remaining = available.wrapping_sub(repairs);
-        s.keep(Work::B, remaining as u32);
         return readout(s, (0x48E, Font::Remaining), remaining, RIGHT_X);
     }
     let mut overrun = FREE_SERVICE_TIME.wrapping_sub(budget.wrapping_sub(repairs));
-    s.keep(Work::B, overrun as u32);
     readout(s, (0x490, Font::Overrun), overrun, LEFT_X)?;
     if overrun != 0 {
         overrun = overrun.wrapping_add(60);
-        s.keep(Work::B, overrun as u32);
     }
     if overrun == 0 {
         return Err(s.fatal(0x8070_1010, ""));

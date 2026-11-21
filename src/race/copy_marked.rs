@@ -1,8 +1,7 @@
 //! Copies the marked blocks (from `mark_in` up to `mark_out`) onto the clipboard: their count into
 //! `clip_blocks`, their places into `clip_places` and their cameras (`block_cameras`) into
 //! `clip_cameras`. Nothing happens when the marks are not in order (signed comparison). Refused,
-//! before anything is written: a first mark below 0 or a second past 0x708. Called by the viewer's
-//! actions 0x1B and 0x11 (before the cut).
+//! before anything is written: a first mark below 0 or a second past 0x708.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

@@ -55,10 +55,10 @@ pub const BAR_HAS_NO_LENGTH: FatalError = FatalError {
 };
 
 /// Where a blitter call goes: the game's surface, or a list.
-pub type Blit<'a> = &'a mut dyn FnMut(BlitCall) -> Result<(), Refused>;
+pub(super) type Blit<'a> = &'a mut dyn FnMut(BlitCall) -> Result<(), Refused>;
 
 /// The game's side of a bar: the blits through `blit`, the clip and the bar's globals.
-pub struct GameBar<'a> {
+pub(super) struct GameBar<'a> {
     pub blit: Blit<'a>,
     pub gfx: &'a Gfx,
     pub menus: &'a Menus,

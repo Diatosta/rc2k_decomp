@@ -1,8 +1,8 @@
-//! The frame rate, measured every 16th frame from the time-stamp counter, and its text.
+//! The frame rate, measured every 16th frame from a clock in nanoseconds, and its text.
 //! Floats keep `f64` intermediates, the stored rate rounded to `f32`.
 
 /// The frames between two measures.
-pub const MEASURE_EVERY: u32 = 0x10;
+pub(crate) const MEASURE_EVERY: u32 = 0x10;
 
 /// The frame counter one on and whether to measure now (at 0x10 the count goes back to 0).
 pub fn count_frame(count: u32) -> (u32, bool) {
@@ -14,18 +14,21 @@ pub fn count_frame(count: u32) -> (u32, bool) {
     }
 }
 
-/// The cycles since the last measure, when above 0 (signed): the rate is worked out only
-/// then. The whole 64-bit counter is used: "The frame rate never measured below some 28 frames
+/// The nanoseconds since the last measure, when above 0 (signed): the rate is worked out only
+/// then. The whole 64-bit count is used: "The frame rate never measured below some 28 frames
 /// a second" in `wiki/Fixed-bugs.md`.
-pub fn cycles_since(now: u64, last: u64) -> Option<u64> {
+pub fn nanos_since(now: u64, last: u64) -> Option<u64> {
     let c = now.wrapping_sub(last);
     ((c as i64) > 0).then_some(c)
 }
 
-/// The frame rate: CPU clock x `k` x `k` x `k2` / cycles.
-pub fn frame_rate(clock: i32, k: f32, k2: f32, cycles: u64) -> f32 {
-    let product = clock as f64 * k as f64 * k as f64 * k2 as f64;
-    (product / cycles as f64) as f32
+/// The frame rate from the nanoseconds the measured frames took: `k` x `k` x `k` x `k2` /
+/// nanoseconds, with the game's constants `k` = 1000 and `k2` = 16 (the frames measured) the
+/// frames a second. (The original counted processor cycles and multiplied by the clock in MHz it
+/// timed at the start: a nanosecond is a cycle of a 1000 MHz clock.)
+pub fn frame_rate(k: f32, k2: f32, nanos: u64) -> f32 {
+    let product = k as f64 * k as f64 * k as f64 * k2 as f64;
+    (product / nanos as f64) as f32
 }
 
 /// The rate as shown: the float rounded (nothing is shown at 0).
@@ -59,11 +62,11 @@ mod tests {
         assert_eq!(count_frame(0xF), (0, true));
         assert_eq!(count_frame(u32::MAX), (0, false));
         assert_eq!(count_frame(0x10), (0x11, false));
-        assert_eq!(cycles_since(10, 4), Some(6));
-        assert_eq!(cycles_since(4, 10), None);
-        assert_eq!(cycles_since(4, 4), None);
-        // More than 2^31 cycles (16 frames at 18 a second on 3.8 GHz) is measured.
-        assert_eq!(cycles_since(3_300_000_000, 0), Some(3_300_000_000));
+        assert_eq!(nanos_since(10, 4), Some(6));
+        assert_eq!(nanos_since(4, 10), None);
+        assert_eq!(nanos_since(4, 4), None);
+        // More than 2^31 nanoseconds (16 frames at 7 a second) is measured.
+        assert_eq!(nanos_since(2_300_000_000, 0), Some(2_300_000_000));
     }
 
     #[test]
@@ -78,9 +81,10 @@ mod tests {
 
     #[test]
     fn rate() {
-        assert_eq!(frame_rate(450, 1000.0, 1.0, 1_000_000), 450.0);
-        assert_eq!(frame_rate(3, 1.0, 1.0, 2), 1.5);
+        // 16 frames in half a second: 32 a second.
+        assert_eq!(frame_rate(1000.0, 16.0, 500_000_000), 32.0);
+        assert_eq!(frame_rate(1.0, 3.0, 2), 1.5);
         // Rounded once from the double quotient.
-        assert_eq!(frame_rate(1, 1.0, 1.0, 3), (1.0f64 / 3.0) as f32);
+        assert_eq!(frame_rate(1.0, 1.0, 3), (1.0f64 / 3.0) as f32);
     }
 }

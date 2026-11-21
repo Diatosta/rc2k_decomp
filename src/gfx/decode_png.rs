@@ -24,7 +24,7 @@ use crate::gfx::png::PngInfo;
 /// Returns a status code (1 without a pixel area, 2 without chunks, 0 or 3 otherwise: 3 when the
 /// info block lies inside the pixel area, here a record of its own: 0). `pixels` names a picture
 /// buffer (`gfx::picture`, 0 none); `info` is the record the decoder fills (`gfx::png::PngInfo`).
-pub fn decode_png(
+pub(super) fn decode_png(
     png: &Png,
     buffers: &crate::gfx::picture::PictureBuffers,
     file: &[u8],

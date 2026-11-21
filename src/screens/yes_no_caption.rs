@@ -1,5 +1,5 @@
-//! The "leave?" question's button shows the answer: string 0x56B + the answer ("não" /
-//! "sim" by the language file) goes to the caption text, from which
+//! The "leave?" question's button shows the answer: string 0x56B + the answer ("no" /
+//! "yes" by the language file) goes to the caption text, from which
 //! `screens::draw_highlighted_caption` draws the button. Refuses a caption longer than its place.
 
 use crate::errors::Refused;
@@ -17,7 +17,7 @@ pub fn yes_no_caption(
     pages: &MenuPages,
     buffers: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), Refused> {
-    let id = pages.yes_no_answer.get().wrapping_add(FIRST);
+    let id = pages.read().yes_no_answer.wrapping_add(FIRST);
     let mut text = Vec::new();
     append_string_by_id(so, id, &mut |bytes| text.extend_from_slice(bytes))?;
     // The logic is in `rc2k_core::screens::captions::fit`.

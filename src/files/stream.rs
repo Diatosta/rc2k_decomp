@@ -1,5 +1,5 @@
-//! A buffered file, as the picture readers use it: the block the four stream functions take (`open_stream`, `close_stream`, `read_stream_byte`, `read_stream_block`; the two
-//! that write are `files::write_stream_byte` and `files::write_stream_block`).
+//! A buffered file, as the picture readers use it: the block the four stream functions take (`open_stream`, `close_stream`, `read_stream_byte`, `read_stream_block`; the one
+//! that writes is `files::write_stream_block`).
 
 pub const BUFFER_LEN: usize = 0x2000;
 

@@ -10,10 +10,9 @@
 //! text's x passed to the measuring do not matter.
 //!
 //! The text goes at the item's place (3 further left for the three button kinds, 4 for the
-//! right-aligned one), which is left in the marker position; its font is the item's, blended
-//! with its highlight font by the time since the last key (0 while a key is being redefined) for
-//! the highlighted item. One caller, `menu::draw_menu`. Refuses a menu without an end in its first
-//! 256 items.
+//! right-aligned one), which is left in the marker position; its font is the item's, blended with
+//! its highlight font by the time since the last key (0 while a key is being redefined) for the
+//! highlighted item. Refuses a menu without an end in its first 256 items.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::item_sprites_store::ItemSprite;
@@ -21,7 +20,7 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// What an item's +0x1C says goes behind its text.
+// What an item's `behind` says goes behind its text.
 
 const END: u32 = u32::MAX;
 const ITEM_LIMIT: u32 = 256;
@@ -48,40 +47,59 @@ pub fn draw_menu_items(
         .count();
     let list: Vec<Item<MenuFont>> = all[..shown]
         .iter()
-        .map(|i| Item {
-            x: i.fixed().x as u32,
-            y: i.fixed().y as u32,
-            text_x: i.fixed().width_or_text_x as u32,
-            text_y: i.fixed().alignment_or_text_y as u32,
-            kind: i.fixed().id,
-            id: i.string.get(),
-            font: MenuFont::Object(i.font.get()),
-            pulse_font: MenuFont::Object(i.highlight_font.get()),
-            behind: i.behind.get(),
-            sprite: match i.sprites.get() {
-                ItemSprite::Sprite(n) => rc2k_core::screens::menus::ItemSprite::Number(n),
-                ItemSprite::List(n) => rc2k_core::screens::menus::ItemSprite::List(n),
-            },
-            spaced: i.fixed().spaced == 1,
+        .map(|i| {
+            let state = i.state();
+            // The web build has no network play: the main menu's network item draws nothing.
+            if crate::menu::web_limits::hidden(i.fixed()) {
+                return Item {
+                    x: i.fixed().x as u32,
+                    y: i.y(),
+                    text_x: i.fixed().width_or_text_x as u32,
+                    text_y: i.text_y(),
+                    kind: i.fixed().id,
+                    id: state.string,
+                    font: MenuFont::Object(state.font),
+                    pulse_font: MenuFont::Object(state.highlight_font),
+                    behind: rc2k_core::screens::menus::NOTHING_EITHER,
+                    sprite: rc2k_core::screens::menus::ItemSprite::Number(
+                        rc2k_core::screens::menus::NOTHING_EITHER,
+                    ),
+                    spaced: true,
+                };
+            }
+            Item {
+                x: i.fixed().x as u32,
+                y: i.y(),
+                text_x: i.fixed().width_or_text_x as u32,
+                text_y: i.text_y(),
+                kind: i.fixed().id,
+                id: state.string,
+                font: MenuFont::Object(state.font),
+                pulse_font: MenuFont::Object(state.highlight_font),
+                behind: state.behind,
+                sprite: match state.sprites {
+                    ItemSprite::Sprite(n) => rc2k_core::screens::menus::ItemSprite::Number(n),
+                    ItemSprite::List(n) => rc2k_core::screens::menus::ItemSprite::List(n),
+                },
+                spaced: i.fixed().spaced == 1,
+            }
         })
         .collect();
-    let since_key = if menus.screens.entry.redefining_key.is_set() {
+    let since_key = if menus.screens.entry.read().redefining_key {
         0
     } else {
         o.system
             .clocks()
             .frame
             .get()
-            .wrapping_sub(menus.play.champ_view.key_clock.last_key_time.get())
+            .wrapping_sub(menus.play.champ_view.read().key_clock.last_key_time)
     };
     let mut screen = MenuScreen::new(canvas, o);
     screen.menu_items = all;
-    let line = &menus.text_buffers.line;
     rc2k_core::screens::menus::items(
         &mut screen,
         &list,
-        menus.screens.loop_flags.item.get(),
+        menus.screens.loop_flags.read().item,
         since_key,
-        &|n| line.get(n),
     )
 }

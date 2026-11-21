@@ -1,77 +1,86 @@
 //! `sound::surface_sound`: one of a car's sounds of what its wheels run on.
 //!
-//! Takes: the car's sound object, the surface's sound set, the request
-//! The set: +0 1 for a set of eight (+4 ..; the sound by the object's +0 & 3 and, 4
-//! further for +0xC 1), else four (by +0 & 3). Its sound replaces the object's +0x144
-//! (sets of eight) or +0x148; a changed one has the old one stopped first
-//! (`sound::stop_sound`). Then the request: the sound, +4 the rate as a float, +8
-//! `SurfaceSounds.volume` (`fld` / `fstp`), the place +0x2C .. +0x34, and
-//! `sound::play_placed_sound` (a tail jump). Two callers, `sound::surface_sounds`.
-//! Refuses (before anything) a set of eight with +0xC
-//! over 1, and a sound past the sample records.
+//! Takes: the car's sound object, the surface's sound set, the request. The set: its first dword is 1 for a set of
+//! eight (the sound picked by the object's `sound_offset` & 3 and, 4 further when `view_flag` is
+//! 1), else four (by `sound_offset` & 3). Its sound replaces the object's `eights_sound` (sets of
+//! eight) or `fours_sound`; a changed one has the old one stopped first (`sound::stop_sound`).
+//! Then the request: the sound, the rate as a float (`pitch`), `SurfaceSounds.volume` as the
+//! `volume`, the `place`, and `sound::play_placed_sound`. Refuses (before anything) a set of
+//! eight with `view_flag` over 1, and a sound past the sample records.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
 use crate::math::x87_float::{ld, st};
-use crate::memory::session::Cell32;
 use crate::sound::sample_settings::{OWN, record, sample_settings};
 use crate::sound::sets_store::{ListIn, SoundRequest};
 use rc2k_core::sound::surfaces;
 
 /// Object `o`'s sound of the surface's sound `set`, through `request`.
 pub fn surface_sound(
-    o: &crate::sound::store::SoundObject,
+    o: &crate::sound::store::SoundObjectCell,
     set: ListIn<'_, 392>,
-    request: &SoundRequest,
+    request: &mut SoundRequest,
     owner: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     // The logic is `rc2k_core::sound::surfaces::pick`.
     let eight = set.get(0)? == 1;
-    let (n, slot) = surfaces::pick(eight, o.sound_offset.get(), || o.view_flag.get())
+    let (n, slot) = surfaces::pick(eight, o.borrow().sound_offset, || o.borrow().view_flag)
         .map_err(BadInput::from)?;
-    // The core names the object's dword it replaces by its offset.
-    let playing = match slot {
-        0x144 => &o.eights_sound,
-        0x148 => &o.fours_sound,
+    // The core names which of the object's sounds it replaces by a slot number.
+    let fours = match slot {
+        0x144 => false,
+        0x148 => true,
         _ => return Err(BadInput("a surface sound's slot not worked out").into()),
+    };
+    let playing = || {
+        let object = o.borrow();
+        if fours {
+            object.fours_sound
+        } else {
+            object.eights_sound
+        }
     };
     // The set is a list of dwords inside the sets' lists, read by position (no record of its own).
     let sound = set.get(1 + n as usize)?;
     record(audio, sound)?;
-    if sound != playing.get() {
-        let old = playing.get();
-        playing.set(sound);
-        request.sound.set(old);
+    let now = playing();
+    if sound != now {
+        let mut object = o.borrow_mut();
+        let cell = if fours {
+            &mut object.fours_sound
+        } else {
+            &mut object.eights_sound
+        };
+        *cell = sound;
+        drop(object);
+        request.sound = now;
         crate::sound::turn_parts::stop(request, audio)?;
     }
-    let sound = playing.get();
-    request.sound.set(sound);
+    let sound = playing();
+    request.sound = sound;
     let (_, rate) = sample_settings(audio, sound, OWN, OWN)?;
-    request.pitch.set(from_int(rate as i32).to_bits());
-    x87_1(owner.race.surface.get(), &request.volume);
-    for (cell, place) in request.place.iter().zip(&o.place) {
-        cell.set(place.get());
-    }
+    request.pitch = from_int(rate as i32).to_bits();
+    x87_1(owner.race.surface.get(), &mut request.volume);
+    request.place = o.borrow().place;
     crate::sound::turn_parts::placed(request, owner, audio)
 }
 
 // ---- the x87-precision arithmetic ----
 
-/// An x87-precision run in plain Rust over `X`, written as the expressions it computes
-/// (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `volume = [sf + 0x40]` (the request's +8)
-fn x87_1(sf: &crate::sound::store::SurfaceSounds, volume: &impl Cell32) {
-    let t0 = ld(sf.volume.get());
-    volume.set_bits(st(t0));
+/// An x87-precision run in plain Rust over `X`: the request's volume is the sound set's
+/// `volume`.
+fn x87_1(sf: &crate::sound::store::SurfaceSounds, volume: &mut u32) {
+    let t0 = ld(sf.work.borrow().volume);
+    *volume = st(t0);
 }
 
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::HostCell;
-    use crate::sound::asm_layout::{Laid, with_laid};
-    use crate::sound::store::SurfaceSounds;
+    use crate::math::x87_mem::HostCell;
+    use crate::memory::session::Cell32;
+    use crate::sound::asm_layout::{SURFACE_EXTENT, with_surface};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -79,7 +88,7 @@ mod reference_vectors {
             name: "surface_sound line 52",
             operands: vec![
                 Operand::Sized {
-                    len: SurfaceSounds::EXTENT,
+                    len: SURFACE_EXTENT,
                     reads: &[(0x40, In::F)],
                     writes: &[],
                 },
@@ -90,7 +99,12 @@ mod reference_vectors {
             ],
             ulps: 0,
             plain: |a| {
-                with_laid::<SurfaceSounds, _>(a[0], |sf| x87_1(sf, &HostCell(a[1] + 8)));
+                with_surface(a[0], |sf| {
+                    let volume = HostCell(a[1] + 8);
+                    let mut bits = volume.bits();
+                    x87_1(sf, &mut bits);
+                    volume.set_bits(bits);
+                });
             },
         }]
     }

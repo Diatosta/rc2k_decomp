@@ -6,7 +6,7 @@ use crate::menu::owner::Menus;
 use crate::service::pages::{RIDE_HEIGHT, change_page};
 use crate::system::owner::System;
 
-pub fn edit_ride_height(
+pub(super) fn edit_ride_height(
     menus: &Menus,
     system: &System,
     input: &crate::input::owner::Input,

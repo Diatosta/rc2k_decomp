@@ -1,12 +1,11 @@
 //! `scene::project_polygon`: finds or makes the record of each of the polygon's points and
 //! counts those outside the depths that can be drawn.
 //!
-//! For each entry of the polygon: its point (+0) through `scene::project_point`, the record
-//! (its number in `scene::point_records`) to its +4; `SceneDraw.polygon_outside_count`, 0 at
-//! the start, counts the points whose depth is under 4096 (or is no number) or is
-//! `SceneDraw.farthest` or more. The callers compare the count with the number of vertices
-//! (all outside: nothing to draw) and with 0 (none: no clipping by depth). Eight callers.
-//! Refuses a polygon of no vertices.
+//! For each entry of the polygon: its point (+0) through `scene::project_point`, the record (its
+//! number in `scene::point_records`) to its +4; `SceneDraw.polygon_outside_count`, 0 at the start,
+//! counts the points whose depth is under 4096 (or is no number) or is `SceneDraw.farthest` or
+//! more. The callers compare the count with the number of vertices (all outside: nothing to draw)
+//! and with 0 (none: no clipping by depth). Refuses a polygon of no vertices.
 //!
 //! It runs on `scene::project_point` and
 //! `rc2k_core::scene::projection::outside_depths`.
@@ -18,8 +17,8 @@ use crate::scene::project_point::{NEAR, project_point};
 // ---- game data ----
 
 pub fn project_polygon(
-    part: &crate::scene::workers::PartScratch,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
@@ -29,8 +28,8 @@ pub fn project_polygon(
 
 /// `project_polygon` on the polygon's entries as listed.
 pub fn project_entries(
-    part: &crate::scene::workers::PartScratch,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     entries: &Listed,
     reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
@@ -46,7 +45,7 @@ pub fn project_entries(
     {
         return Err(BadInput("no points or no records for them").into());
     }
-    let far = view.polygon.window.farthest.get();
+    let far = view.polygon.window.borrow().farthest;
     let mut outside = 0u32;
     for entry in entries {
         let point = project_point(part, entry.point.get(), reads, view)?;
@@ -67,6 +66,6 @@ pub fn project_entries(
             outside += 1;
         }
     }
-    poly.polygon_outside_count.set(outside);
+    poly.scalars.borrow_mut().polygon_outside_count = outside;
     Ok(())
 }

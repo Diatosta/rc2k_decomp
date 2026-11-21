@@ -1,11 +1,11 @@
 //! The made-up entries of the best times: `default_time_entry` and `guess_checkpoint_times`.
 //!
 //! An entry is 0x9C bytes. `default_time_entry` gives it a random driver (a number under 0xAA):
-//! the driver's class to the entry's +0x1C, nationality to +8, car to +0x10, the id of the
-//! name's string to +0xC, the name (without a NUL) to +0x20, and 0xB to +0x50. While the
+//! the driver's class to the entry's `group`, `nation`, `car`, the id of the
+//! name's string to `name_id`, the name (without a NUL) to `name`, and 0xB to `unread_50`. While the
 //! checkpoint switch is 1 it first guesses the stage's checkpoint times from the entry's time
 //! and the stage, writes some twenty-six pieces to the game's log about it
-//! ("guesscheckpointtimes:start" ..), and copies the sixteen times to +0x5C on.
+//! ("guesscheckpointtimes:start" ..), and copies the sixteen times to `checkpoints`.
 //! `guess_checkpoint_times`: the sixteen dwords of `guessed_checkpoints` = 0; for a stage up to
 //! 0x24, with `checkpoint_counts[stage]` checkpoints, checkpoint n's time is the time *
 //! (n + 1) / the count. Everything is worked out before anything is written (`GameSource` and
@@ -40,11 +40,11 @@ pub fn to_the_log(piece: Piece) {
     }
 }
 
-pub fn to_nowhere(_: Piece) {}
+pub(super) fn to_nowhere(_: Piece) {}
 
 /// The game's side of the core's functions (`rc2k_core::saves::defaults`): its random
 /// numbers, its drivers, its checkpoint counts and its log (or none).
-pub struct GameSource<'a> {
+pub(super) struct GameSource<'a> {
     pub log: Log<'a>,
     pub so: crate::strings::append_string_by_id::StringOwners<'a>,
     pub menus: &'a Menus,
@@ -62,10 +62,10 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
 
     fn driver(&mut self, number: u32) -> Result<rc2k_core::saves::defaults::Driver, Invalid> {
         let driver = Driver::of(self.menus, number).map_err(|e| Invalid(e.0))?;
-        let (name_id, name) = driver.name(self.so, self.menus).map_err(|e| Invalid(e.0))?;
+        let (name_id, name) = driver.name(self.so).map_err(|e| Invalid(e.0))?;
         Ok(rc2k_core::saves::defaults::Driver {
             fields: [driver.class(), driver.nation(), driver.car()],
-            name_id,
+            name_id: rc2k_core::saves::name_id::NameId::String(name_id),
             name,
         })
     }
@@ -151,7 +151,7 @@ pub fn apply(
             }
         }
         if let Some(sum) = filled.sum {
-            screens.draw_work.button_x.set(sum);
+            screens.draw_work.write().button_x = sum;
         }
         if let Some(c) = filled.checkpoints {
             for (cell, v) in race.shared.work.get().guessed_checkpoints.iter().zip(c) {

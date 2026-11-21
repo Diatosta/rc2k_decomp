@@ -1,8 +1,9 @@
 //! Adds a received or own message to the lobby chat (eight lines): "name> text" is cut into
 //! lines no wider than the chat's width, each entering at the bottom while the top one drops.
 //! Does nothing for an empty message. A character wider than a whole line, or a chat text with
-//! no line end, is refused (the cutting would never end). Callers hold the received messages'
-//! lock.
+//! no line end, is refused (the cutting would never end). Lines that would not all fit the chat's
+//! room empty the oldest ones (`rc2k_core::net::chat::scrolled`). The received messages' lock is
+//! held while it runs.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::Gfx;
@@ -13,22 +14,11 @@ use crate::text::measure_text::measure_text_at;
 
 const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CHAT_LINE;
 const LINE_WIDTH: u32 = 0x30C;
-const CHAT_LEN: usize = 0x300;
 
 /// Byte `i` of `b` (refused past its end).
 fn at<const N: usize>(b: &Bytes<N>, i: usize) -> Result<u8, BadInput> {
     if i < N {
         Ok(b.get(i))
-    } else {
-        Err(BadInput("past the end of a chat buffer"))
-    }
-}
-
-/// Byte `i` of `b` set to `v` (refused past its end).
-fn put<const N: usize>(b: &Bytes<N>, i: usize, v: u8) -> Result<(), BadInput> {
-    if i < N {
-        b.set(i, v);
-        Ok(())
     } else {
         Err(BadInput("past the end of a chat buffer"))
     }
@@ -51,7 +41,7 @@ pub fn text_in(bytes: &[u8]) -> Result<&[u8], BadInput> {
         .map(|end| &bytes[..end])
         .ok_or(BadInput("a text without its end in its block"))
 }
-pub fn add_chat_line(
+pub(super) fn add_chat_line(
     net: &Net,
     gfx: &'static Gfx,
     player: u32,
@@ -110,33 +100,10 @@ pub fn add_chat_line(
                 BadInput("a character wider than a chat line: the original never ends").into(),
             );
         }
-        // The top line dropped, the rest moved up.
-        let (mut from, mut to) = (0usize, 0usize);
-        loop {
-            if from >= CHAT_LEN {
-                return Err(BadInput("a chat with no line end").into());
-            }
-            let c = at(chat, from)?;
-            from += 1;
-            if c == 0x0A {
-                break;
-            }
-        }
-        loop {
-            let c = at(chat, from)?;
-            from += 1;
-            put(chat, to, c)?;
-            to += 1;
-            if c == 0 {
-                break;
-            }
-        }
-        // The new line at the bottom.
-        put(chat, to - 1, 0x0A)?;
-        for &c in &built {
-            put(chat, to, c)?;
-            to += 1;
-        }
+        // The top line dropped, the rest moved up and the new line at the bottom.
+        let scrolled = rc2k_core::net::chat::scrolled(&chat.read(), &built[..built.len() - 1])
+            .map_err(BadInput::from)?;
+        chat.write_at(0, &scrolled, "the chat's text")?;
         if at(said, text)? == 0 {
             return Ok(());
         }

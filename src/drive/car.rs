@@ -6,7 +6,7 @@ use crate::physics::car_store::Car;
 use crate::race::owner_shared::RaceShared;
 
 /// The current car's block (by its handle), refused when null.
-pub fn current_block(shared: &RaceShared) -> Result<&Car, Refused> {
+pub(super) fn current_block(shared: &RaceShared) -> Result<&Car, Refused> {
     use rc2k_core::drive::work_car::{car_block, car_slot};
     let slot = car_slot(shared.work.get().current_car.get());
     car_block(u32::from(shared.work.get().has_car_block(slot as usize)))?;
@@ -16,7 +16,7 @@ pub fn current_block(shared: &RaceShared) -> Result<&Car, Refused> {
 
 /// Copies the car record, dword by dword upwards (the two never overlap in the game; the order
 /// is kept anyway).
-pub fn copy_car(from: &Car, to: &Car) {
+pub(super) fn copy_car(from: &Car, to: &Car) {
     use crate::memory::cells::Cells;
     to.copy_from(from);
 }

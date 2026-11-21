@@ -12,17 +12,19 @@ use rc2k_core::net::record;
 /// here.
 pub fn choose_stage(o: Owners<'static>, vars: &NetShared) -> Result<(), Refused> {
     let race = o.race;
-    let escape_pressed = &o.menus.screens.draw_work.escape_pressed;
-    escape_pressed.set(false);
+    let draw_work = &o.menus.screens.draw_work;
+    draw_work.write().escape_pressed = false;
     { run_screen(ScreenId::SelectStage, &Entry::new(o)) }?;
-    if !escape_pressed.is_set() {
-        vars.own
-            .head
-            .set(record::STAGE, race.shared.state.settings.stage.get() as u8);
-        vars.own.head.set(
-            record::DIRECTION,
+    if !draw_work.read().escape_pressed {
+        let stage = race.shared.state.settings.stage.get() as u8;
+        vars.own.update(|r| r.set_byte(record::STAGE, stage));
+        // The direction is bit 0 of the byte; the bots' setting in the others stays.
+        let direction = rc2k_core::net::bots::with_direction(
+            vars.own.get().byte(record::DIRECTION),
             race.shared.state.settings.direction.get() as u8,
         );
+        vars.own
+            .update(|r| r.set_byte(record::DIRECTION, direction));
     }
     crate::net::show_background::show_background(o)?;
     Ok(())

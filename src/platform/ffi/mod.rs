@@ -3,20 +3,35 @@
 
 #![deny(clippy::undocumented_unsafe_blocks)]
 
-pub mod ffmpeg;
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-pub mod gl;
+#[cfg(target_os = "android")]
+pub(crate) mod android;
+#[cfg(target_os = "android")]
+pub(crate) mod android_java;
+pub(crate) mod arch;
+#[cfg(target_os = "ios")]
+pub(crate) mod dns_sd;
+pub(crate) mod gl;
 #[cfg(debug_ui)]
-pub mod imgui;
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-pub mod linux_handheld;
+pub(crate) mod imgui;
+#[cfg(handheld)]
+pub(crate) mod linux_handheld;
 #[cfg(rc2k_pgo)]
-pub mod pgo;
-pub mod sdl;
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-pub mod sdl_gpu;
-pub mod sdl_input;
+mod pgo;
+#[cfg(phone)]
+mod phone_vibrator;
+pub(crate) mod photo_library;
+pub(crate) mod process;
+pub(crate) mod sdl;
+pub(crate) mod sdl_camera;
+pub(crate) mod sdl_clipboard;
+#[cfg(not(handheld))]
+pub(crate) mod sdl_gpu;
+pub(crate) mod sdl_input;
 #[cfg(unix)]
-pub mod unix;
+pub(crate) mod unix;
+#[cfg(phone)]
+mod vibrate;
+#[cfg(web)]
+pub mod web;
 #[cfg(windows)]
-pub mod win32;
+pub(crate) mod win32;

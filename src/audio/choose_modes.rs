@@ -1,7 +1,7 @@
 //! Chooses the two sound modes (menu and race) from the advanced audio screen's options and the
 //! machine's facts. The first call fills the options from the race mode (the quality: the first of
 //! three quality modes whose low byte the mode has, else 3); later calls apply the first choice
-//! that changed (quality, channels, DS3D, EAX, A3D, Dolby), keeping DS3D, EAX, A3D and Dolby
+//! that changed (quality, channels, DS3D, EAX, Dolby), keeping DS3D / EAX and Dolby
 //! exclusive as the screen does, then build the race mode. "AUD: New modes" and both modes are
 //! logged. Refuses a quality past the quality modes.
 
@@ -9,19 +9,18 @@ use crate::audio::owner::Audio;
 use crate::audio::store::AudioShared;
 use crate::errors::Refused;
 
-const NEW_MODES_TEXT: &std::ffi::CStr = c"AUD: New modes"; // "AUD: New modes"
+const NEW_MODES_TEXT: &std::ffi::CStr = c"AUD: New modes";
 
 pub use rc2k_core::audio::modes::{AudioOptions, Facts};
 
 /// The machine's facts.
-pub fn game_facts(state: &AudioShared) -> Facts {
+fn game_facts(state: &AudioShared) -> Facts {
     Facts {
         qualities: state
             .quality_modes
             .each_ref()
             .map(crate::memory::session::Dword::get),
         has_3d: state.has_3d.get(),
-        has_a3d2: state.has_a3d2.get(),
         has_eax: state.has_eax.get(),
         // Free hardware 3D buffers.
         hw_3d_buffers: state.sound_caps.get_u32(0x24),

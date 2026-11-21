@@ -6,7 +6,7 @@
 //! take the end of the text drawn just before them as their palette (unused). It also sets a
 //! service area work cell to 0.
 //!
-//! Seen in a screenshot of a championship's service area: the title "JOGADOR 1 ÁREA DE SERVIÇO";
+//! Seen in a screenshot of a championship's service area: the title "PLAYER 1 SERVICE AREA";
 //! fourteen parts in two columns (engine, exhaust, turbo, cooling, clutch, differential, gearbox;
 //! body, electronics, lights, steering, suspension, brakes, tyres), each with an icon, a repair
 //! time and a damage bar; "n/d" on the turbo's bar when the car has no turbo; five gear ratio
@@ -63,10 +63,10 @@ pub fn draw_service_area(
 ) -> Result<bool, Refused> {
     let menus = o.menus;
     let screens = &menus.screens;
-    race.shared.switches.get().service_cleared.set(0);
+    race.shared.switches.borrow_mut().service_cleared = 0;
 
     // The logic is in `rc2k_core::screens::service` (`area_title`, `AREA_STEPS`).
-    let fault = crate::menu::event_flow::Fault::default();
+    let fault = crate::errors::Fault::default();
     let string = |id: u32| {
         let mut bytes = Vec::new();
         fault.ok(push_string(
@@ -78,7 +78,7 @@ pub fn draw_service_area(
     };
     let title = area_title(
         &string(AREA_TITLE.0),
-        screens.event.current_player.get(),
+        screens.event.read().current_player,
         &string(AREA_TITLE.1),
     );
     fault.check()?;

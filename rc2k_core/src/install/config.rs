@@ -8,8 +8,8 @@ use crate::strings::case::CaseTable;
 use crate::strings::format::{Pad, decimal};
 
 /// The record's keys.
-pub const CDROM: &[u8] = b"cdrom";
-pub const LANGUAGE: &[u8] = b"language";
+pub(crate) const CDROM: &[u8] = b"cdrom";
+pub(crate) const LANGUAGE: &[u8] = b"language";
 pub const INSTALLATION: &[u8] = b"installation";
 /// The record's first lines.
 pub const HEADER: &[u8] = b"; Rally Championship\r\n; INSTALLATION CONFIGURATION\r\n\r\n";
@@ -55,9 +55,10 @@ pub fn read_record(text: &(impl Bytes + ?Sized), case: &CaseTable) -> Result<Rec
     Ok(Record { base, mode, locale })
 }
 
-/// The record's text: the header, `cdrom=` the folder installed into, `language=` the language's
-/// directory when there is one, `installation=` the kind, each line ended CR LF.
-pub fn record_text(installed_into: &[u8], locale: Option<&[u8]>, mode: u32) -> Vec<u8> {
+/// The record's text: the header, `cdrom=` the folder installed from (where the files not copied
+/// are read), `language=` the language's directory when there is one, `installation=` the kind,
+/// each line ended CR LF.
+pub fn record_text(installed_from: &[u8], locale: Option<&[u8]>, mode: u32) -> Vec<u8> {
     let mut out = HEADER.to_vec();
     let mut line = |key: &[u8], value: &[u8]| {
         out.extend(key);
@@ -65,7 +66,7 @@ pub fn record_text(installed_into: &[u8], locale: Option<&[u8]>, mode: u32) -> V
         out.extend(value);
         out.extend(b"\r\n");
     };
-    line(CDROM, installed_into);
+    line(CDROM, installed_from);
     if let Some(locale) = locale {
         line(LANGUAGE, locale);
     }
@@ -140,13 +141,13 @@ pub const SLOT: usize = 0x80;
 pub const SLOTS: usize = 9;
 
 /// The languages file's keys, `lang1` .. `lang9`, for slots 0 .. 8.
-pub const LANGUAGE_KEYS: [&[u8]; SLOTS] = [
+pub(crate) const LANGUAGE_KEYS: [&[u8]; SLOTS] = [
     b"lang1", b"lang2", b"lang3", b"lang4", b"lang5", b"lang6", b"lang7", b"lang8", b"lang9",
 ];
 
 /// The languages found in the text, in key order: each slot and its value. Refused: a value of
 /// `SLOT` bytes or more.
-pub fn find_languages(
+pub(crate) fn find_languages(
     text: &(impl Bytes + ?Sized),
     case: &CaseTable,
 ) -> Result<Vec<(usize, Vec<u8>)>, Invalid> {

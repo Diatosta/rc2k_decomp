@@ -1,21 +1,21 @@
 //! `menu::run_event_races`: an event's races. The computer drivers' times are made
-//! (`menu::calc_cpu_times`); eight drivers picked by lot (of the first 0xB2) get 0x4844 plus a
-//! random number under 3000 added to their +0xC and +0x10, and one to four drivers by lot still
-//! running (+0x24 1) drop out (+0x24 4, +0xC and +0x10 0x36EE8A). With `reset_times` set the
-//! players' times are reset; otherwise standings table A is built from the drivers, sorted by time,
-//! and the summary kept. Then by the event mode (`event_kind`): 9 / 0xE one race, 0xA / 0xF the
-//! same with the kept value, 0xB .. 0x12 each player taking part races in turn; a result of -1 ends
-//! the event, -2 resets the players' times and sets the front end up again. Last, the players'
-//! +0x288 is cleared (`menu::clear_service_spent`).
+//! (`menu::calc_cpu_times`); eight drivers picked by lot among the event's drivers (the first
+//! 178) have a fixed amount plus a random number under 3000 added to both their time fields, and
+//! one to four drivers by lot that are still running drop out (their state set to dropped out and
+//! both time fields to the drop-out time). With `reset_times` set the players' times are reset;
+//! otherwise standings table A is built from the drivers, sorted by time, and the summary kept.
+//! Then by the event mode (`event_kind`): modes 9 and 14 run one race, 10 and 15 the same with
+//! the kept value, 11 to 18 have each player taking part race in turn; a result of -1 ends
+//! the event, -2 resets the players' times and sets the front end up again. Last, each player's
+//! service time spent is cleared (`menu::clear_service_spent`).
 //!
-//! Callers: the event drivers. Refuses fewer than 0xB2 drivers or fewer than four still running
-//! among them (the drop-out draw would never end), a missing player for the mode, and what the
-//! steps refuse, before anything.
+//! Refuses fewer than 178 drivers or fewer than four still running among them (the drop-out draw
+//! would never end), a missing player for the mode, and what the steps refuse, before anything.
 
+use crate::errors::Fault;
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::DwordLike;
-use crate::menu::drivers_store::{Driver, IN_EVENT};
-use crate::menu::event_flow::Fault;
+use crate::menu::drivers_store::IN_EVENT;
 use crate::menu::owner::{Cars, Play, Screens};
 use crate::menu::standings::*;
 use crate::owners::Owners;
@@ -29,12 +29,12 @@ struct Game<'a> {
     screens: &'a Screens,
     play: &'a Play,
     owners: Owners<'static>,
-    /// The walked drivers.
-    drivers: &'a [Driver],
+    /// How many drivers are walked.
+    walked: usize,
     /// The stage's track pack entry.
     pack: crate::records::trakpak_entry::Track,
     /// The driver `running` last asked about (the one `drop_out` drops).
-    asked: Option<&'a Driver>,
+    asked: Option<usize>,
     /// A refused read or write of the core's variables (checked at each step and at the end).
     fault: Fault,
 }
@@ -42,8 +42,8 @@ struct Game<'a> {
 impl<'a> Game<'a> {
     /// Driver `k` of the walked ones; past them a refusal kept for the next check (the core
     /// picks under `PICKED`, which `run_event_races` checks the walk reaches).
-    fn driver(&self, k: u32) -> Option<&'a Driver> {
-        let d = self.drivers.get(k as usize);
+    fn driver(&self, k: u32) -> Option<usize> {
+        let d = ((k as usize) < self.walked).then_some(k as usize);
         if d.is_none() {
             self.fault
                 .ok::<()>(Err(BadInput("a driver past the walked ones")));
@@ -53,16 +53,17 @@ impl<'a> Game<'a> {
 }
 
 /// The variables that are in the physics block.
-fn cell<'a>(screens: &'a Screens, play: &'a Play, race: &'a Race, v: Var) -> &'a dyn DwordLike {
+fn cell(race: &Race, v: Var) -> &dyn DwordLike {
     match v {
         Var::CheatSwitch => &race.shared.state.settings.direction,
         Var::RaceKept => &race.shared.state.settings.kept,
         Var::Result => &race.shared.state.results.results[0].result,
         Var::Result2 => &race.shared.state.results.results[1].result,
-        Var::GoesOn => &screens.event.event_goes_on,
-        Var::Cheats => &play.cheats.cheats,
-        Var::Kept => &screens.flow.kept,
-        Var::Current => &screens.event.current_player,
+        Var::Cheats => unreachable!("the cheats are plain fields, `get` and `set` handle them"),
+        Var::Kept => unreachable!("the kept word is a plain field, `get` and `set` handle it"),
+        Var::GoesOn | Var::Current => {
+            unreachable!("the event's words are plain fields, `get` and `set` handle them")
+        }
     }
 }
 
@@ -70,11 +71,24 @@ impl races::EventRaces for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
-        cell(self.screens, self.play, self.owners.race, v).get()
+        match v {
+            Var::Cheats => return self.play.cheats.read().cheats,
+            Var::Kept => return self.screens.flow.read().kept,
+            Var::GoesOn => return self.screens.event.read().event_goes_on,
+            Var::Current => return self.screens.event.read().current_player,
+            _ => {}
+        }
+        cell(self.owners.race, v).get()
     }
 
     fn set(&mut self, v: Var, value: u32) {
-        cell(self.screens, self.play, self.owners.race, v).set(value);
+        match v {
+            Var::Cheats => self.play.cheats.write().cheats = value,
+            Var::Kept => self.screens.flow.write().kept = value,
+            Var::GoesOn => self.screens.event.write().event_goes_on = value,
+            Var::Current => self.screens.event.write().current_player = value,
+            _ => cell(self.owners.race, v).set(value),
+        }
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
@@ -113,7 +127,7 @@ impl races::EventRaces for Game<'_> {
                     .state
                     .settings
                     .rivals
-                    .set(play.champ_view.summary.get());
+                    .set(play.champ_view.read().summary);
                 race.shared.state.settings.stage.set(
                     self.pack
                         .stage(&self.owners.system.records().stage_tables)?,
@@ -136,23 +150,25 @@ impl races::EventRaces for Game<'_> {
     }
 
     fn slow(&mut self, k: u32, added: u32) {
-        if let Some(d) = self.driver(k) {
-            d.time.set(d.time.get().wrapping_add(added));
-            d.total.set(d.total.get().wrapping_add(added));
+        if let Some(k) = self.driver(k) {
+            let d = &mut self.cars.drivers.write().drivers[k];
+            d.time = d.time.wrapping_add(added);
+            d.total = d.total.wrapping_add(added);
         }
     }
 
     fn running(&mut self, k: u32) -> bool {
         self.asked = self.driver(k);
         self.asked
-            .is_some_and(|d| d.in_event.get() == races::RUNNING)
+            .is_some_and(|d| self.cars.drivers.read().drivers[d].in_event == races::RUNNING)
     }
 
     fn drop_out(&mut self) {
         if let Some(d) = self.asked {
-            d.in_event.set(races::DROPPED);
-            d.time.set(races::DROPPED_TIME);
-            d.total.set(races::DROPPED_TIME);
+            let d = &mut self.cars.drivers.write().drivers[d];
+            d.in_event = races::DROPPED;
+            d.time = races::DROPPED_TIME;
+            d.total = races::DROPPED_TIME;
         }
     }
 
@@ -170,23 +186,23 @@ impl races::EventRaces for Game<'_> {
 
 pub fn run_event_races(o: Owners<'static>) -> Result<(), Refused> {
     let (cars, screens, play) = (&o.menus.cars, &o.menus.screens, &o.menus.play);
-    let drivers = drivers_of(cars)?;
-    let few_running = drivers.len() < PICKED as usize
-        || drivers[..PICKED as usize]
+    let walked = walked(cars)?;
+    let few_running = walked < PICKED as usize
+        || cars.drivers.read().drivers[..PICKED as usize]
             .iter()
-            .filter(|d| d.in_event.get() == IN_EVENT)
+            .filter(|d| d.in_event == IN_EVENT)
             .count()
             < 4;
     if few_running {
-        return Err(BadInput("fewer than 0xB2 drivers, or fewer than four still running").into());
+        return Err(BadInput("fewer than 178 drivers, or fewer than four still running").into());
     }
-    let mode: u32 = screens.event.event_kind.get();
+    let mode: u32 = screens.event.read().event_kind;
     if let Some((n, _)) = races::players_of(mode)
         && n > 4
     {
         return Err(BadInput("a player of the event's mode missing").into());
     }
-    let reset_only = { play.champ_view.reset_times.get() } == 1;
+    let reset_only = { play.champ_view.read().reset_times } == 1;
     let rec = crate::menu::calc_cpu_times::record(screens, o.system, &o.saves.best_tables)?;
     crate::menu::calc_cpu_times::check(cars, screens, o.system, o.race, rec)?;
     let pack = crate::records::trakpak_entry::track_of(&o.system.records().stage_tables, rec)?;
@@ -195,7 +211,7 @@ pub fn run_event_races(o: Owners<'static>) -> Result<(), Refused> {
         screens,
         play,
         owners: o,
-        drivers,
+        walked,
         pack,
         asked: None,
         fault: Fault::default(),

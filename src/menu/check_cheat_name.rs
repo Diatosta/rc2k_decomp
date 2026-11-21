@@ -5,13 +5,11 @@
 //! in the cheats, the menu's sound 8 plays, `menu::apply_cheats` runs, and the player's name
 //! becomes string 0x18F.
 //!
-//! Called by the fourth player's details page (`menu::player_pages`) once the name's editing
-//! ends. Refuses (before anything) a missing fourth player or name, a list without its end in 64 entries, a bit past
-//! 31 (past the cheats' 32 bits), and what the coding refuses.
+//! Refuses (before anything) a missing fourth player or name, a list without its end in 64 entries,
+//! a bit past 31 (past the cheats' 32 bits), and what the coding refuses.
 
 use crate::errors::Refused;
-use crate::memory::cells::Store;
-use crate::menu::owner::Play;
+use crate::menu::cheats_store::CHEAT_NAMES;
 use crate::strings::rot13_into_text::rot13_into_text;
 
 const HIDDEN_NAME: u32 = 0x18F;
@@ -19,12 +17,10 @@ const HIDDEN_NAME: u32 = 0x18F;
 
 /// The list's entry and the cheat's bit for the coded name in the text buffer, if it is in
 /// the list.
-fn find(play: &Play, coded: &[u8]) -> Result<Option<(u32, u32)>, Refused> {
-    let mut list = vec![0; play.cheats.cheat_names.size()];
-    play.cheats.cheat_names.load(0, &mut list)?;
+fn find(coded: &[u8]) -> Result<Option<(u32, u32)>, Refused> {
     let coded: Vec<u8> = coded.iter().copied().take_while(|&b| b != 0).collect();
     let found = rc2k_core::menu::cheat_names::find(
-        &list,
+        &CHEAT_NAMES,
         &coded,
         &crate::strings::same_text::case_table(),
     )?;
@@ -38,13 +34,19 @@ pub fn check_cheat_name(o: crate::owners::Owners<'static>) -> Result<(), Refused
         &crate::menu::standings::player(menus, 3).get(),
     )?);
     let coded = rot13_into_text(o.strings, &name.tail(&menus.play))?;
-    let Some((_found, bit)) = find(play, &coded)? else {
+    let Some((_found, bit)) = find(&coded)? else {
         return Ok(());
     };
-    let cheats = rc2k_core::menu::cheat_names::with_cheat(play.cheats.cheats.get(), bit as u8)?;
-    play.cheats.cheats.set(cheats);
+    let cheats = rc2k_core::menu::cheat_names::with_cheat(play.cheats.read().cheats, bit as u8)?;
+    play.cheats.write().cheats = cheats;
     // The sound, the cheat bit and the record are handed on as the callees expect.
-    crate::sound::play_menu_sound::play_menu_sound_in_game(o.sound, o.audio, o.menus, o.system, 8);
+    crate::sound::play_menu_sound::play_menu_sound(
+        o.sound,
+        o.audio,
+        o.menus,
+        &o.system.session.picture_clock,
+        8,
+    );
     crate::menu::apply_cheats::apply_cheats(
         menus,
         &mut |line| {

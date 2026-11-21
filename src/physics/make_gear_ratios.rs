@@ -7,25 +7,24 @@
 //! past five and six gears; the step itself rounded into `scratch`); reverse (`gear_ratios`) is the
 //! first's negative; neutral (`gear_ratios[0]`) is `gear_ratio_step`.
 //!
-//! Callers: `physics::car_physics_step`, `physics::test_drive`. Refuses (before anything) a gear
-//! count above 7 (past `gear_ratios`).
+//! Refuses (before anything) a gear count above 7 (past `gear_ratios`).
 
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::math::x87::{ext_add, gear_step_80, lerp_int_over2};
 use crate::physics::car_store::Car;
+use crate::physics::figures::GEAR_RATIO_STEP;
 use crate::physics::gear_store::GearFigures;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
-use crate::scene::matrix3::{extended, rounded_value};
 
-/// The exact version, for `physics::car_physics_step` and `physics::test_drive`: the gear count.
-pub fn make_gear_ratios(
+/// The exact version, for `physics::car_physics_step` and `physics::acceleration_figures`: the gear count.
+pub(super) fn make_gear_ratios(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
     gear_figures: &GearFigures,
-    scene: &crate::scene::owner::Scene,
 ) -> Result<u32, Refused> {
     let n = tables.gear_count.get();
     if n > 7 {
@@ -69,14 +68,7 @@ pub fn make_gear_ratios(
         acc = ext_add(acc, step);
     }
     ratio(7).set(rounded_value(acc));
-    // The step's bits are left in the scene's scratch dword.
-    scene
-        .drawing
-        .scene
-        .get()
-        .scratch
-        .set(rounded_value(step).to_bits());
     ratio(-1).set(x87::negated(ratio(1).get()));
-    ratio(0).set(x87::loaded(tables.gear_ratio_step.get()));
+    ratio(0).set(x87::loaded(GEAR_RATIO_STEP));
     Ok(n)
 }

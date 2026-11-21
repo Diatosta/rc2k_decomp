@@ -6,67 +6,92 @@
 //! merged stores hold what the last part left there, and a part that set a value back to
 //! the frame's first is not merged at all.
 
-use crate::memory::session::{PlainDword, PlainFloat};
 use crate::race::draw_view_scene::ViewOutput;
 use crate::race::owner::Race;
+use crate::race::plain_slot::{Merge, PlainSlot, merge_run, merge_value};
 
-#[derive(rc2k_derive::Cells)]
-pub struct SceneHandOff {
+/// The kept values, plain (the matrices' floats as their bits).
+#[derive(Clone, Copy)]
+struct HandOffValues {
     /// 1 when the mirror was drawn this frame (its full window follows: `race::draw_race_scene`).
-    mirror_drawn: PlainDword,
+    mirror_drawn: u32,
     /// `SceneMatrices.lit_matrix`.
-    lit: [PlainFloat; 16],
+    lit: [u32; 16],
     /// `SceneMatrices.made_object_matrix`.
-    made: [PlainFloat; 16],
-    /// The view's output (`ViewOutput`), applied by the game's thread: the EAX weight and the
-    /// block and value for `store_view_value`, each with a word saying it is there.
-    environment: [PlainDword; 2],
-    view_value: [PlainDword; 3],
+    made: [u32; 16],
+    /// The view's output (`ViewOutput`), applied by the game's thread: the block and value for
+    /// `store_view_value`, with a word saying it is there.
+    view_value: [u32; 3],
     /// Whether its camera set its view matrices.
-    view_matrices: PlainDword,
+    view_matrices: u32,
 }
+
+impl Merge for HandOffValues {
+    fn merge_changes(&mut self, now: &Self, start: &Self) {
+        merge_value(
+            &mut self.mirror_drawn,
+            &now.mirror_drawn,
+            &start.mirror_drawn,
+        );
+        merge_run(&mut self.lit, &now.lit, &start.lit);
+        merge_run(&mut self.made, &now.made, &start.made);
+        merge_run(&mut self.view_value, &now.view_value, &start.view_value);
+        merge_value(
+            &mut self.view_matrices,
+            &now.view_matrices,
+            &start.view_matrices,
+        );
+    }
+}
+
+pub struct SceneHandOff(PlainSlot<HandOffValues>);
 
 impl SceneHandOff {
     pub const fn new() -> Self {
-        Self {
-            mirror_drawn: PlainDword::new(0),
-            lit: [const { PlainFloat::new(0.0) }; 16],
-            made: [const { PlainFloat::new(0.0) }; 16],
-            environment: [const { PlainDword::new(0) }; 2],
-            view_value: [const { PlainDword::new(0) }; 3],
-            view_matrices: PlainDword::new(0),
-        }
+        Self(PlainSlot::new(HandOffValues {
+            mirror_drawn: 0,
+            lit: [0; 16],
+            made: [0; 16],
+            view_value: [0; 3],
+            view_matrices: 0,
+        }))
+    }
+
+    /// Every value set from `other`'s.
+    pub fn copy_from(&self, other: &SceneHandOff) {
+        self.0.copy_from(&other.0);
+    }
+
+    /// What `now` changed since it was `start` put into this one.
+    pub fn merge_changes(&self, now: &SceneHandOff, start: &SceneHandOff) {
+        self.0.merge_changes(&now.0, &start.0);
     }
 
     /// The view's output kept (on its part).
-    pub fn keep_output(&self, output: ViewOutput) {
-        let (there, weight) = output.environment.map_or((0, 0), |w| (1, w));
-        self.environment[0].set(there);
-        self.environment[1].set(weight);
+    pub(super) fn keep_output(&self, output: ViewOutput) {
         let (there, (block, value)) = output.view_value.map_or((0, (0, 0)), |v| (1, v));
-        self.view_value[0].set(there);
-        self.view_value[1].set(block as u32);
-        self.view_value[2].set(value);
-        self.view_matrices.set(u32::from(output.view_matrices));
+        let mut kept = self.0.borrow_mut();
+        kept.view_value = [there, block as u32, value];
+        kept.view_matrices = u32::from(output.view_matrices);
     }
 
     /// The mirror's drawing kept (it was drawn, or not).
-    pub fn keep_mirror_drawn(&self, drawn: bool) {
-        self.mirror_drawn.set(u32::from(drawn));
+    pub(super) fn keep_mirror_drawn(&self, drawn: bool) {
+        self.0.borrow_mut().mirror_drawn = u32::from(drawn);
     }
 
     /// Whether the mirror was drawn.
-    pub fn mirror_drawn(&self) -> bool {
-        self.mirror_drawn.get() != 0
+    pub(super) fn mirror_drawn(&self) -> bool {
+        self.0.borrow().mirror_drawn != 0
     }
 
     /// The kept output.
     pub fn output(&self) -> ViewOutput {
+        let kept = self.0.borrow();
         ViewOutput {
-            environment: (self.environment[0].get() != 0).then(|| self.environment[1].get()),
-            view_value: (self.view_value[0].get() != 0)
-                .then(|| (self.view_value[1].get() as usize, self.view_value[2].get())),
-            view_matrices: self.view_matrices.get() != 0,
+            view_value: (kept.view_value[0] != 0)
+                .then(|| (kept.view_value[1] as usize, kept.view_value[2])),
+            view_matrices: kept.view_matrices != 0,
         }
     }
 
@@ -74,27 +99,22 @@ impl SceneHandOff {
     /// `scene::view_matrices::current_matrix`).
     pub fn keep(
         &self,
-        m: &crate::race::matrices_store::SceneMatrices,
-        part: &crate::scene::workers::PartScratch,
+        m: crate::race::matrices_store::SceneMatricesRef<'_>,
+        part: &crate::scene::scratch_store::PartScratch,
     ) {
-        for (kept, n) in [(&self.lit, 1), (&self.made, 2)] {
-            let now = crate::scene::view_matrices::current_matrix(m, part, n);
-            for (cell, v) in kept.iter().zip(now) {
-                cell.set(f32::from_bits(v));
-            }
-        }
+        let m = m.get();
+        let lit = crate::scene::view_matrices::current_matrix(&m, part, 1);
+        let made = crate::scene::view_matrices::current_matrix(&m, part, 2);
+        let mut kept = self.0.borrow_mut();
+        kept.lit = lit;
+        kept.made = made;
     }
 
     /// The kept values set again (before the view's overlays).
     pub fn put(&self, race: &Race) {
-        let m = &race.frame.matrices.get();
-        for (kept, now) in [&self.lit, &self.made]
-            .into_iter()
-            .zip([&m.lit_matrix, &m.made_object_matrix])
-        {
-            for (cell, v) in kept.iter().zip(now) {
-                v.set(cell.get());
-            }
-        }
+        let kept = *self.0.borrow();
+        let mut m = race.frame.matrices.borrow_mut();
+        m.lit_matrix = kept.lit.map(f32::from_bits);
+        m.made_object_matrix = kept.made.map(f32::from_bits);
     }
 }

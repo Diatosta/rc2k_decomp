@@ -1,8 +1,7 @@
 //! `menu::ask_to_leave`: `loop_flags.ask_leave` set: the screen loop asks whether to leave
 //! (the review menus' "back to the main menu").
 //!
-//! An item action in six menu tables (the review menus). The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! An item action in six menu tables (the review menus).
 use crate::menu::owner::Menus;
 
 pub fn ask_to_leave(menus: &Menus) {

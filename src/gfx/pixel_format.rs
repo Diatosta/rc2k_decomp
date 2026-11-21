@@ -7,7 +7,7 @@ use crate::errors::BadInput;
 /// handle: `SCREEN_FORMAT` the screen's record (the session's), `TEXTURE_FORMAT | k` texture
 /// description `k`'s layout (its +8); 0 none.
 pub const SCREEN_FORMAT: u32 = 0xCD00_0000;
-pub const TEXTURE_FORMAT: u32 = 0xCD00_0100;
+const TEXTURE_FORMAT: u32 = 0xCD00_0100;
 /// What `texture_kind_format` keeps for a kind without its description: a layout no read finds.
 const NO_TEXTURE_FORMAT: u32 = TEXTURE_FORMAT | 0xFF;
 

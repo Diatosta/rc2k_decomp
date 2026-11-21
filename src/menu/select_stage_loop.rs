@@ -1,4 +1,4 @@
-//! The stage selection "ESCOLHA ETAPA" of the start menus under `menu::single_rally`.
+//! The stage selection "SELECT STAGE" of the start menus under `menu::single_rally`.
 //! Screen-specific part of `menu::screen_loop`: leaving is asked about; left without the
 //! question, the highlight is not saved; the next frame begins with the steps after the first
 //! frame; the question is not put while the lamps flag is 1.
@@ -12,8 +12,8 @@ use crate::menu::screen_loop::{
 };
 
 fn after_first_frame(tables: &Tables) -> Result<Flow, Refused> {
-    if tables.captions.left_by_key.is_set() {
-        tables.captions.left_by_key.set(false);
+    if tables.captions.read().left_by_key {
+        tables.captions.write().left_by_key = false;
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)

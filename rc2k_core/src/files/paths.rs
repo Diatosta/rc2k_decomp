@@ -4,12 +4,12 @@ use crate::Invalid;
 use crate::strings::format::{Pad, decimal};
 
 /// Whether a byte ends a directory.
-pub fn is_separator(b: u8) -> bool {
+pub(crate) fn is_separator(b: u8) -> bool {
     matches!(b, b'/' | b'\\' | b':')
 }
 
 /// The last separator's place, searched from the end down to the second byte.
-pub fn last_separator(path: &[u8]) -> Option<usize> {
+pub(crate) fn last_separator(path: &[u8]) -> Option<usize> {
     (1..path.len()).rev().find(|&k| is_separator(path[k]))
 }
 
@@ -104,9 +104,6 @@ pub fn missing_partner(path: &[u8]) -> Option<&'static [u8; 4]> {
 pub fn drive_root(letter: u8, lower: impl FnOnce(u8) -> u8) -> Option<[u8; 4]> {
     (letter != 0).then(|| [lower(letter), b':', b'\\', 0])
 }
-
-/// The drive kind of a CD-ROM.
-pub const CD_ROM: u32 = 5;
 
 #[cfg(test)]
 mod tests {

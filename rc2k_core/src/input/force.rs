@@ -16,7 +16,7 @@ pub struct Listed {
     pub dynamic_params: u32,
 }
 
-/// What an effect has found (its +0xC .. +0x28).
+/// What an effect has found.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Found {
     /// 1 when one was found.

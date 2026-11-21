@@ -1,0 +1,106 @@
+# Built-in tables
+
+*Category: [Data formats](Data-formats)*
+
+Not all of the game's data is in files. A good deal of it was compiled into the original
+program: the menus, the list of stages, the cars' figures, the names of the sound files. A
+reimplementation needs that data too, so it is now part of the Rust source.
+
+This page is a map of where each table lives. It does not reproduce any of them. If you want
+to change something that no file on disk controls, this is where to look.
+
+The licence note in the repository's README applies to these tables: they are the original
+game's data, kept in the source because the program cannot run without them, and are not
+covered by the project's own licence.
+
+## How the tables are held
+
+Most tables are fields of a "store": a Rust struct, one per group of related data, built
+once at start-up and owned by one of the game's owners (see
+[State and memory](State-and-memory)). A store's file is usually named `..._store.rs`, and
+its opening comment says what the table is and who reads it.
+
+Tables that never change are plain constants. Tables that the game changes while it runs
+(a menu item's current value, a driver's points) start from the built-in values and are
+changed in place; where they must outlast the program they are saved in one of the files on
+[Data formats](Data-formats).
+
+## Where each table is
+
+### Stages and events
+
+| Data | Where |
+| --- | --- |
+| The 36 stages, the rallies they belong to, the stage sets, the championship's and the twelve events' lists | `src/records/stages_store.rs` |
+| Stage file names and how a stage's files are found | `rc2k_core/src/race/stage_files.rs`, `src/race/stage_prefs.rs` |
+| The arcade game's levels | `src/menu/arcade_store.rs`, `rc2k_core/src/menu/arcade.rs` |
+| Championship points | `rc2k_core/src/menu/points.rs` |
+
+### Cars and drivers
+
+| Data | Where |
+| --- | --- |
+| The 34 cars' specification records: the figures the physics starts from | `src/race/car_specs_store.rs` |
+| The 34 cars' descriptions for the menus (names, classes, which pictures) | `src/menu/cars_store.rs` |
+| The lists of cars each game mode offers | `src/menu/car_lists_store.rs` |
+| The 180 computer drivers and their names | `src/menu/drivers_store.rs` |
+| The physics' constants: ground kinds, handling figures, gearbox | `src/physics/tables_store.rs`, `src/race/numbers_store.rs` |
+
+### Menus and screens
+
+| Data | Where |
+| --- | --- |
+| Every menu: its items, their places, what each does, their starting values | `rc2k_core/src/menu/tables.rs` and `rc2k_core/src/menu/tables_data.rs` |
+| The menus' state while the game runs | `src/menu/menus_store.rs` |
+| Picture paths of each screen, the stage maps' and slides' paths | `src/menu/texts_store.rs`, `src/menu/lists_store.rs` |
+| Lists of message numbers the screens show (nationalities, captions) | `src/menu/captions_store.rs` |
+| The 63 font objects: which sheet, which colours, how each aligns | `src/gfx/typefaces.rs`, `src/gfx/build_fonts.rs` |
+| Picture and font file names used by the graphics code | `src/gfx/texts.rs` |
+| The cheats | `src/menu/cheats_store.rs`, `rc2k_core/src/menu/cheat_names.rs` |
+| The English names the launch switches understand (stages, cars, gearboxes, stage sets) | `rc2k_core/src/menu/launch.rs` |
+
+The texts themselves are not built in: they come from the language's file (see
+[Language files](Language-files)), and the tables above refer to them by message number.
+
+### Sound
+
+| Data | Where |
+| --- | --- |
+| The sound files' names, in five lists: effects, the two co-drivers, the menus' speech | `src/audio/names_store.rs` |
+| The sample records: for each sound number its file, volume, looping, copies | `src/audio/voices.rs`, `src/audio/sample_records.rs`, `src/audio/sample_table.rs` |
+| The sets of sounds a race loads, the surfaces' sounds, the car sound kinds | `src/sound/sets_store.rs` |
+| Which tune follows which | `rc2k_core/src/sound/senders.rs` |
+| The cars' and stages' announcer lines | `src/menu/texts_store.rs` |
+
+### Input and language
+
+| Data | Where |
+| --- | --- |
+| The built-in keyboard layouts, and the accents' list for dead keys | `src/input/layouts.rs`, `src/input/store.rs` |
+| The default language set-up used before a `.loc` file is read | `src/strings/locale.rs` |
+
+### Installer and network
+
+| Data | Where |
+| --- | --- |
+| The lists of what to copy and what to remove, the installer's file names and pages | `src/install/vars.rs` (the coding is on [Installer data](Installer-data)) |
+| Network identifiers (the application's id, fixed names) | `src/net/store.rs` |
+
+### Numbers
+
+| Data | Where |
+| --- | --- |
+| Sine and other tables the game builds at start-up | built in code where they are used, for example `src/race/sound_tables.rs` |
+
+## Changing a table
+
+- Find the store with the table above, read its opening comment, and change the value in its
+  `new` function (or in the constant).
+- The menus' tables (`rc2k_core/src/menu/tables_data.rs`) are edited where they are; a test
+  freezes them by a hash (`tables_are_as_frozen` in `tables.rs`), whose two constants change
+  with them.
+- Many tables have a fixed number of entries that other code relies on (34 cars, 36 stages,
+  `0x757` messages). Changing a value is safe; adding an entry usually needs more code to
+  change with it.
+- Recorded replays and the project's tests depend on the physics' tables. A change there
+  makes old replays play differently; see [Replay files](Replay-files), "Compatibility".

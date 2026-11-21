@@ -19,7 +19,7 @@ impl PictureSize {
 }
 
 /// The row length that says the rows follow one another.
-pub const ROWS_FOLLOW: u32 = 0xFFFF_FFFD;
+pub(crate) const ROWS_FOLLOW: u32 = 0xFFFF_FFFD;
 
 /// A picture as it is read: the most a screen's picture has.
 pub const READ: PictureSize = PictureSize {
@@ -53,14 +53,6 @@ pub fn rescaled(decoded_width: u32, screen_width: u32) -> bool {
     decoded_width != screen_width
 }
 
-/// The screen mode's flag of three pages (a third buffer).
-pub const THREE_PAGES: u32 = 0x4_0000;
-
-/// The pages a picture file is shown on: 3 with `THREE_PAGES`, else 2.
-pub fn pages(mode_flags: u32) -> u32 {
-    if mode_flags & THREE_PAGES != 0 { 3 } else { 2 }
-}
-
 /// A pixel's byte offset in its row and its bytes (2 for a surface of 16 bits a pixel, else 4),
 /// wrapping.
 pub fn pixel_place(bits: u32, x: u32) -> (u32, u32) {
@@ -77,7 +69,6 @@ mod tests {
         assert_eq!(READ.dwords(), [800, 600, 0xFFFF_FFFD]);
         assert_eq!(screen(640, 480).row_bytes, 2560);
         assert!(rescaled(800, 640) && !rescaled(640, 640));
-        assert_eq!((pages(0x4_0000), pages(0x2_0000)), (3, 2));
         assert_eq!(pixel_place(16, 3), (6, 2));
         assert_eq!(pixel_place(32, 3), (0xC, 4));
     }

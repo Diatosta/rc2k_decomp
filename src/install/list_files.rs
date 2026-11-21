@@ -1,6 +1,6 @@
-//! The files matching a pattern added to the files-to-copy table: each found name is appended
-//! with a NUL behind its folder, the cursor advanced and `file_count` raised. More than 0x40000
-//! bytes of names is fatal error 0x80AF2206. Called by `install::run_script` (opcode 3).
+//! The files matching a pattern added to the files-to-copy table: each found name is appended with
+//! a NUL behind its folder, the cursor advanced and `file_count` raised. More than 0x40000 bytes of
+//! names is fatal error 0x80AF2206. The script's opcode 3.
 
 use crate::errors::Refused;
 use crate::files::search::DIRECTORY;
@@ -14,10 +14,7 @@ fn find_name() -> Vec<u8> {
 }
 
 /// The files of `pattern` added to the files' table.
-pub fn list_files(
-    install: &crate::install::owner::Install,
-    pattern: impl Into<crate::memory::place::BytePlace>,
-) -> Result<(), Refused> {
+pub fn list_files(install: &crate::install::owner::Install, pattern: &[u8]) -> Result<(), Refused> {
     let pattern = resolve_path(pattern)?;
     if find_first(&pattern, DIRECTORY) {
         loop {

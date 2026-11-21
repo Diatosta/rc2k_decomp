@@ -30,11 +30,8 @@ fn store(state: &AudioOwn, l: &Lists) {
     state.channels_used.set(l.channels_used);
 }
 
-/// `mix` is `audio::mix`.
-pub fn update_mixer_voices(
-    audio: &AudioThread,
-    mix: &mut dyn FnMut() -> Result<(), Refused>,
-) -> Result<(), Refused> {
+/// The voices' turn of the mixer, the mix (`audio::mix`) between the two halves.
+pub(super) fn update_mixer_voices(audio: &AudioThread) -> Result<(), Refused> {
     let state = &audio.state;
     use rc2k_core::audio::mixer_voices::{after_mix, before_mix};
     let rate = state.mix_rate.get();
@@ -43,18 +40,9 @@ pub fn update_mixer_voices(
     let mut l = lists(state);
     before_mix(&mut pool, &mut l, rate, mode)?;
     store(state, &l);
-    mix()?;
+    crate::audio::mix::mix(&audio.state)?;
     let mut l = lists(state);
     after_mix(&mut pool, &mut l, rate, mode)?;
     store(state, &l);
     Ok(())
-}
-
-/// The voices' turn of the game's own mixer, the mix (`audio::mix`) in it.
-pub fn update_mixer_voices_in_game(audio: &AudioThread) -> Result<(), Refused> {
-    let mut mix = || -> Result<(), Refused> {
-        crate::audio::mix::mix(&audio.state)?;
-        Ok(())
-    };
-    update_mixer_voices(audio, &mut mix)
 }

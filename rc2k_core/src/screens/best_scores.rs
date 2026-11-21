@@ -21,14 +21,10 @@ pub enum Font {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// The rank being drawn.
-    Rank,
     /// The row's sprites' y.
     RowY,
     /// The last car's sprite.
     CarGlyph,
-    /// The event heading's string.
-    Heading,
 }
 
 /// A row: name, figure (a score, or a time in hundredths), nationality, car, own-row flag.
@@ -57,12 +53,12 @@ pub enum Keep {
     Below4,
 }
 
-pub fn flag_glyph(nation: u32) -> u32 {
+pub(crate) fn flag_glyph(nation: u32) -> u32 {
     0x1C_u32.wrapping_add(nation)
 }
 
 /// A car's sprite (cars 0x18 and 0x19 swapped).
-pub fn car_glyph(car: u32) -> u32 {
+pub(crate) fn car_glyph(car: u32) -> u32 {
     let car = if (0x18..=0x19).contains(&car) {
         car ^ 1
     } else {
@@ -79,8 +75,8 @@ fn fonts(marked: bool) -> (Font, Font, Font) {
     }
 }
 
-/// A row of a section's best times (0x9C-byte entry): name +0x20, time +0x18, nationality +8,
-/// car +0x10, player flag +0x40.
+/// A row of a section's best times (read from a 0x9C-byte entry): name, time, nationality,
+/// car and player flag.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SectionRow<T> {
     pub name: T,
@@ -100,7 +96,6 @@ pub fn section_best_times<S: Screen<Font = Font, Work = Work>>(
 ) -> Result<(), S::Error> {
     let mut y = 0xF0;
     for (n, r) in (1u32..).zip(rows) {
-        s.keep(Work::Rank, n);
         let (font, place_font) = if r.player {
             (Font::MarkedName, Font::MarkedRank)
         } else {
@@ -136,7 +131,6 @@ where
         if n > 0 && (rows.ends_at)(n) {
             break;
         }
-        s.keep(Work::Rank, rank);
         let row = (rows.row)(n);
         let (name_font, _, rank_font) = fonts(row.marked);
         y = s.text(name_font, row.name, 0xF0, y)?.y;
@@ -174,7 +168,6 @@ where
         if n > 0 && (rows.ends_at)(n) {
             return Ok(false);
         }
-        s.keep(Work::Rank, rank);
         let row = (rows.row)(n);
         let (name_font, time_font, rank_font) = fonts(row.marked);
         y = s.text(name_font, row.name, 0xF0, y)?.y;
@@ -216,18 +209,10 @@ pub fn heading<S: Screen<Font = Font, Work = Work>>(
 
 /// The heading string of the event and overall best scores: the section's in event mode 0x13,
 /// else string 0x35E + the group (event) or 0x362 (overall).
-pub fn scores_heading<S: Screen<Font = Font, Work = Work>>(
-    s: &mut S,
-    section_string: Option<u32>,
-    event_group: Option<u32>,
-) -> u32 {
+pub fn scores_heading(section_string: Option<u32>, event_group: Option<u32>) -> u32 {
     match (section_string, event_group) {
         (Some(id), _) => id,
-        (None, Some(group)) => {
-            let id = 0x35E + group;
-            s.keep(Work::Heading, id);
-            id
-        }
+        (None, Some(group)) => 0x35E + group,
         (None, None) => 0x362,
     }
 }
@@ -344,12 +329,12 @@ mod tests {
             0,
         )
         .unwrap();
-        assert_eq!(s.0[1], "text Name 0 240 240");
-        assert_eq!(s.0[2], "line Name 100 540 241");
-        assert_eq!(s.0[5], "sprite 0x1e 210 241");
-        assert_eq!(s.0[6], "sprite 0x5d 460 241");
-        assert_eq!(s.0[8], "text MarkedName 1 240 266");
-        assert_eq!(s.0.len(), 14);
+        assert_eq!(s.0[0], "text Name 0 240 240");
+        assert_eq!(s.0[1], "line Name 100 540 241");
+        assert_eq!(s.0[4], "sprite 0x1e 210 241");
+        assert_eq!(s.0[5], "sprite 0x5d 460 241");
+        assert_eq!(s.0[6], "text MarkedName 1 240 266");
+        assert_eq!(s.0.len(), 12);
         let mut s = Record::default();
         assert!(
             time_rows(
@@ -364,7 +349,7 @@ mod tests {
             .unwrap()
         );
         assert_eq!(
-            s.0[2],
+            s.0[1],
             "time Time 0\"01.00 630 241"
                 .replace("0\"01.00", &String::from_utf8_lossy(&time(100, false)))
         );

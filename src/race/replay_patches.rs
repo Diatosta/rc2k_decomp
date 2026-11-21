@@ -29,12 +29,12 @@ fn move_dwords<'a, T: DwordLike + 'a, F: DwordLike + 'a>(
 }
 
 /// `apply_replay_patches`.
-pub fn apply_replay_patches(race: &Race) -> Result<(), Refused> {
+pub(super) fn apply_replay_patches(race: &Race) -> Result<(), Refused> {
     // Logic in `rc2k_core::race::viewer_flow::patches_change`.
     use rc2k_core::race::viewer_flow::patches_change;
     let shared = &race.shared;
     if patches_change(
-        race.replay_work().patches_in_header.get(),
+        race.replay_work().patches_in_header,
         race.viewer_panel().patches_in_force.get(),
         false,
     ) {
@@ -43,11 +43,13 @@ pub fn apply_replay_patches(race: &Race) -> Result<(), Refused> {
             race.viewer_panel().kept_patch_switches.iter(),
             switches(shared),
         );
-        move_dwords(switches(shared), race.replay_work().header_patches.iter());
+        for (to, from) in switches(shared).zip(race.replay_work().header_patches) {
+            to.set(from);
+        }
         shared.work.get().patches_applied.set(0);
         crate::physics::apply_patches::apply_patches(
             race.shared.physics_tables.get(),
-            race.course.numbers.get(),
+            &race.course.numbers,
             race.shared.work.get(),
         );
     }
@@ -55,12 +57,12 @@ pub fn apply_replay_patches(race: &Race) -> Result<(), Refused> {
 }
 
 /// `restore_replay_patches`.
-pub fn restore_replay_patches(race: &Race) -> Result<(), Refused> {
+pub(super) fn restore_replay_patches(race: &Race) -> Result<(), Refused> {
     // Logic in `rc2k_core::race::viewer_flow::patches_change`.
     use rc2k_core::race::viewer_flow::patches_change;
     let shared = &race.shared;
     if patches_change(
-        race.replay_work().patches_in_header.get(),
+        race.replay_work().patches_in_header,
         race.viewer_panel().patches_in_force.get(),
         true,
     ) {
@@ -72,7 +74,7 @@ pub fn restore_replay_patches(race: &Race) -> Result<(), Refused> {
         shared.work.get().patches_applied.set(0);
         crate::physics::apply_patches::apply_patches(
             race.shared.physics_tables.get(),
-            race.course.numbers.get(),
+            &race.course.numbers,
             race.shared.work.get(),
         );
     }

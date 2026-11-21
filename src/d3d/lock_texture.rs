@@ -2,20 +2,14 @@
 //! With no surface nothing; locked already: fatal error 0x8021A171; a failure to lock is fatal
 //! error 0x8021A172.
 //!
-//! Callers: the name and time plates, the mud, the mirror, the marks' masks, ... The lock is the
-//! surface's own method (`d3d::texture_lock`, `platform::direct3d`'s). Refuses a texture past the
-//! pool's 0x140, before anything.
+//! Refuses a texture past the pool's 0x140, before anything.
 
 use crate::d3d::texture_lock::*;
-use crate::errors::CarryZeroFlags;
 use crate::errors::{BadInput, Refused};
 use crate::gfx::texture_upload::RecordCell;
 
-/// Texture `texture` locked.
-pub fn lock_texture_in(
-    gfx: &crate::gfx::owner::Gfx,
-    texture: u32,
-) -> Result<CarryZeroFlags, Refused> {
+/// Locks texture `texture`: whether it is locked after (false for one without a surface).
+pub fn lock_texture_in(gfx: &crate::gfx::owner::Gfx, texture: u32) -> Result<bool, Refused> {
     use rc2k_core::d3d::textures::{LOCK_FAILED, LOCKED_TWICE, Lock, lock};
     // Logic: `rc2k_core::d3d::textures::lock`.
     let r = record(gfx, texture);
@@ -24,7 +18,7 @@ pub fn lock_texture_in(
         Lock::Nothing => {}
         Lock::Twice => return Err(fatal(LOCKED_TWICE).into()),
         Lock::Lock => {
-            if crate::platform::direct3d::lock_surface(surface, &gfx.card.upload.description) != 0 {
+            if crate::d3d::device::lock_surface(surface, &gfx.card.upload.description) != 0 {
                 return Err(fatal(LOCK_FAILED).into());
             }
             // Only a texture in the pool gets here.
@@ -33,6 +27,5 @@ pub fn lock_texture_in(
             crate::d3d::texture_surface_info::texture_surface_info(r, gfx)?;
         }
     }
-    let (carry, zero) = compared_with_one(r.map_or(0, RecordCell::locked));
-    Ok(CarryZeroFlags { carry, zero })
+    Ok(r.map_or(0, RecordCell::locked) != 0)
 }

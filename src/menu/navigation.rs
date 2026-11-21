@@ -1,9 +1,8 @@
-//! Each menu item names its neighbours by number at +0x24, +0x28, +0x2C and +0x30 (which key
-//! goes with which is in `Direction`). A link of 0x6F means there is none, and 0xFFFFFC1A
-//! means "ask the item": its callback for that direction (+0x34 .. +0x40) is called instead.
-//! Every move plays the click, `sound::play_menu_sound` with sound 1. The two vertical moves go
-//! on along the same link until they reach an item whose +0x48 is 0xFFFFFC1B, so items that
-//! cannot be chosen are stepped over. The two horizontal ones take one step and, while
+//! Each menu item names its four neighbours by number (which key goes with which is in
+//! `Direction`). A link of `NO_LINK` means there is none, and `ASK_ITEM` means "ask the item":
+//! its callback for that direction is called instead. Every move plays the click,
+//! `sound::play_menu_sound` with sound 1. The two vertical moves go on along the same link
+//! until they reach an item marked choosable, so items that cannot be chosen are stepped over. The two horizontal ones take one step and, while
 //! `flow.turning` is 1, first turn a counter: the object in front goes round the objects, and
 //! the turn direction and the angle are left at 1 and 0 (right) or -1 and -1 (left). They click
 //! only if `flow.quiet` is not 1.
@@ -27,7 +26,7 @@ pub enum Direction {
 
 impl Direction {
     /// (the link's place in an item, the callback's)
-    /// The item's link (+0x24 ..) and key function (+0x34 ..) this move reads.
+    /// Which of the item's four links and four key functions this move reads.
     fn slot(self) -> usize {
         match self {
             Self::Up => 0,
@@ -39,7 +38,7 @@ impl Direction {
 }
 
 /// The click is `sound::play_menu_sound` with sound 1; the callback gets the item.
-pub fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Refused> {
+pub(super) fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Refused> {
     let menus = o.menus;
     let screens = &menus.screens;
     // The logic is in `rc2k_core::menu::navigation` (`turn`, `link`, `walk`), everything worked
@@ -48,14 +47,14 @@ pub fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Re
     let way = direction.slot();
     let sideways = matches!(direction, Direction::Left | Direction::Right);
     {
-        let highlighted: u32 = screens.loop_flags.item.get();
+        let highlighted: u32 = screens.loop_flags.read().item;
         let item = item_at(menus, highlighted)?;
-        let turned = (sideways && screens.flow.turning.get() == 1).then(|| {
+        let turned = (sideways && screens.flow.read().turning == 1).then(|| {
             let t = Turn {
-                count: screens.carousel.count.get() as i32,
-                value: screens.carousel.front.get() as i32,
-                way: screens.carousel.direction.get(),
-                step: screens.carousel.angle.get(),
+                count: screens.carousel.read().count as i32,
+                value: screens.carousel.read().front as i32,
+                way: screens.carousel.read().direction,
+                step: screens.carousel.read().angle,
             };
             turn(t, direction == Direction::Right)
         });
@@ -63,28 +62,54 @@ pub fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Re
         let to = match link(next) {
             Link::To(n) if !sideways => Some(walk(n, |n| {
                 let it = item_at(menus, n).map_err(|e| rc2k_core::Invalid(e.0))?;
-                Ok((it.fixed().links[way], it.skip_mark.get()))
+                Ok((it.fixed().links[way], it.state().skip_mark))
             })?),
-            Link::To(n) => Some(n),
+            Link::To(n) => passing_hidden(menus, n, way)?,
             _ => None,
         };
         if let Some(t) = turned {
-            screens.carousel.front.set(t.value as u32);
-            screens.carousel.direction.set(t.way);
-            screens.carousel.angle.set(t.step);
+            screens.carousel.write().front = t.value as u32;
+            screens.carousel.write().direction = t.way;
+            screens.carousel.write().angle = t.step;
         }
         if link(next) == Link::None {
             return Ok(());
         }
-        if !sideways || screens.flow.quiet.get() != 1 {
-            crate::sound::play_menu_sound::play_menu_sound_in_game(
-                o.sound, o.audio, o.menus, o.system, 1,
+        if !sideways || screens.flow.read().quiet != 1 {
+            crate::sound::play_menu_sound::play_menu_sound(
+                o.sound,
+                o.audio,
+                o.menus,
+                &o.system.session.picture_clock,
+                1,
             );
         }
         match to {
-            Some(n) => screens.loop_flags.item.set(n),
-            None => crate::menu::table_calls::call_key(o, item.fixed().on_key[way], item)?,
+            Some(n) => screens.loop_flags.write().item = n,
+            None => crate::menu::table_calls::call_key(o, item.fixed().on_key[way])?,
         }
     }
     Ok(())
+}
+
+/// The item a sideways move lands on: the one its link names, but an item hidden in this build
+/// (the network item without network play) is passed by along the same link (`None`: nothing
+/// beyond it).
+fn passing_hidden(
+    menus: &crate::menu::owner::Menus,
+    n: u32,
+    way: usize,
+) -> Result<Option<u32>, Refused> {
+    use rc2k_core::menu::navigation::{Link, link};
+    if crate::platform::caps::NETWORK {
+        return Ok(Some(n));
+    }
+    let it = item_at(menus, n)?;
+    if !crate::menu::web_limits::hidden(it.fixed()) {
+        return Ok(Some(n));
+    }
+    Ok(match link(it.fixed().links[way]) {
+        Link::To(over) => Some(over),
+        _ => None,
+    })
 }

@@ -1,12 +1,12 @@
-//! A two-column page's 32 boxes: in each column a see-through box with a black border; the
-//! chosen row (while `draw_work.blink` is set) also gets a yellow border and one a pixel outside
-//! it. Each is a `scene::draw_tinted_quad`. Caller: `screens::draw_two_column_panel`.
+//! A two-column page's 32 boxes: in each column a see-through box with a black border; the chosen
+//! row (while `draw_work.blink` is set) also gets a yellow border and one a pixel outside it. Each
+//! is a `scene::draw_tinted_quad`.
 
 use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::screens::service_boxes::quad;
 
-pub fn draw_column_boxes(o: Owners<'static>) -> Result<(), Refused> {
+pub(super) fn draw_column_boxes(o: Owners<'static>) -> Result<(), Refused> {
     let screens = &o.menus.screens;
     // The logic is in `rc2k_core::screens::panels::row_box`.
     use rc2k_core::screens::panels::{BOXES_Y, COLUMNS, ROW_STEP, ROWS, row_box};
@@ -14,8 +14,8 @@ pub fn draw_column_boxes(o: Owners<'static>) -> Result<(), Refused> {
     for x in COLUMNS {
         let mut y = BOXES_Y;
         for _ in 0..ROWS {
-            let chosen = screens.loop_flags.item.get() == row && screens.draw_work.blink.is_set();
-            for a in row_box(x, y, screens.state.service_ui.box_colour_a.get(), chosen) {
+            let chosen = screens.loop_flags.read().item == row && screens.draw_work.read().blink;
+            for a in row_box(x, y, screens.state.read().service_ui.box_colour_a, chosen) {
                 quad(o, a.x, a.y, a.w, a.h, a.colour, a.see)?;
             }
             y = y.wrapping_add(ROW_STEP);

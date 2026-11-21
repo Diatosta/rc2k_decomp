@@ -7,15 +7,18 @@
 //! the dwords and the cars `saves::keep_player_settings` runs if `use_savegame_keys` is 0, and
 //! `menu::drop_missing_controllers`); `menu::next_record_kind` says where the event stands (4
 //! or 5: the next section; 0 or 1: the next stage; 3: nothing more happens here; any other
-//! value is fatal error 0x80702821 "Corrupt SaveGame"); unless it was 3, the event itself runs
+//! value is a damaged file: the player is told and the menu is back); unless it was 3, the event itself runs
 //! (`menu::run_a8_championship` if the event mode is 0x13, else `menu::run_championship`) and
 //! `menu::go_back` follows. The players' own records and names are set aside first and put back
 //! at the end (`menu::own_settings`).
 //!
+//! A file that is not a saved game (a corrupt one, a short one) is not a reason to end the
+//! game: the player is told (`error_dialog`) and is back at the menu.
+//!
 //! Refuses, before anything is done: a slot past 99, a missing player or a car without its name
 //! pointer; later, what its callees refuse.
 
-use crate::errors::{BadInput, FatalError, Refused};
+use crate::errors::{BadInput, Refused};
 use crate::menu::go_back;
 use crate::menu::loop_store::LoopFlags;
 use crate::menu::pages_store::MenuPages;
@@ -33,7 +36,7 @@ const UNREADABLE_SOUND: u32 = 8;
 
 /// The slot the highlighted menu item stands for.
 fn highlighted_slot(pages: &MenuPages, loop_flags: &LoopFlags) -> u32 {
-    rc2k_core::saves::savegame::slot(pages.save_page.get(), loop_flags.item.get())
+    rc2k_core::saves::savegame::slot(pages.read().save_page, loop_flags.read().item)
 }
 
 /// The players' own records and names come back when the loaded championship is over or left
@@ -48,24 +51,64 @@ fn load_and_run(o: Owners<'static>) -> Result<(), Refused> {
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());
     }
-    let cars = cars(&menus.play)?;
+    cars(&menus.play)?;
 
     crate::menu::ready_players::ready_players(menus)?;
-    menus.screens.event.event_goes_on.set(1u32);
-    menus.play.champ_view.reset_times.set(0u32);
-    menus.screens.event.event_out.set(0u32);
+    menus.screens.event.write().event_goes_on = 1u32;
+    menus.play.champ_view.write().reset_times = 0u32;
+    menus.screens.event.write().event_out = 0u32;
     if !read_savegame_slot_in(saves, slot)? {
-        crate::sound::play_menu_sound::play_menu_sound_in_game(
+        crate::sound::play_menu_sound::play_menu_sound(
             o.sound,
             o.audio,
             o.menus,
-            o.system,
+            &o.system.session.picture_clock,
             UNREADABLE_SOUND,
         );
         go_back::go_back(menus);
         return Ok(());
     }
 
+    let restored = restore(o);
+    match restored {
+        Ok(Resume::NextSection) => {
+            menus.screens.event.write().section =
+                menus.screens.event.read().section.wrapping_add(1);
+            menus.screens.event.write().stage_in_section = 0u32;
+        }
+        Ok(Resume::NextStage) => {
+            menus.screens.event.write().stage_in_section =
+                menus.screens.event.read().stage_in_section.wrapping_add(1);
+        }
+        Ok(Resume::Over) => {
+            go_back::go_back(menus);
+            return Ok(());
+        }
+        // A file that is not a saved game's: the player is told and is back at the menu; the
+        // game ends only for what is not the file's doing.
+        Ok(Resume::Corrupt) => return damaged(menus, slot, "the saved game is corrupt"),
+        Err(Refused::BadInput(why)) => return damaged(menus, slot, why.0),
+        Err(Refused::Fatal(error)) if error.code == CORRUPT => {
+            return damaged(menus, slot, error.message);
+        }
+        Err(other) => return Err(other),
+    }
+    menus.screens.event.write().continuing_save = 1u32;
+    crate::menu::link_player_names::link_player_names(menus)?;
+    if menus.play.champ_view.read().event_mode == A8_MODE {
+        crate::menu::run_a8_championship::run_a8_championship_in(o)?;
+    } else {
+        crate::menu::run_championship::run_championship_in(o)?;
+    }
+    go_back::go_back(menus);
+    Ok(())
+}
+
+/// The saved game in the slot's file put back into the game, and where the event stands. A
+/// file that does not hold what a saved game does is refused here, before the event runs.
+fn restore(o: Owners<'static>) -> Result<Resume, Refused> {
+    let (menus, saves) = (o.menus, o.saves);
+    let cars = cars(&menus.play)?;
     let file = &saves.save_games.file;
     let mut cursor = PAYLOAD_OFFSET;
     for at in head(menus) {
@@ -96,53 +139,24 @@ fn load_and_run(o: Owners<'static>) -> Result<(), Refused> {
         cursor += CAR_LEN;
     }
     let records = file.read_at(cursor, RECORDS_LEN, "the saved drivers")?;
-    crate::menu::drivers_store::records_from_bytes(&menus.cars.drivers.drivers, &records)?;
-    menus
-        .screens
-        .flow
-        .start_section
-        .set(cars[0].get().saved_start_section);
-    menus
-        .screens
-        .flow
-        .start_section_a8
-        .set(cars[0].get().saved_start_section_a8);
+    menus.cars.drivers.load_bytes(&records)?;
+    menus.screens.flow.write().start_section = cars[0].get().saved_start_section;
+    menus.screens.flow.write().start_section_a8 = cars[0].get().saved_start_section_a8;
 
-    match resume(crate::menu::next_record_kind::next_record_kind(
+    Ok(resume(crate::menu::next_record_kind::next_record_kind(
         menus, o.system,
-    )?) {
-        Resume::NextSection => {
-            menus
-                .screens
-                .event
-                .section
-                .set(menus.screens.event.section.get().wrapping_add(1));
-            menus.screens.event.stage_in_section.set(0u32);
-        }
-        Resume::NextStage => menus
-            .screens
-            .event
-            .stage_in_section
-            .set(menus.screens.event.stage_in_section.get().wrapping_add(1)),
-        Resume::Over => {
-            go_back::go_back(menus);
-            return Ok(());
-        }
-        Resume::Corrupt => {
-            return Err(FatalError {
-                code: CORRUPT,
-                message: "Corrupt SaveGame",
-            }
-            .into());
-        }
-    }
-    menus.screens.event.continuing_save.set(1u32);
-    crate::menu::link_player_names::link_player_names(menus)?;
-    if menus.play.champ_view.event_mode.get() == A8_MODE {
-        crate::menu::run_a8_championship::run_a8_championship_in(o)?;
-    } else {
-        crate::menu::run_championship::run_championship_in(o)?;
-    }
+    )?))
+}
+
+/// A saved game that cannot be loaded: logged, the player told, back at the menu.
+fn damaged(menus: &crate::menu::owner::Menus, slot: u32, why: &str) -> Result<(), Refused> {
+    crate::program_log::log(&format!(
+        "saves::load_savegame: slot {slot} is damaged: {why}"
+    ));
+    crate::error_dialog::notice(&crate::error_dialog::text_with(
+        rc2k_core::strings::own::id::DAMAGED_SAVEGAME,
+        &(slot + 1).to_string(),
+    ));
     go_back::go_back(menus);
     Ok(())
 }

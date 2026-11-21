@@ -2,21 +2,20 @@
 //! also set, 0 (a reading: which parts are left); then, with `tyre_change_state` 0,
 //! `physics::drop_hit_parts` and `physics::sound_hit_parts`.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses what the calls refuse; what was
-//! written is put back.
+//! Refuses what the calls refuse; what was written is put back.
 
 use crate::errors::Refused;
 use crate::physics::drop_hit_parts::drop_hit_parts;
 use crate::physics::sound_hit_parts::sound_hit_parts;
-use crate::race::matrices_store::SceneMatrices;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
+use crate::scene::matrix::Matrix;
 use rc2k_core::physics::parts::parts_left;
 
 // Core: `rc2k_core::physics::parts::parts_left`.
-pub fn hit_part_checks(
+pub(super) fn hit_part_checks(
     numbers: &Numbers,
-    matrices: &SceneMatrices,
+    view_turn: &Matrix,
     shared: &RaceShared,
     kind_tables: &crate::race::kind_store::KindTables,
     scene: &crate::scene::owner::Scene,
@@ -28,5 +27,5 @@ pub fn hit_part_checks(
         return Ok(());
     }
     drop_hit_parts(numbers, shared.work.get(), shared.car(), scene)?;
-    sound_hit_parts(numbers, matrices, shared, kind_tables, sound)
+    sound_hit_parts(numbers, view_turn, shared, kind_tables, sound)
 }

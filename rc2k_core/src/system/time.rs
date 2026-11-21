@@ -32,7 +32,7 @@ pub fn start_time(t: &LocalTime) -> [u8; 9] {
     ]
 }
 
-/// `system::tick_count`: Windows' clock, or with the override switch at 1 the override's
+/// `clock::tick_count`: Windows' clock, or with the override switch at 1 the override's
 /// value (asked only then).
 pub fn clock(now: u32, override_on: u32, value: impl FnOnce() -> u32) -> u32 {
     if override_on == 1 { value() } else { now }

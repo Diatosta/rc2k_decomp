@@ -37,13 +37,10 @@ pub fn draw_service_stage_info(
         TITLE_Y,
     )?;
     let (record, _) = event_stage(screens, system)?;
-    if menus.play.champ_view.event_mode.get() == 2 && menus.screens.event.stage.pages.get() == 0 {
+    if menus.play.champ_view.read().event_mode == 2 && menus.screens.event.read().stage.pages == 0 {
         draw_stage_heading(o, record, canvas)?;
     }
-    build_second_heading(
-        crate::strings::append_string_by_id::StringOwners::of(o),
-        record,
-    )?;
+    build_second_heading(o, record)?;
     draw_stage_body(o, gfx, record, false, canvas)?;
     draw_records_from(o, system, &o.saves.best_tables.stage_times, record, canvas)
 }

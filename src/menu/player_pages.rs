@@ -30,7 +30,7 @@ macro_rules! of_player {
 }
 
 /// Player `N`'s setup pages (`N` is 0 for the first player).
-pub struct PlayerPage<const N: usize>;
+pub(super) struct PlayerPage<const N: usize>;
 
 impl<const N: usize> PlayerPage<N> {
     /// The details page: name, nationality and the way into the controller pages.
@@ -144,7 +144,7 @@ impl<const N: usize> PlayerPage<N> {
     };
 
     /// The controller page: the controller, force feedback and axis mode.
-    pub const CONTROLLER: Screen = Screen {
+    pub(super) const CONTROLLER: Screen = Screen {
         lists: &[
             List {
                 pointer: |m| &m.screens.flow.unread_list,
@@ -315,8 +315,8 @@ impl<const N: usize> PlayerPage<N> {
         )
     };
 
-    /// The keyboard assignment page "REDEFINIR TECLADO".
-    pub const REDEFINE_KEYS: Screen = Screen {
+    /// The keyboard assignment page "REDEFINE KEYBOARD".
+    pub(super) const REDEFINE_KEYS: Screen = Screen {
         lists: &[
             List {
                 pointer: |m| &m.screens.flow.unread_list,
@@ -430,9 +430,9 @@ fn details_each_frame<const N: usize>(entry: &Entry) -> Result<Flow, Refused> {
     if N == 3 {
         Callee::CheckCheatName.run(entry)?;
     }
-    if screens.entry.typing.is_set() {
+    if screens.entry.read().typing {
         Callee::EditPlayerName.run(entry)?;
-        if screens.entry.typing.is_set() {
+        if screens.entry.read().typing {
             return Ok(Flow::NextFrame);
         }
     }
@@ -442,10 +442,8 @@ fn details_each_frame<const N: usize>(entry: &Entry) -> Result<Flow, Refused> {
 /// Copies player `N`'s twelve keys to the table the page edits and makes the player current.
 fn redefine_keys_before<const N: usize>(menus: &Menus) -> Result<(), Refused> {
     let keys = menus.play.slots.records[N].get().keys;
-    for (n, key) in keys.into_iter().enumerate() {
-        menus.keys.tables.redefined_keys.set(n, key);
-    }
-    menus.screens.event.current_player.set(N as u32);
+    menus.keys.tables_mut().redefined_keys[..keys.len()].copy_from_slice(&keys);
+    menus.screens.event.write().current_player = N as u32;
     Ok(())
 }
 
@@ -458,7 +456,7 @@ fn redefine_keys_after_first_frame(system: &System) -> Result<Flow, Refused> {
 
 /// While a key is being chosen the page waits.
 fn redefine_keys_each_frame(screens: &Screens) -> Result<Flow, Refused> {
-    if screens.entry.redefining_key.is_set() {
+    if screens.entry.read().redefining_key {
         return Ok(Flow::NextFrame);
     }
     Ok(Flow::On)

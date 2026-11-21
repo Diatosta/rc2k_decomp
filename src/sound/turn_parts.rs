@@ -12,9 +12,9 @@ use crate::errors::Refused;
 use crate::sound::owner::Sound;
 use crate::sound::sets_store::SoundRequest;
 
-/// The request: the sound command's words.
-pub fn request(sound: &Sound) -> &SoundRequest {
-    sound.race.request.get()
+/// The request: the sound command's words, borrowed for the turn part that works with it.
+pub fn request(sound: &Sound) -> std::cell::RefMut<'_, SoundRequest> {
+    sound.race.request.get().borrow_mut()
 }
 
 pub use crate::sound::play_sound::play_sound_in as play;
@@ -26,16 +26,16 @@ pub fn stop(request: &SoundRequest, audio: &Audio) -> Result<(), Refused> {
 }
 
 /// `sound::play_placed_sound` with the request.
-pub fn placed(request: &SoundRequest, sound: &Sound, audio: &Audio) -> Result<(), Refused> {
-    Ok(crate::sound::play_placed_sound::play_placed_sound_in_game(
+pub fn placed(request: &mut SoundRequest, sound: &Sound, audio: &Audio) -> Result<(), Refused> {
+    Ok(crate::sound::play_placed_sound::play_placed_sound(
         request, sound, audio,
     )?)
 }
 
 /// `sound::step_race_clock`: true when a turn is due.
-pub fn step_clock(sound: &Sound, system: &crate::system::owner::System) -> bool {
+pub fn step_clock(sound: &Sound, picture_clock: &crate::clock::tick_count::PictureClock) -> bool {
     crate::sound::race_clock::step_race_clock(
-        crate::system::tick_count::tick_count(&system.session.picture_clock),
+        crate::clock::tick_count::tick_count(picture_clock),
         sound,
     )
 }

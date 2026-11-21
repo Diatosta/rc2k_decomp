@@ -6,8 +6,7 @@
 //! `scene::set_up_engine`, `scene::set_up_front_end_scene` and `scene::set_up_engine`. In every
 //! case the pending key is taken last (`input::take_key`).
 //!
-//! `viewer_fonts_built` is never cleared: a 1999 slip kept as is. Called by
-//! `race::replay_viewer`, `race::viewer_action` (0x14) and `race::choose_save_slot`.
+//! `viewer_fonts_built` is never cleared: a 1999 slip kept as is.
 
 use crate::errors::Refused;
 use crate::owners::Owners;

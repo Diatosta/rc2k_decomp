@@ -1,25 +1,27 @@
 //! Draws the race frame, between the scene's begin and end. In turn: the cars shown are chosen
 //! (`drive::choose_shown_cars`), `view_cleared` cleared and the two view blocks' option bits
-//! (+0x220) copied into `hud_flags` and the next dword (each 0 while its `view_on` flag is 0); the
-//! batches' counts, `whole_polygon_count` and the next, `cars_drawn` and `cars_culled` are set to
-//! 0; bit 1 of `refresh_flags_a` goes into `marks_mask`, bit 0 of `refresh_flags_b` into
+//! `option_bits` copied into `hud_flags` and the next dword (each 0 while its `view_on` flag is 0);
+//! the batches' counts, `cars_drawn` and `cars_culled` are set
+//! to 0; bit 1 of `refresh_flags_a` goes into `marks_mask`, bit 0 of `refresh_flags_b` into
 //! `lamps_mask`, bit 6 of the first view's flags into `flat`; `mirror_wanted` is the first view
-//! block's flag (+0x6F0) when `blit_cleared` is not 0, else 0; `d3d_drawing_on` is 1. Then the
-//! sound tick 0xA, `shine` from `shine_from`, the filters and five render states (0x15 = 4, 0x1C =
-//! 1, 0x13 = 5, 0x14 = 6, 0x1B = 1). Then the sound tick 0xB, one more `frames_drawn`, the clock
-//! restarted into `clock_base`, the full view's window, the cars' parts readied, the maps
-//! scrolled; `texture_changes` 0, the views' textures forgotten, the mud's frame; the kinds'
-//! textures assigned (`kind_textures_done` 0), the two textures of the panel's `lights` entries
-//! (unless -1) wanted in kind 0xDC's first slot and the next; the places mapped, the slots'
-//! textures loaded; the sound tick 0xC; the panel set up unless `no_place`. Then the views: one
-//! (`views` 1: car A's, the scene, ticks 0xD and 0xE around `d3d::copy_screen_to_texture`, the
-//! overlays, tick 0xF, the mirror if the view's flags have bit 3), or two halves (`split` 1 side
-//! by side, else one above the other), each with its window (`view_size`, `view_zoom`,
-//! `scene::set_view_window`), its car, the scene, tick 0xD, the overlays, tick 0xF and its mirror.
-//! Last: the first car loaded, both batches flushed, the sound spots found and shared, the parts'
-//! sounds woken, the sound tick 0x10, render states 0x11 and 0x12 = 2; the HUD's pass unless
-//! `in_credits` or `no_place`; the sound tick 0x11, the skidmarks laid, the name plates; the tyre
-//! change screen unless `replay_mode` is 2.
+//! block's `camera_mode_is_2_or_3` flag when `precipitation_range` is not 0, else 0;
+//! `d3d_drawing_on` is 1. Then the sound tick 0xA, `shine` from `shine_from`, the filters and five
+//! render states (0x15 = 4, 0x1C = 1, 0x13 = 5, 0x14 = 6, 0x1B = 1). Then the sound tick 0xB, the
+//! clock restarted into `clock_base`, the full view's window, the cars'
+//! parts readied, the maps scrolled; `texture_changes` 0, the views' textures forgotten, the mud's
+//! frame; the kinds' textures assigned (`kind_textures_done` 0), the two textures of the panel's
+//! `lights` entries (unless -1) wanted in kind 0xDC's first slot and the next; the places mapped,
+//! the slots' textures loaded; the sound tick 0xC; the panel set up unless `no_place`. Then the
+//! views: one (`views` 1: car A's, the scene, ticks 0xD and 0xE around
+//! `d3d::copy_screen_to_texture`, the overlays, tick 0xF, the mirror if the view's flags have bit
+//! 3), or two halves (`split` 1 side by side, else one above the other; with three or four players
+//! each player's part of the layout chosen with the split key, `race::split_layout`, and no
+//! mirrors), each with its window (`view_size`, `view_zoom`, `scene::set_view_window`), its car,
+//! the scene, tick 0xD, the overlays, tick 0xF and its mirror. Last: the first car loaded, both
+//! batches flushed, the sound spots found and shared, the parts' sounds woken, the sound tick 0x10,
+//! render states 0x11 and 0x12 = 2; the HUD's pass unless `in_credits` or `no_place`; the sound
+//! tick 0x11, the skidmarks laid, the name plates; the tyre change screen unless `replay_mode` is
+//! 2.
 //!
 //! Refused (before anything): a null view block, and a wanted texture's slot past
 //! the 0x400 slots; then what its steps refuse.
@@ -51,7 +53,6 @@ struct Owners<'a> {
     system: &'a crate::system::owner::System,
     net: &'a crate::net::owner::Net,
     sound: &'static crate::sound::owner::Sound,
-    audio: &'static crate::audio::owner::Audio,
     input: &'static crate::input::owner::Input,
 }
 
@@ -69,20 +70,27 @@ impl<'a> Owners<'a> {
 
 /// Whether the view with `flags` has its mirror (the flags' bit 3).
 fn mirrored(race: &Race, flags: usize) -> bool {
-    race.frame.panel_and_overlay.get().panel.hud_flags[flags].get() & 8 != 0
-        || crate::race::draw_mirror_view::always()
+    // A split screen of more than two players has no mirrors: their slots are the players' views.
+    if race
+        .frame
+        .many_views
+        .load(std::sync::atomic::Ordering::Relaxed)
+    {
+        return false;
+    }
+    race.frame.panel.borrow().hud_flags[flags] & 8 != 0 || crate::race::draw_mirror_view::always()
 }
 
 /// View `car`'s car loaded into its own state (`frame::load_view_car`).
 fn load_car(
     race: &Race,
-    scratch: &crate::scene::workers::DrawingScratch,
+    scratch: &crate::scene::scratch_store::DrawingScratch,
     car: usize,
 ) -> Result<(), Refused> {
     crate::race::frame::load_view_car(
         race.shared.work.get(),
         race.shared.car_blocks(),
-        race.shared.view.get(),
+        race.shared.view.get().into(),
         car,
         scratch.main_view(car),
     )
@@ -92,7 +100,7 @@ fn load_car(
 /// work of `view`, a player's scene's slot or its mirror's.
 fn fetch_value(
     race: &Race,
-    race_view: &crate::race::view_store::RaceView,
+    race_view: crate::race::view_store::DrawnViewRef<'_>,
     view: &ViewScratch,
 ) -> Result<(), Refused> {
     crate::race::frame_draw::fetch_view_value(
@@ -137,14 +145,11 @@ fn view_rest(
 ) -> Result<(), Refused> {
     let view = o.scene.scratch.main_view(car);
     // The overlays (the effects, the HUD's quads) draw in the front end's window: the view's.
-    {
-        use crate::memory::cells::Cells;
-        o.scene
-            .scratch
-            .front_end_polygon()
-            .window
-            .copy_from(&view.polygon.window);
-    }
+    o.scene
+        .scratch
+        .front_end_polygon()
+        .window
+        .copy_from(&view.polygon.window);
     // The debug UI's probe points need this view.
     if car == 0 {
         crate::debug::imgui_sdl::view_drawn(&o.race.frame, o.scene);
@@ -196,13 +201,11 @@ fn view_mirror(
 }
 
 /// What view `car`'s scene (or with `mirror` its mirror) hands on, applied on the game's thread
-/// once it is drawn, in the views' order: its value into its block, and for the first player's
-/// scene the race's reverb.
+/// once it is drawn, in the views' order: its value into its block.
 fn view_drawn(
     race: &Race,
     scene: &Scene,
     system: &System,
-    audio: &crate::audio::owner::Audio,
     car: usize,
     mirror: bool,
 ) -> Result<(), Refused> {
@@ -227,9 +230,6 @@ fn view_drawn(
         );
     }
     output.store_view_value(race)?;
-    if car == 0 && !mirror {
-        output.publish_environment(audio);
-    }
     Ok(())
 }
 
@@ -248,14 +248,18 @@ fn draw_view(
     load_car(o.race, &o.scene.scratch, car)?;
     fetch_value(
         o.race,
-        o.race.shared.view.get(),
+        o.race.shared.view.get().into(),
         o.scene.scratch.main_view(car),
     )?;
-    fetch_value(
-        o.race,
-        o.race.shared.view.get(),
-        o.scene.scratch.mirror(car),
-    )?;
+    // Only the first two players have mirrors (a third's and fourth's slots hold their views).
+    let has_mirror = car < 2;
+    if has_mirror {
+        fetch_value(
+            o.race,
+            o.race.shared.view.get().into(),
+            o.scene.scratch.mirror(car),
+        )?;
+    }
     // One after another on the game's thread: on its part's scratch, the stores read from their
     // owners.
     let part = o.scene.scratch.game_scratch();
@@ -273,11 +277,11 @@ fn draw_view(
             filter_input(&o.scene.scratch, car),
             reads(),
         )?;
-        view_drawn(o.race, o.scene, o.system, o.audio, car, false)?;
+        view_drawn(o.race, o.scene, o.system, car, false)?;
         view_rest(o, gfx, effects, cheats, car, blit)
     };
     let mirror = || view_mirror(o, car, run(o.scene.scratch.mirror(car)), reads());
-    if !mirrored(o.race, flags) {
+    if !has_mirror || !mirrored(o.race, flags) {
         if crate::scene::workers::car_part_wanted() {
             // The view as a part of its own, for its car to be drawn aside (`race::car_part`).
             let filter = filter_input(&o.scene.scratch, car);
@@ -286,17 +290,17 @@ fn draw_view(
                 &[car],
                 |run, reads| view_scene(o, run, filter, reads),
                 |_| {
-                    view_drawn(o.race, o.scene, o.system, o.audio, car, false)?;
+                    view_drawn(o.race, o.scene, o.system, car, false)?;
                     view_rest(o, gfx, effects, cheats, car, blit)
                 },
             );
         }
         return view();
     }
-    // The mirror drawn beside its view's scene (`scene::workers::draw_beside`, `scene::workers::mirror_beside`),
-    // each on its own state (`race::view_scratch`), the view's overlays once both have ended (they
-    // crumple the cars' points, which the mirror reads), the mirror's changes to the stores they
-    // share put over theirs as when drawn after them.
+    // The mirror drawn beside its view's scene (`scene::workers::draw_beside`,
+    // `scene::workers::mirror_beside`), each on its own state (`race::view_scratch`), the view's
+    // overlays once both have ended (they crumple the cars' points, which the mirror reads), the
+    // mirror's changes to the stores they share put over theirs as when drawn after them.
     if crate::scene::workers::mirror_beside() {
         // (The front end's filter switches are read before the parts, on the game's thread.)
         let filter = filter_input(&o.scene.scratch, car);
@@ -306,15 +310,15 @@ fn draw_view(
             |run, reads| view_scene(o, run, filter, reads),
             |run, reads| view_mirror(o, car, run, reads),
             || {
-                view_drawn(o.race, o.scene, o.system, o.audio, car, false)?;
+                view_drawn(o.race, o.scene, o.system, car, false)?;
                 view_rest(o, gfx, effects, cheats, car, blit)
             },
-            || view_drawn(o.race, o.scene, o.system, o.audio, car, true),
+            || view_drawn(o.race, o.scene, o.system, car, true),
         );
     }
     view()?;
     mirror()?;
-    view_drawn(o.race, o.scene, o.system, o.audio, car, true)
+    view_drawn(o.race, o.scene, o.system, car, true)
 }
 
 /// A piece of the players' views drawn beside each other: a player's scene or its mirror.
@@ -324,15 +328,16 @@ enum Piece {
     Mirror(usize),
 }
 
-/// The `players` players' views and their mirrors beside each other (`scene::workers::draw_side_by_side`):
-/// the first player's scene on the game's thread, its mirror and every other player's scene and
-/// mirror each on a drawing thread, every part from the frame's state with its player's part of the
-/// screen set up (`player`). Then, once all have ended, in the order the views are drawn in, the
-/// parts' changes put back and each player's overlays drawn between its scene and its mirror, on
-/// its scene's window and what the scene left (`race::scene_hand_off`): no overlays while a scene
-/// draws (they crumple the cars' points). So every view's scene starts from the frame's state, not
-/// from what the views before it left (the wake counts, the cars' crumpling and the sun the
-/// overlays work out reach the other views a frame later, however many threads draw).
+/// The `players` players' views and their mirrors beside each other
+/// (`scene::workers::draw_side_by_side`): the first player's scene on the game's thread, its mirror
+/// and every other player's scene and mirror each on a drawing thread, every part from the frame's
+/// state with its player's part of the screen set up (`player`). Then, once all have ended, in the
+/// order the views are drawn in, the parts' changes put back and each player's overlays drawn
+/// between its scene and its mirror, on its scene's window and what the scene left
+/// (`race::scene_hand_off`): no overlays while a scene draws (they crumple the cars' points). So
+/// every view's scene starts from the frame's state, not from what the views before it left (the
+/// wake counts, the cars' crumpling and the sun the overlays work out reach the other views a frame
+/// later, however many threads draw).
 fn draw_players_beside(
     o: Owners<'_>,
     gfx: &crate::gfx::owner::Gfx,
@@ -347,7 +352,7 @@ fn draw_players_beside(
     let own = |p: usize,
                view: &ViewScratch,
                window: Option<crate::scene::workers::DrawReads<'_>>,
-               race_view: &crate::race::view_store::RaceView| {
+               race_view: crate::race::view_store::DrawnViewRef<'_>| {
         player(p as u32, view, window);
         fetch_value(o.race, race_view, view)
     };
@@ -392,14 +397,70 @@ fn draw_players_beside(
                 p,
                 o.scene.scratch.main_view(p),
                 None,
-                o.race.shared.view.get(),
+                o.race.shared.view.get().into(),
             )?;
             o.scene.scratch.main_view(p).hand_off.put(o.race);
-            view_drawn(o.race, o.scene, o.system, o.audio, p, false)?;
+            view_drawn(o.race, o.scene, o.system, p, false)?;
             view_rest(o, gfx, effects, cheats, p, false)
         }
-        Piece::Mirror(p) => view_drawn(o.race, o.scene, o.system, o.audio, p, true),
+        Piece::Mirror(p) => view_drawn(o.race, o.scene, o.system, p, true),
     })
+}
+
+/// The slots the panel's extra light textures are wanted in must exist.
+fn check_light_texture_slots(race: &Race, scene: &Scene) -> Result<(), Refused> {
+    let lights = race.frame.panel.borrow().lights;
+    for (k, extra) in lights.iter().map(|l| l.lit).enumerate() {
+        if extra != u32::MAX && scene.textures.kinds.borrow().kind_first_slots[220 + k] >= SLOTS {
+            return Err(BadInput("a wanted texture's slot past g_slotWantedTextures").into());
+        }
+    }
+    Ok(())
+}
+
+/// The hud flags of the views: the first views take their car's option bits (`blocks`), the
+/// further views of a split screen their own player's car's (none past the views shown), and a
+/// view that is off has none.
+fn set_hud_flags(race: &Race, blocks: &[usize], views: u32) -> Result<(), Refused> {
+    for (n, block) in blocks.iter().copied().enumerate().take(4) {
+        let bits = race.frame.cars.car(block)?.option_bits.get();
+        race.frame.panel.borrow_mut().hud_flags[n] = bits;
+    }
+    {
+        for n in 2..4 {
+            if (n as u32) < views {
+                let block = race.shared.view.get().view_number(n)?;
+                let bits = race.frame.cars.car(block)?.option_bits.get();
+                race.frame.panel.borrow_mut().hud_flags[n] = bits;
+            } else {
+                race.frame.panel.borrow_mut().hud_flags[n] = 0;
+            }
+        }
+    }
+    for (n, on) in race.shared.view.get().view_on.iter().enumerate().take(4) {
+        if on.get() == 0 {
+            race.frame.panel.borrow_mut().hud_flags[n] = 0;
+        }
+    }
+    Ok(())
+}
+
+/// Each panel light's texture put in its wanted slot.
+fn assign_light_textures(race: &Race, scene: &Scene) -> Result<(), Refused> {
+    let lights = race.frame.panel.borrow().lights;
+    for (k, extra) in lights.iter().map(|l| l.lit).enumerate() {
+        let texture = extra;
+        if texture != u32::MAX {
+            let slot = scene.textures.kinds.borrow().kind_first_slots[220 + k];
+            *scene
+                .texture_places_mut()
+                .slot_wanted
+                .get_mut(slot as usize)
+                .ok_or(BadInput("a slot past the texture places' slots"))? =
+                texture.wrapping_add(scene.textures.first_textures()[220]);
+        }
+    }
+    Ok(())
 }
 
 /// Draws the race frame (see the header).
@@ -411,7 +472,6 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         system,
         net: o.net,
         sound: o.sound,
-        audio: o.audio,
         input,
     };
     let frame = &race.frame;
@@ -419,129 +479,72 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     let part = o.scene.scratch.game_scratch();
     use crate::scene::set_render_state::set_render_state;
     use crate::sound::race_sound_tick::race_sound_tick;
+    // Declared before the snapshot: the blend is in the blocks while the snapshot is taken and
+    // until the drawing is over.
+    let blended = crate::race::blend::Blended::new(race);
     let _cars = crate::race::frame_view::Held::take(race);
     let blocks = view_blocks(&race.shared)?;
-    for (k, extra) in race
-        .frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .lights
-        .iter()
-        .map(|l| &l.lit)
-        .enumerate()
-    {
-        if extra.get() != u32::MAX
-            && scene.textures.kinds.get().kind_first_slots[220 + k].get() >= SLOTS
-        {
-            return Err(BadInput("a wanted texture's slot past g_slotWantedTextures").into());
-        }
-    }
+    check_light_texture_slots(race, scene)?;
     crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
-    crate::memory::session::write_bits(&race.shared.view.get().view_cleared, [0u32; 0x20]);
-    for (flags, block) in race
-        .frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .hud_flags
-        .iter()
-        .zip(blocks)
-    {
-        flags.set(race.frame.cars.car(block)?.option_bits.get());
-    }
-    for (flags, on) in race
-        .frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .hud_flags
-        .iter()
-        .zip(&race.shared.view.get().view_on)
-    {
-        if on.get() == 0 {
-            flags.set(0);
+    // The split screen's further views show their own player's car; each is on.
+    let views = race.shared.view.get().views.get();
+    race.frame
+        .many_views
+        .store(views > 2, std::sync::atomic::Ordering::Relaxed);
+    if views > 2 {
+        // A view slot that was a mirror in an earlier race keeps its mirror flag: the players'
+        // views are never mirrors, or the camera looks back from the car.
+        for view in 0..views as usize {
+            o.scene
+                .scratch
+                .main_view(view)
+                .polygon
+                .scalars
+                .borrow_mut()
+                .view_mirrored = 0;
         }
     }
-    // The polygon counts of the four views' slots (read by none).
-    for view in [
-        o.scene.scratch.main_view(0),
-        o.scene.scratch.main_view(1),
-        o.scene.scratch.mirror(0),
-        o.scene.scratch.mirror(1),
-    ] {
-        view.object.split_polygon_count.set(0);
-        view.object.whole_polygon_count.set(0);
-    }
-    for cell in [
-        &race.frame.draw_batches().plain_word,
-        &race.frame.draw_batches().plain_count,
-        &race.frame.draw_batches().textured_word,
-        &race.frame.draw_batches().textured_count,
-    ] {
-        cell.set(0);
-    }
-    // `cars_drawn`, now counted in each view's own state.
+    set_hud_flags(race, &blocks, views)?;
+    // `cars_drawn` is counted in each view's own state.
     for slot in [
         o.scene.scratch.main_view(0),
         o.scene.scratch.main_view(1),
         o.scene.scratch.mirror(0),
         o.scene.scratch.mirror(1),
     ] {
-        slot.cars.cars_drawn.set(0);
+        slot.cars.borrow_mut().cars_drawn = 0;
     }
-    scene
-        .lights
-        .work
-        .get()
-        .marks_mask
-        .set((race.course.stage_prefs.get().refresh_flags_a.get() & 2) >> 1);
-    scene
-        .lights
-        .work
-        .get()
-        .lamps_mask
-        .set(race.course.stage_prefs.get().refresh_flags_b.get() & 1);
-    race.frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .flat
-        .set(race.frame.panel_and_overlay.get().panel.hud_flags[0].get() & 0x40);
-    race.frame.frame_work.get().mirror_wanted.set(false);
-    if race.course.stage_prefs.get().blit_cleared[0].get()
-        | race.course.stage_prefs.get().blit_cleared[1].get()
+    scene.light_work_mut().marks_mask = (race.course.stage_prefs.borrow().refresh_flags_a & 2) >> 1;
+    scene.light_work_mut().lamps_mask = race.course.stage_prefs.borrow().refresh_flags_b & 1;
+    let value = race.frame.panel.borrow().hud_flags[0] & 0x40;
+    race.frame.panel.borrow_mut().flat = value;
+    race.frame.frame_work.borrow_mut().mirror_wanted = false;
+    if race.course.stage_prefs.borrow().precipitation_range[0]
+        | race.course.stage_prefs.borrow().precipitation_range[1]
         != 0
     {
-        race.frame
-            .frame_work
-            .get()
-            .mirror_wanted
-            .set(race.frame.cars.car(blocks[0])?.camera_mode_is_2_or_3.get() != 0);
+        let wanted = race.frame.cars.car(blocks[0])?.camera_mode_is_2_or_3.get() != 0;
+        race.frame.frame_work.borrow_mut().mirror_wanted = wanted;
     }
-    scene.objects.tables.get().d3d_drawing_on.set(1);
+    scene.objects.tables.borrow_mut().d3d_drawing_on = 1;
     // The frame's one sound turn (`sound::race_turn`, when 20 ms of the scene clock have passed
     // since the last): the clock moves only here (`restart_clock` above and in `show_frame` after
     // the present), so it is due at most once a frame. It hears the previous frame's sound spots.
     let begun = crate::debug::timing::start();
     race_sound_tick(frame, o)?;
     crate::debug::timing::stop(crate::debug::timing::Stage::SoundTick, begun);
-    // `shine` from `shine_from`: each view's from it now (`race::draw_view_scene`).
+    // `shine` from `shine_from`: each view's from it (`race::draw_view_scene`).
     crate::scene::set_filters::set_filters(race, part);
     for (value, state) in [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)] {
         set_render_state(part, value, state);
     }
-    race.physics
-        .ground()
-        .frames_drawn
-        .set(race.physics.ground().frames_drawn.get().wrapping_add(1));
     race.shared
         .view
         .get()
         .clock_base
         .set(crate::scene::restart_clock::restart_clock(
             &race.shared,
-            crate::system::tick_count::tick_count(&system.session.picture_clock),
+            crate::clock::tick_count::tick_count(&system.session.picture_clock),
         ));
     // The window of the whole screen: the front end's (the loading bar, the HUD, the effects) and
     // the views' (a view's own is set again before it is drawn).
@@ -552,45 +555,32 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     ] {
         crate::race::frame_views::full_view_window(race, scene, system, window);
     }
+    if views > 2 {
+        for view in 2..views as usize {
+            crate::race::frame_views::full_view_window(
+                race,
+                scene,
+                system,
+                &o.scene.scratch.main_view(view).polygon.window,
+            );
+        }
+    }
     // The level's draw distance and fog settings, once for the frame: the views and the mirrors
     // only read them.
     crate::race::frame_draw::draw_distance_settings(&race.course);
     crate::race::car_parts::ready_car_parts(race, scene)?;
-    crate::race::map_scroll::scroll_maps(race, scene, o.gfx, &o.net.race_slot)?;
-    race.frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .texture_changes
-        .set(0);
-    crate::race::frame_views::forget_view_textures(race, scene, input, system, o.gfx)?;
+    blended.at_the_tick(|| {
+        crate::race::map_scroll::scroll_maps(race, scene, o.gfx, &o.net.race_slot)
+    })?;
+    race.frame.panel.borrow_mut().texture_changes = 0;
+    crate::race::frame_views::forget_view_textures(race, scene, system, o.gfx)?;
     crate::race::mud_frame::mud_frame(race, scene, o.gfx, o.system)?;
-    race.frame.frame_work.get().kind_textures_done.set(0);
+    race.frame.frame_work.borrow_mut().kind_textures_done = 0;
     crate::scene::assign_kind_textures::assign_kind_textures(scene)?;
-    for (k, extra) in race
-        .frame
-        .panel_and_overlay
-        .get()
-        .panel
-        .lights
-        .iter()
-        .map(|l| &l.lit)
-        .enumerate()
-    {
-        let texture = extra.get();
-        if texture != u32::MAX {
-            let slot = scene.textures.kinds.get().kind_first_slots[220 + k].get();
-            crate::scene::texture_places_store::cell_at(
-                scene.textures.places.get(),
-                crate::scene::texture_places_store::PlacesTable::SlotWanted,
-                slot,
-            )?
-            .set(texture.wrapping_add(scene.textures.kinds.get().kind_first_textures[220].get()));
-        }
-    }
+    assign_light_textures(race, scene)?;
     crate::scene::map_texture_places::map_texture_places(scene);
-    crate::scene::load_slot_textures::load_slot_textures_in_game(&race.frame, scene)?;
-    if race.replay.finish.get().no_place.get() == 0 {
+    crate::scene::load_slot_textures::load_slot_textures(&race.frame, scene)?;
+    if race.replay.no_place() == 0 {
         crate::race::frame_draw::set_up_panel(race)?;
     }
     if race.shared.view.get().views.get() == 1 {
@@ -606,6 +596,12 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         )?;
     } else {
         let side_by_side = race.shared.vars.get().split.get() == 1;
+        // The views' parts of the screen: the two players' split, or the layout chosen for more.
+        let split = if views > 2 {
+            rc2k_core::race::view::Split::many(views, crate::race::split_layout::index())
+        } else {
+            rc2k_core::race::view::Split::of(2, side_by_side)
+        };
         // A player's half of the screen. (The store's drawn view is set on the game thread only:
         // the parts read their slot's, `ViewScratch::drawn_view`.) With `reads` (the drawing stores
         // as the caller reads them) the view's window set; without, nothing.
@@ -620,25 +616,28 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
             let own = &scratch.polygon.window;
             let (w, h) = (reads.screen.width.get(), reads.screen.height.get());
             // (width, x, height, y).
-            if side_by_side {
-                own.view_size[0].set(w >> 1);
-                own.view_offset[0].set(if view == 0 { 0 } else { w >> 1 });
-                own.view_size[1].set(h);
-                own.view_offset[1].set(0);
-            } else {
-                own.view_size[0].set(w);
-                own.view_offset[0].set(0);
-                own.view_size[1].set(h >> 1);
-                own.view_offset[1].set(if view == 0 { 0 } else { h >> 1 });
+            let Some(part) = split.and_then(|split| split.part_of(views, view, (w, h))) else {
+                return;
+            };
+            {
+                let mut own = own.borrow_mut();
+                own.view_size = [part.width, part.height];
+                own.view_offset = [part.x, part.y];
+                own.view_zoom = 0x100;
             }
-            own.view_zoom.set(0x100);
             crate::scene::set_view_window::set_view_window_plain(
                 reads.course(),
-                reads.scene_draw,
-                reads.screen,
+                &reads.scene_draw,
+                // The projection's scale follows the part's own shape when the screen holds more
+                // than two (a wide part keeps the vertical field of view of a 4:3 one).
+                if views > 2 {
+                    (part.width, part.height)
+                } else {
+                    (w, h)
+                },
                 own,
                 &reads.view_and_records.view_vars,
-                &reads.vars.scale_factor,
+                &crate::race::vars_store::SCALE_FACTOR,
             );
         };
         if crate::scene::workers::players_beside() {
@@ -647,11 +646,11 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
                 o.gfx,
                 o.race.effects.get(),
                 &o.menus.play.cheats,
-                2,
+                views.clamp(2, 4) as usize,
                 &player,
             )?;
         } else {
-            for view in 0..2u32 {
+            for view in 0..views.clamp(2, 4) {
                 race.shared.view.get().drawn_view.set(view);
                 player(
                     view,
@@ -673,17 +672,17 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         }
     }
     crate::race::frame_views::load_first_car(&race.shared)?;
-    use crate::race::frame_flush::{flush_batch, plain, textured};
-    flush_batch(o.scene, part, &race.frame, &plain(&race.frame), false)?;
-    flush_batch(o.scene, part, &race.frame, &textured(&race.frame), true)?;
+    use crate::race::frame_flush::flush_batch;
+    flush_batch(o.scene, part, false);
+    flush_batch(o.scene, part, true);
     crate::race::frame_draw::share_sound_spots(race, o.sound)?;
     crate::race::frame_draw::wake_part_sounds(race, o.sound)?;
     for state in [0x11, 0x12] {
         set_render_state(part, 2, state);
     }
-    if !race.shared.work.get().in_credits.is_set() && race.replay.finish.get().no_place.get() == 0 {
+    if !race.shared.work.get().in_credits.is_set() && race.replay.no_place() == 0 {
         crate::hud::overlay_pass::overlay_pass(
-            race.hud.get(),
+            &mut race.hud.get().borrow_mut(),
             race,
             o.system,
             o.scene,
@@ -699,8 +698,9 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         o.gfx,
         o.strings,
     )?;
-    if race.course.numbers.get().replay_mode.get() != 2 {
+    crate::race::part_notices::take_asked(race);
+    if race.course.replay_mode() != 2 {
         crate::drive::tyre_change_screen::tyre_change_screen(race, input, system, scene)?;
     }
-    Ok(())
+    blended.finish(scene)
 }

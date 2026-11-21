@@ -5,10 +5,6 @@ use crate::audio::own::AudioOwn;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
-pub fn a3d(state: &AudioOwn) -> bool {
-    state.use_a3d.get() == 1
-}
-
 /// The volume table's entry `n`, for the core.
 pub fn volumes(state: &AudioOwn, n: u32) -> u32 {
     state.volume_table[n as usize].get()
@@ -23,10 +19,7 @@ fn buffer(v: &Voice) -> Result<u32, Refused> {
 
 /// `SetVolume` with the volume table at `volume * volume_factor >> 6` (signed). Returns the result
 /// code.
-pub fn set_buffer_volume(state: &AudioOwn, v: &Voice) -> Result<i32, Refused> {
-    if a3d(state) {
-        return Err(BadInput("A3D (0x40CEFE)").into());
-    }
+pub(super) fn set_buffer_volume(state: &AudioOwn, v: &Voice) -> Result<i32, Refused> {
     let level =
         rc2k_core::audio::levels::buffer_volume(v.volume, v.volume_factor, |n| volumes(state, n))?;
     let b = buffer(v)?;
@@ -35,12 +28,9 @@ pub fn set_buffer_volume(state: &AudioOwn, v: &Voice) -> Result<i32, Refused> {
 
 /// `SetPan`, nothing in 3D: a pan below 0 is the volume table's `pan + 0x40`, else minus its
 /// `0x40 - pan`. Returns the result code, or `None` where the call is not made.
-pub fn set_buffer_pan(state: &AudioOwn, v: &Voice) -> Result<Option<i32>, Refused> {
+pub(super) fn set_buffer_pan(state: &AudioOwn, v: &Voice) -> Result<Option<i32>, Refused> {
     if state.sound_mode.get() & MODE_3D != 0 {
         return Ok(None);
-    }
-    if a3d(state) {
-        return Err(BadInput("A3D (`nullsub_45`)").into());
     }
     let value = rc2k_core::audio::levels::pan(v.pan, |n| volumes(state, n))?;
     let b = buffer(v)?;
@@ -48,10 +38,7 @@ pub fn set_buffer_pan(state: &AudioOwn, v: &Voice) -> Result<Option<i32>, Refuse
 }
 
 /// `SetFrequency` with the frequency shifted right by the format's halvings.
-pub fn set_buffer_frequency(state: &AudioOwn, v: &Voice) -> Result<i32, Refused> {
-    if a3d(state) {
-        return Err(BadInput("A3D (0x40CEC5)").into());
-    }
+pub(super) fn set_buffer_frequency(v: &Voice) -> Result<i32, Refused> {
     let b = buffer(v)?;
     let frequency = rc2k_core::audio::levels::buffer_frequency(v.frequency, v.format);
     Ok(crate::platform::sound::set_frequency(b, frequency))

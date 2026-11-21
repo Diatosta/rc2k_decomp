@@ -19,15 +19,15 @@ pub fn frozen() -> bool {
 }
 
 /// The race frozen or let go.
-pub fn set_frozen(on: bool) {
+pub(super) fn set_frozen(on: bool) {
     FROZEN.store(on as u32, Ordering::Relaxed);
-    crate::logfile::program_log::log(&format!("debug: race frozen {}", on as u32));
+    crate::program_log::log(&format!("debug: race frozen {}", on as u32));
 }
 
 /// Ctrl+F11 (`platform`, from the window's events).
 pub fn toggle_ui() {
     let open = crate::debug::imgui_sdl::toggle();
-    crate::logfile::program_log::log(&format!(
+    crate::program_log::log(&format!(
         "debug: the UI {}",
         if open { "shown" } else { "hidden" }
     ));

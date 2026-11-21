@@ -30,7 +30,7 @@ pub fn repair_car_in(menus: &Menus) -> Result<(), BadInput> {
 pub fn repair_car_of(play: &Play, screens: &Screens) -> Result<(), BadInput> {
     play.slots
         .records
-        .get(screens.event.current_player.get() as usize)
+        .get(screens.event.read().current_player as usize)
         .ok_or(BadInput(
             "no current player object: the original writes through null",
         ))?

@@ -10,28 +10,29 @@ use crate::race::owner_shared::RaceShared;
 use rc2k_core::drive::controls::{BRAKE_KEY, THROTTLE_KEY, handbrake, pedal};
 
 /// One pedal: by the keys' `bit`, stepped from `input`, or set to it.
-fn step_pedal(shared: &RaceShared, bit: u32, input: &impl DwordLike, at: &impl DwordLike) {
+fn step_pedal(shared: &RaceShared, bit: u32, input: u32, at: &impl DwordLike) {
     at.set(pedal(
         shared.car().input_keys.get() & bit != 0,
-        input.get(),
+        input,
         at.get(),
     ));
 }
 
 pub fn pedal_inputs(race: &Race) {
+    let inputs = race.shared.run().gear_inputs;
     step_pedal(
         &race.shared,
         THROTTLE_KEY,
-        &race.shared.physics_tables.get().input_throttle,
+        inputs.first,
         &race.shared.car().throttle,
     );
     step_pedal(
         &race.shared,
         BRAKE_KEY,
-        &race.shared.physics_tables.get().input_brake,
+        inputs.second,
         &race.shared.car().brake,
     );
-    let hand = race.shared.physics_tables.get().input_handbrake.get();
+    let hand = inputs.hold;
     race.shared
         .car()
         .handbrake

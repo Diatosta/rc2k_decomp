@@ -3,24 +3,31 @@
 //! `axle_slips[0]` + `axle_slips[1]`, `force_sums[3]` = the y forces of force records 6 .. 9,
 //! `force_sums[4]` = those of records 0 .. 4 (the records `physics::clear_forces` clears). The
 //! step's forces summed, over gravity (so in g).
-//!
-//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87::sum_over;
 use crate::physics::tables_store::PhysicsTables;
+use crate::physics::wheel_work::WheelWork;
+use crate::race::numbers_store::Numbers;
+use std::cell::RefCell;
 
 /// The exact x87 version, for `physics::car_physics_step`.
-pub fn sum_forces(tables: &PhysicsTables) {
+pub fn sum_forces(numbers: &Numbers, tables: &PhysicsTables, work: &RefCell<WheelWork>) {
     let g = tables.gravity.get();
-    let dt = tables.step_time.get();
+    let dt = numbers.step_time.get();
     let up = |k: usize| tables.forces[k].force[1].get();
-    let sums = &tables.force_sums;
-    sums[0].set(sum_over(&[tables.drive_slip[0].get()], &[g, dt]));
-    sums[1].set(sum_over(&[tables.drive_slip[1].get()], &[g, dt]));
-    sums[2].set(sum_over(
-        &[tables.axle_slips[0].get(), tables.axle_slips[1].get()],
-        &[g, dt],
-    ));
-    sums[3].set(sum_over(&[up(6), up(7), up(8), up(9)], &[g]));
-    sums[4].set(sum_over(&[up(0), up(1), up(2), up(3), up(4)], &[g]));
+    let (drive_slip, axle_slips) = {
+        let work = work.borrow();
+        (
+            work.drive_slip.map(f32::from_bits),
+            work.axle_slips.map(f32::from_bits),
+        )
+    };
+    let sums = [
+        sum_over(&[drive_slip[0]], &[g, dt]),
+        sum_over(&[drive_slip[1]], &[g, dt]),
+        sum_over(&[axle_slips[0], axle_slips[1]], &[g, dt]),
+        sum_over(&[up(6), up(7), up(8), up(9)], &[g]),
+        sum_over(&[up(0), up(1), up(2), up(3), up(4)], &[g]),
+    ];
+    work.borrow_mut().force_sums = sums.map(f32::to_bits);
 }

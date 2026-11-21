@@ -11,73 +11,73 @@
 //! eight slots).
 
 use crate::errors::Refused;
-use crate::memory::session::{DwordLike, PlainDword};
 use crate::race::owner::Race;
 use rc2k_core::drive::shown_cars::{ShownCars, ShownSetup};
 
-fn get(v: &[&dyn DwordLike], k: usize) -> u32 {
-    v[k].get()
-}
-
-fn put(v: &[&dyn DwordLike], k: usize, x: u32) {
-    v[k].set(x);
-}
-
-/// On the variables at `v` (`game`'s order).
-pub fn choose_at(v: &[&dyn DwordLike], listed: &[PlainDword]) -> Result<(), Refused> {
+/// Chooses from the race's variables (the views, the players, the replay's layout, the split)
+/// and writes the shown cars, the views' count, the split and the views' blocks.
+fn choose_at(
+    race: &Race,
+    network: bool,
+    listed: &mut [u32; 8],
+    players: &[usize],
+    heard_cars: u32,
+) -> Result<(), Refused> {
+    let (view, vars) = (race.shared.view.get(), race.shared.vars.get());
+    let mut player_cars = [0u32; 8];
+    for (to, &car) in player_cars.iter_mut().zip(players) {
+        *to = car as u32;
+    }
     let setup = ShownSetup {
-        players: get(v, 2),
-        replay_mode: get(v, 4),
-        layout: get(v, 5),
-        network: get(v, 7),
-        local_car: get(v, 8),
+        player_cars,
+        player_count: players.len().min(8) as u32,
+        players: view.players.get(),
+        replay_mode: race.course.replay_mode(),
+        layout: view.view_switch.get(),
+        network: u32::from(network),
+        local_car: view.local_car.get(),
+        heard_cars,
     };
-    let split = get(v, 6);
+    let split = vars.split.get();
     let mut shown = ShownCars {
         split,
         ..ShownCars::default()
     };
     shown.choose(&setup, 0)?;
-    put(v, 0, shown.cars[0]);
-    put(v, 1, shown.cars[1]);
-    put(v, 3, shown.views);
+    view.view_cars[0].set(shown.cars[0]);
+    view.view_cars[1].set(shown.cars[1]);
+    view.views.set(shown.views);
     if shown.split != split {
-        put(v, 6, shown.split);
+        vars.split.set(shown.split);
     }
     // The views' blocks kept by handle (`blocks_store::block_ref`).
     // (the cars are below eight: `choose` refuses a network car above 7)
-    put(v, 9, crate::race::blocks_store::BLOCK_TAG | shown.cars[0]);
-    put(v, 10, crate::race::blocks_store::BLOCK_TAG | shown.cars[1]);
-    for (k, &x) in shown.listed.iter().enumerate() {
-        listed[k].set(x);
-    }
+    view.view_blocks[0].set(crate::race::blocks_store::BLOCK_TAG | shown.cars[0]);
+    view.view_blocks[1].set(crate::race::blocks_store::BLOCK_TAG | shown.cars[1]);
+    *listed = shown.listed;
     Ok(())
-}
-
-/// The variables, in the order the core uses them (`listed_car_sounds` apart).
-fn game<'a>(race: &'a Race, network: &'a PlainDword) -> Vec<&'a dyn DwordLike> {
-    let shared = &race.shared;
-    let cells: [&dyn DwordLike; 11] = [
-        &shared.view.get().view_cars[0],
-        &shared.view.get().view_cars[1],
-        &shared.view.get().players,
-        &shared.view.get().views,
-        &race.course.numbers.get().replay_mode,
-        &shared.view.get().view_switch,
-        &shared.vars.get().split,
-        network,
-        &shared.view.get().local_car,
-        &shared.view.get().view_blocks[0],
-        &shared.view.get().view_blocks[1],
-    ];
-    cells.to_vec()
 }
 
 /// Chooses the shown cars from the race's players, replay layout and network game.
 pub fn choose_shown_cars_in(race: &Race, net: &crate::net::owner::Net) -> Result<(), Refused> {
-    let network = PlainDword::new(u32::from(net.race_slot.is_on()));
-    choose_at(
-        &game(race, &network),
-        &race.frame.frame_work.get().listed_car_sounds,
-    )
+    let network = net.race_slot.is_on();
+    // A replay of the own format names players in its layouts (`rc2k_core::race::replay_v2`).
+    let (players, heard) = if race.viewer_buffers().v2.is_set() {
+        let v2 = race.replay.v2().lock();
+        let ext = v2.ext.as_ref();
+        (
+            ext.map(rc2k_core::race::replay_v2::Extension::player_cars)
+                .unwrap_or_default(),
+            // Only while the sound objects are set up for every car.
+            ext.and_then(rc2k_core::race::replay_v2::Extension::heard_kinds)
+                .filter(|_| crate::race::heard_cars::is_on(&race.shared))
+                .map_or(0, |kinds| kinds.len() as u32),
+        )
+    } else {
+        (Vec::new(), 0)
+    };
+    let mut listed = race.frame.frame_work.borrow().listed_car_sounds;
+    choose_at(race, network, &mut listed, &players, heard)?;
+    race.frame.frame_work.borrow_mut().listed_car_sounds = listed;
+    Ok(())
 }

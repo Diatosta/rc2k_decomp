@@ -5,19 +5,20 @@
 //! (`input::take_key`) into `key_after_play`, `wait_key_release` 1 (keys held), the block shown
 //! held to the last (the index's `block_count` at most, unsigned; then frame 0), `viewer_stopped` 1
 //! (stopped).
-//!
-//! Caller: `race::play_marked`.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-pub fn play_replay_range(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn play_replay_range(
+    race: &Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
     let sound = o.sound;
     let replay = &race.replay;
     use crate::race::race_end;
     crate::drive::replay_frame_marks::replay_frame_marks(race)?;
     if race.viewer_panel().replay_recording.get() != 1 {
-        crate::race::sounds::start_race_sounds(sound, o.audio, o.system)?;
+        crate::race::sounds::start_race_sounds(sound, o.audio, &o.system.session.picture_clock)?;
     }
     crate::race::play_movie::play_movie(race, o)?;
     race_end::reset_race_sounds(&race_end::SoundVars::game(sound), o)?;

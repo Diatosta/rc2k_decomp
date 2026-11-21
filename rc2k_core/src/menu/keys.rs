@@ -49,7 +49,7 @@ pub const IGNORED: u8 = 0x38;
 
 /// The cheats' bit (bit 14) that lets key 0x14 add time, and the time it adds to the service's
 /// budget.
-pub const ADD_TIME_BIT: u32 = 14;
+pub(crate) const ADD_TIME_BIT: u32 = 14;
 pub const ADDED_TIME: u32 = 60;
 
 /// A highlight move.
@@ -110,11 +110,6 @@ pub fn action(key: u8, cheats: impl FnOnce() -> u32) -> Action {
     }
 }
 
-/// Enter's skip-name-entry flag: 1 when the key code's second byte is 4.
-pub fn enter_skips_name_entry(key_code: u32) -> u32 {
-    (key_code >> 8 & 0xFF == 4) as u32
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -132,7 +127,5 @@ mod tests {
         assert_eq!(action(0x14, || 1 << 14), Action::AddTime);
         assert_eq!(action(0x14, || !(1 << 14)), Action::Other);
         assert_eq!(action(0x30, || unreachable!()), Action::Other);
-        assert_eq!(enter_skips_name_entry(0x0000_041C), 1);
-        assert_eq!(enter_skips_name_entry(0x0004_001C), 0);
     }
 }

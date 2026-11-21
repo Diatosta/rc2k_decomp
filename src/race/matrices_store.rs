@@ -1,136 +1,124 @@
-//! The scene's matrices in the race block: the identity, the three turn matrices, the placed /
-//! turned / lit matrices, the view matrices, the object matrices and a scratch area. Most are 4x4
-//! float matrices (64 bytes) passed to the matrix functions in place. One item is 1092 bytes,
-//! taken whole; only its first 64 bytes are used. Plain cells: a drawing store
-//! (`session::DrawShared`), written on the game's thread between frames and read by the drawing
-//! parts through their `scene::workers::DrawReads`.
-//!
+//! The scene's matrices in the race block: the physics' and the car parts' work matrices as a plain
+//! record of values (`SceneMatrices`), and the views' matrices kept for what is drawn or heard
+//! after them (`ViewKept`, plain cells). The matrix functions take and return values
+//! (`scene::matrix::Matrix`); the callers store the results here. The identity and the mirror
+//! work matrix are functions, and the turn and placed matrices, whose unset floats never change,
+//! are the bases the turns start from (`scene::matrix::TURN_X_BASE` ..).
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::session::{DrawPlain, PlainRead};
+use crate::scene::matrix::Matrix;
 
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+/// The matrices the physics and the car's parts work in, as plain values. A plain record
+/// (`session::DrawPlain`): written on the game's thread between frames, and read by the drawing
+/// parts as a copy made when a drawing scope opens (the fourth columns of the turned, lit and
+/// made-object matrices, `scene::view_matrices`).
+#[derive(Clone, Copy)]
 pub struct SceneMatrices {
-    /// The model last set up for drawing (`scene::load_object`, `race::car_draw`).
-    pub known_object: PlainDword,
-    /// Two matrices of the frame draw, used in place as scratch (`race::frame_draw`).
-    pub view_work: [PlainFloat; 32],
-    /// The 4x4 identity (`scene::view_matrix`, `race::frame_draw`).
-    pub identity_matrix: [PlainFloat; 16],
-    /// Rotation about x (`scene::matrix`, `physics::object_turn_matrix`).
-    pub turn_x_matrix: [PlainFloat; 16],
-    /// Rotation about y (`scene::matrix`, `race::car_parts`).
-    pub turn_y_matrix: [PlainFloat; 16],
-    /// Rotation about z (`scene::view_matrix`, `race::car_draw`).
-    pub turn_z_matrix: [PlainFloat; 16],
-    /// A matrix with its place (`scene::matrix`, `physics::car_collisions`).
-    pub placed_matrix: [PlainFloat; 16],
-    /// The car body's turn matrix copied from the car (`race::car_parts`, `race::car_draw`).
-    pub body_turn_matrix: [PlainFloat; 16],
+    /// The car body's turn matrix copied from the car (`race::car_parts`).
+    pub body_turn_matrix: Matrix,
     /// `drive::set_listener` copies the made object matrix into it; `effects::draw_shadow` turns
     /// the shadow's corners by it.
-    pub listener_matrix: [PlainFloat; 16],
-    /// The turned matrix (`race::frame_draw`, `physics::move_slot`, `scene::matrix`).
-    pub turned_matrix: [PlainFloat; 16],
-    /// The lit matrix (`race::frame_draw`, `race::car_parts`).
-    pub lit_matrix: [PlainFloat; 16],
-    /// The inverted view turn (`race::frame_draw`); now each view's
-    /// (`scene::view_matrices::ViewMatrices::view_turn_copy`); unused.
-    pub view_turn_copy: [PlainFloat; 16],
-    /// The view's place matrix: the copy of `placed_matrix` (the view's place negated) made in
-    /// `race::frame_draw::view_place_tail`.
-    pub view_place_matrix: [PlainFloat; 16],
-    /// The view turned back (`scene::view_matrix`, `scene::reflect_vector`).
-    pub view_back_matrix: [PlainFloat; 16],
-    /// The view's turn (`drive::set_listener`, `physics::car_sounds`, `race::frame_draw`).
-    pub view_turn_matrix: [PlainFloat; 16],
-    /// Unused; it only keeps the layout.
-    pub unused_3c4: [PlainDword; 16],
-    /// The view matrix and its elements, used in place (`scene::project_point`,
-    /// `effects::draw_particle`, `race::skidmarks`).
-    pub view_matrix: [PlainFloat; 16],
-    /// The matrix made for an object (`scene::matrix`, `race::frame_draw`).
-    pub made_object_matrix: [PlainFloat; 16],
-    /// A block whose first 0x40 bytes receive a copy of the made object matrix
-    /// (`race::frame_draw`); now each view's (`scene::view_matrices`); unused.
-    pub object_matrix_slots: [PlainDword; 32],
-    /// The view's matrix, place at +0x30 (`effects::view_motion`, `race::frame_views`).
-    pub view_place: [PlainFloat; 16],
-    /// Pointer to the object matrix in use (`scene::place_object_points`).
-    pub object_matrix_ptr: PlainDword,
-    /// Unused; it only keeps the layout.
-    pub unused_548: [PlainDword; 6],
-    /// The vector reflected (`scene::reflect_vector`); now each view's
-    /// (`scene::view_matrices`); unused.
-    pub reflect_vector: [PlainFloat; 3],
-    /// Unused; it only keeps the layout.
-    pub unused_56c: PlainDword,
-    /// The normal (`scene::reflect_vector`); now each view's (`scene::view_matrices`); unused.
-    pub reflect_normal: [PlainFloat; 3],
-    /// The object's turn matrix (`physics::object_turn_matrix`, `physics::object_hits_car`,
-    /// `race::frame_draw`).
-    pub object_turn_matrix: [PlainFloat; 16],
-    /// 1092-byte item, only the first 0x40 used as a matrix in place (`race::frame_draw`); now each
-    /// view's (`scene::view_matrices`); unused.
-    pub matrix_scratch: [PlainFloat; 273],
+    pub listener_matrix: Matrix,
+    /// The turned matrix (`physics::move_slot`, `physics::spin_matrix`, `race::car_parts`).
+    pub turned_matrix: Matrix,
+    /// The lit matrix (`race::car_parts`, `physics::object_turn_matrix`).
+    pub lit_matrix: Matrix,
+    /// The matrix made for an object (`drive::set_listener`).
+    pub made_object_matrix: Matrix,
+    /// The object's turn matrix (`physics::object_turn_matrix`, `physics::object_hits_car`).
+    pub object_turn_matrix: Matrix,
 }
 
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
-
-/// The piece, with its first values.
 impl SceneMatrices {
     pub const fn new() -> Self {
         Self {
-            view_work: {
-                let mut a: [PlainFloat; 32] = ZeroCells::ZERO;
-                a[0] = PlainFloat::new(-1.0);
-                a[5] = PlainFloat::new(1.0);
-                a[10] = PlainFloat::new(-1.0);
-                a[15] = PlainFloat::new(1.0);
-                a[16] = PlainFloat::new(-1.0);
-                a[21] = PlainFloat::new(1.0);
-                a[26] = PlainFloat::new(1.0);
-                a[31] = PlainFloat::new(1.0);
-                a
-            },
-            identity_matrix: {
-                let mut a: [PlainFloat; 16] = ZeroCells::ZERO;
-                a[0] = PlainFloat::new(1.0);
-                a[5] = PlainFloat::new(1.0);
-                a[10] = PlainFloat::new(1.0);
-                a[15] = PlainFloat::new(1.0);
-                a
-            },
-            turn_x_matrix: {
-                let mut a: [PlainFloat; 16] = ZeroCells::ZERO;
-                a[0] = PlainFloat::new(1.0);
-                a[15] = PlainFloat::new(1.0);
-                a
-            },
-            turn_y_matrix: {
-                let mut a: [PlainFloat; 16] = ZeroCells::ZERO;
-                a[5] = PlainFloat::new(1.0);
-                a[15] = PlainFloat::new(1.0);
-                a
-            },
-            turn_z_matrix: {
-                let mut a: [PlainFloat; 16] = ZeroCells::ZERO;
-                a[10] = PlainFloat::new(1.0);
-                a[15] = PlainFloat::new(1.0);
-                a
-            },
-            placed_matrix: {
-                let mut a: [PlainFloat; 16] = ZeroCells::ZERO;
-                a[0] = PlainFloat::new(1.0);
-                a[5] = PlainFloat::new(1.0);
-                a[10] = PlainFloat::new(1.0);
-                a[15] = PlainFloat::new(1.0);
-                a
-            },
-            // A game address:
-            object_matrix_ptr: PlainDword::new(0x5EA30C),
-            ..ZeroCells::ZERO
+            body_turn_matrix: [0.0; 16],
+            listener_matrix: [0.0; 16],
+            turned_matrix: [0.0; 16],
+            lit_matrix: [0.0; 16],
+            made_object_matrix: [0.0; 16],
+            object_turn_matrix: [0.0; 16],
         }
     }
+}
+
+/// The matrices as one reader finds them: the game's thread's own (read and written through the
+/// store, short borrows), or a drawing part's copy.
+#[derive(Clone, Copy)]
+pub enum SceneMatricesRef<'a> {
+    Store(&'a DrawPlain<SceneMatrices>),
+    Copy(&'a SceneMatrices),
+}
+
+impl SceneMatricesRef<'_> {
+    /// The record as it stands.
+    pub fn get(self) -> SceneMatrices {
+        match self {
+            Self::Store(store) => *store.borrow(),
+            Self::Copy(record) => *record,
+        }
+    }
+}
+
+impl<'a> From<&'a DrawPlain<SceneMatrices>> for SceneMatricesRef<'a> {
+    fn from(store: &'a DrawPlain<SceneMatrices>) -> Self {
+        Self::Store(store)
+    }
+}
+
+impl<'a> From<&'a PlainRead<SceneMatrices>> for SceneMatricesRef<'a> {
+    fn from(copy: &'a PlainRead<SceneMatrices>) -> Self {
+        Self::Copy(copy)
+    }
+}
+
+/// The view's matrices kept after the views are drawn, read outside the drawing (the effects, the
+/// listener, the heard turn): a plain record (`session::DrawPlain`) of values, written on the
+/// game's thread between frames and read as a copy.
+#[derive(Clone, Copy)]
+pub struct ViewKept {
+    /// The view's place matrix: the copy of the placed matrix (the view's place negated) made in
+    /// `race::frame_draw::view_place_tail`.
+    pub view_place_matrix: Matrix,
+    /// The view turned back (`scene::view_matrix`, `scene::reflect_vector`).
+    pub view_back_matrix: Matrix,
+    /// The view's turn (`drive::set_listener`, `physics::car_sounds`, `race::frame_draw`).
+    pub view_turn_matrix: Matrix,
+    /// The view matrix and its elements, used in place (`scene::project_point`,
+    /// `effects::draw_particle`, `race::skidmarks`).
+    pub view_matrix: Matrix,
+    /// The view's matrix, place (the last row of its 4 x 4 floats) (`effects::view_motion`, `race::frame_views`).
+    pub view_place: Matrix,
+}
+
+impl ViewKept {
+    pub const fn new() -> Self {
+        Self {
+            view_place_matrix: [0.0; 16],
+            view_back_matrix: [0.0; 16],
+            view_turn_matrix: [0.0; 16],
+            view_matrix: [0.0; 16],
+            view_place: [0.0; 16],
+        }
+    }
+}
+
+/// The 4x4 identity.
+pub fn identity_matrix() -> Matrix {
+    let mut a: Matrix = [0.0; 16];
+    a[0] = 1.0;
+    a[5] = 1.0;
+    a[10] = 1.0;
+    a[15] = 1.0;
+    a
+}
+
+/// The constant matrix the frame draw turns a mirrored view's car by: the diagonal (-1, 1, -1, 1).
+pub fn mirror_work_matrix() -> Matrix {
+    let mut a: Matrix = [0.0; 16];
+    a[0] = -1.0;
+    a[5] = 1.0;
+    a[10] = -1.0;
+    a[15] = 1.0;
+    a
 }

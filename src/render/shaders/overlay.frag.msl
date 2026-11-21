@@ -5,18 +5,39 @@ using namespace metal;
 
 struct main0_out
 {
-    float4 m_50 [[color(0)]];
+    float4 m_72 [[color(0)]];
 };
 
 fragment main0_out main0(texture2d<float> _13 [[texture(0)]], sampler _13Smplr [[sampler(0)]], float4 gl_FragCoord [[position]])
 {
     main0_out out = {};
     float4 _25 = _13.read(uint2(int2(gl_FragCoord.xy)), 0);
-    if (all(uint4((_25 * 255.0) + float4(0.5)) == uint4(255u, 0u, 255u, 165u)))
+    uint4 _36 = uint4((_25 * 255.0) + float4(0.5));
+    if (all(_36 == uint4(255u, 0u, 255u, 165u)))
     {
         discard_fragment();
     }
-    out.m_50 = float4(_25.xyz, 1.0);
+    uint _54 = _36.w;
+    bool _55 = _54 == 0u;
+    bool _62;
+    if (!_55)
+    {
+        _62 = _54 == 255u;
+    }
+    else
+    {
+        _62 = _55;
+    }
+    float _86;
+    if (_62)
+    {
+        _86 = 1.0;
+    }
+    else
+    {
+        _86 = _25.w;
+    }
+    out.m_72 = float4(_25.xyz, _86);
     return out;
 }
 

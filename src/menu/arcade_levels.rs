@@ -9,15 +9,15 @@ use crate::owners::Owners;
 pub fn arcade_level(o: Owners<'static>, level: u32) -> Result<(), Refused> {
     let (menus, play) = (o.menus, &o.menus.play);
     use rc2k_core::menu::arcade::{CLOSED_SOUND, level_open};
-    let open = level_open(play.cheats.cheats.get(), || {
+    let open = level_open(play.cheats.read().cheats, || {
         play.arcade.opened(level as usize - 1)
     });
     if !open {
-        crate::sound::play_menu_sound::play_menu_sound_in_game(
+        crate::sound::play_menu_sound::play_menu_sound(
             o.sound,
             o.audio,
             o.menus,
-            o.system,
+            &o.system.session.picture_clock,
             CLOSED_SOUND,
         );
         return Ok(());

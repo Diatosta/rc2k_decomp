@@ -2,7 +2,7 @@
 //! table and colour, the mirror's window, the grid cells round the view and the sound spots.
 
 /// The draw distance's highest level.
-pub const MOST_LEVEL: i32 = 4;
+pub(crate) const MOST_LEVEL: i32 = 4;
 
 /// The draw distance level held to 0 ..= 4 by sign.
 pub fn draw_distance_level(level: u32) -> u32 {
@@ -18,9 +18,6 @@ pub fn grid_reach(reach: u32) -> u32 {
         reach
     }
 }
-
-/// The noise map's side (64 x 64 bytes).
-pub const NOISE_SIDE: u32 = 64;
 
 /// What `sample_noise` works out.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -73,9 +70,6 @@ pub fn sample_noise(map: impl Fn(u32) -> u8, px: u32, pz: u32) -> NoiseSample {
         high,
     }
 }
-
-/// The fog table's longest (bytes).
-pub const MOST_FOG: u32 = 0x1000;
 
 /// What `fog_table` reads besides the noise.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -158,7 +152,7 @@ pub fn fog_table(noise: u32, s: &FogSettings) -> Fog {
 }
 
 /// The course grid's row: 32 cells, 0x20 dwords apart.
-pub const GRID_ROW: u32 = 0x20;
+pub(crate) const GRID_ROW: u32 = 0x20;
 
 /// The `side` x `side` cells from (`from`, `from`) on the grid's diagonal, row by row (3 from
 /// reach - 1 for the environment; 5 from reach - 2 for the sound spots).
@@ -178,23 +172,22 @@ pub fn record_faces(first: u32, last: u32) -> Option<(u32, u32)> {
 }
 
 /// The records whose faces are gathered: each grid cell's (in order, those with one), then
-/// the last record of the course once more unless there are none (it is not tested for being
-/// gathered already: kept as is).
+/// the last record of the course unless there are none or the grid held it.
 pub fn visible_records(grid: impl IntoIterator<Item = u32>, count: u32) -> Vec<u32> {
     let mut records: Vec<u32> = grid.into_iter().filter(|&n| n < NO_RECORD).collect();
     let last = count.wrapping_sub(1);
-    if last != u32::MAX {
+    if last != u32::MAX && !records.contains(&last) {
         records.push(last);
     }
     records
 }
 
 /// The sound spots' object (the face's kind is 0xFF).
-pub const SPOT_OBJECT: u8 = 0x3F;
+pub(crate) const SPOT_OBJECT: u8 = 0x3F;
 /// The most sound spots.
 pub const MOST_SPOTS: u32 = 0x24;
 /// The highest sound a spot has (from 1).
-pub const MOST_SPOT_SOUND: u32 = 0x15;
+pub(crate) const MOST_SPOT_SOUND: u32 = 0x15;
 
 /// Whether a face of `kind` and `object` is a sound object.
 pub fn sound_object(kind: u8, object: u8) -> bool {
@@ -222,6 +215,125 @@ pub fn device_fog_colour(colour: u32) -> u32 {
     colour | 0xFF00_0000
 }
 
+/// A player's part of the screen: its corner and size in pixels.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PlayerPart {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// How the screen is shared between the players of a split-screen race.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Split {
+    /// Two players, one above the other.
+    Above,
+    /// Two players, side by side.
+    Beside,
+    /// Three or four players, one in each quarter (with three, the fourth quarter has no player).
+    Quarters,
+    /// Three or four players, one row each.
+    Rows,
+    /// Three or four players, one column each.
+    Columns,
+    /// Three players: the first over the whole width above, the other two side by side below.
+    WideTop,
+}
+
+impl Split {
+    /// The split of `players` players, `side_by_side` choosing between the two layouts of two
+    /// (a larger count starts from its first layout, `many`); `None` for a count with no split
+    /// (one player has the whole screen).
+    pub fn of(players: u32, side_by_side: bool) -> Option<Self> {
+        match players {
+            2 if side_by_side => Some(Self::Beside),
+            2 => Some(Self::Above),
+            3 | 4 => Self::many(players, 0),
+            _ => None,
+        }
+    }
+
+    /// The layouts three or four players cycle through, the first one the start.
+    pub fn many_layouts(players: u32) -> &'static [Split] {
+        match players {
+            3 => &[Self::WideTop, Self::Rows, Self::Columns, Self::Quarters],
+            4 => &[Self::Quarters, Self::Rows, Self::Columns],
+            _ => &[],
+        }
+    }
+
+    /// The layout number `index` of `players` players (three or four), the index wrapping round
+    /// the layouts there are.
+    pub fn many(players: u32, index: u32) -> Option<Self> {
+        let layouts = Self::many_layouts(players);
+        layouts.get(index as usize % layouts.len().max(1)).copied()
+    }
+
+    /// The index after `index` among `players` players' layouts.
+    pub fn next_many(players: u32, index: u32) -> u32 {
+        let count = Self::many_layouts(players).len() as u32;
+        if count == 0 { 0 } else { (index + 1) % count }
+    }
+
+    /// Player `player`'s part of a `screen` (width, height), or `None` where the split has no
+    /// part for that player. Parts are the screen's size divided evenly (rounded down) among the
+    /// rows and columns, in reading order; `players` only matters to the rows and columns.
+    pub fn part(self, player: u32, screen: (u32, u32)) -> Option<PlayerPart> {
+        self.part_of(4, player, screen)
+    }
+
+    /// `part` for a race of `players` players: the rows and columns of the layouts that have
+    /// one each are as many as the players.
+    pub fn part_of(self, players: u32, player: u32, screen: (u32, u32)) -> Option<PlayerPart> {
+        let (columns, rows) = match self {
+            Self::Above => (1, 2),
+            Self::Beside => (2, 1),
+            Self::Quarters => (2, 2),
+            Self::Rows => (1, players.clamp(1, 4)),
+            Self::Columns => (players.clamp(1, 4), 1),
+            Self::WideTop => {
+                let (half, h) = (screen.0 / 2, screen.1 / 2);
+                return match player {
+                    0 => Some(PlayerPart {
+                        x: 0,
+                        y: 0,
+                        width: screen.0,
+                        height: h,
+                    }),
+                    1 | 2 => Some(PlayerPart {
+                        x: (player - 1) * half,
+                        y: h,
+                        width: half,
+                        height: h,
+                    }),
+                    _ => None,
+                };
+            }
+        };
+        if player >= columns * rows {
+            return None;
+        }
+        let (width, height) = (screen.0 / columns, screen.1 / rows);
+        Some(PlayerPart {
+            x: player % columns * width,
+            y: player / columns * height,
+            width,
+            height,
+        })
+    }
+
+    /// Whether `player`'s part is the only one that has the quarter of the map, the fourth
+    /// quarter that three players leave free: its corner and size.
+    pub fn free_part(self, players: u32, screen: (u32, u32)) -> Option<PlayerPart> {
+        if self == Self::Quarters && players == 3 {
+            self.part_of(4, 3, screen)
+        } else {
+            None
+        }
+    }
+}
+
 /// The mirror's window on the screen (each even).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MirrorRect {
@@ -239,7 +351,7 @@ pub fn mirror_entry(first: u32, view: u32, second_set: bool) -> u32 {
 }
 
 /// The mirror's width and height on an 800 x 600 screen.
-pub const MIRROR_SIZE: (u32, u32) = (0xB3, 0x40);
+pub(crate) const MIRROR_SIZE: (u32, u32) = (0xB3, 0x40);
 
 /// `n` x `size` / `of` (unsigned, 64 bits over 32), even; None where the division would fault.
 fn scaled(n: u32, size: u32, of: u32) -> Option<u32> {
@@ -248,20 +360,44 @@ fn scaled(n: u32, size: u32, of: u32) -> Option<u32> {
 }
 
 /// The mirror's window: its corner (`place`, on 800 x 600) and size scaled to the screen; None
-/// where the scaling would fault.
-pub fn mirror_window(place: (u32, u32), screen: (u32, u32)) -> Option<MirrorRect> {
+/// where the scaling would fault. The mirror keeps to the HUD's box (`hud_box`, centred on the
+/// screen); on a box wider than 4:3 it keeps its size's shape and its edge or middle by `rule`
+/// (`hud::anchor`).
+pub fn mirror_window(
+    place: (u32, u32),
+    screen: (u32, u32),
+    rule: crate::hud::anchor::Rule,
+    hud_box: crate::hud::anchor::BoxRatio,
+) -> Option<MirrorRect> {
+    use crate::hud::anchor;
+    let (left, width) = hud_box.area(screen.0, screen.1);
+    if anchor::is_wide(width, screen.1) {
+        let middle = place.0 as f32 + MIRROR_SIZE.0 as f32 / 2.0;
+        let at = anchor::offset(width, screen.1, anchor::anchor_of(middle, rule));
+        let x = (f64::from(left) + at + f64::from(place.0) * anchor::factors(width, screen.1).0)
+            .floor();
+        if x >= f64::from(u32::MAX) {
+            return None;
+        }
+        return Some(MirrorRect {
+            x: x as u32 & !1,
+            y: scaled(place.1, screen.1, 600)?,
+            width: anchor::across(MIRROR_SIZE.0, width, screen.1)? & !1,
+            height: scaled(MIRROR_SIZE.1, screen.1, 600)?,
+        });
+    }
     Some(MirrorRect {
-        x: scaled(place.0, screen.0, 800)?,
+        x: (left + scaled(place.0, width, 800)?) & !1,
         y: scaled(place.1, screen.1, 600)?,
-        width: scaled(MIRROR_SIZE.0, screen.0, 800)?,
+        width: scaled(MIRROR_SIZE.0, width, 800)?,
         height: scaled(MIRROR_SIZE.1, screen.1, 600)?,
     })
 }
 
 /// The sound spots a frame makes and the sound side's table holds.
-pub const MOST_SHARED_SPOTS: u32 = 36;
+pub(crate) const MOST_SHARED_SPOTS: u32 = 36;
 /// A sound spot's bytes.
-pub const SPOT_BYTES: u32 = 0x14;
+pub(crate) const SPOT_BYTES: u32 = 0x14;
 
 /// The bytes of the frame's spots handed to the sound side; refused past 36.
 pub fn shared_spot_bytes(count: u32) -> Result<u32, crate::Invalid> {
@@ -283,7 +419,12 @@ mod tests {
         assert_eq!(mirror_entry(4, 1, false), 7);
         assert_eq!(mirror_entry(4, 1, true), 13);
         assert_eq!(
-            mirror_window((0x139, 0x10), (1024, 768)),
+            mirror_window(
+                (0x139, 0x10),
+                (1024, 768),
+                crate::hud::anchor::Rule::Thirds,
+                crate::hud::anchor::BoxRatio::Full
+            ),
             Some(MirrorRect {
                 x: 0x190,
                 y: 0x14,
@@ -291,7 +432,15 @@ mod tests {
                 height: 0x50
             })
         );
-        assert_eq!(mirror_window((u32::MAX, 0), (u32::MAX, 600)), None);
+        assert_eq!(
+            mirror_window(
+                (u32::MAX, 0),
+                (u32::MAX, 600),
+                crate::hud::anchor::Rule::Thirds,
+                crate::hud::anchor::BoxRatio::Full
+            ),
+            None
+        );
     }
 
     #[test]
@@ -364,6 +513,7 @@ mod tests {
         assert_eq!(record_faces(3, 3), Some((3, 3)));
         assert_eq!(visible_records([4, NO_RECORD, 2, u32::MAX], 9), [4, 2, 8]);
         assert_eq!(visible_records([1], 0), [1]);
+        assert_eq!(visible_records([8, 2, 8], 9), [8, 2, 8]);
         assert!(sound_object(0xFF, 0x3F) && !sound_object(0xFE, 0x3F));
         assert!(takes_spot(0x23, 0x15) && !takes_spot(0x24, 1) && !takes_spot(0, 0));
         assert!(!takes_spot(0, 0x16));
@@ -375,5 +525,70 @@ mod tests {
         assert_eq!(shared_spot_bytes(36), Ok(36 * 0x14));
         assert_eq!(shared_spot_bytes(0), Ok(0));
         assert!(shared_spot_bytes(37).is_err());
+    }
+
+    #[test]
+    fn players_parts_of_the_screen() {
+        let p = |x, y, width, height| PlayerPart {
+            x,
+            y,
+            width,
+            height,
+        };
+        let screen = (641, 481);
+        let beside = Split::of(2, true).unwrap();
+        assert_eq!(beside.part(0, screen), Some(p(0, 0, 320, 481)));
+        assert_eq!(beside.part(1, screen), Some(p(320, 0, 320, 481)));
+        assert_eq!(beside.part(2, screen), None);
+        let above = Split::of(2, false).unwrap();
+        assert_eq!(above.part(0, screen), Some(p(0, 0, 641, 240)));
+        assert_eq!(above.part(1, screen), Some(p(0, 240, 641, 240)));
+        let quarters = Split::of(4, true).unwrap();
+        assert_eq!(Split::of(3, false), Some(Split::WideTop));
+        assert_eq!(quarters, Split::Quarters);
+        assert_eq!(quarters.part(1, screen), Some(p(320, 0, 320, 240)));
+        assert_eq!(quarters.part(2, screen), Some(p(0, 240, 320, 240)));
+        assert_eq!(quarters.part(3, screen), Some(p(320, 240, 320, 240)));
+        assert_eq!(quarters.part(4, screen), None);
+        assert_eq!(Split::of(1, true), None);
+        assert_eq!(Split::of(5, true), None);
+    }
+
+    #[test]
+    fn many_players_layouts() {
+        let p = |x, y, width, height| PlayerPart {
+            x,
+            y,
+            width,
+            height,
+        };
+        let screen = (640, 480);
+        assert_eq!(Split::many_layouts(3).len(), 4);
+        assert_eq!(Split::many_layouts(4).len(), 3);
+        assert!(Split::many_layouts(2).is_empty());
+        // The index wraps and the cycle comes back to its start.
+        let mut at = 0;
+        for _ in 0..4 {
+            at = Split::next_many(3, at);
+        }
+        assert_eq!(at, 0);
+        assert_eq!(Split::many(4, 4), Split::many(4, 1));
+        assert_eq!(Split::many(2, 0), None);
+        let wide = Split::WideTop;
+        assert_eq!(wide.part_of(3, 0, screen), Some(p(0, 0, 640, 240)));
+        assert_eq!(wide.part_of(3, 2, screen), Some(p(320, 240, 320, 240)));
+        assert_eq!(wide.part_of(3, 3, screen), None);
+        let rows = Split::Rows;
+        assert_eq!(rows.part_of(3, 2, screen), Some(p(0, 320, 640, 160)));
+        assert_eq!(rows.part_of(3, 3, screen), None);
+        assert_eq!(rows.part_of(4, 3, screen), Some(p(0, 360, 640, 120)));
+        let columns = Split::Columns;
+        assert_eq!(columns.part_of(4, 3, screen), Some(p(480, 0, 160, 480)));
+        assert_eq!(columns.part_of(3, 1, screen), Some(p(213, 0, 213, 480)));
+        assert_eq!(
+            Split::Quarters.free_part(3, screen),
+            Some(p(320, 240, 320, 240))
+        );
+        assert_eq!(Split::Quarters.free_part(4, screen), None);
     }
 }

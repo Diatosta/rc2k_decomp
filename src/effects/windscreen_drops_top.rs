@@ -1,9 +1,9 @@
 //! `effects::windscreen_drops_top`: the windscreen drops' frame from the settings: the vertex ring
-//! from its start, the ease and the rate, the place (the settings' +0x2720 ..) and two axes made
+//! from its start, the ease and the rate, the place (the settings' `light_point_b_negated`) and two axes made
 //! one long and square, then (only when the place's way faces away from the third axis) the 0x30
 //! windscreen drop points scaled and turned onto the axes. Unless the rate is 0, the drops' frame
 //! runs, the vertices left in the ring are drawn (`d3d::draw_marks_windscreen_drops`, the
-//! platform's), and with the settings' +0x2744 and the drift on the drops step. Finally the marks'
+//! platform's), and with the settings' `windscreen_wet` and the drift on the drops step. Finally the marks'
 //! texture and a polygon vertex count of 4 are set.
 //!
 //! Screen: the rain drops on the windscreen in the in-car view (confirmed: gone with
@@ -14,50 +14,20 @@
 //! The x87 runs are plain Rust on the x87 model (`math::x87_float`). Refuses null settings, before
 //! anything.
 
-use crate::effects::cell_x87::CellX87;
 use crate::effects::mask_store::Masks;
-use crate::effects::plain::{ld_cell, ldi_cell, st_cell};
-use crate::effects::setup::MarksClock;
-use crate::effects::windscreen_drop_vars::WindscreenDrops;
+use crate::effects::plain::ldi_cell;
+use crate::effects::setup_store::MarksClock;
+use crate::effects::windscreen_drop_state_store::WindscreenDropWork;
+use crate::effects::windscreen_drop_vars_store::{WindscreenDropVars, WindscreenDrops};
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::memory::session::PlainFloat;
+use crate::math::x87_float::{self as bh, stf};
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::owner_frame::Frame;
-use crate::scene::cross_product3::cross;
-use crate::scene::vector3::normalise;
+use crate::scene::cross_product3::cross_plain;
+use crate::scene::vector3::normalise_plain;
 
 const POINTS: u32 = 0x30;
-
-/// The ease (by the ticks), the rate, the place and the first axis from the settings, and
-/// the first axis's length over its divisor into the first share.
-fn frame_axes(
-    drops: &WindscreenDrops,
-    m: &EffectsSettings,
-    effects: &crate::effects::owner::Effects,
-) {
-    frame_axes_x87(drops, m, &effects.setup.clock);
-}
-
-/// The second axis from the settings, its length over its divisor into the second share.
-fn frame_up(drops: &WindscreenDrops, m: &EffectsSettings) {
-    frame_up_x87(drops, m);
-}
-
-/// The place again as floats into the drops' `place`.
-fn frame_place(drops: &WindscreenDrops, m: &EffectsSettings) {
-    frame_place_x87(drops, m);
-}
-
-/// The place's way dotted with the third axis into `facing`.
-fn frame_facing(drops: &WindscreenDrops) {
-    frame_facing_x87(drops);
-}
-
-/// A point (x, y at p) turned onto the axes (x, y, z back at p).
-fn point_turned(drops: &WindscreenDrops, p: &[PlainFloat; 3]) {
-    point_turned_x87(drops, p);
-}
 
 pub fn windscreen_drops_top(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
@@ -69,46 +39,55 @@ pub fn windscreen_drops_top(
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let m = effects.settings()?;
-    drops.hex.buffer.set(0);
-    frame_axes(drops, m, effects);
-    let w = &drops.work.axes;
-    let (a0, a1, a2) = (&w[0..3], &w[3..6], &w[6..9]);
-    normalise(a0);
-    frame_up(drops, m);
-    normalise(a1);
-    cross(a1, a0, a2);
-    normalise(a2);
-    cross(a0, a2, a1);
-    frame_place(drops, m);
-    normalise(&drops.hex.place);
-    frame_facing(drops);
-    if !drops.state.facing.get().is_sign_negative() {
+    {
+        let mut hex = drops.hex.borrow_mut();
+        let mut work = drops.work.borrow_mut();
+        hex.buffer = 0;
+        // The ease (by the ticks), the rate, the place and the first axis from the settings,
+        // and the first axis's length over its divisor into the first share.
+        frame_axes_x87(&mut hex, &mut work, drops, m, &effects.setup.clock.borrow());
+        normalise_axis(&mut work.axes, 0);
+        // The second axis, its length over its divisor into the second share.
+        frame_up_x87(&hex, &mut work, m);
+        let axes = &mut work.axes;
+        normalise_axis(axes, 1);
+        put_axis(axes, 2, cross_plain(&axis_of(axes, 1), &axis_of(axes, 0)));
+        normalise_axis(axes, 2);
+        put_axis(axes, 1, cross_plain(&axis_of(axes, 0), &axis_of(axes, 2)));
+        // The place again as floats into the drops' `place`, and its way dotted with the third
+        // axis into `facing`.
+        frame_place_x87(&mut hex, m);
+        normalise_plain(&mut hex.place);
+        frame_facing_x87(&hex, &work, drops);
+    }
+    if !drops.state.borrow().facing.is_sign_negative() {
         return Ok(());
     }
-    let [kx, ky] = drops
-        .work
-        .shares
-        .each_ref()
-        .map(crate::memory::session::PlainFloat::get);
-    for n in 0..POINTS as usize {
-        let (p, o) = (3 * n, 3 * n);
-        drops.work.scaled[o].set(x87::mul(&drops.work.points[p], kx));
-        drops.work.scaled[o + 1].set(x87::mul(&drops.work.points[p + 1], ky));
-        drops.work.scaled[o + 2].set(0.0);
+    {
+        let mut work = drops.work.borrow_mut();
+        let [kx, ky] = work.shares;
+        for n in 0..POINTS as usize {
+            let (p, o) = (3 * n, 3 * n);
+            work.scaled[o] = x87::mul(work.points[p], kx);
+            work.scaled[o + 1] = x87::mul(work.points[p + 1], ky);
+            work.scaled[o + 2] = 0.0;
+        }
+        let axes = work.axes;
+        for p in work.scaled.as_chunks_mut::<3>().0 {
+            point_turned_x87(&axes, p);
+        }
     }
-    for p in drops.work.scaled.as_chunks::<3>().0 {
-        point_turned(drops, p);
-    }
-    let rate = drops.state.rate.get();
-    // Any rate but +0 (the bits tested).
+    let rate = drops.state.borrow().rate;
+    // Any rate but positive zero (the bits tested).
     if rate != 0.0 || rate.is_sign_negative() {
         crate::effects::windscreen_drops_frame::windscreen_drops_frame(
             buffer, frame, masks, drops, scene, gfx, effects,
         )?;
-        let at_now: u32 = drops.hex.buffer.get();
+        let at_now: u32 = drops.hex.borrow().buffer;
         if at_now != 0 {
-            let quads = x87::int_over_int_to_int(at_now as i32, drops.hex.per_vertex.get()) as u32;
-            drops.hex.buffer.set(0);
+            let quads =
+                x87::int_over_int_to_int(at_now as i32, drops.hex.borrow().per_vertex) as u32;
+            drops.hex.borrow_mut().buffer = 0;
             gfx.card
                 .windscreen_drop_batch
                 .index_count
@@ -120,389 +99,147 @@ pub fn windscreen_drops_top(
             crate::effects::windscreen_drops_frame::draw_batch(scene, gfx)?;
         }
         let marks = effects.settings()?;
-        if marks.windscreen_wet.get() != 0 && effects.setup.kind_floats.running.get() != 0 {
+        if marks.windscreen_wet.get() != 0 && effects.setup.kind_floats.borrow().running != 0 {
             crate::effects::windscreen_drops::windscreen_drops_step(masks, drops)?;
         }
     }
     crate::scene::set_texture::set_texture(
         scene.scratch.game_scratch(),
         scene,
-        scene.textures.kinds.get().kind_first_slots[202].get(),
+        scene.textures.kinds.borrow().kind_first_slots[202],
     );
     scene
         .scratch
         .front_end_polygon()
-        .polygon_vertex_count
-        .set(4);
+        .scalars
+        .borrow_mut()
+        .polygon_vertex_count = 4;
     Ok(())
 }
 
+/// Axis `n` (three floats) of the three axes.
+fn axis_of(axes: &[f32; 9], n: usize) -> [f32; 3] {
+    [axes[3 * n], axes[3 * n + 1], axes[3 * n + 2]]
+}
+
+/// `v` into axis `n` of the three axes.
+fn put_axis(axes: &mut [f32; 9], n: usize, v: [f32; 3]) {
+    axes[3 * n..3 * n + 3].copy_from_slice(&v);
+}
+
+/// Axis `n` normalised in place.
+fn normalise_axis(axes: &mut [f32; 9], n: usize) {
+    let mut v = axis_of(axes, n);
+    normalise_plain(&mut v);
+    put_axis(axes, n, v);
+}
+
 /// `frame_axes`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn frame_axes_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) {
-    let t0 = ld_cell(&drops.hex.top_k[0]);
-    let t1 = t0 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
-    st_cell(&drops.hex.ease, t1);
+fn frame_axes_x87(
+    hex: &mut WindscreenDropVars,
+    work: &mut WindscreenDropWork,
+    drops: &WindscreenDrops,
+    m: &EffectsSettings,
+    c: &MarksClock,
+) {
+    let t0 = bh::ld(hex.top_k[0]);
+    let t1 = t0 * crate::math::x87_float::int(c.frame_ticks as i32);
+    hex.ease = stf(t1);
     let t2 = ldi_cell(&m.windscreen_drops_rate_factor);
-    let t3 = t2 * ld_cell(&drops.hex.top_k[1]);
-    drops.state.rate.st(t3);
+    let t3 = t2 * bh::ld(hex.top_k[1]);
+    drops.state.borrow_mut().rate = stf(t3);
     let t4 = ldi_cell(&m.light_point_b_negated[0]);
     let t5 = ldi_cell(&m.light_point_b_negated[1]);
     let t6 = ldi_cell(&m.light_point_b_negated[2]);
-    drops.work.place[2].st(t6);
-    drops.work.place[1].st(t5);
-    drops.work.place[0].st(t4);
+    work.place[2] = stf(t6);
+    work.place[1] = stf(t5);
+    work.place[0] = stf(t4);
     let t7 = ldi_cell(&m.light_point_b[0]);
     let t8 = t7 - ldi_cell(&m.light_point_b_negated[0]);
-    drops.work.axes[0].st(t8);
+    work.axes[0] = stf(t8);
     let t9 = ldi_cell(&m.light_point_b[1]);
     let t10 = t9 - ldi_cell(&m.light_point_b_negated[1]);
-    drops.work.axes[1].st(t10);
+    work.axes[1] = stf(t10);
     let t11 = ldi_cell(&m.light_point_b[2]);
     let t12 = t11 - ldi_cell(&m.light_point_b_negated[2]);
-    drops.work.axes[2].st(t12);
-    let t13 = drops.work.axes[0].ld();
+    work.axes[2] = stf(t12);
+    let t13 = bh::ld(work.axes[0]);
     let t14 = t13 * t13;
-    let t15 = drops.work.axes[1].ld();
+    let t15 = bh::ld(work.axes[1]);
     let t16 = t15 * t15;
-    let t17 = drops.work.axes[2].ld();
+    let t17 = bh::ld(work.axes[2]);
     let t18 = t17 * t17;
     let t19 = t16 + t18;
     let t20 = t14 + t19;
     let t21 = t20.sqrt();
-    let t22 = t21 / ld_cell(&drops.hex.top_k[2]);
-    drops.work.shares[0].st(t22);
+    let t22 = t21 / bh::ld(hex.top_k[2]);
+    work.shares[0] = stf(t22);
 }
 
 /// `frame_up`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn frame_up_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
+fn frame_up_x87(hex: &WindscreenDropVars, work: &mut WindscreenDropWork, m: &EffectsSettings) {
     let t0 = ldi_cell(&m.light_point_a_negated[0]);
     let t1 = t0 - ldi_cell(&m.light_point_b_negated[0]);
-    drops.work.axes[3].st(t1);
+    work.axes[3] = stf(t1);
     let t2 = ldi_cell(&m.light_point_a_negated[1]);
     let t3 = t2 - ldi_cell(&m.light_point_b_negated[1]);
-    drops.work.axes[4].st(t3);
+    work.axes[4] = stf(t3);
     let t4 = ldi_cell(&m.light_point_a_negated[2]);
     let t5 = t4 - ldi_cell(&m.light_point_b_negated[2]);
-    drops.work.axes[5].st(t5);
-    let t6 = drops.work.axes[3].ld();
+    work.axes[5] = stf(t5);
+    let t6 = bh::ld(work.axes[3]);
     let t7 = t6 * t6;
-    let t8 = drops.work.axes[4].ld();
+    let t8 = bh::ld(work.axes[4]);
     let t9 = t8 * t8;
-    let t10 = drops.work.axes[5].ld();
+    let t10 = bh::ld(work.axes[5]);
     let t11 = t10 * t10;
     let t12 = t9 + t11;
     let t13 = t7 + t12;
     let t14 = t13.sqrt();
-    let t15 = t14 / ld_cell(&drops.hex.top_k[3]);
-    drops.work.shares[1].st(t15);
+    let t15 = t14 / bh::ld(hex.top_k[3]);
+    work.shares[1] = stf(t15);
 }
 
 /// `frame_place`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn frame_place_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
+fn frame_place_x87(hex: &mut WindscreenDropVars, m: &EffectsSettings) {
     let t0 = ldi_cell(&m.light_point_b_negated[0]);
-    st_cell(&drops.hex.place[0], t0);
+    hex.place[0] = stf(t0);
     let t1 = ldi_cell(&m.light_point_b_negated[1]);
-    st_cell(&drops.hex.place[1], t1);
+    hex.place[1] = stf(t1);
     let t2 = ldi_cell(&m.light_point_b_negated[2]);
-    st_cell(&drops.hex.place[2], t2);
+    hex.place[2] = stf(t2);
 }
 
 /// `frame_facing`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn frame_facing_x87(drops: &WindscreenDrops) {
-    let t0 = ld_cell(&drops.hex.place[0]);
-    let t1 = t0 * drops.work.axes[6].ld();
-    let t2 = ld_cell(&drops.hex.place[1]);
-    let t3 = t2 * drops.work.axes[7].ld();
-    let t4 = ld_cell(&drops.hex.place[2]);
-    let t5 = t4 * drops.work.axes[8].ld();
+fn frame_facing_x87(hex: &WindscreenDropVars, work: &WindscreenDropWork, drops: &WindscreenDrops) {
+    let t0 = bh::ld(hex.place[0]);
+    let t1 = t0 * bh::ld(work.axes[6]);
+    let t2 = bh::ld(hex.place[1]);
+    let t3 = t2 * bh::ld(work.axes[7]);
+    let t4 = bh::ld(hex.place[2]);
+    let t5 = t4 * bh::ld(work.axes[8]);
     let t6 = t3 + t5;
     let t7 = t1 + t6;
-    drops.state.facing.st(t7);
+    drops.state.borrow_mut().facing = stf(t7);
 }
 
 /// `point_turned`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn point_turned_x87(drops: &WindscreenDrops, p: &[PlainFloat; 3]) {
-    let t0 = ld_cell(&p[0]);
-    let t1 = ld_cell(&p[1]);
-    let t2 = t0 * drops.work.axes[0].ld();
-    let t3 = t1 * drops.work.axes[3].ld();
+fn point_turned_x87(axes: &[f32; 9], p: &mut [f32; 3]) {
+    let t0 = bh::ld(p[0]);
+    let t1 = bh::ld(p[1]);
+    let t2 = t0 * bh::ld(axes[0]);
+    let t3 = t1 * bh::ld(axes[3]);
     let t4 = t2 + t3;
-    st_cell(&p[0], t4);
-    let t5 = t0 * drops.work.axes[1].ld();
-    let t6 = t1 * drops.work.axes[4].ld();
+    p[0] = stf(t4);
+    let t5 = t0 * bh::ld(axes[1]);
+    let t6 = t1 * bh::ld(axes[4]);
     let t7 = t5 + t6;
-    st_cell(&p[1], t7);
-    let t8 = t1 * drops.work.axes[5].ld();
-    let t9 = t0 * drops.work.axes[2].ld();
+    p[1] = stf(t7);
+    let t8 = t1 * bh::ld(axes[5]);
+    let t9 = t0 * bh::ld(axes[2]);
     let t10 = t8 + t9;
-    st_cell(&p[2], t10);
+    p[2] = stf(t10);
 }
 
 #[cfg(test)]
-mod reference_vectors {
-    use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::with_settings;
-    use crate::effects::asm_test::{Op, Spec, recorded_writes};
-    use crate::effects::typed_sync::{overlay_laid, with_overlays};
-
-    use crate::memory::session::PlainFloat;
-
-    #[test]
-    fn frame_axes_x87_matches() {
-        const SPEC: Spec = Spec {
-            operands: &[
-                Op::Base {
-                    lo: 0x90,
-                    hi: 0xC9402,
-                    reads: &[
-                        (0x90, I32),
-                        (0xAFCDA, F32),
-                        (0xAFCDE, F32),
-                        (0xAFCE2, F32),
-                        (0xC932A, F32),
-                        (0xC932E, F32),
-                        (0xC9332, F32),
-                    ],
-                    writes: &[
-                        (0xAF7E8, F32),
-                        (0xAFCC6, F32),
-                        (0xAFCCE, F32),
-                        (0xAFCD2, F32),
-                        (0xAFCD6, F32),
-                        (0xAFCDA, F32),
-                        (0xAFCDE, F32),
-                        (0xAFCE2, F32),
-                        (0xB12EA, F32),
-                    ],
-                },
-                Op::Base {
-                    lo: 0,
-                    hi: 0x2768,
-                    reads: &[
-                        (0x2720, I32),
-                        (0x2724, I32),
-                        (0x2728, I32),
-                        (0x272C, I32),
-                        (0x2730, I32),
-                        (0x2734, I32),
-                        (0x2738, I32),
-                    ],
-                    writes: &[],
-                },
-            ],
-            sincos: false,
-        };
-        recorded_writes("effects.windscreen_drops_top.frame_axes_x87", &SPEC, |b| {
-            with_overlays(
-                b[0],
-                &[
-                    overlay_laid(&crate::test_support::own::effects().windscreen_drops.state),
-                    overlay_laid(&crate::test_support::own::effects().windscreen_drops.work),
-                    overlay_laid(&crate::test_support::own::effects().windscreen_drops.hex),
-                ],
-                || {
-                    with_settings(b[1], |m| {
-                        super::frame_axes_x87(
-                            &crate::test_support::own::effects().windscreen_drops,
-                            m,
-                            crate::effects::asm_layout::copy_of::<crate::effects::setup::MarksClock>(
-                                b[0],
-                            ),
-                        );
-                    });
-                },
-            );
-        });
-    }
-
-    #[test]
-    fn frame_up_x87_matches() {
-        const SPEC: Spec = Spec {
-            operands: &[
-                Op::Base {
-                    lo: 0xAF832,
-                    hi: 0xC9402,
-                    reads: &[
-                        (0xAFCE6, F32),
-                        (0xAFCEA, F32),
-                        (0xAFCEE, F32),
-                        (0xC9336, F32),
-                    ],
-                    writes: &[
-                        (0xAFCCA, F32),
-                        (0xAFCE6, F32),
-                        (0xAFCEA, F32),
-                        (0xAFCEE, F32),
-                    ],
-                },
-                Op::Base {
-                    lo: 0,
-                    hi: 0x2768,
-                    reads: &[
-                        (0x2708, I32),
-                        (0x270C, I32),
-                        (0x2710, I32),
-                        (0x2720, I32),
-                        (0x2724, I32),
-                        (0x2728, I32),
-                    ],
-                    writes: &[],
-                },
-            ],
-            sincos: false,
-        };
-        recorded_writes("effects.windscreen_drops_top.frame_up_x87", &SPEC, |b| {
-            with_overlays(
-                b[0],
-                &[
-                    overlay_laid(&crate::test_support::own::effects().windscreen_drops.work),
-                    overlay_laid(&crate::test_support::own::effects().windscreen_drops.hex),
-                ],
-                || {
-                    with_settings(b[1], |m| {
-                        super::frame_up_x87(
-                            &crate::test_support::own::effects().windscreen_drops,
-                            m,
-                        );
-                    });
-                },
-            );
-        });
-    }
-
-    #[test]
-    fn frame_place_x87_matches() {
-        const SPEC: Spec = Spec {
-            operands: &[
-                Op::Base {
-                    lo: 0xB1252,
-                    hi: 0xC9402,
-                    reads: &[],
-                    writes: &[(0xB1262, F32), (0xB1266, F32), (0xB126A, F32)],
-                },
-                Op::Base {
-                    lo: 0,
-                    hi: 0x2768,
-                    reads: &[(0x2720, I32), (0x2724, I32), (0x2728, I32)],
-                    writes: &[],
-                },
-            ],
-            sincos: false,
-        };
-        recorded_writes("effects.windscreen_drops_top.frame_place_x87", &SPEC, |b| {
-            with_overlays(
-                b[0],
-                &[overlay_laid(
-                    &crate::test_support::own::effects().windscreen_drops.hex,
-                )],
-                || {
-                    with_settings(b[1], |m| {
-                        super::frame_place_x87(
-                            &crate::test_support::own::effects().windscreen_drops,
-                            m,
-                        );
-                    });
-                },
-            );
-        });
-    }
-
-    #[test]
-    fn frame_facing_x87_matches() {
-        const SPEC: Spec = Spec {
-            operands: &[Op::Base {
-                lo: 0xAF7D0,
-                hi: 0xC9402,
-                reads: &[
-                    (0xAFCF2, F32),
-                    (0xAFCF6, F32),
-                    (0xAFCFA, F32),
-                    (0xB1262, F32),
-                    (0xB1266, F32),
-                    (0xB126A, F32),
-                ],
-                writes: &[(0xAF7D8, F32)],
-            }],
-            sincos: false,
-        };
-        recorded_writes(
-            "effects.windscreen_drops_top.frame_facing_x87",
-            &SPEC,
-            |b| {
-                with_overlays(
-                    b[0],
-                    &[
-                        overlay_laid(&crate::test_support::own::effects().windscreen_drops.state),
-                        overlay_laid(&crate::test_support::own::effects().windscreen_drops.work),
-                        overlay_laid(&crate::test_support::own::effects().windscreen_drops.hex),
-                    ],
-                    || {
-                        super::frame_facing_x87(
-                            &crate::test_support::own::effects().windscreen_drops,
-                        );
-                    },
-                );
-            },
-        );
-    }
-
-    #[test]
-    fn point_turned_x87_matches() {
-        const SPEC: Spec = Spec {
-            operands: &[
-                Op::Base {
-                    lo: 0xAF832,
-                    hi: 0xB0250,
-                    reads: &[
-                        (0xAFCDA, F32),
-                        (0xAFCDE, F32),
-                        (0xAFCE2, F32),
-                        (0xAFCE6, F32),
-                        (0xAFCEA, F32),
-                        (0xAFCEE, F32),
-                    ],
-                    writes: &[],
-                },
-                Op::Base {
-                    lo: 0x0,
-                    hi: 0xC,
-                    reads: &[(0x0, F32), (0x4, F32)],
-                    writes: &[(0x0, F32), (0x4, F32), (0x8, F32)],
-                },
-            ],
-            sincos: false,
-        };
-        recorded_writes(
-            "effects.windscreen_drops_top.point_turned_x87",
-            &SPEC,
-            |b| {
-                with_overlays(
-                    b[0],
-                    &[overlay_laid(
-                        &crate::test_support::own::effects().windscreen_drops.work,
-                    )],
-                    || {
-                        // The point's three floats, as the buffer holds them at b[1].
-                        let host = |n: usize| (b[1] + 4 * n).at(0, 4).cast::<u32>();
-                        let p: [PlainFloat; 3] = std::array::from_fn(|n| {
-                            // SAFETY: `at` checks that the four bytes lie in the operand's test
-                            // buffer, which the recorded run keeps alive and nothing else reaches
-                            // meanwhile; unaligned, any bits a `u32`.
-                            PlainFloat::from_bits(unsafe { host(n).read_unaligned() })
-                        });
-                        super::point_turned_x87(
-                            &crate::test_support::own::effects().windscreen_drops,
-                            &p,
-                        );
-                        for (n, cell) in p.iter().enumerate() {
-                            // SAFETY: `at` checks that the four bytes lie in the operand's test
-                            // buffer, which the recorded run keeps alive and nothing else reaches
-                            // meanwhile; unaligned, any bits a `u32`.
-                            unsafe { host(n).write_unaligned(cell.bits()) };
-                        }
-                    },
-                );
-            },
-        );
-    }
-}
+mod tests;

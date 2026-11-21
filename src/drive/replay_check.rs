@@ -24,7 +24,7 @@ const SUMMARY_EVERY: u32 = 20;
 /// A car's fields the viewer or the sound sets, not the physics, left out (file offsets): +0x0
 /// and +0x4 (every car's; the first car's are the frame's head: the camera bytes
 /// `drive::replay_cameras` reads; a camera edited in the viewer rewrites them), +0x9C the last
-/// pace checkpoint called (`race::replay_viewer` holds the revs, which keeps
+/// pace checkpoint called (`menu::replay_viewer` holds the revs, which keeps
 /// `physics::pace_notes_step` off; the recording's are the live race's), +0x220 the option
 /// bits (`drive::replay_cameras` writes the viewer's) and +0x23C the gear-change flag the
 /// sound listener clears (`drive::set_listener`, run by the frame, not the step: seen
@@ -55,13 +55,12 @@ fn hash(words: impl Iterator<Item = u32>) -> u32 {
 
 /// After the cars' step of a tick.
 pub fn note(race: &Race) -> Result<(), BadInput> {
-    let mode = match race.course.numbers.get().replay_mode.get() {
+    let mode = match race.course.replay_mode() {
         RECORDING => "recording",
         PLAYING => "playing",
         _ => return Ok(()),
     };
     let clock = race.car_blocks().cars[0].step_clock.get();
-    #[cfg(feature = "remote")]
     if mode == "playing" {
         crate::remote::replay_tick(clock);
     }
@@ -82,11 +81,11 @@ pub fn note(race: &Race) -> Result<(), BadInput> {
         .enumerate()
     {
         let h = hash(kept_car.iter().copied());
-        let speed = block.local_velocity[2].get(); // the car's speed
+        let speed = block.local_velocity.at(2); // the car's speed
         let gear = block.gear.get();
         line += &format!(" car {car} {h:08x} speed {speed:.3} gear {gear};");
     }
-    crate::logfile::program_log::log(&line);
+    crate::program_log::log(&line);
     Ok(())
 }
 
@@ -99,7 +98,7 @@ fn piece_name(piece: StartPiece) -> String {
 }
 
 /// At a whole frame of a replay played, before its recorded state is loaded.
-pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
+pub(super) fn compare_frame(race: &Race) -> Result<(), BadInput> {
     let staging = race.replay.staging();
     let clock = race.car_blocks().cars[0].step_clock.get();
     if staging.start_word(2)? != clock {
@@ -121,7 +120,7 @@ pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
             }
             differing += 1;
             if DETAILED.fetch_add(1, Relaxed) < DETAILS {
-                crate::logfile::program_log::log(&format!(
+                crate::program_log::log(&format!(
                     "replay check: clock {clock}: {} +{:#x}: ours {now:08x} ({}), recorded {kept:08x} ({})",
                     piece_name(piece),
                     4 * k,
@@ -136,7 +135,7 @@ pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
         EQUAL.fetch_add(1, Relaxed);
     }
     if compared.is_multiple_of(SUMMARY_EVERY) || (differing != 0 && compared < SUMMARY_EVERY) {
-        crate::logfile::program_log::log(&format!(
+        crate::program_log::log(&format!(
             "replay check: clock {clock}: {compared} frames compared, {} the same as recorded, {} skipped (not reached by our steps); this one {differing} dwords apart",
             EQUAL.load(Relaxed),
             SKIPPED.load(Relaxed),

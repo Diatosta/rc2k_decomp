@@ -1,24 +1,22 @@
 //! Applies a table of force records (0x20 bytes each) to the work car, one `physics::apply_force`
 //! each.
 //!
-//! Callers: `physics::apply_wheel_forces`, `physics::apply_contact_forces`. Refuses no records,
-//! or more than 0x100.
+//! Refuses no records, or more than 0x100.
 
 use crate::errors::Refused;
 use crate::physics::apply_force::apply_force;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::ForceRecord;
-use crate::physics::tables_store::PhysicsTables;
+use crate::race::numbers_store::Numbers;
 
 /// `records` (a whole table, the wheels' 0x17 or the contacts' 7) on the work car.
-pub fn apply_forces(
+pub(super) fn apply_forces(
     car: &Car,
-    tables: &PhysicsTables,
+    numbers: &Numbers,
     records: &[ForceRecord],
-    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     for rec in records {
-        apply_force(car, tables, rec, scene);
+        apply_force(car, numbers, rec);
     }
     Ok(())
 }

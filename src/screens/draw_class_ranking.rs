@@ -14,8 +14,8 @@ use crate::menu::find_class_time::find_class_time;
 use crate::text::draw_text::Canvas;
 use rc2k_core::saves::entries::BestTime;
 
-/// Each row's entry and place, and the place left after the last.
-type Rows = (Vec<(BestTime, u32)>, Option<u32>);
+/// Each row's entry and place.
+type Rows = Vec<(BestTime, u32)>;
 
 /// The rows to draw, worked out before anything is drawn.
 fn rows(
@@ -28,16 +28,14 @@ fn rows(
         let found = rc2k_core::screens::results_pages::class_rows(
             |n| t.entries.get(n as usize).map_or(0, |e| e.head.group),
             |n| t.first_at(n as usize).is_none_or(|v| v == u32::MAX),
-            event.shown.class.get(),
-            champ.rows.count.get(),
+            event.read().shown.class,
+            champ.read().rows.count,
         );
-        let (rows, after) = found.map_err(BadInput::from)?;
-        Ok((
-            rows.into_iter()
-                .map(|(n, place)| (t.entries[n as usize], place))
-                .collect(),
-            after,
-        ))
+        let rows = found.map_err(BadInput::from)?;
+        Ok(rows
+            .into_iter()
+            .map(|(n, place)| (t.entries[n as usize], place))
+            .collect())
     })?
 }
 
@@ -47,12 +45,12 @@ pub fn draw_class_ranking(
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
     let menus = o.menus;
-    let (rows, last_place) = rows(&menus.play.champ_view, &menus.screens.event, tables)?;
-    let first_time = find_class_time(menus.screens.event.shown.class.get(), true, tables)?;
+    let rows = rows(&menus.play.champ_view, &menus.screens.event, tables)?;
+    let first_time = find_class_time(menus.screens.event.read().shown.class, true, tables)?;
     // The logic is in `rc2k_core::screens::results_pages::class_ranking` (the rows found here).
     use rc2k_core::screens::results_pages::{Name, RankedRow, class_ranking};
-    let player = menus.play.champ_view.rows.ranked_player.get();
-    // A player's entry names the player's name (`name_at`), a driver's a string.
+    let player = menus.play.champ_view.read().rows.ranked_player;
+    // A player's entry names the player's name (`name_id`), a driver's a string.
     let rows: Vec<RankedRow<crate::screens::game_screen::HeldText>> = rows
         .iter()
         .map(|&(e, place)| {
@@ -61,7 +59,7 @@ pub fn draw_class_ranking(
                 place,
                 mine: kind != 0 && kind == player,
                 name: if kind == 0 {
-                    Name::String(e.head.name_id)
+                    Name::String(e.head.name_id.to_file())
                 } else {
                     Name::Text(crate::screens::game_screen::player_name(e.head.name_id)?)
                 },
@@ -76,7 +74,6 @@ pub fn draw_class_ranking(
         first_time,
         crate::strings::append_time::show_hours(o.strings),
         &rows,
-        last_place,
     )?;
     Ok(())
 }

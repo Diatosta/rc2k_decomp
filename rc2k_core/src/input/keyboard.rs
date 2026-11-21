@@ -175,13 +175,18 @@ pub fn key_name(key: u32, names: impl Fn(u32) -> u16) -> KeyName {
 pub const ANSWERS: [(u32, u32); 3] = [(0xC3, 1), (0xC4, u32::MAX), (0xC5, 2)];
 
 /// The answer a key's character (made lower case) gives: the first of the three whose string's
-/// first byte it is (`first(id)`; an empty string is compared through what was there before), else
-/// 0.
-pub fn answer(lower: u8, mut first: impl FnMut(u32) -> u8) -> u32 {
-    ANSWERS
-        .into_iter()
-        .find(|&(id, _)| first(id) == lower)
-        .map_or(0, |(_, a)| a)
+/// first byte it is, else 0. `first(id)` is that byte, `None` for an empty string: an empty string
+/// answers with the byte of the string tried before it (`previous` for the first one), as the game
+/// compares them.
+pub fn answer(lower: u8, previous: u8, mut first: impl FnMut(u32) -> Option<u8>) -> u32 {
+    let mut kept = previous;
+    for (id, answer) in ANSWERS {
+        kept = first(id).unwrap_or(kept);
+        if kept == lower {
+            return answer;
+        }
+    }
+    0
 }
 
 #[cfg(test)]
@@ -246,11 +251,28 @@ mod tests {
             KeyName::String(0x55)
         );
         assert_eq!(key_name(0x02, |_| 0), KeyName::Hex(2));
-        let firsts = |id| match id {
-            0xC3 => b's',
-            0xC4 => b'n',
-            _ => b'x',
-        };
-        assert_eq!((answer(b'n', firsts), answer(b'q', firsts)), (u32::MAX, 0));
+        // yes / no / third words of three languages (first bytes); an empty one reads the byte
+        // before it
+        let words = [(b's', b'n', b'x'), (b'y', b'n', b'c'), (b'j', b'n', b'a')];
+        for (yes, no, third) in words {
+            let firsts = |id| {
+                Some(match id {
+                    0xC3 => yes,
+                    0xC4 => no,
+                    _ => third,
+                })
+            };
+            assert_eq!(answer(yes, 0, firsts), 1);
+            assert_eq!(answer(no, 0, firsts), u32::MAX);
+            assert_eq!(answer(third, 0, firsts), 2);
+            assert_eq!(answer(b'q', 0, firsts), 0);
+        }
+        // an empty string compares with the one before it, the first with what was there
+        let only_yes = |id| (id == 0xC3).then_some(b'y');
+        assert_eq!(answer(b'y', 0, only_yes), 1);
+        let no_yes = |id| (id != 0xC3).then_some(b'n');
+        assert_eq!(answer(b'k', b'k', no_yes), 1);
+        assert_eq!(answer(b'n', b'k', no_yes), u32::MAX);
+        assert_eq!(answer(b'k', 0, |_| None), 0);
     }
 }

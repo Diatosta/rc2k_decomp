@@ -9,7 +9,7 @@ use crate::errors::BadInput;
 use crate::gfx::palette_to_dwords::palette_bytes_to_dwords;
 use crate::gfx::png::PngInfo;
 
-pub fn lay_out_png(gfx: &crate::gfx::owner::Gfx, info: &PngInfo) -> Result<(), BadInput> {
+pub(super) fn lay_out_png(gfx: &crate::gfx::owner::Gfx, info: &PngInfo) -> Result<(), BadInput> {
     let pictures = &gfx.pictures;
     let layout = rc2k_core::gfx::png::layout(info.width, info.height, pictures.picture.flags.get());
     for (at, value) in [

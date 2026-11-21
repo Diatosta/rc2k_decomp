@@ -1,15 +1,15 @@
 //! `sound::spot_voice_distances`: each voice heard this turn: its distance, the distance's change
 //! and the pitch and volume factors, as `sound::car_engine_state` does for a car.
 //!
-//! For each voice heard (+4 1): +0x40 the root of +8 .. +0x10 squared, +0x44 its change
-//! x the turns a second (`RaceClock.turns_a_second`); +0x4C 0 and +0x48 1.0, then unless the voice
-//! is new (+0x20 1) +0x48 eased from 1.0 toward (+0x44 + 337.52) x 0.00296; +0x4C 1.0,
-//! or 1 / the distance when that is over 1 (compared as integers); +0x20 cleared. See
-//! `sound/spot_voices.rs`. One caller, `sound::spot_sounds`.
+//! For each voice `heard`: `distance` the root of the squared `place`, `distance_change` its
+//! change x the turns a second (`RaceClock.turns_a_second`); `volume_factor` 0 and `pitch_factor`
+//! 1.0, then unless the voice is `new` `pitch_factor` eased from 1.0 toward
+//! (`distance_change` + 337.52) x 0.00296; `volume_factor` 1.0, or 1 / the distance when that is
+//! over 1 (compared as integers); `new` cleared. See `sound/spot_voices.rs`.
 
 use crate::math::x87_float::X;
 use crate::math::x87_float::{ld, stf};
-use crate::sound::spot_voices::{VOICE_COUNT, voice};
+use crate::sound::spot_voices::VOICE_COUNT;
 
 /// The distance, as the float's bits compared as whole numbers: over 1.0 (a negative or a
 /// not-a-number distance counts as the integer compare has it).
@@ -17,34 +17,36 @@ fn over_one(distance: f32) -> bool {
     distance.to_bits() as i32 > 0x3F80_0000
 }
 
-pub fn spot_voice_distances(sound: &crate::sound::owner::Sound) {
-    for n in 0..VOICE_COUNT {
-        let v = voice(n, sound);
-        if v.heard.get() != 1 {
+pub(super) fn spot_voice_distances(sound: &crate::sound::owner::Sound) {
+    let voices = &sound.race.spot_voices.get().voices;
+    for n in 0..VOICE_COUNT as usize {
+        let mut v = voices.borrow_mut()[n];
+        if v.heard != 1 {
             continue;
         }
         let (distance, change) = distance_and_change(
-            [v.place[0].get(), v.place[1].get(), v.place[2].get()],
-            v.distance.get(),
-            sound.race.clock.get().turns_a_second.get(),
+            v.place,
+            v.distance,
+            sound.race.clock.get().borrow().turns_a_second,
         );
-        v.distance.set(distance);
-        v.distance_change.set(change);
-        v.volume_factor.set(0.0);
-        v.pitch_factor.set(1.0);
-        if v.new.get() != 1 {
-            v.pitch_factor.set(eased_pitch_factor(
-                v.distance_change.get(),
-                v.pitch_factor.get(),
-                sound.race.clock.get(),
+        v.distance = distance;
+        v.distance_change = change;
+        v.volume_factor = 0.0;
+        v.pitch_factor = 1.0;
+        if v.new != 1 {
+            v.pitch_factor = eased_pitch_factor(
+                v.distance_change,
+                v.pitch_factor,
+                &sound.race.clock.get().borrow(),
                 sound.race.surface.get(),
-            ));
+            );
         }
-        v.volume_factor.set(1.0);
-        if over_one(v.distance.get()) {
-            v.volume_factor.set(inverse(v.distance.get()));
+        v.volume_factor = 1.0;
+        if over_one(v.distance) {
+            v.volume_factor = inverse(v.distance);
         }
-        v.new.set(0);
+        v.new = 0;
+        voices.borrow_mut()[n] = v;
     }
 }
 
@@ -84,13 +86,13 @@ fn eased_pitch_factor(
     sf: &crate::sound::store::SurfaceSounds,
 ) -> f32 {
     let t0 = ld(change);
-    let t1 = ld(ck.sound_speed.get());
+    let t1 = ld(ck.sound_speed);
     let t2 = t0 + t1;
-    let t3 = ld(ck.over_sound_speed.get());
+    let t3 = ld(ck.over_sound_speed);
     let t4 = t2 * t3;
     let t5 = ld(factor);
     let t6 = t4 - t5;
-    let t7 = ld(sf.pitch_blend.get());
+    let t7 = ld(sf.constants.pitch_blend);
     let t8 = t6 * t7;
     let t9 = ld(factor);
     let t10 = t8 + t9;
@@ -108,10 +110,9 @@ fn inverse(distance: f32) -> f32 {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
+    use crate::math::x87_mem::{HostCell, view};
     use crate::memory::session::Cell32;
-    use crate::scene::x87_mem::{HostCell, view};
-    use crate::sound::asm_layout::{Laid, with_laid};
-    use crate::sound::store::SurfaceSounds;
+    use crate::sound::asm_layout::{SURFACE_EXTENT, with_surface};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     /// The float at byte `offset` of the test buffer at `at`.
@@ -142,11 +143,8 @@ mod reference_vectors {
                 plain: |a| {
                     let clock = view::<crate::sound::store::RaceClock>(a[1], 0);
                     let place = [float_at(a[0], 8), float_at(a[0], 0xC), float_at(a[0], 0x10)];
-                    let (distance, change) = distance_and_change(
-                        place,
-                        float_at(a[0], 0x40),
-                        clock.turns_a_second.get(),
-                    );
+                    let (distance, change) =
+                        distance_and_change(place, float_at(a[0], 0x40), clock.turns_a_second);
                     put_float(a[0], 0x40, distance);
                     put_float(a[0], 0x44, change);
                 },
@@ -163,7 +161,7 @@ mod reference_vectors {
                         writes: &[],
                     },
                     Operand::Sized {
-                        len: SurfaceSounds::EXTENT,
+                        len: SURFACE_EXTENT,
                         reads: &[(8, In::F)],
                         writes: &[],
                     },
@@ -171,7 +169,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     let clock = view::<crate::sound::store::RaceClock>(a[1], 0);
-                    with_laid::<SurfaceSounds, _>(a[2], |sf| {
+                    with_surface(a[2], |sf| {
                         let factor = eased_pitch_factor(
                             float_at(a[0], 0x44),
                             float_at(a[0], 0x48),

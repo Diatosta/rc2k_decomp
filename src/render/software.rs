@@ -4,22 +4,18 @@
 #![allow(unsafe_code)]
 
 use super::*;
-use std::sync::Mutex;
+use crate::render::rasteriser::{MipLevel, Texture, mip_chain};
+use std::sync::{Arc, Mutex};
 
-/// The rasteriser as a backend, with the screen's size (the depth buffer's) and whether a race
-/// is on (the handheld draws a race's 3D smaller).
+/// The rasteriser as a backend, with the screen's size (the depth buffer's). A race's 3D at a
+/// share of that size goes through a small frame (`small_frame`).
 pub struct Software {
     pub screen: (usize, usize),
-    #[cfg_attr(
-        not(all(target_os = "linux", target_arch = "aarch64")),
-        allow(dead_code, reason = "only the handheld's small frame reads it")
-    )]
-    pub racing: bool,
 }
 
 impl Backend for Software {
     fn draw(&mut self, target: &Target, mut commands: CommandList) {
-        draw(target, &mut commands, self.screen, self.racing);
+        draw(target, &mut commands, self.screen);
         give_back(commands);
     }
 }
@@ -37,10 +33,10 @@ pub struct Depth {
     pub values: Vec<f32>,
 }
 
-pub static DEPTH: Mutex<Option<Depth>> = Mutex::new(None);
+static DEPTH: Mutex<Option<Depth>> = Mutex::new(None);
 
 /// The depth buffer at the screen's size, made or made again.
-pub fn with_depth<R>(width: usize, height: usize, f: impl FnOnce(&mut Depth) -> R) -> R {
+fn with_depth<R>(width: usize, height: usize, f: impl FnOnce(&mut Depth) -> R) -> R {
     let mut depth = DEPTH.lock().unwrap();
     if depth
         .as_ref()
@@ -55,54 +51,63 @@ pub fn with_depth<R>(width: usize, height: usize, f: impl FnOnce(&mut Depth) -> 
     f(depth.as_mut().unwrap())
 }
 
-/// The small frame draw_noted draws into: only the handheld has one.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-use crate::platform::handheld::Small;
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-enum Small {}
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-impl Small {
-    fn frame_parts(&mut self) -> (&mut [u32], usize, usize, &mut [f32]) {
-        match *self {}
-    }
-}
+/// The smaller levels made for the textures drawn with the game's mip filter, by texture. A
+/// texture written or gone is dropped (`render::take_level_changes`) and made again when next
+/// drawn from.
+static MIP_CHAINS: Mutex<Option<crate::render::TextureMap<Arc<Vec<MipLevel>>>>> = Mutex::new(None);
 
-/// The noted things' screen places for the handheld's small frame.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-fn scale_noted(noted: &mut CommandList) {
-    const BY: f32 = crate::platform::handheld::SMALLER as f32;
-    let by = crate::platform::handheld::SMALLER;
-    // Every vertex is a fan's (the list holds no others).
-    for v in noted.vertices.iter_mut() {
-        v[0] = (f32::from_bits(v[0]) / BY).to_bits();
-        v[1] = (f32::from_bits(v[1]) / BY).to_bits();
+/// The smaller levels of each texture in `levels` (`Texture.lower`), made once per texture; empty
+/// unless a noted fan asks for them (minifying filter 6, which the game sets when its mipmapping
+/// option is on), so a frame without the option does nothing here.
+fn mip_chains(
+    noted: &CommandList,
+    levels: &[(super::TextureId, &[u8])],
+) -> Vec<(super::TextureId, Arc<Vec<MipLevel>>)> {
+    let asked = noted.commands.iter().any(|what| {
+        matches!(what, Command::Fan { texture: Some(_), states, .. } if states.get(0x12) == Some(&6))
+    });
+    if !asked {
+        return Vec::new();
     }
-    for what in noted.commands.iter_mut() {
-        match what {
-            Command::Fan { bounds, .. } => {
-                *bounds = (bounds.0 / BY, bounds.1 / BY, bounds.2 / BY, bounds.3 / BY);
-            }
-            Command::Clear([left, top, right, bottom]) => {
-                *left /= by;
-                *top /= by;
-                *right = right.div_ceil(by);
-                *bottom = bottom.div_ceil(by);
-            }
+    super::keep_level_changes();
+    let mut cache = MIP_CHAINS.lock().unwrap();
+    let cache = cache.get_or_insert_default();
+    for id in super::take_level_changes() {
+        cache.remove(&id);
+    }
+    let mut chains = Vec::new();
+    for what in &noted.commands {
+        if let Command::Fan {
+            texture: Some(t),
+            states,
+            ..
+        } = what
+            && states.get(0x12) == Some(&6)
+            && !chains.iter().any(|(id, _)| *id == t.pixels)
+        {
+            let chain = cache.entry(t.pixels).or_insert_with(|| {
+                let pixels = levels
+                    .iter()
+                    .find(|l| l.0 == t.pixels)
+                    .map_or(&[][..], |l| l.1);
+                Arc::new(mip_chain(&Texture {
+                    pixels,
+                    width: t.width,
+                    height: t.height,
+                    pitch: t.pitch,
+                    bytes: t.bytes,
+                    masks: t.masks,
+                    lower: &[],
+                }))
+            });
+            chains.push((t.pixels, Arc::clone(chain)));
         }
     }
+    chains
 }
 
-fn draw(
-    into: &Target,
-    noted: &mut CommandList,
-    screen: (usize, usize),
-    #[cfg_attr(
-        not(all(target_os = "linux", target_arch = "aarch64")),
-        allow(unused_variables, reason = "only the handheld's small frame reads it")
-    )]
-    racing: bool,
-) {
-    use crate::render::rasteriser::{Frame, Pixels, States, Texture};
+fn draw(into: &Target, noted: &mut CommandList, screen: (usize, usize)) {
+    use crate::render::rasteriser::{Frame, States, Texture};
     use rayon::prelude::*;
     FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let started = std::time::Instant::now();
@@ -111,31 +116,35 @@ fn draw(
         .iter()
         .filter(|n| matches!(n, Command::Fan { .. }))
         .count() as u64;
-    // The handheld draws a race's 3D smaller (`handheld`): the noted things made to fit a small
-    // frame, which takes the screen's picture so far and gives it back enlarged.
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    let mut small = (into.bits == 32
-        && crate::platform::handheld::draws_small(racing)
-        && !crate::render::gpu_running())
-    .then(|| {
-        scale_noted(noted);
-        // SAFETY: not kept: the screen's rows, checked by `slice`, nothing else writes them
-        // while the game's code waits here.
-        let screen = unsafe { into.bytes() };
-        crate::platform::handheld::Small::from_screen(screen, into.pitch, into.width, into.height)
-    });
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-    let mut small: Option<Small> = None;
+    // A race's 3D at a share of the screen's size: the noted things made to fit a small frame,
+    // which takes the screen's picture so far and gives it back enlarged.
+    let percent = super::flush_scale();
+    let mut small =
+        (into.bits == 32 && percent != 100 && !crate::render::gpu_running()).then(|| {
+            // SAFETY: not kept: the screen's rows, checked by `slice`, nothing else writes them
+            // while the game's code waits here.
+            let screen = unsafe { into.bytes() };
+            let small = crate::render::small_frame::Small::from_screen(
+                screen,
+                into.pitch,
+                into.width,
+                into.height,
+                percent,
+            );
+            small.fit_noted(noted);
+            small
+        });
     with_depth(screen.0, screen.1, |depth| {
         if small.is_none() && (depth.width != into.width || depth.height != into.height) {
             return;
         }
         // The screen's pixels are checked by `pixels`; the depths are Rust's own, borrowed
         // for the frame.
-        let mut frame = match small.as_mut().map(Small::frame_parts) {
-            Some((pixels, width, height, depth)) => {
-                Frame::new(Pixels::Bits32(pixels), width, width, height, depth)
-            }
+        let mut frame = match small
+            .as_mut()
+            .map(crate::render::small_frame::Small::frame_parts)
+        {
+            Some((pixels, width, height, depth)) => Frame::new(pixels, width, width, height, depth),
             None => Frame::new(
                 // SAFETY: the screen's rows, checked by `pixels`; the game's code does not
                 // run while the frame is drawn (it waits for `Backend::draw`).
@@ -166,7 +175,9 @@ fn draw(
             .iter()
             .map(|t| (t.pixels, super::noted_bytes(t)))
             .collect();
+        let chains = mip_chains(noted, &levels);
         let levels = &levels;
+        let chains = &chains;
         let draw_tile = move |tile: &mut crate::render::rasteriser::Tile| {
             let tile_started = std::time::Instant::now();
             let clip = *tile.clip();
@@ -197,6 +208,10 @@ fn draw(
                             pitch: t.pitch,
                             bytes: t.bytes,
                             masks: t.masks,
+                            lower: chains
+                                .iter()
+                                .find(|c| c.0 == t.pixels)
+                                .map_or(&[][..], |c| &c.1[..]),
                         });
                         written += tile.draw_fan(
                             noted.fan_vertices(*vertices),
@@ -224,10 +239,9 @@ fn draw(
             std::sync::atomic::Ordering::Relaxed,
         );
     });
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     if let Some(s) = small {
         // SAFETY: as above.
-        s.enlarge_to(unsafe { into.bytes() }, into.pitch, into.width, into.height);
+        s.enlarge_to(unsafe { into.bytes() }, into.pitch);
     }
     use std::sync::atomic::Ordering::Relaxed;
     FANS.fetch_add(fans, Relaxed);

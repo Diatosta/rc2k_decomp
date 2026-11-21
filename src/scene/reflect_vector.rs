@@ -2,31 +2,25 @@
 //! the matrix `SceneMatrices.view_back_matrix`.
 //!
 //! v = the three floats at `SceneMatrices.reflect_vector`, n = the three at
-//! `SceneMatrices.reflect_normal`: d = v . n (the first and second products added first, then
-//! the third); v = v * d, each rounded to a float; v = v + v - n; then v through the matrix
-//! `SceneMatrices.view_back_matrix` (`scene::rotate_point`, inlined) and back to its place. d
-//! stays unrounded between its uses. Plain Rust (the x87's arithmetic in `X`,
-//! `math/x87_float.rs`); the tests compare against recorded vectors (`data/vectors`). One
-//! caller, `scene::reflection_coordinates` (the reflection's texture coordinates).
+//! `SceneMatrices.reflect_normal`: d = v . n (the first and second products added first, then the
+//! third); v = v * d, each rounded to a float; v = v + v - n; then v through the matrix
+//! `SceneMatrices.view_back_matrix` (`scene::rotate_point`, inlined) and back to its place. d stays
+//! unrounded between its uses. Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the
+//! tests compare against recorded vectors (`data/vectors`).
 use crate::math::x87_float::{Rounds, at_rounding};
-use crate::scene::x87_mem::{Base, cells, fld_with, fstp_with};
+use crate::math::x87_mem::{Base, cells, fld_with, fstp_with};
 
-pub fn reflect_vector(
-    m: &crate::scene::view_matrices::ViewMatrices,
-    view_back: &[crate::memory::session::PlainFloat; 16],
-) {
-    let (v, n): ([u32; 3], [u32; 3]) = (
-        crate::memory::session::read_bits(&m.reflect_vector),
-        crate::memory::session::read_bits(&m.reflect_normal),
-    );
+/// The vector `vector` mirrored at the normal `normal` and turned by `view_back` (the bits of
+/// three floats each).
+pub fn reflect_vector(vector: [u32; 3], normal: [u32; 3], view_back: &[f32; 16]) -> [u32; 3] {
     // The vector, the normal, d.
-    let mut w = [v[0], v[1], v[2], n[0], n[1], n[2], 0];
-    // The matrix is only read: a copy of its cells.
-    let back = view_back
-        .each_ref()
-        .map(crate::memory::session::PlainFloat::bits);
+    let mut w = [
+        vector[0], vector[1], vector[2], normal[0], normal[1], normal[2], 0,
+    ];
+    // The matrix is only read: a copy of its bits.
+    let back = view_back.map(f32::to_bits);
     reflect(cells(&mut w), &back[..]);
-    crate::memory::session::write_bits(&m.reflect_vector, [w[0], w[1], w[2]]);
+    [w[0], w[1], w[2]]
 }
 
 /// The block's arithmetic: `w` the vector, the normal, d; `m` the matrix.

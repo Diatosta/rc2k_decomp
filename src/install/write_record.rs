@@ -1,12 +1,12 @@
-//! The installation record `var\ral.zog` written: a header, `cdrom=<folder installed into>`,
-//! `language=<...>` only if the locale directory is set, and `installation=<media mode>`, each
-//! line ended CR LF. `install::read_record` reads it back. Called by `install::install_files`.
+//! The installation record `var\ral.zog` written: a header, `cdrom=<folder installed from>`,
+//! `language=<...>` only if the locale directory is set, and `installation=<media mode>`, each line
+//! ended CR LF. `install::read_record` reads it back.
 
 use crate::errors::Refused;
-use crate::install::installer::media_mode;
+use crate::install::installer::FULL_INSTALLATION;
 
 /// The record written; whether the write worked (`install_files` reads it).
-pub fn write_record(
+pub(super) fn write_record(
     install: &'static crate::install::owner::Install,
     strings: &'static crate::strings::owner::Strings,
 ) -> Result<bool, Refused> {
@@ -15,10 +15,9 @@ pub fn write_record(
         .then(|| crate::files::state::directory_text(1, "the locale directory"))
         .transpose()?;
     let text = rc2k_core::install::config::record_text(
-        &crate::memory::place::BytePlace::from(&install.paths.game_dir)
-            .text("the game's folder")?,
+        &install.paths.game_dir.text(),
         locale.as_deref(),
-        media_mode(),
+        FULL_INSTALLATION,
     );
     start.write(&text, "the install record's text")?;
     // files::write_file

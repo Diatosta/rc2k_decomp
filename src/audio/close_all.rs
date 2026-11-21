@@ -4,7 +4,7 @@
 use crate::audio::own::AudioThread;
 use crate::errors::Refused;
 
-pub fn close_all(
+pub(super) fn close_all(
     audio: &AudioThread,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {

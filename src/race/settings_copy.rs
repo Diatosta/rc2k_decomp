@@ -40,14 +40,21 @@ pub enum StepOperand {
     /// A dword of car block n, by field (`car!`).
     CarCell(usize, fn(&Car) -> &PlainDword),
     /// A float of car block n, by its bits (`car_bits!`).
-    CarBits(usize, fn(&Car) -> &PlainFloat),
+    CarBits(usize, for<'a> fn(&'a Car) -> FloatRef<'a>),
     /// A dword of one of the owners (`var!(@o menus.options.lens_flare)`).
     Owned(for<'a> fn(&'a Owners<'a>) -> &'a dyn DwordLike),
     /// A dword of the race's (`var!(@race shared.vars.direction)`).
     RaceVar(fn(&Race) -> &dyn DwordLike),
+    /// A field of a store of plain values, read and written by functions
+    /// (`var!(@plain menus.options; lens_flare)`).
+    Plain {
+        get: fn(&Owners<'static>) -> u32,
+        set: fn(&Owners<'static>, u32),
+    },
 }
-use crate::memory::session::{PlainDword, PlainFloat};
-use StepOperand::{CarBits, CarCell, Owned, RaceVar};
+use crate::memory::plain_floats::FloatRef;
+use crate::memory::session::{Cell32, PlainDword};
+use StepOperand::{CarBits, CarCell, Owned, Plain, RaceVar};
 #[cfg(test)]
 use StepOperand::{Cell, ResultMark, ResultSecs, Setting};
 
@@ -79,6 +86,7 @@ impl StepOperand {
             CarBits(n, f) => f(&o.race.car_blocks().cars[n]).bits(),
             Owned(f) => f(o).get(),
             RaceVar(f) => f(o.race).get(),
+            Plain { get, .. } => get(o),
         }
     }
 
@@ -97,6 +105,7 @@ impl StepOperand {
             CarBits(n, f) => f(&o.race.car_blocks().cars[n]).set_bits(v),
             Owned(f) => f(o).set(v),
             RaceVar(f) => f(o.race).set(v),
+            Plain { set, .. } => set(o, v),
         }
     }
 }
@@ -114,12 +123,25 @@ macro_rules! car {
     };
 }
 
-/// `car_bits!(n, field)`: car block n's float `field`, by its bits.
+/// `car_bits!(n, field)`: car block n's float `field`, by its bits; `car_bits!(n, row[i])` one
+/// element of a row of floats.
 macro_rules! car_bits {
-    ($n:literal, $($f:tt)+) => {
+    ($n:literal, $f:ident[$i:literal]) => {
         $crate::race::settings_copy::StepOperand::CarBits($n, {
-            fn f(c: &$crate::physics::car_store::Car) -> &$crate::memory::session::PlainFloat {
-                &c.$($f)+
+            fn f(
+                c: &$crate::physics::car_store::Car,
+            ) -> $crate::memory::plain_floats::FloatRef<'_> {
+                c.$f.float_at($i).into()
+            }
+            f
+        })
+    };
+    ($n:literal, $f:ident) => {
+        $crate::race::settings_copy::StepOperand::CarBits($n, {
+            fn f(
+                c: &$crate::physics::car_store::Car,
+            ) -> $crate::memory::plain_floats::FloatRef<'_> {
+                (&c.$f).into()
             }
             f
         })
@@ -129,6 +151,22 @@ macro_rules! car_bits {
 /// `var!(@o field ..)`: a dword of one of the owners as a `StepOperand` (a `fn` item, as `car!`);
 /// `var!(@gfx field ..)` one of the graphics owner's, `var!(@race field ..)` one of the race's.
 macro_rules! var {
+    (@plain $($store:ident).+; $($f:tt)+) => {
+        $crate::race::settings_copy::StepOperand::Plain {
+            get: {
+                fn get(o: &$crate::owners::Owners<'static>) -> u32 {
+                    o.$($store).+.read().$($f)+
+                }
+                get
+            },
+            set: {
+                fn set(o: &$crate::owners::Owners<'static>, value: u32) {
+                    o.$($store).+.write().$($f)+ = value;
+                }
+                set
+            },
+        }
+    };
     (@o $($f:tt)+) => {
         $crate::race::settings_copy::StepOperand::Owned({
             fn f<'a>(o: &'a $crate::owners::Owners<'a>) -> &'a dyn $crate::memory::session::DwordLike {
@@ -213,7 +251,7 @@ pub fn copy_settings_in(
 
 /// `race::copy_settings_out`: "COPY SHAUN TO GRAHAM"; skipped (and logged so)
 /// while a replay is shown.
-pub fn copy_settings_out(
+pub(super) fn copy_settings_out(
     race: &Race,
     tables: &crate::saves::best_times::BestTables,
 ) -> Result<(), Refused> {
@@ -243,7 +281,7 @@ fn log_cars(race: &Race, fx: &mut impl Effects) {
             fx.text(&label(name), false);
             fx.float(gauge(c).get());
         }
-        for (n, mark) in c.impact_octant_marks.iter().enumerate() {
+        for (n, mark) in c.impact_octant_marks.floats().iter().enumerate() {
             fx.text(&label(&format!("caroctdamage{n}")), false);
             fx.float(mark.get());
         }
@@ -274,6 +312,22 @@ fn log_arcade_positions(race: &Race, fx: &mut impl Effects) {
     );
 }
 
+use crate::race::race_cars::seats;
+
+/// The race's players in order (0 the current player's, 1 player 1's, then 3 and 4's when the split
+/// screen has them): the number, the car block and the settings.
+fn players(
+    race: &Race,
+) -> impl Iterator<
+    Item = (
+        usize,
+        &crate::physics::car_store::Car,
+        &crate::race::state_store::RaceCar,
+    ),
+> {
+    (0..seats(race)).map(|k| (k, &race.car_blocks().cars[k], race.shared.state.car(k)))
+}
+
 /// The front end's settings into the race's (`copy_settings_in`), in the log's order.
 fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused> {
     let shared = &race.shared;
@@ -301,8 +355,17 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     vars.race_stage.set(vars.race_stage.get().wrapping_sub(1));
     vars.run_kind.set(settings.run_kind.get());
     view.race_cars.set(view.players.get());
-    vars.car_tyres[0].set(settings.cars[0].tyre.get());
-    vars.car_tyres[1].set(settings.cars[1].tyre.get());
+    // Players 3 and 4 (a split screen of more than two): their kinds and tyres.
+    for (k, kind) in vars.race_car_kinds[..seats(race)]
+        .iter()
+        .enumerate()
+        .skip(2)
+    {
+        kind.set(shared.state.car_kind(k).get());
+    }
+    for (k, tyre) in vars.car_tyres[..seats(race)].iter().enumerate() {
+        tyre.set(shared.state.car(k).tyre.get());
+    }
     vars.mip_setting.set(gfx.display.choices.mipmapping.get());
     vars.settings_words[0].set(settings.lens_flare.get());
     vars.settings_words[1].set(settings.reflections.get());
@@ -332,8 +395,8 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
 
     // The car blocks' settings. The brake-like settings are percentages: below 0 is 0,
     // 100 or more is 0x100 (full), else the setting x 2.56 (the x87's product, rounded).
-    let brake_scale = race.course.numbers.get().brake_scale.get();
-    for (c, s) in race.car_blocks().cars.iter().zip(&settings.cars).take(2) {
+    let brake_scale = race.course.numbers.brake_scale.get();
+    for (c, s) in players(race).map(|(_, c, s)| (c, s)) {
         for (field, setting) in SETTING_BRAKES {
             let held = rc2k_core::race::cars::held_brake(setting(s).get() as i32, |v| {
                 x87::int_times_to_int(v, brake_scale) as u32
@@ -345,13 +408,13 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     // The first car's brake balance is turned round: 0x100 less itself.
     let balance = &race.car_blocks().cars[0].brake_balance;
     balance.set(0x100u32.wrapping_sub(balance.get()));
-    for car in 0..2 {
-        vars.car_colours[car].set(settings.cars[car].controls.gearing.get());
+    for (car, colour) in vars.car_colours[..seats(race)].iter().enumerate() {
+        colour.set(shared.state.car(car).controls.gearing.get());
     }
-    for (c, s) in race.car_blocks().cars.iter().zip(&settings.cars).take(2) {
+    for (c, s) in players(race).map(|(_, c, s)| (c, s)) {
         c.start_slot_value.set(s.race_number.get());
     }
-    for (c, s) in race.car_blocks().cars.iter().zip(&settings.cars).take(2) {
+    for (c, s) in players(race).map(|(_, c, s)| (c, s)) {
         c.camera_view.set(s.view.get());
         c.camera_blend_view.set(s.view.get());
     }
@@ -361,44 +424,43 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     logged_int(fx, "[onerace.car2overbits]", hud_bits[1].get());
     // The head-up display's option bits: the results' word, unless it is -1 (all ones);
     // then the bits are made from the player's own on/off settings.
-    for (car, hud) in hud_bits.into_iter().enumerate() {
-        let mut bits = hud.get();
+    for (car, _, player) in players(race) {
+        let mut bits = shared.state.hud_bits(car).get();
         if bits == 0xFFFF_FFFF {
             bits = 0;
             for (setting, bit) in OPTION_BITS {
-                if setting(&settings.cars[car]).get() != 0 {
+                if setting(player).get() != 0 {
                     bits |= bit;
                 }
             }
         }
         race.car_blocks().cars[car].option_bits.set(bits);
-        view.player_options[car].set(bits);
+        if let Some(options) = view.player_options.get(car) {
+            options.set(bits);
+        }
     }
 
     // The gauges: the front end keeps them as whole numbers, the cars as floats (converted exactly
     // as the x87 does, so large numbers round as they always did).
-    for (car, (c, s)) in race
-        .car_blocks()
-        .cars
-        .iter()
-        .zip(&settings.cars)
-        .take(2)
-        .enumerate()
-    {
+    for (car, c, s) in players(race) {
         for (gauge, setting) in GAUGES {
             gauge(c).set(x87::from_int(setting(s).get() as i32));
         }
-        for (mark, saved) in c.impact_octant_marks.iter().zip(result_marks(shared, car)) {
+        for (mark, saved) in c
+            .impact_octant_marks
+            .floats()
+            .iter()
+            .zip(result_marks(shared, car))
+        {
             mark.set(f32::from_bits(saved.get()));
         }
     }
 
-    race.car_blocks().cars[0]
-        .parts_present
-        .set(results.flags_current.get());
-    race.car_blocks().cars[1]
-        .parts_present
-        .set(results.flags_first.get());
+    for car in 0..seats(race) {
+        race.car_blocks().cars[car]
+            .parts_present
+            .set(shared.state.flags(car).get());
+    }
     shared.tables().start_place.set(results.figure_000.get());
     race.car_blocks().cars[0]
         .mode2_place
@@ -407,8 +469,8 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     log_cars(race, fx);
 
     fx.clear_player_absences(race);
-    for (c, r) in race.car_blocks().cars.iter().zip(&results.results).take(2) {
-        c.stop_state.set(r.result.get());
+    for (car, c, _) in players(race) {
+        c.stop_state.set(shared.state.result(car).result.get());
     }
     log_arcade_positions(race, fx);
     fx.copy_league_table(race)?;
@@ -421,48 +483,45 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
 /// replay is shown (`hold_car_revs` not 0) nothing is copied.
 fn copy_out(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
     let shared = &race.shared;
-    let (settings, results) = (&shared.state.settings, &shared.state.results);
     fx.text(RULE, true);
     fx.text("COPY SHAUN TO GRAHAM", true);
     if shared.replay_file().hold_car_revs.get() != 0 {
         fx.text("SKIPPING - REPLAY!", true);
     } else {
-        results
-            .hud_bits_current
-            .set(race.car_blocks().cars[0].option_bits.get());
-        results
-            .hud_bits_first
-            .set(race.car_blocks().cars[1].option_bits.get());
+        for car in 0..seats(race) {
+            shared
+                .state
+                .hud_bits(car)
+                .set(race.car_blocks().cars[car].option_bits.get());
+        }
         // The gauges back to whole numbers (rounded as the x87's control
         // word says, to the nearest by default), the impact marks' bits as they are.
-        for (car, (c, s)) in race
-            .car_blocks()
-            .cars
-            .iter()
-            .zip(&settings.cars)
-            .take(2)
-            .enumerate()
-        {
+        for (car, c, s) in players(race) {
             for (gauge, setting) in GAUGES {
                 setting(s).set(x87::to_int(gauge(c)) as u32);
             }
-            for (mark, saved) in c.impact_octant_marks.iter().zip(result_marks(shared, car)) {
+            for (mark, saved) in c
+                .impact_octant_marks
+                .floats()
+                .iter()
+                .zip(result_marks(shared, car))
+            {
                 saved.set(mark.get().to_bits());
             }
         }
         fx.store_results_by_mode(race);
-        for (r, c) in results.results.iter().zip(&race.car_blocks().cars).take(2) {
-            r.result.set(c.stop_state.get());
+        for (car, c, _) in players(race) {
+            shared.state.result(car).result.set(c.stop_state.get());
         }
-        for (r, c) in results.results.iter().zip(&race.car_blocks().cars).take(2) {
-            r.secs.set(x87::loaded(&c.top_speed));
+        for (car, c, _) in players(race) {
+            shared.state.result(car).secs.set(x87::loaded(&c.top_speed));
         }
-        results
-            .flags_current
-            .set(race.car_blocks().cars[0].parts_present.get());
-        results
-            .flags_first
-            .set(race.car_blocks().cars[1].parts_present.get());
+        for car in 0..seats(race) {
+            shared
+                .state
+                .flags(car)
+                .set(race.car_blocks().cars[car].parts_present.get());
+        }
         log_cars(race, fx);
         log_arcade_positions(race, fx);
     }
@@ -473,11 +532,11 @@ fn copy_out(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
 
 /// Car `car`'s eight impact marks in the results record (`results[car].impact_marks`).
 fn result_marks(shared: &RaceShared, car: usize) -> &[PlainDword; 8] {
-    &shared.state.results.results[car].impact_marks
+    &shared.state.result(car).impact_marks
 }
 
 /// A float of a car block, picked by field.
-type CarFloat = fn(&Car) -> &PlainFloat;
+type CarFloat = for<'a> fn(&'a Car) -> FloatRef<'a>;
 /// A dword of a car block, picked by field.
 type CarWord = fn(&Car) -> &PlainDword;
 /// A word of a player's settings record in the race's variables, picked by field.
@@ -486,49 +545,49 @@ type SettingWord = fn(&RaceCar) -> &PlainDword;
 /// The race's car blocks and the front end's per-car settings records: the 43 gauges of a
 /// car (damage and wear), each with the settings word it is kept in.
 const GAUGES: [(CarFloat, SettingWord); 43] = [
-    (|c| &c.engine_damage, |r| &r.damage[0]),
-    (|c| &c.exhaust_damage, |r| &r.damage[2]),
-    (|c| &c.electrics_damage, |r| &r.damage[3]),
-    (|c| &c.turbo_damage, |r| &r.damage[4]),
-    (|c| &c.cooling_damage, |r| &r.damage[6]),
-    (|c| &c.steering_damage, |r| &r.damage[7]),
-    (|c| &c.clutch_damage, |r| &r.damage[8]),
-    (|c| &c.differential_damage, |r| &r.damage[10]),
-    (|c| &c.overall_suspension_damage, |r| &r.wear[27]),
-    (|c| &c.tyre_wear, |r| &r.wear[35]),
-    (|c| &c.brake_damage, |r| &r.wear[30]),
-    (|c| &c.lights_damage, |r| &r.wear[22]),
-    (|c| &c.gearbox_damage, |r| &r.wear[9]),
-    (|c| &c.body_damage, |r| &r.damage[1]),
-    (|c| &c.gear_wear[0], |r| &r.wear[0]),
-    (|c| &c.gear_wear[2], |r| &r.wear[2]),
-    (|c| &c.gear_wear[3], |r| &r.wear[3]),
-    (|c| &c.gear_wear[4], |r| &r.wear[4]),
-    (|c| &c.gear_wear[5], |r| &r.wear[5]),
-    (|c| &c.gear_wear[6], |r| &r.wear[6]),
-    (|c| &c.gear_wear[7], |r| &r.wear[7]),
-    (|c| &c.gear_wear[8], |r| &r.wear[8]),
-    (|c| &c.wheel_hit_damage[0], |r| &r.wear[10]),
-    (|c| &c.wheel_hit_damage[1], |r| &r.wear[11]),
-    (|c| &c.wheel_hit_damage[2], |r| &r.wear[12]),
-    (|c| &c.wheel_hit_damage[3], |r| &r.wear[13]),
-    (|c| &c.body_hit_damage, |r| &r.wear[14]),
-    (|c| &c.light_damage[0], |r| &r.wear[16]),
-    (|c| &c.light_damage[1], |r| &r.wear[17]),
-    (|c| &c.light_damage[2], |r| &r.wear[18]),
-    (|c| &c.light_damage[3], |r| &r.wear[19]),
-    (|c| &c.light_damage[4], |r| &r.wear[20]),
-    (|c| &c.light_damage[5], |r| &r.wear[21]),
-    (|c| &c.suspension_damage[0], |r| &r.wear[23]),
-    (|c| &c.suspension_damage[1], |r| &r.wear[24]),
-    (|c| &c.suspension_damage[2], |r| &r.wear[25]),
-    (|c| &c.suspension_damage[3], |r| &r.wear[26]),
-    (|c| &c.brake_wear_a, |r| &r.wear[28]),
-    (|c| &c.brake_wear_b, |r| &r.wear[29]),
-    (|c| &c.tyre_wears[0], |r| &r.wear[31]),
-    (|c| &c.tyre_wears[1], |r| &r.wear[32]),
-    (|c| &c.tyre_wears[2], |r| &r.wear[33]),
-    (|c| &c.tyre_wears[3], |r| &r.wear[34]),
+    (|c| (&c.engine_damage).into(), |r| &r.damage[0]),
+    (|c| (&c.exhaust_damage).into(), |r| &r.damage[2]),
+    (|c| (&c.electrics_damage).into(), |r| &r.damage[3]),
+    (|c| (&c.turbo_damage).into(), |r| &r.damage[4]),
+    (|c| (&c.cooling_damage).into(), |r| &r.damage[6]),
+    (|c| (&c.steering_damage).into(), |r| &r.damage[7]),
+    (|c| (&c.clutch_damage).into(), |r| &r.damage[8]),
+    (|c| (&c.differential_damage).into(), |r| &r.damage[10]),
+    (|c| (&c.overall_suspension_damage).into(), |r| &r.wear[27]),
+    (|c| (&c.tyre_wear).into(), |r| &r.wear[35]),
+    (|c| (&c.brake_damage).into(), |r| &r.wear[30]),
+    (|c| (&c.lights_damage).into(), |r| &r.wear[22]),
+    (|c| (&c.gearbox_damage).into(), |r| &r.wear[9]),
+    (|c| (&c.body_damage).into(), |r| &r.damage[1]),
+    (|c| c.gear_wear.float_at(0).into(), |r| &r.wear[0]),
+    (|c| c.gear_wear.float_at(2).into(), |r| &r.wear[2]),
+    (|c| c.gear_wear.float_at(3).into(), |r| &r.wear[3]),
+    (|c| c.gear_wear.float_at(4).into(), |r| &r.wear[4]),
+    (|c| c.gear_wear.float_at(5).into(), |r| &r.wear[5]),
+    (|c| c.gear_wear.float_at(6).into(), |r| &r.wear[6]),
+    (|c| c.gear_wear.float_at(7).into(), |r| &r.wear[7]),
+    (|c| c.gear_wear.float_at(8).into(), |r| &r.wear[8]),
+    (|c| c.wheel_hit_damage.float_at(0).into(), |r| &r.wear[10]),
+    (|c| c.wheel_hit_damage.float_at(1).into(), |r| &r.wear[11]),
+    (|c| c.wheel_hit_damage.float_at(2).into(), |r| &r.wear[12]),
+    (|c| c.wheel_hit_damage.float_at(3).into(), |r| &r.wear[13]),
+    (|c| (&c.body_hit_damage).into(), |r| &r.wear[14]),
+    (|c| c.light_damage.float_at(0).into(), |r| &r.wear[16]),
+    (|c| c.light_damage.float_at(1).into(), |r| &r.wear[17]),
+    (|c| c.light_damage.float_at(2).into(), |r| &r.wear[18]),
+    (|c| c.light_damage.float_at(3).into(), |r| &r.wear[19]),
+    (|c| c.light_damage.float_at(4).into(), |r| &r.wear[20]),
+    (|c| c.light_damage.float_at(5).into(), |r| &r.wear[21]),
+    (|c| c.suspension_damage.float_at(0).into(), |r| &r.wear[23]),
+    (|c| c.suspension_damage.float_at(1).into(), |r| &r.wear[24]),
+    (|c| c.suspension_damage.float_at(2).into(), |r| &r.wear[25]),
+    (|c| c.suspension_damage.float_at(3).into(), |r| &r.wear[26]),
+    (|c| (&c.brake_wear_a).into(), |r| &r.wear[28]),
+    (|c| (&c.brake_wear_b).into(), |r| &r.wear[29]),
+    (|c| c.tyre_wears.float_at(0).into(), |r| &r.wear[31]),
+    (|c| c.tyre_wears.float_at(1).into(), |r| &r.wear[32]),
+    (|c| c.tyre_wears.float_at(2).into(), |r| &r.wear[33]),
+    (|c| c.tyre_wears.float_at(3).into(), |r| &r.wear[34]),
 ];
 
 /// The log names of the gauges in `GAUGES` (`[carN.name]`).
@@ -711,9 +770,6 @@ mod tests {
         let _lock = crate::test_support::test_lock();
         let race = race();
         let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
-        let scale = &race.course.numbers.get().brake_scale;
-        let scale_kept = scale.get();
-        let scales = [scale_kept, 2.56, 1.0, 3.7];
         let in_steps = old_machine::graham_to_shaun();
         let out_steps = old_machine::shaun_to_graham();
         for (copy_in, steps) in [(true, &in_steps), (false, &out_steps)] {
@@ -724,7 +780,6 @@ mod tests {
                 for c in &cells {
                     c.set(rng.word());
                 }
-                scale.set(scales[round % scales.len()]);
                 let start = snapshot(&cells);
                 branches[0] += u32::from(race.shared.view.get().players.get() == 2);
                 branches[1] += u32::from(race.shared.replay_file().hold_car_revs.get() != 0);
@@ -754,6 +809,5 @@ mod tests {
             assert!(branches[1] > 30 || copy_in, "a replay shown");
             restore(&cells, &kept);
         }
-        scale.set(scale_kept);
     }
 }

@@ -10,8 +10,10 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Frames, List, Screen, Step, screen_entry};
 
 fn before(screens: &Screens) -> Result<(), Refused> {
-    screens.items.current[slot::VISUAL_PREFERENCES]
-        .set(screens.items.first[slot::VISUAL_PREFERENCES].get());
+    screens.items.set_current(
+        slot::VISUAL_PREFERENCES,
+        screens.items.first(slot::VISUAL_PREFERENCES),
+    );
     Ok(())
 }
 

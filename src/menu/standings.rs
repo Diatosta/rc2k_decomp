@@ -5,8 +5,6 @@
 //! Also the drivers (-1 at the end) and the players.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::memory::session::PlainDword;
-use crate::menu::drivers_store::Driver;
 use crate::menu::owner::Play;
 use crate::menu::owner::Screens;
 use crate::menu::owner::{Cars, Menus};
@@ -19,10 +17,10 @@ use rc2k_core::saves::rankings::{BKey, ChampHistory, HistoryEntry, RankedTimes};
 pub const ANY_GROUP: u32 = standings::ANY_GROUP;
 
 /// A player's record, typed.
-pub type PlayerCell<'a> = &'a crate::memory::session::Shared<rc2k_core::menu::player::Player>;
+pub type PlayerCell<'a> = &'a crate::menu::players_store::PlayerRecord;
 
 /// Whether any of the players has no name (a null name place).
-pub fn any_unnamed(players: &[PlayerCell]) -> Result<bool, crate::errors::BadInput> {
+pub(super) fn any_unnamed(players: &[PlayerCell]) -> Result<bool, crate::errors::BadInput> {
     Ok(players.iter().any(|p| p.get().name_player().is_none()))
 }
 
@@ -32,28 +30,24 @@ pub fn player(menus: &Menus, n: u32) -> PlayerCell<'_> {
 }
 
 /// `player` for a caller that holds only the players' slots.
-pub fn player_in(play: &Play, n: u32) -> PlayerCell<'_> {
+pub(super) fn player_in(play: &Play, n: u32) -> PlayerCell<'_> {
     &play.slots.records[n as usize]
 }
 
-/// The drivers as a `do .. while` walks them: the first always, then each while its first
-/// dword is not -1. The walk ends at the latest on the -1 after the 180 (`DriverTable.end`);
+/// How many drivers a `do .. while` walks: the first always, then each while its first dword
+/// is not -1. The walk ends at the latest on the -1 after the 180 (`DriverTables::end`);
 /// refused when that is gone.
-pub fn drivers(menus: &Menus) -> Result<&[Driver], BadInput> {
-    drivers_of(&menus.cars)
-}
-
-/// `drivers` for a caller that holds only the cars' state.
-pub fn drivers_of(cars: &Cars) -> Result<&[Driver], BadInput> {
-    let all = &cars.drivers.drivers;
+pub fn walked(cars: &Cars) -> Result<usize, BadInput> {
+    let tables = cars.drivers.read();
+    let all = &tables.drivers;
     let count = 1 + all[1..]
         .iter()
-        .take_while(|d| d.name_entry.get() != u32::MAX)
+        .take_while(|d| d.name_entry != u32::MAX)
         .count();
-    if count == all.len() && cars.drivers.end.get() != u32::MAX {
+    if count == all.len() && tables.end != u32::MAX {
         return Err(BadInput("the drivers without their end entry"));
     }
-    Ok(&all[..count])
+    Ok(count)
 }
 
 /// `f` on table A; refused without it.
@@ -65,7 +59,7 @@ pub fn with_a<R>(
 }
 
 /// `f` on table B; refused without it.
-pub fn with_b<R>(
+pub(super) fn with_b<R>(
     tables: &BestTables,
     f: impl FnOnce(&mut ChampHistory) -> R,
 ) -> Result<R, BadInput> {
@@ -74,17 +68,17 @@ pub fn with_b<R>(
 
 /// How many of table A's entries are walked; refused without the table or with no end entry
 /// within the core's `MOST_WALKED`.
-pub fn walked_a(tables: &BestTables) -> Result<usize, BadInput> {
+pub(super) fn walked_a(tables: &BestTables) -> Result<usize, BadInput> {
     with_a(tables, |t| t.walked())?.ok_or(BadInput("a standings table without its end entry"))
 }
 
 /// As `walked_a`, of table B.
-pub fn walked_b(tables: &BestTables) -> Result<usize, BadInput> {
+pub(super) fn walked_b(tables: &BestTables) -> Result<usize, BadInput> {
     with_b(tables, |t| t.walked())?.ok_or(BadInput("a standings table without its end entry"))
 }
 
 /// The walked entries of table A, copied out.
-pub fn walked_entries_a(
+pub(super) fn walked_entries_a(
     tables: &BestTables,
 ) -> Result<Vec<rc2k_core::saves::entries::BestTime>, BadInput> {
     let n = walked_a(tables)?;
@@ -146,25 +140,28 @@ pub struct Found {
 }
 
 /// The walked drivers, for the tables' fills.
-pub fn walked_drivers(cars: &Cars) -> Result<Vec<rc2k_core::saves::rankings::Driver>, BadInput> {
-    Ok(drivers_of(cars)?
+pub(super) fn walked_drivers(
+    cars: &Cars,
+) -> Result<Vec<rc2k_core::saves::rankings::Driver>, BadInput> {
+    let count = walked(cars)?;
+    Ok(cars.drivers.read().drivers[..count]
         .iter()
         .map(|d| rc2k_core::saves::rankings::Driver {
-            number: d.name_entry.get(),
-            group: d.class.get(),
-            time: d.time.get(),
-            total: d.total.get(),
-            nation: d.nation.get(),
-            car: d.car.get(),
-            entered: d.in_event.get(),
-            points: d.results.each_ref().map(PlainDword::get),
+            number: d.name_entry,
+            group: d.class,
+            time: d.time,
+            total: d.total,
+            nation: d.nation,
+            car: d.car,
+            entered: d.in_event,
+            points: d.results,
         })
         .collect())
 }
 
-/// A player as a stage record's holder: the figure (+0x94), nationality, car and the name's
+/// A player as a stage record's holder: the `figure`, nationality, car and the name's
 /// 0x20 bytes (copied past the NUL too).
-pub fn as_holder(
+pub(super) fn as_holder(
     play: &Play,
     p: &rc2k_core::menu::player::Player,
 ) -> Result<
@@ -200,13 +197,17 @@ pub fn name_player(p: &rc2k_core::menu::player::Player) -> Result<usize, BadInpu
     crate::menu::player_names::name_of(p)
 }
 
-/// The address of the player's name that the entries carry as the name's id.
-pub fn name_address_of(p: &rc2k_core::menu::player::Player) -> Result<u32, BadInput> {
-    Ok(crate::menu::player_names::name_address(name_player(p)?))
+/// The player's name as the entries carry it.
+pub(super) fn name_id_of(
+    p: &rc2k_core::menu::player::Player,
+) -> Result<rc2k_core::saves::name_id::NameId, BadInput> {
+    Ok(rc2k_core::saves::name_id::NameId::of_player(name_player(
+        p,
+    )?))
 }
 
 /// Runs `f` on the kept player name, the sorts' swap buffer (a copy of it, put back after).
-pub fn with_kept_name<R>(play: &Play, f: impl FnOnce(&mut [u8; NAME_LEN]) -> R) -> R {
+pub(super) fn with_kept_name<R>(play: &Play, f: impl FnOnce(&mut [u8; NAME_LEN]) -> R) -> R {
     let mut all = play.slots.names.kept_name.read();
     let [kept @ .., _] = &mut all;
     let r = f(kept);
@@ -215,28 +216,28 @@ pub fn with_kept_name<R>(play: &Play, f: impl FnOnce(&mut [u8; NAME_LEN]) -> R) 
 }
 
 /// The players `0 .. Event.player_count`: refused at 0, past 4 or with one missing.
-pub fn counted_players<'a>(
+pub(super) fn counted_players<'a>(
     screens: &Screens,
     play: &'a Play,
 ) -> Result<Vec<PlayerCell<'a>>, BadInput> {
-    let n: u32 = screens.event.player_count.get();
+    let n: u32 = screens.event.read().player_count;
     if n == 0 || n > 4 {
         return Err(BadInput("a player count of 0 or past 4"));
     }
     Ok((0..n).map(|k| player_in(play, k)).collect())
 }
 
-/// The current record's event (the record table, `section`, `index`; its +0x3C): its place
+/// The current record's event (the record table, `section`, `index`; its `event_slot`): its place
 /// in the stages' best times (`BestTables::stage_times`); refused past the table's
 /// sections, with no table, or past it.
-pub fn current_event(
+pub(super) fn current_event(
     screens: &Screens,
     system: &System,
     tables: &BestTables,
 ) -> Result<usize, BadInput> {
     let table = system.records().stage_tables.championship();
-    let section: u32 = screens.event.section.get();
-    let index: u32 = screens.event.stage_in_section.get();
+    let section: u32 = screens.event.read().section;
+    let index: u32 = screens.event.read().stage_in_section;
     if section >= 64
         || index >= 64
         || !crate::records::find_record::has_section(
@@ -262,7 +263,7 @@ pub fn current_event(
 }
 
 /// `f` on event `event`'s ten record entries (`current_event`'s place).
-pub fn with_event<R>(
+pub(super) fn with_event<R>(
     tables: &BestTables,
     event: usize,
     f: impl FnOnce(&mut rc2k_core::saves::entries::Times) -> R,
@@ -275,7 +276,7 @@ pub fn with_event<R>(
 
 /// Group `group`'s tenth best score (`BestTables::scores`); refused with no table or
 /// a group past the five.
-pub fn tenth_best_score(tables: &BestTables, group: u32) -> Result<u32, BadInput> {
+pub(super) fn tenth_best_score(tables: &BestTables, group: u32) -> Result<u32, BadInput> {
     tables
         .scores
         .with(|t| t.groups.get(group as usize).map(|g| g[9].score))?
@@ -286,7 +287,7 @@ const SORTED: u32 = standings::SORTED as u32;
 /// Standings table A's first 0xB4 entries sorted by `key` (signed; an exchange sort: an entry
 /// later or equal moves up).
 /// Refused without a table.
-pub fn sort_table_a(
+pub(super) fn sort_table_a(
     screens: &Screens,
     play: &Play,
     tables: &BestTables,
@@ -298,7 +299,7 @@ pub fn sort_table_a(
         });
     })?;
 
-    screens.draw_work.button_y.set(SORTED - 1);
+    screens.draw_work.write().button_y = SORTED - 1;
 
     Ok(())
 }
@@ -315,7 +316,7 @@ pub fn enter_best(
     group: Option<u32>,
     score: fn(&rc2k_core::menu::player::Player) -> u32,
 ) -> Result<(), BadInput> {
-    let n: u32 = screens.event.current_player.get();
+    let n: u32 = screens.event.read().current_player;
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
     }
@@ -330,14 +331,14 @@ pub fn enter_best(
         return Err(BadInput("no best-score table, a group past 4 or no name"));
     };
     use rc2k_core::saves::scores as s;
-    let name_ref = name_address_of(&p.get())?;
+    let name_id = name_id_of(&p.get())?;
     let best = s::Best {
         player: n + 1,
         score: score(&p.get()),
         nation: p.get().nationality,
         car: p.get().car_number,
         group: p.get().class,
-        name_ref,
+        name_id,
         name: name_of(play, &p.get())?,
     };
     scores.with(|t| {
@@ -351,7 +352,7 @@ pub fn enter_best(
 /// Standings table B's first 0xB4 entries sorted by `key`, as `sort_table_a`: going up (a
 /// later entry not above an earlier one moves up) or, with `down`, going down (a later
 /// entry not below one moves up). Refused without a table.
-pub fn sort_table_b(
+pub(super) fn sort_table_b(
     screens: &Screens,
     play: &Play,
     tables: &BestTables,
@@ -364,14 +365,14 @@ pub fn sort_table_b(
         });
     })?;
 
-    screens.draw_work.button_y.set(SORTED - 1);
+    screens.draw_work.write().button_y = SORTED - 1;
 
     Ok(())
 }
 
 /// Whether the player's part `k` (an `INSPECTED` index) is at or past its limit (signed).
-pub fn past_limit(screens: &Screens, p: PlayerCell, k: u32) -> Result<bool, BadInput> {
-    let limit = screens.state.driver_stats.limits[k as usize].get() as i32;
+pub(super) fn past_limit(screens: &Screens, p: PlayerCell, k: u32) -> Result<bool, BadInput> {
+    let limit = screens.state.read().driver_stats.limits[k as usize] as i32;
     Ok(p.get().damage[k as usize] as i32 >= limit)
 }
 
@@ -386,7 +387,7 @@ pub struct Numbered {
 /// `which` counts numbered in turn, its position set and, for a player's, the player's
 /// `number` field. Refused, before any write, when a counted entry's player is past 4 or
 /// not there.
-pub fn number_table(
+pub(super) fn number_table(
     play: &Play,
     tables: &BestTables,
     table: Which,

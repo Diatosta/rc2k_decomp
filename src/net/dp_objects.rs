@@ -112,6 +112,8 @@ struct State {
     initialized: bool,
     host: String,
     port: u16,
+    /// The connection is Steam's, not TCP/IP.
+    steam: bool,
     session: Option<Arc<Session>>,
 }
 
@@ -150,8 +152,21 @@ fn with_state<R>(this: u32, f: impl FnOnce(&mut State) -> R) -> R {
     f(&mut s)
 }
 
+/// The object's session, if it has one. An object already released has none: the receiving
+/// thread ends a lost session (the host left) beside the lobby's frames, which then find the
+/// object gone and get the same answer as from an object without a session.
 fn session(this: u32) -> Option<Arc<Session>> {
-    with_state(this, |s| s.session.clone())
+    let found = OBJECTS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .iter()
+        .find(|(id, _)| *id == this)
+        .map(|(_, o)| Arc::clone(o))?;
+    let state = found
+        .state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    state.session.clone()
 }
 
 fn make() -> u32 {
@@ -248,19 +263,34 @@ pub fn release(this: u32) -> u32 {
 
 // ---- IDirectPlay4A ----
 
-pub fn add_player_to_group(this: u32, group: u32, player: u32) -> u32 {
+pub(super) fn add_player_to_group(this: u32, group: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.add_to_group(group, player))
 }
 
+/// The object's session taken from it (none when it has none or the object is gone).
+fn take_session(this: u32) -> Option<Arc<Session>> {
+    let found = OBJECTS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .iter()
+        .find(|(id, _)| *id == this)
+        .map(|(_, o)| Arc::clone(o))?;
+    let mut state = found
+        .state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    state.session.take()
+}
+
 pub fn close(this: u32) -> u32 {
-    if let Some(s) = with_state(this, |s| s.session.take()) {
+    if let Some(s) = take_session(this) {
         s.close();
     }
     DP_OK
 }
 
 /// `CreateGroup`: the group's id, or the error.
-pub fn create_group(this: u32, name: &[u8], data: &[u8]) -> Result<u32, u32> {
+pub(super) fn create_group(this: u32, name: &[u8], data: &[u8]) -> Result<u32, u32> {
     let Some(s) = session(this) else {
         return Err(DPERR_UNINITIALIZED);
     };
@@ -272,7 +302,7 @@ pub fn create_group(this: u32, name: &[u8], data: &[u8]) -> Result<u32, u32> {
 
 /// `CreatePlayer` (its event signalled when a message comes for it): the player's id, or
 /// the error.
-pub fn create_player(this: u32, name: &[u8], event: u32, data: &[u8]) -> Result<u32, u32> {
+pub(super) fn create_player(this: u32, name: &[u8], event: u32, data: &[u8]) -> Result<u32, u32> {
     let Some(s) = session(this) else {
         return Err(DPERR_UNINITIALIZED);
     };
@@ -282,11 +312,16 @@ pub fn create_player(this: u32, name: &[u8], event: u32, data: &[u8]) -> Result<
     }
 }
 
-pub fn delete_player_from_group(this: u32, group: u32, player: u32) -> u32 {
+pub(super) fn delete_player_from_group(this: u32, group: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.remove_from_group(group, player))
 }
 
-pub fn destroy_player(this: u32, player: u32) -> u32 {
+/// The host puts the machine of `player` out of the session (`Session::kick`).
+pub fn kick(this: u32, player: u32) -> u32 {
+    session(this).map_or(DPERR_UNINITIALIZED, |s| s.kick(player))
+}
+
+pub(super) fn destroy_player(this: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.destroy_player(player))
 }
 
@@ -322,11 +357,11 @@ fn enumerate(this: u32, callback: EnumPlayersCallback<'_>, context: u32, kind: u
     DP_OK
 }
 
-pub fn enum_groups(this: u32, callback: EnumPlayersCallback<'_>, context: u32) -> u32 {
+pub(super) fn enum_groups(this: u32, callback: EnumPlayersCallback<'_>, context: u32) -> u32 {
     enumerate(this, callback, context, 0)
 }
 
-pub fn enum_players(this: u32, callback: EnumPlayersCallback<'_>, context: u32) -> u32 {
+pub(super) fn enum_players(this: u32, callback: EnumPlayersCallback<'_>, context: u32) -> u32 {
     enumerate(this, callback, context, 1)
 }
 
@@ -355,18 +390,27 @@ pub fn desc(d: &crate::net::store::SessionDesc, name: &[u8]) -> Desc {
 type EnumSessionsCallback<'a> = &'a dyn Fn(Option<&Desc>, u32, u32) -> u32;
 
 /// `EnumSessions` for `application`'s sessions.
-pub fn enum_sessions(
+pub(super) fn enum_sessions(
     this: u32,
     application: &Guid,
     callback: EnumSessionsCallback<'_>,
     context: u32,
     flags: u32,
 ) -> u32 {
-    let Some((host, port)) = with_state(this, |s| s.initialized.then(|| (s.host.clone(), s.port)))
-    else {
+    let Some((host, port, steam)) = with_state(this, |s| {
+        s.initialized.then(|| (s.host.clone(), s.port, s.steam))
+    }) else {
         return DPERR_UNINITIALIZED;
     };
-    for (d, _) in find_sessions(&host, port, *application) {
+    let heard: Vec<Desc> = if steam {
+        crate::net::steam::lobbies(*application)
+    } else {
+        find_sessions(&host, port, *application)
+            .into_iter()
+            .map(|(d, _)| d)
+            .collect()
+    };
+    for d in heard {
         let closed =
             d.flags & 0x21 != 0 || (d.max_players != 0 && d.current_players >= d.max_players);
         if flags & DPENUMSESSIONS_AVAILABLE != 0 && closed {
@@ -381,7 +425,7 @@ pub fn enum_sessions(
 }
 
 /// `GetPlayerData` into `out`: the result and the data's size.
-pub fn get_player_data(this: u32, player: u32, out: &mut [u8]) -> (u32, u32) {
+pub(super) fn get_player_data(this: u32, player: u32, out: &mut [u8]) -> (u32, u32) {
     let Some(s) = session(this) else {
         return (DPERR_UNINITIALIZED, 0);
     };
@@ -391,29 +435,57 @@ pub fn get_player_data(this: u32, player: u32, out: &mut [u8]) -> (u32, u32) {
     }
 }
 
+#[cfg(test)]
 pub fn open(this: u32, d: &Desc, flags: u32) -> u32 {
-    let port = match with_state(this, |s| {
+    open_with_password(this, d, flags, b"")
+}
+
+/// `open`, with the password a created session is locked by or a joined one is answered with
+/// (empty: none).
+pub(super) fn open_with_password(this: u32, d: &Desc, flags: u32, password: &[u8]) -> u32 {
+    let (port, steam) = match with_state(this, |s| {
         if !s.initialized {
             Err(DPERR_UNINITIALIZED)
         } else if s.session.is_some() {
             Err(DPERR_ALREADYINITIALIZED)
         } else {
-            Ok(s.port)
+            Ok((s.port, s.steam))
         }
     }) {
-        Ok(port) => port,
+        Ok(got) => got,
         Err(e) => return e,
     };
-    let made = if flags & DPOPEN_CREATE != 0 {
+    let made = if steam {
+        open_steam(d, flags, password)
+    } else if flags & DPOPEN_CREATE != 0 {
         let d = Desc {
             instance: fresh_guid(),
             ..d.clone()
         };
-        Session::host(d, port, signal()).map_err(|_| DPERR_CANTCREATESESSION)
+        Session::host_locked(d, port, signal(), password).map_err(|e| {
+            // The usual cause is another program (often a second copy of this game) already
+            // listening on the port.
+            crate::program_log::log(&format!(
+                "net: the session could not be hosted on port {port}: {e} (is another game or program using the port?)"
+            ));
+            if e.kind() == std::io::ErrorKind::AddrInUse {
+                PORT_IN_USE.store(u32::from(port), std::sync::atomic::Ordering::Relaxed);
+            }
+            DPERR_CANTCREATESESSION
+        })
     } else if flags & DPOPEN_JOIN != 0 {
         match session_address(&d.instance) {
-            Some(at) => Session::join(at, signal()),
-            None => Err(DPERR_NOSESSIONS),
+            Some(at) => {
+                let joined = Session::join_with(at, signal(), password);
+                if joined.is_ok() {
+                    crate::net::last_host::remember(at.ip());
+                }
+                joined
+            }
+            None => {
+                crate::program_log::log("net: the session to join is not in the list found");
+                Err(DPERR_NOSESSIONS)
+            }
         }
     } else {
         Err(DPERR_INVALIDPARAMS)
@@ -424,6 +496,29 @@ pub fn open(this: u32, d: &Desc, flags: u32) -> u32 {
             DP_OK
         }
         Err(e) => e,
+    }
+}
+
+/// `open` over Steam: a created session gets a lobby, a joined one connects to its lobby's
+/// owner through Steam's relay.
+fn open_steam(d: &Desc, flags: u32, password: &[u8]) -> Result<Arc<Session>, u32> {
+    if flags & DPOPEN_CREATE != 0 {
+        let d = Desc {
+            instance: fresh_guid(),
+            ..d.clone()
+        };
+        let session = Session::host_over(d.clone(), 0, signal(), password);
+        crate::net::steam::host(&session, &d, !password.is_empty()).map_err(|e| {
+            crate::program_log::log(&format!("net: the Steam session could not be hosted: {e}"));
+            session.close();
+            DPERR_CANTCREATESESSION
+        })?;
+        Ok(session)
+    } else if flags & DPOPEN_JOIN != 0 {
+        let wire = crate::net::steam::join(&d.instance)?;
+        Session::join_over(wire, 0, signal(), password)
+    } else {
+        Err(DPERR_INVALIDPARAMS)
     }
 }
 
@@ -463,15 +558,25 @@ pub fn receive(this: u32, out: &mut [u8]) -> Received {
     }
 }
 
+/// The session's host's player (none without a session or a player of the host's).
+pub(super) fn host_player(this: u32) -> Option<u32> {
+    session(this).and_then(|s| s.host_player())
+}
+
+/// The round trip in ms to the host of the machine `player` is on (`Session::ping_of`).
+pub(super) fn ping_of(this: u32, player: u32) -> Option<u32> {
+    session(this).and_then(|s| s.ping_of(player))
+}
+
 pub fn send(this: u32, from: u32, to: u32, data: &[u8]) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.send(from, to, data))
 }
 
-pub fn set_player_data(this: u32, player: u32, data: &[u8]) -> u32 {
+pub(super) fn set_player_data(this: u32, player: u32, data: &[u8]) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.set_player_data(player, data))
 }
 
-pub fn set_session_desc(this: u32, desc: &Desc) -> u32 {
+pub(super) fn set_session_desc(this: u32, desc: &Desc) -> u32 {
     let Some(s) = session(this) else {
         return DPERR_UNINITIALIZED;
     };
@@ -482,8 +587,8 @@ pub fn set_session_desc(this: u32, desc: &Desc) -> u32 {
 /// its name, flags, the context) -> 0 to stop.
 type EnumConnectionsCallback<'a> = &'a dyn Fn(&Guid, &[u8], &[u8], u32, u32) -> u32;
 
-/// `EnumConnections`: TCP/IP alone.
-pub fn enum_connections(callback: EnumConnectionsCallback<'_>, context: u32) -> u32 {
+/// `EnumConnections`: TCP/IP, then Steam when it is there.
+pub(super) fn enum_connections(callback: EnumConnectionsCallback<'_>, context: u32) -> u32 {
     let address = compound(&[(DPAID_SERVICEPROVIDER, DPSPGUID_TCPIP.to_vec())]);
     let name = c"Internet TCP/IP Connection For DirectPlay";
     callback(
@@ -493,6 +598,17 @@ pub fn enum_connections(callback: EnumConnectionsCallback<'_>, context: u32) -> 
         0,
         context,
     );
+    // Steam is one more connection when its client runs.
+    if crate::net::steam::available() {
+        let address = compound(&[(DPAID_SERVICEPROVIDER, crate::net::steam::PROVIDER.to_vec())]);
+        callback(
+            &crate::net::steam::PROVIDER,
+            &address,
+            crate::net::steam::CONNECTION_NAME,
+            0,
+            context,
+        );
+    }
     DP_OK
 }
 
@@ -503,11 +619,15 @@ fn elements(address: &[u8]) -> Vec<(Guid, Vec<u8>)> {
     while at + 20 <= address.len() {
         let kind: Guid = address[at..at + 16].try_into().unwrap();
         let n = u32::from_le_bytes(address[at + 16..at + 20].try_into().unwrap()) as usize;
-        let Some(data) = address.get(at + 20..at + 20 + n) else {
+        // The length is the address's own word: a sum past the range is no element.
+        let Some(next) = (at + 20).checked_add(n) else {
+            break;
+        };
+        let Some(data) = address.get(at + 20..next) else {
             break;
         };
         out.push((kind, data.to_vec()));
-        at += 20 + n;
+        at = next;
     }
     out
 }
@@ -528,7 +648,7 @@ fn compound(parts: &[(Guid, Vec<u8>)]) -> Vec<u8> {
 }
 
 /// DirectPlay's `InitializeConnection` on an address Rust holds (`None`: a null one).
-pub fn initialize_connection_with(this: u32, address: Option<&[u8]>) -> u32 {
+pub(super) fn initialize_connection_with(this: u32, address: Option<&[u8]>) -> u32 {
     if with_state(this, |s| s.initialized) {
         return DPERR_ALREADYINITIALIZED;
     }
@@ -543,12 +663,26 @@ pub fn initialize_connection_with(this: u32, address: Option<&[u8]>) -> u32 {
     with_state(this, |s| initialize(s, parts))
 }
 
+/// The port the last attempt to host found held by another program (0: none).
+static PORT_IN_USE: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// The port a failed attempt to host found in use, once.
+pub(super) fn take_port_in_use() -> Option<u16> {
+    match PORT_IN_USE.swap(0, std::sync::atomic::Ordering::Relaxed) {
+        0 => None,
+        port => u16::try_from(port).ok(),
+    }
+}
+
 /// The connection's host and port from its address's parts.
 fn initialize(s: &mut State, parts: Vec<(Guid, Vec<u8>)>) -> u32 {
     s.host = String::new();
     s.port = DEFAULT_PORT;
+    s.steam = false;
     for (kind, data) in parts {
-        if kind == DPAID_INET {
+        if kind == DPAID_SERVICEPROVIDER && data.starts_with(&crate::net::steam::PROVIDER) {
+            s.steam = true;
+        } else if kind == DPAID_INET {
             s.host = String::from_utf8_lossy(&data)
                 .trim_end_matches('\0')
                 .to_string();
@@ -560,10 +694,14 @@ fn initialize(s: &mut State, parts: Vec<(Guid, Vec<u8>)>) -> u32 {
         }
     }
     s.initialized = true;
-    crate::logfile::program_log::log(&format!(
-        "net: TCP/IP connection, host \"{}\", port {}",
-        s.host, s.port
-    ));
+    if s.steam {
+        crate::program_log::log("net: Steam connection");
+    } else {
+        crate::program_log::log(&format!(
+            "net: TCP/IP connection, host \"{}\", port {}",
+            s.host, s.port
+        ));
+    }
     DP_OK
 }
 
@@ -573,7 +711,7 @@ fn initialize(s: &mut State, parts: Vec<(Guid, Vec<u8>)>) -> u32 {
 pub type Element = (Guid, Vec<u8>);
 
 /// `CreateCompoundAddress` sized for `room` bytes: the result and the address's size.
-pub fn create_compound_address(parts: &[Element], room: u32) -> (u32, u32) {
+pub(super) fn create_compound_address(parts: &[Element], room: u32) -> (u32, u32) {
     let size = compound(parts).len() as u32;
     if room < size {
         (DPERR_BUFFERTOOSMALL, size)
@@ -586,7 +724,7 @@ pub fn create_compound_address(parts: &[Element], room: u32) -> (u32, u32) {
 /// tests that send through the game's own code: the object, the player, the port. Release
 /// the object with `release`.
 #[cfg(test)]
-pub fn hosted_for_tests() -> (u32, u32, u16) {
+pub(super) fn hosted_for_tests() -> (u32, u32, u16) {
     let first = 48_200 + (std::process::id() % 100) as u16;
     for port in first..first + 50 {
         let this = create(&CLSID_DIRECTPLAY, &IID_IDIRECTPLAY4A).expect("the object");
@@ -612,7 +750,7 @@ pub fn hosted_for_tests() -> (u32, u32, u16) {
 }
 
 /// `CreateCompoundAddress` into Rust's memory: the address's bytes.
-pub fn compound_address(parts: &[Element]) -> Vec<u8> {
+pub(super) fn compound_address(parts: &[Element]) -> Vec<u8> {
     compound(parts)
 }
 
@@ -856,7 +994,7 @@ mod tests {
                 crate::net::take_messages::take_messages(
                     &net,
                     lines,
-                    &crate::system::tick_count::PictureClock::new()
+                    &crate::clock::tick_count::PictureClock::new()
                 )
                 .is_ok()
             );
@@ -900,6 +1038,11 @@ mod tests {
 
         // The guest is a known player now: the call of this round is answered, the flag set.
         vars.received[0].id.set(guest_player);
+        // A player that is not ready does not answer the call for everyone ready.
+        say(&[0x40, 7]);
+        settle();
+        assert_eq!(vars.all_raced.get(), 0);
+        vars.own.set_state(rc2k_core::net::players::State::READY);
         say(&[0x40, 7]);
         assert!(until(&|| vars.all_raced.get() == 1));
         assert_eq!(from_host(), [0x41, 7]);
@@ -940,5 +1083,18 @@ mod tests {
         assert_eq!(inbox.records[0x100..0x103], [0x0E, 1, 9]);
         assert_eq!(release(guest), 0);
         assert_eq!(net.link.release_dplay(), Some(0));
+    }
+
+    /// Guards the reading of an address: an element whose length is past the range ends the
+    /// list (on a 32-bit system the sum would wrap), the elements before it are kept.
+    #[test]
+    fn an_address_element_with_a_huge_length_ends_the_list() {
+        let mut address = compound(&[(DPAID_SERVICEPROVIDER, DPSPGUID_TCPIP.to_vec())]);
+        let whole = elements(&address);
+        assert!(whole.len() >= 2);
+        address.extend([7u8; 16]);
+        address.extend(u32::MAX.to_le_bytes());
+        address.extend([0u8; 8]);
+        assert_eq!(elements(&address), whole);
     }
 }

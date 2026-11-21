@@ -1,4 +1,4 @@
-//! A best scores screen, by its title "MELHORES CLASSIFICAÇÕES". Screen-specific part of
+//! A best scores screen, by its title "BEST SCORES". Screen-specific part of
 //! `menu::screen_loop`: background `bascores.png`; leaving is asked about; left without the
 //! question, the highlight is not saved; its own 3D scene list is set before the first frame only.
 use crate::menu::draw_lists_store::DRAW_LISTS;

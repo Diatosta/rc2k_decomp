@@ -3,11 +3,10 @@
 //!
 //! The owner: "the screen before the service area in championship that shows that rally's stages".
 //!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own
-//! (`SCREEN`): before the loop it clears the Escape flag `draw_work.escape_pressed`;
-//! its background comes from `menu::load_background` (a failed load is fatal error
-//! 0x80712345); leaving is asked about, and a "no" sets the screen up again.
-//! Callers: the event loops `menu::run_championship`.
+//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`):
+//! before the loop it clears the Escape flag `draw_work.escape_pressed`; its background comes from
+//! `menu::load_background` (a failed load is fatal error 0x80712345); leaving is asked about, and a
+//! "no" sets the screen up again.
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, List, Screen, ScreenFlag, Step};

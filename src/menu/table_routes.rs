@@ -1,15 +1,14 @@
 //! Which Rust function runs each function the menus' items and the draw lists name (typed
-//! tables, `rc2k_core::menu::tables`); `table_calls.rs` calls these. Kept by hand. An item's
-//! function gets an `ItemCall` (its value, item, menu and the carried values), a screen
-//! function nothing.
+//! tables, `rc2k_core::menu::tables`); `table_calls.rs` calls these. Kept by hand.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::menu::advanced_audio_loop;
 use crate::menu::apply_screen_mode;
 use crate::menu::arcade_levels;
 use crate::menu::arcade_select_level_loop;
 use crate::menu::ask_to_leave;
 use crate::menu::audio_setup_loop;
+use crate::menu::axes_items;
 use crate::menu::begin_player_name;
 use crate::menu::begin_replay_name;
 use crate::menu::begin_savegame_name;
@@ -28,7 +27,6 @@ use crate::menu::go_back;
 use crate::menu::in_game_options_loop;
 use crate::menu::information_loop;
 use crate::menu::item_actions;
-use crate::menu::learn_bindings;
 use crate::menu::load_championship_loop;
 use crate::menu::load_championship_table_loop;
 use crate::menu::lower_sensitivity;
@@ -44,6 +42,8 @@ use crate::menu::option_steps::{
 use crate::menu::options_loop;
 use crate::menu::player;
 use crate::menu::player_actions;
+use crate::menu::player_axes_loop;
+use crate::menu::player_axis_loop;
 use crate::menu::player_details_loop;
 use crate::menu::player_settings;
 use crate::menu::raise_sensitivity;
@@ -65,7 +65,6 @@ use crate::menu::start_rally_loop;
 use crate::menu::step_carousel;
 use crate::menu::step_items;
 use crate::menu::switch_stage_group;
-use crate::menu::table_calls;
 use crate::menu::time_trial_select_players_loop;
 use crate::menu::view_best_scores_loop;
 use crate::menu::view_best_times_loop;
@@ -75,10 +74,12 @@ use crate::menu::visual_preferences_loop;
 use crate::net::settings_loop;
 use crate::net::start_link;
 use crate::owners::Owners;
+use crate::platform::caps;
 use crate::saves::load_savegame;
 use crate::scene::draw_car_object;
 use crate::scene::draw_highlighted_object;
 use crate::scene::draw_main_menu_objects;
+use crate::screens::axes_page;
 use crate::screens::best_scores;
 use crate::screens::car_caption;
 use crate::screens::car_page_title;
@@ -152,7 +153,7 @@ use crate::text::draw_text::GameCanvas;
 use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 
 /// Runs item function `f` with what the item hands it (`c`).
-pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
+pub(super) fn item_fn(o: Owners<'static>, f: ItemFn) -> Result<(), Refused> {
     let menus = o.menus;
     let race = o.race;
     match f {
@@ -165,10 +166,30 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
             choose_key::choose_key(&menus.screens, u32::from(row));
             Ok(())
         }
-        ItemFn::LearnBinding(button) => {
-            learn_bindings::learn_binding(&menus.screens.controls, o.system, u32::from(button));
+        ItemFn::LearnRow(slot) => {
+            axes_items::learn_row(o, slot);
             Ok(())
         }
+        ItemFn::AxesLoop => player_axes_loop::run(o),
+        ItemFn::AdvancedLoop => crate::menu::advanced_loop::run(o),
+        ItemFn::SaveCodeLoop => crate::save_code::page::run(o),
+        ItemFn::AdvancedStep { row, up } => crate::menu::advanced_items::step(o, row, up),
+        ItemFn::ApplyAdvanced => crate::menu::advanced_items::apply(o),
+        ItemFn::AdvancedTurnPage => crate::menu::advanced_items::turn_page(),
+        ItemFn::DeleteSavedData => crate::menu::advanced_items::delete_saved_data(o),
+        ItemFn::TurnControlsPage => {
+            axes_items::turn_controls_page(
+                &menus.screens.controls,
+                axes_items::shifter_on(menus, o.input),
+            );
+            Ok(())
+        }
+        ItemFn::AxisStep { up } => axes_items::step(o, up),
+        ItemFn::AxisOpen(axis) => {
+            menus.screens.controls.axis.set(u32::from(axis));
+            player_axis_loop::run(o)
+        }
+        ItemFn::AxisPageStep { up } => axes_items::page_step(o, up),
         ItemFn::PlayerCarSpecs(n) => {
             player_actions::player_car_specs(menus, u32::from(n), &Entry::new(o))
         }
@@ -179,6 +200,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         ItemFn::FlipGearing => Ok(flip_gearing::flip_gearing(
             crate::strings::append_string_by_id::StringOwners::of(o),
             &menus.screens,
+            &menus.text_buffers,
         )?),
         ItemFn::NextGearing => gearing_text::step_gearing(
             crate::strings::append_string_by_id::StringOwners::of(o),
@@ -204,23 +226,14 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         ItemFn::PreviousController => {
             controller_items::previous_controller(menus, o.input).map(|_| ())
         }
-        ItemFn::KeepPlayerKeys => player_actions::keep_player_keys(menus),
-        ItemFn::LowerEndZone => player_actions::lower_end_zone(menus),
-        ItemFn::RaiseEndZone => controller_items::raise_dead_zone(menus, false),
-        ItemFn::LowerCentreDeadZone => player_actions::lower_centre_dead_zone(menus),
-        ItemFn::RaiseCentreDeadZone => controller_items::raise_dead_zone(menus, true),
-        ItemFn::LowerControllerSensitivity => {
-            controller_items::lower_controller_sensitivity(menus, o.input).map(|_| ())
+        ItemFn::KeepPlayerKeys => {
+            player_actions::keep_player_keys(menus)?;
+            let current = menus.screens.event.read().current_player;
+            if let Some(player) = crate::menu::player::player(menus, current) {
+                crate::input::profiles::undo(o.input, current, player.get().controller);
+            }
+            Ok(())
         }
-        ItemFn::RaiseControllerSensitivity => controller_items::raise_controller_sensitivity(
-            menus,
-            o.input,
-            c.menu
-                .ok_or(BadInput("no menu (the original reads +0x2C of edi)"))?
-                .items(&menus.tables.menus)[0]
-                .fixed()
-                .links[1],
-        ),
         ItemFn::RaiseStrength => player_actions::raise_strength(menus),
         ItemFn::LowerStrength => player_actions::lower_strength(menus),
         ItemFn::BeginGearRatioEdit => begin_edits::begin_edit(menus, begin_edits::GEAR_RATIO),
@@ -296,44 +309,67 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
             step_texture_setting(&menus.options, true, race);
             Ok(())
         }
+        ItemFn::PreviousFrameLimit => {
+            crate::platform::pacing::step_frame_limit(false);
+            Ok(())
+        }
+        ItemFn::NextFrameLimit => {
+            crate::platform::pacing::step_frame_limit(true);
+            Ok(())
+        }
+        ItemFn::PreviousRenderScale => {
+            crate::render::step_render_scale(false);
+            Ok(())
+        }
+        ItemFn::NextRenderScale => {
+            crate::render::step_render_scale(true);
+            Ok(())
+        }
+        ItemFn::PreviousHudBox | ItemFn::NextHudBox => {
+            crate::hud::box_ratio::step(matches!(f, ItemFn::NextHudBox));
+            Ok(())
+        }
+        ItemFn::PreviousWindowMode | ItemFn::NextWindowMode => {
+            use crate::platform::window_mode as wm;
+            wm::set(wm::get().step(matches!(f, ItemFn::NextWindowMode)));
+            crate::platform::apply_window_mode();
+            Ok(())
+        }
         ItemFn::NextAudioQuality => next_audio_quality::run(o),
         ItemFn::PreviousAudioQuality => previous_audio_quality::run(o),
         ItemFn::ViewStageDetails => {
             item_actions::view_stage_details(&menus.screens, &Entry::new(o))
         }
         ItemFn::ApplyScreenMode => apply_screen_mode::apply_screen_mode(o),
-        ItemFn::ToggleControllerMode => player_actions::toggle_controller_mode(menus),
+        ItemFn::ToggleControllerMode => axes_items::toggle_shifter(o),
+        ItemFn::PreviousButtonIcons => axes_items::step_icons(o, false),
+        ItemFn::NextButtonIcons => axes_items::step_icons(o, true),
+        ItemFn::ToggleEngineVibration => axes_items::toggle_engine_vibration(o),
+        ItemFn::ToggleRainAndSnow => crate::menu::advanced_items::toggle_rain_and_snow(o),
         ItemFn::ReplayItemC => replay_items::replay_item_c(race, o),
         ItemFn::ReplayItemB => replay_items::replay_item_b(race, o),
         ItemFn::ReplayItemA => replay_items::replay_item_a(race, o),
         ItemFn::ToggleCaptionChoice => player_actions::toggle_caption_choice(
             crate::strings::append_string_by_id::StringOwners::of(o),
             &menus.screens,
+            &menus.text_buffers,
         )
         .map_err(Into::into),
         ItemFn::ShowIntro => item_actions::show_intro(o),
         ItemFn::RaiseSensitivity => raise_sensitivity::raise_sensitivity(menus).map(|_| ()),
         ItemFn::LowerSensitivity => lower_sensitivity::lower_sensitivity(menus).map(|_| ()),
-        ItemFn::NextColourA => step_items::colour(
-            &menus.tables,
-            start_pick_a(&menus.screens.flow, &menus.tables.captions),
-            true,
-        ),
-        ItemFn::PreviousColourA => step_items::colour(
-            &menus.tables,
-            start_pick_a(&menus.screens.flow, &menus.tables.captions),
-            false,
-        ),
-        ItemFn::NextColourB => step_items::colour(
-            &menus.tables,
-            start_pick_b(&menus.screens.flow, &menus.tables.captions),
-            true,
-        ),
-        ItemFn::PreviousColourB => step_items::colour(
-            &menus.tables,
-            start_pick_b(&menus.screens.flow, &menus.tables.captions),
-            false,
-        ),
+        ItemFn::NextColourA => {
+            step_items::colour(&menus.tables, start_pick_a(&menus.screens.flow), true)
+        }
+        ItemFn::PreviousColourA => {
+            step_items::colour(&menus.tables, start_pick_a(&menus.screens.flow), false)
+        }
+        ItemFn::NextColourB => {
+            step_items::colour(&menus.tables, start_pick_b(&menus.screens.flow), true)
+        }
+        ItemFn::PreviousColourB => {
+            step_items::colour(&menus.tables, start_pick_b(&menus.screens.flow), false)
+        }
         ItemFn::Nothing => Ok(()),
         ItemFn::GoBack => {
             go_back::go_back(menus);
@@ -345,6 +381,16 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         }
         ItemFn::NextStageLoop => next_stage_loop::run(o),
         ItemFn::StartRallyLoop => start_rally_loop::run(o),
+        // Without network play the items are not shown, and a way in that is still found does
+        // nothing.
+        ItemFn::NetworkRallyLoop
+        | ItemFn::NetworkSettingsItem
+        | ItemFn::JoinNetworkGame
+        | ItemFn::HostNetworkGame
+            if !caps::NETWORK =>
+        {
+            Ok(())
+        }
         ItemFn::NetworkRallyLoop => network_rally_loop::run(o),
         ItemFn::ChampionshipNewSimulationLoop => championship_new_simulation_loop::run(o),
         ItemFn::AudioSetupLoop => audio_setup_loop::run(o),
@@ -457,7 +503,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
 }
 
 /// Runs screen function `f` (the draw lists' and the frames'; it takes nothing).
-pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
+pub(super) fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
     let menus = o.menus;
     match f {
         ScreenFn::DrawSectionBestTimes => draw_section_best_times::draw_section_best_times(
@@ -530,6 +576,15 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         .map(|_| ()),
         ScreenFn::DrawControllerPage => {
             controller::draw_controller_page(o, o.input, &mut GameCanvas::new(o.gfx)).map(|_| ())
+        }
+        ScreenFn::DrawAdvanced => {
+            crate::screens::advanced_page::draw_advanced(o, &mut GameCanvas::new(o.gfx))
+        }
+        ScreenFn::DrawAxesPage => {
+            axes_page::draw_axes_page(o, o.input, &mut GameCanvas::new(o.gfx))
+        }
+        ScreenFn::DrawAxisPage => {
+            axes_page::draw_axis_page(o, o.input, &mut GameCanvas::new(o.gfx))
         }
         ScreenFn::DrawControlBindings => {
             draw_control_bindings::draw_control_bindings(o, &mut GameCanvas::new(o.gfx), o.gfx)

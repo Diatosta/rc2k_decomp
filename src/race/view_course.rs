@@ -3,43 +3,49 @@
 //! One per view slot (`race::view_scratch::ViewScratch::course`), so views drawn side by side do
 //! not share them.
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::{PlainBytes, PlainDword};
+use crate::race::plain_slot::{Merge, PlainSlot, merge_run, merge_value};
 
-#[derive(rc2k_derive::Cells)]
-pub struct ViewCourse {
-    /// The four face tables (`face_table_a` .. `face_table_d`): the depth flag of an object (a,
-    /// b) and its kind byte (c, d).
-    pub face_table_a: PlainBytes<256>,
-    pub face_table_b: PlainBytes<256>,
-    pub face_table_c: PlainBytes<256>,
-    pub face_table_d: PlainBytes<256>,
+/// The values of a view's course work, plain.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct CourseValues {
+    /// The four face tables, in order: the depth flag of an object (the first two: lit faces,
+    /// other faces) and its kind byte (the last two, likewise).
+    pub face_tables: [[u8; 256]; 4],
     /// The view value `race::draw_mirror_view` keeps.
-    pub view_value_kept: PlainDword,
+    pub view_value_kept: u32,
     /// The shine.
-    pub shine: PlainDword,
+    pub shine: u32,
 }
 
-impl ViewCourse {
+impl CourseValues {
     /// A view's course values at the start: the face tables empty, the shine 0x100.
     pub const fn new() -> Self {
         Self {
-            face_table_a: PlainBytes::ZERO,
-            face_table_b: PlainBytes::ZERO,
-            face_table_c: PlainBytes::ZERO,
-            face_table_d: PlainBytes::ZERO,
-            view_value_kept: PlainDword::ZERO,
-            shine: PlainDword::new(0x100),
+            face_tables: [[0; 256]; 4],
+            view_value_kept: 0,
+            shine: 0x100,
         }
     }
+}
 
-    /// The four face tables, in order.
-    pub fn tables(&self) -> [&PlainBytes<256>; 4] {
-        [
-            &self.face_table_a,
-            &self.face_table_b,
-            &self.face_table_c,
-            &self.face_table_d,
-        ]
+impl Merge for CourseValues {
+    fn merge_changes(&mut self, now: &Self, start: &Self) {
+        for ((mine, now), start) in self
+            .face_tables
+            .iter_mut()
+            .zip(&now.face_tables)
+            .zip(&start.face_tables)
+        {
+            merge_run(mine, now, start);
+        }
+        merge_value(
+            &mut self.view_value_kept,
+            &now.view_value_kept,
+            &start.view_value_kept,
+        );
+        merge_value(&mut self.shine, &now.shine, &start.shine);
     }
 }
+
+/// A view's course values.
+pub type ViewCourse = PlainSlot<CourseValues>;

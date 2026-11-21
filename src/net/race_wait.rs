@@ -6,21 +6,21 @@ use crate::errors::Refused;
 use crate::net::lobby_loop::{all_states, sync};
 use crate::net::owner::Net;
 use rc2k_core::net::players::State;
-pub fn race_wait(
+pub(super) fn race_wait(
     net: &Net,
-    clock: &crate::system::tick_count::PictureClock,
+    clock: &crate::clock::tick_count::PictureClock,
 ) -> Result<u32, Refused> {
     let vars = &net.vars;
     vars.own.set_state(vars.own.state().waiting());
-    vars.own.race_time.set(u32::MAX);
-    let now = crate::system::tick_count::tick_count(clock);
+    vars.own.update(|r| r.set_race_time(u32::MAX));
+    let now = crate::clock::tick_count::tick_count(clock);
     if (now
         .wrapping_sub(net.lobby().listed_at.get())
         .wrapping_sub(1000) as i32)
         >= 0
     {
         net.lobby().listed_at.set(now);
-        crate::net::list_players::list_players_regs(net)?;
+        crate::net::list_players::refresh_players(net)?;
     }
     if vars.own.state().is_host() {
         if net.race_slot.players() == 0 {

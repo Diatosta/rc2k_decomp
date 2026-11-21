@@ -15,12 +15,12 @@ pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
         .ok_or(BadInput("a player without its record"))?
         .get()
         .picked();
-    menus.screens.event.current_player.set(n);
-    menus.keys.tables.controls.write(&copy);
+    menus.screens.event.write().current_player = n;
+    menus.keys.tables_mut().controls = copy;
     Ok(())
 }
 
-/// The audio options (quality, channels, Dolby, A3D, EAX, DS3D) into the sound page's work
+/// The audio options (quality, channels, Dolby, EAX, DS3D) into the sound page's work
 /// variables (the options).
 pub fn load_audio_settings(menus: &Menus, audio: &crate::audio::owner::Audio) {
     // The logic is in `rc2k_core::screens::page_values::audio_page`.
@@ -39,10 +39,10 @@ fn push_id(
     crate::strings::append_string_by_id::push_string(so, out, id)
 }
 
-/// The stage line string `id`, " ", the record's +0x40 as a fraction of 6
+/// The stage line string `id`, " ", the record's fraction field as a fraction of 6
 /// (`strings::append_fraction`), ": ", the name of its track-pack entry
 /// (`records::trakpak_entry`'s first dword, a string id), and its NUL.
-pub fn stage_line_bytes(
+pub(super) fn stage_line_bytes(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     id: u32,
     record: RecordRef,
@@ -65,17 +65,17 @@ fn stage_line(
     Ok(())
 }
 
-/// Menu item `n`'s value (+0x14).
+/// Menu item `n`'s value (its `string`).
 fn set_item(items: &[crate::menu::menus_store::MenuItem], n: u32, v: u32) -> Result<(), BadInput> {
     items
         .get(n as usize)
         .ok_or(BadInput("an item past its menu's end"))?
-        .string
+        .string_id()
         .set(v);
     Ok(())
 }
 
-/// The stage record of the event's stage table `a`, `b` (its +0x38 the page's value), and the
+/// The stage record of the event's stage table `a`, `b` (its name field the page's value), and the
 /// record + `c` x 0xA4 the line is about.
 fn stage_record(
     stages: &crate::records::stages_store::StageTables,
@@ -105,8 +105,8 @@ fn stage_refuses(
 pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let (a, b) = (
-        menus.play.champ_view.switches.records_set.get(),
-        menus.play.champ_view.shown_stage.group.get(),
+        menus.play.champ_view.read().switches.records_set,
+        menus.play.champ_view.read().shown_stage.group,
     );
     let text = &menus.text_buffers;
     let stages = &o.system.records().stage_tables;
@@ -119,11 +119,15 @@ pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
         .view_best_times
         .id()
         .items(&menus.tables.menus);
-    let (first, second) = stage_options_items(a, menus.play.champ_view.switches.records_alt.get());
+    let (first, second) = stage_options_items(a, menus.play.champ_view.read().switches.records_alt);
     set_item(items, 1, first)?;
     set_item(items, 2, second)?;
-    let (base, record) =
-        stage_record(stages, a, b, menus.play.champ_view.shown_stage.number.get())?;
+    let (base, record) = stage_record(
+        stages,
+        a,
+        b,
+        menus.play.champ_view.read().shown_stage.number,
+    )?;
     set_item(items, 3, base.title(&o.system.records().stage_tables)?)?;
     stage_line(
         crate::strings::append_string_by_id::StringOwners::of(o),
@@ -135,7 +139,7 @@ pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
     push_id(
         crate::strings::append_string_by_id::StringOwners::of(o),
         &mut caption,
-        stage_options_caption(menus.screens.state.menus.caption_choice.get()),
+        stage_options_caption(menus.screens.state.read().menus.caption_choice),
     )?;
     caption.push(0);
     text.caption.write_at(0, &caption, "the caption")?;
@@ -149,8 +153,8 @@ pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
 pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let (a, b) = (
-        menus.screens.event.stage.group.get(),
-        menus.screens.event.stage.sub.get(),
+        menus.screens.event.read().stage.group,
+        menus.screens.event.read().stage.sub,
     );
     let text = &menus.text_buffers;
     let stages = &o.system.records().stage_tables;
@@ -168,7 +172,7 @@ pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
         .id()
         .items(&menus.tables.menus);
     set_item(items, 0, crate::screens::stage_panel::group_title(a)?)?;
-    let (base, record) = stage_record(stages, a, b, menus.screens.event.stage.number.get())?;
+    let (base, record) = stage_record(stages, a, b, menus.screens.event.read().stage.number)?;
     menus
         .tables
         .menus

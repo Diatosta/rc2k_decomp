@@ -28,8 +28,8 @@ pub enum Step {
 
 /// `scene::needs_clipping` on the work table's records.
 fn needs_clipping(
-    part: &crate::scene::workers::PartScratch,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     course: crate::race::owner_course::CourseReads<'_>,
     count: u32,
 ) -> Result<bool, BadInput> {
@@ -40,8 +40,8 @@ fn needs_clipping(
     }
     let edges = Edges {
         least: course.numbers.zero.get(),
-        right: poly.window.clip_screen[3].get(),
-        bottom: poly.window.clip_screen[1].get(),
+        right: poly.window.borrow().clip_screen[3],
+        bottom: poly.window.borrow().clip_screen[1],
     };
     rc2k_core::scene::polygons::needs_clipping(count, &edges, |n| {
         let record = crate::scene::polygon::entry(polygon_work, n)?.record.get();
@@ -51,7 +51,7 @@ fn needs_clipping(
         let value = |at: u32| {
             f32::from_bits(crate::scene::point_records::vertex(
                 part,
-                &poly.quad_vertices,
+                &poly.quads,
                 record,
                 at,
             ))
@@ -66,47 +66,39 @@ fn needs_clipping(
 
 // Logic: `rc2k_core::scene::polygons`
 pub fn draw_object_polygon(
-    part: &crate::scene::workers::PartScratch,
-    poly: &crate::scene::polygon_work::PolygonWork,
+    part: &crate::scene::scratch_store::PartScratch,
+    poly: &crate::scene::polygon_work_store::PolygonWork,
     course: crate::race::owner_course::CourseReads<'_>,
-    object: &crate::scene::object_place::ObjectPlace,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let polygon_work = &part.polygon;
     use rc2k_core::scene::polygons::{drawn_whole, fan, first_list, fits};
-    let count: u32 = poly.polygon_vertex_count.get();
+    let count: u32 = poly.scalars.borrow().polygon_vertex_count;
     if !fits(count) {
         return Err(BadInput("a polygon of no vertices, or of more than 64").into());
     }
-    poly.polygon_next_record
-        .set(crate::scene::polygon::pool_start());
-    for (n, number) in first_list(count).into_iter().enumerate() {
+    poly.scalars.borrow_mut().polygon_next_record = crate::scene::polygon::pool_start();
+    for (n, number) in first_list(count).enumerate() {
         crate::scene::polygon::list_cell(polygon_work, n).set(number);
     }
-    poly.polygon_next_entry.set(count);
+    poly.scalars.borrow_mut().polygon_next_entry = count;
     step(Step::Project)?;
     if drawn_whole(count, needs_clipping(part, poly, course, count)?) {
-        object
-            .whole_polygon_count
-            .set(object.whole_polygon_count.get().wrapping_add(1));
         return step(Step::Draw);
     }
-    object
-        .split_polygon_count
-        .set(object.split_polygon_count.get().wrapping_add(1));
     // the first `count` entries kept from entry 64 (`fits`: at most 64)
     let (entries, kept) = polygon_work.entries.split_at(64);
     for (to, from) in kept.iter().zip(&entries[..count as usize]) {
         to.copy_from(from);
     }
-    poly.polygon_vertex_count.set(3u32);
+    poly.scalars.borrow_mut().polygon_vertex_count = 3u32;
     step(Step::Draw)?;
-    poly.polygon_vertex_count.set(count);
+    poly.scalars.borrow_mut().polygon_vertex_count = count;
     for triangle in fan(count) {
         for (to, from) in triangle.into_iter().enumerate() {
             entries[to].copy_from(&kept[from]);
         }
-        poly.polygon_vertex_count.set(3u32);
+        poly.scalars.borrow_mut().polygon_vertex_count = 3u32;
         step(Step::Draw)?;
     }
     Ok(())

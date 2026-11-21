@@ -2,8 +2,8 @@
 //! the physics patches a replay was recorded with, plays, the frame's bar and tidying.
 
 use crate::Invalid;
-use crate::race::replay::{HEADER_MAGIC, HEADER_VERSION, INDEX_MAGIC};
-use crate::race::viewer::{MOST_BLOCKS, OWN_FROM};
+use crate::race::replay::{HEADER_MAGIC, INDEX_MAGIC};
+use crate::race::viewer::OWN_FROM;
 
 // ---- opening ----
 
@@ -28,12 +28,18 @@ pub fn copied_first(slot: u32) -> bool {
 /// A header or index read went well: no error, all asked read, the magic word right ("REPL"
 /// for the header, "RCIB" for the index).
 pub fn read_good(carry: bool, read: u32, asked: u32, first_word: u32, header: bool) -> bool {
-    !carry && read == asked && first_word == if header { HEADER_MAGIC } else { INDEX_MAGIC }
+    !carry
+        && read == asked
+        && if header {
+            crate::race::replay_v2::is_replay_magic(first_word)
+        } else {
+            first_word == INDEX_MAGIC
+        }
 }
 
-/// The header's version (+8) is the game's.
+/// The header's version (+8) is one this program reads.
 pub fn version_good(version: u32) -> bool {
-    HEADER_VERSION ^ version == 0
+    crate::race::replay::read_version(version).is_some()
 }
 
 /// The index's block count, as the opening takes it.
@@ -48,11 +54,11 @@ pub enum Blocks {
 }
 
 /// Classifies the index's block count.
-pub fn index_blocks(count: u32) -> Blocks {
+pub fn index_blocks(count: u32, most: u32) -> Blocks {
     if (count as i32) <= 0 {
         Blocks::Bad
-    } else if (count as i32) > MOST_BLOCKS as i32 {
-        Blocks::Held(MOST_BLOCKS)
+    } else if (count as i32) > most as i32 {
+        Blocks::Held(most)
     } else {
         Blocks::Kept
     }
@@ -66,15 +72,16 @@ pub fn opened_marks(blocks: u32) -> (u32, u32) {
 /// The cameras: the first two dwords read of each block.
 pub const CAMERA_DWORDS: usize = 2;
 
-/// Whether the opening's patch call returned 0.
-pub fn opened_zero(result: u32) -> bool {
-    result == 0
-}
-
 // ---- saving ----
 
 /// The new header's first three dwords (magic, 0, the version); the date follows.
-pub const SAVED_HEADER: [u32; 3] = [HEADER_MAGIC, 0, HEADER_VERSION];
+pub fn saved_header(extra_tape: bool) -> [u32; 3] {
+    [
+        HEADER_MAGIC,
+        0,
+        crate::race::replay::header_version(extra_tape),
+    ]
+}
 /// A slot's name: 32 bytes a slot, copied after the date.
 pub const NAME_LEN: usize = 0x20;
 /// A block's data length, read and written packed.
@@ -126,9 +133,6 @@ pub fn views_replay(there: u32) -> bool {
 }
 
 // ---- the physics patches ----
-
-/// The patch switches: 13 dwords.
-pub const PATCH_DWORDS: usize = 13;
 
 /// Whether the patches change: applying when the header has them and they are not in force,
 /// restoring when it has them and they are.
@@ -370,11 +374,17 @@ mod tests {
         assert!(read_good(false, 5, 5, INDEX_MAGIC, false));
         assert!(!read_good(true, 5, 5, INDEX_MAGIC, false));
         assert!(!read_good(false, 4, 5, INDEX_MAGIC, false));
-        assert!(version_good(0x50400) && !version_good(0x50401));
-        assert_eq!(index_blocks(0), Blocks::Bad);
-        assert_eq!(index_blocks(0x8000_0000), Blocks::Bad);
-        assert_eq!(index_blocks(0x708), Blocks::Kept);
-        assert_eq!(index_blocks(0x709), Blocks::Held(0x708));
+        assert!(version_good(0x50400) && version_good(0x50401) && !version_good(0x50402));
+        assert_eq!(saved_header(false)[2], 0x50400);
+        assert_eq!(saved_header(true)[2], 0x50401);
+        assert_eq!(index_blocks(0, 0x708), Blocks::Bad);
+        assert_eq!(index_blocks(0x8000_0000, 0x708), Blocks::Bad);
+        assert_eq!(index_blocks(0x708, 0x708), Blocks::Kept);
+        assert_eq!(index_blocks(0x709, 0x708), Blocks::Held(0x708));
+        assert_eq!(
+            index_blocks(0x709, crate::race::viewer::MOST_BLOCKS),
+            Blocks::Kept
+        );
         assert_eq!(opened_marks(7), (0, 7));
     }
 

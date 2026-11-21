@@ -6,17 +6,17 @@
 //! set. The openings read the 3D buffer through a "holder" value that is the caller's own value
 //! (`property_sets::Holder`), or the frequency after the create path, or the voice's 3D buffer
 //! after the voice manager's call (a game bug kept; `open_eax` refuses one that
-//! is no pointer). Refuses A3D, and what the settings refuse, checked first.
+//! is no pointer). Refuses what the settings refuse, checked first.
 
-use crate::audio::buffer_settings::{a3d, set_buffer_frequency, set_buffer_pan, set_buffer_volume};
+use crate::audio::buffer_settings::{set_buffer_frequency, set_buffer_pan, set_buffer_volume};
 use crate::audio::describe_wave_format::describe_wave_format;
 use crate::audio::own::AudioOwn;
 use crate::audio::property_sets::Holder;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
-const QUERY_FAILED_RVA: &std::ffi::CStr = c"AUD: 1-DSBQuery3D failed"; // "AUD: 1-DSBQuery3D failed"
-pub const MODE_OWN_BUFFERS: u32 = 0x1_0000;
+const QUERY_FAILED: &std::ffi::CStr = c"AUD: 1-DSBQuery3D failed";
+pub(super) const MODE_OWN_BUFFERS: u32 = 0x1_0000;
 use rc2k_core::audio::voices::MODE_HARDWARE_3D;
 const MODE_EAX: u32 = 0x100_0000;
 
@@ -31,11 +31,9 @@ pub struct BufferDescription {
     pub format: u32,
 }
 
+crate::memory::cells::plain_record!(BufferDescription = 0x14);
 /// True when it worked.
 pub fn make_buffer(state: &AudioOwn, at: u32, holder: Holder) -> Result<bool, Refused> {
-    if a3d(state) {
-        return Err(BadInput("A3D (the chunk at 0x40CC88)").into());
-    }
     let mode = state.sound_mode.get();
     if mode & MODE_OWN_BUFFERS == 0 {
         return Ok(true);
@@ -80,7 +78,7 @@ pub fn make_buffer(state: &AudioOwn, at: u32, holder: Holder) -> Result<bool, Re
         }
         set_buffer_volume(state, v)?;
         set_buffer_pan(state, v)?;
-        set_buffer_frequency(state, v)?;
+        set_buffer_frequency(v)?;
         if mode & MODE_3D != 0 {
             match crate::platform::sound::query_interface(
                 v.buffer,
@@ -89,7 +87,7 @@ pub fn make_buffer(state: &AudioOwn, at: u32, holder: Holder) -> Result<bool, Re
                 Ok(b) => v.buffer_3d = b,
                 Err(r) => {
                     v.buffer_3d = 0;
-                    return Ok(log_failure(QUERY_FAILED_RVA, r));
+                    return Ok(log_failure(QUERY_FAILED, r));
                 }
             }
             crate::audio::buffer_settings::set_buffer_place(v)?;

@@ -12,7 +12,6 @@
 //!   (`always_asks`); the quit switch leads to the question too.
 
 use crate::errors::Refused;
-use crate::logfile::program_log::log;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::owner::Menus;
 use crate::menu::screen_items_store::slot;
@@ -21,41 +20,39 @@ use crate::menu::screen_loop::{
     ScreenFlag, ScreenVar, Step, carousel, prepare_scene,
 };
 use crate::menu::update_blink::update_blink;
+use crate::program_log::log;
 use crate::system::owner::System;
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
-    menus.screens.event.event_over.set(false);
+    menus.screens.event.write().event_over = false;
     // menu::load_background (whether it failed is not looked at)
     Callee::LoadBackground(|m| &m.texts.main_menu_picture).run(entry)?;
-    entry.front_end.window.view_offset[0].set(7u32);
-    entry.front_end.window.view_offset[1].set(0xAu32);
-    entry.front_end.window.view_zoom.set(0x100u32);
+    entry.front_end.window.borrow_mut().view_offset[0] = 7u32;
+    entry.front_end.window.borrow_mut().view_offset[1] = 0xAu32;
+    entry.front_end.window.borrow_mut().view_zoom = 0x100u32;
     prepare_scene(&entry.owners); // scene::prepare_menu_scene
-    menus.screens.loop_flags.ask_leave.set(false);
+    menus.screens.loop_flags.write().ask_leave = false;
     Callee::TakeKey.run(entry)?; // input::take_key
-    menus.screens.draw_work.escape_pressed.set(false);
+    menus.screens.draw_work.write().escape_pressed = false;
     menus
         .screens
         .entry
         .set_sound(rc2k_core::menu::keys::MenuSound::None);
-    menus.screens.flow.turning.set(1u32);
-    menus.screens.carousel.menu.set(0u32);
+    menus.screens.flow.write().turning = 1u32;
+    menus.screens.carousel.write().menu = 0u32;
     carousel(entry, None)?;
-    let item = menus.screens.items.current[slot::MAIN_MENU].get();
-    menus.screens.loop_flags.item.set(item);
-    menus.screens.carousel.front.set(item.wrapping_sub(1));
+    let item = menus.screens.items.current(slot::MAIN_MENU);
+    menus.screens.loop_flags.write().item = item;
+    menus.screens.carousel.write().front = crate::menu::web_limits::carousel_entry(item);
     Ok(())
 }
 
 /// The loop has just set the set-up time to the frame clock.
 fn before_first_frame(menus: &Menus, system: &System) -> Result<(), Refused> {
     let play = &menus.play;
-    play.champ_view
-        .key_clock
-        .last_key_time
-        .set(system.clocks().setup_time.get());
-    play.cheats.notice_due.set(1u32);
+    play.champ_view.write().key_clock.last_key_time = system.clocks().setup_time.get();
+    play.cheats.write().notice_due = 1u32;
 
     Ok(())
 }
@@ -63,14 +60,12 @@ fn before_first_frame(menus: &Menus, system: &System) -> Result<(), Refused> {
 fn idle(entry: &Entry) -> Result<Flow, Refused> {
     let system = entry.owners.system;
     let menus = entry.menus;
-    if !menus.screens.loop_flags.idle.is_set() {
+    if !menus.screens.loop_flags.read().idle {
         return Ok(Flow::On);
     }
-    menus
-        .screens
-        .loop_flags
-        .idle_frames
-        .set(menus.screens.loop_flags.idle_frames.get().wrapping_add(1));
+    let mut flags = menus.screens.loop_flags.write();
+    flags.idle_frames = flags.idle_frames.wrapping_add(1);
+    drop(flags);
     if entry.owners.system.machine().no_fmv.get() == 1 {
         return Ok(Flow::On);
     }
@@ -78,10 +73,10 @@ fn idle(entry: &Entry) -> Result<Flow, Refused> {
     // `menu::play_films` with mode 1.
     crate::menu::play_films::play_films(entry.owners, true)?;
     log("menu::main_menu_loop: `menu::play_films` has come back");
-    menus.screens.loop_flags.idle.set(false);
+    menus.screens.loop_flags.write().idle = false;
     update_blink(menus, system);
     let now = system.clocks().frame.get();
-    menus.play.champ_view.key_clock.last_key_time.set(now);
+    menus.play.champ_view.write().key_clock.last_key_time = now;
     system.clocks().setup_time.set(now);
     Ok(Flow::SetUp)
 }
@@ -129,6 +124,9 @@ pub const SCREEN: Screen = Screen {
         Step::WriteScene(SceneVar::ObjectLightStrength, 0xFF),
         Step::WriteScene(SceneVar::LightTurn0, 0x6E),
         Step::WriteScene(SceneVar::LightTurn1, 0x1E),
+        // A race or a replay asked for on the command line, once: it runs from here, as the
+        // menus' own choices run from a screen, with the engine and the scene set up.
+        Step::Do(crate::menu::launch::run_once),
         Step::Call(Callee::PlayTune4),
     ],
     set_up_first: &[Step::Do(set_up_first)],

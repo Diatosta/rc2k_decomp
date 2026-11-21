@@ -4,13 +4,12 @@
 //! (`physics::queue_listed_event`); a code of 0x54 or more ends it with the log lines "!!! invalid
 //! pace data", "data", the code, "ecx", the group, "pointer", its place (level 1).
 //!
-//! Caller: `physics::pace_notes_step`. Refuses (before anything) more than 0x400 groups (the scan
-//! reads past the group checkpoints) and a text place past the 0x4000 bytes (checked at each code).
+//! Refuses (before anything) more than 0x400 groups (the scan reads past the group checkpoints) and
+//! a text place past the 0x4000 bytes (checked at each code).
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
-use crate::physics::tables_store::PhysicsTables;
-use crate::race::frame_store::FrameWork;
+use crate::race::frame_store::FrameWorkStore;
 use crate::race::owner_physics::Physics;
 use crate::race::work_store::RaceWork;
 use rc2k_core::physics::pace_calls::{Code, code, find_group, text_place};
@@ -27,9 +26,9 @@ const WORDS: [&std::ffi::CStr; 4] = [c"!!! invalid pace data", c"data", c"ecx", 
 )]
 pub fn queue_pace_note(
     physics: &Physics,
-    frame_work: &FrameWork,
+    frame_work: &FrameWorkStore,
     work: &RaceWork,
-    physics_tables: &PhysicsTables,
+    scene_clock: u32,
     car: &Car,
     checkpoint: u32,
     sound: &crate::sound::owner::Sound,
@@ -37,9 +36,9 @@ pub fn queue_pace_note(
 ) -> Result<(), Refused> {
     let physics_store = physics;
     use crate::logfile::log_int::log_int;
-    let groups = physics_store.pace().group_count.get();
+    let groups = physics_store.pace().group_count;
     let found = find_group(groups, checkpoint, |n| {
-        physics_store.pace().group_checkpoints[n as usize].get()
+        physics_store.pace().group_checkpoints[n as usize]
     })?;
     if groups == 0 {
         return Ok(());
@@ -47,9 +46,10 @@ pub fn queue_pace_note(
     let Some(group) = found else {
         return Ok(());
     };
-    let mut at = physics_store.pace().group_texts[group as usize].get();
+    let mut at = physics_store.pace().group_texts[group as usize];
+    crate::remote::pace_call(work.current_car.get(), checkpoint, group);
     loop {
-        let byte = physics_store.pace().text.get(text_place(at)? as usize) as u32;
+        let byte = physics_store.pace().text[text_place(at)? as usize] as u32;
         match code(byte as u8) {
             Code::End => return Ok(()),
             Code::Bad => {
@@ -68,13 +68,7 @@ pub fn queue_pace_note(
                 crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last(
                     frame_work, work, byte, sound, audio,
                 )?;
-                {
-                    crate::physics::queue_listed_event::queue_listed_event(
-                        car,
-                        physics_tables,
-                        byte,
-                    )
-                }?;
+                { crate::physics::queue_listed_event::queue_listed_event(car, scene_clock, byte) }?;
                 at = at.wrapping_add(1);
             }
         }

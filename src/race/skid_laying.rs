@@ -10,7 +10,7 @@ use crate::race::owner_shared::RaceShared;
 
 /// The edges' offset for an angle (`math::rotate_point_about_y` of (0x1555, y, 0) by angle << 16).
 fn offsets(
-    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    engine_tables: crate::math::engine_tables::EngineTablesRef,
     angle: u32,
     y: u32,
 ) -> (u32, u32) {
@@ -31,82 +31,61 @@ fn offsets(
 /// point moves on (0x400 points). Refuses (before anything) a point or link outside the ring.
 pub fn add_skid_point(race: &Race, slot: &PlainDword) -> Result<(), Refused> {
     use rc2k_core::race::skids::{Link, POINTS, Point, Ring, add_skid_point, next_point};
-    let skids = race.frame.shadow_skids.get();
-    let n = skids.skid_next.get();
-    let last = slot.get();
-    // The ring is read out of its tables and what changed is written back after.
-    let word = |b: &[u8], k: usize| u32::from_le_bytes([b[k], b[k + 1], b[k + 2], b[k + 3]]);
-    let half = |b: &[u8], k: usize| u16::from_le_bytes([b[k], b[k + 1]]);
-    let point_bytes = skids.skid_points.read();
-    let link_bytes = skids.skid_links.read();
-    let mut points: Vec<Point> = point_bytes
-        .as_chunks::<0x18>()
-        .0
-        .iter()
-        .take(POINTS as usize)
-        .map(|b| std::array::from_fn(|i| word(b, 4 * i)))
-        .collect();
-    let mut links: Vec<Link> = link_bytes
-        .as_chunks::<8>()
-        .0
-        .iter()
-        .take(POINTS as usize)
-        .map(|b| Link {
-            next: half(b, 0),
-            previous: half(b, 2),
-            angle: half(b, 4),
-            car: half(b, 6),
-        })
-        .collect();
-    let (points_before, links_before) = (points.clone(), links.clone());
-    let place = crate::memory::session::read_bits(&skids.skid_place);
-    let a = add_skid_point(
-        Ring {
-            points: &mut points,
-            links: &mut links,
-        },
-        n,
-        last,
-        place,
-        skids.skid_cars.get() as u16,
-        |first, second| crate::scene::angle_between::angle_of(&race.course, first, second),
-        |angle, y| offsets(race.engine_tables(), angle, y),
-    )?;
-    for (k, (now, was)) in points.iter().zip(&points_before).enumerate() {
-        if now != was {
-            for (i, v) in now.iter().enumerate() {
-                skids.skid_points.set_u32(0x18 * k + 4 * i, *v);
+    /// The ring over the race's two tables: an entry is read or written alone.
+    struct Tables<'a>(&'a mut crate::race::shadow_skids_store::ShadowSkids);
+    impl Ring for Tables<'_> {
+        fn capacity(&self) -> usize {
+            POINTS as usize
+        }
+        fn point(&self, index: usize) -> Point {
+            std::array::from_fn(|i| self.0.point_word(0x18 * index + 4 * i))
+        }
+        fn set_point(&mut self, index: usize, point: Point) {
+            for (i, v) in point.iter().enumerate() {
+                self.0.set_point_word(0x18 * index + 4 * i, *v);
             }
         }
-    }
-    for (k, (now, was)) in links.iter().zip(&links_before).enumerate() {
-        if now != was {
-            for (i, v) in [now.next, now.previous, now.angle, now.car]
+        fn link(&self, index: usize) -> Link {
+            let half = |at: usize| {
+                u16::from_le_bytes([
+                    self.0.skid_links[8 * index + at],
+                    self.0.skid_links[8 * index + at + 1],
+                ])
+            };
+            Link {
+                next: half(0),
+                previous: half(2),
+                angle: half(4),
+                car: half(6),
+            }
+        }
+        fn set_link(&mut self, index: usize, link: Link) {
+            for (i, v) in [link.next, link.previous, link.angle, link.car]
                 .iter()
                 .enumerate()
             {
                 for (j, b) in v.to_le_bytes().into_iter().enumerate() {
-                    skids.skid_links.set(8 * k + 2 * i + j, b);
+                    self.0.skid_links[8 * index + 2 * i + j] = b;
                 }
             }
         }
     }
+    let mut skids = race.frame.shadow_skids.borrow_mut();
+    let n = skids.skid_next;
+    let last = slot.get();
+    let place = skids.skid_place;
+    let cars = skids.skid_cars as u16;
+    add_skid_point(
+        Tables(&mut skids),
+        n,
+        last,
+        place,
+        cars,
+        |first, second| crate::scene::angle_between::angle_of(&race.course, first, second),
+        |angle, y| offsets(race.engine_tables(), angle, y),
+    )?;
     slot.set(n);
-    skids.skid_angle.set(a.angle);
-    skids.skid_offset_x.set(a.offset.0);
-    skids.skid_offset_z.set(a.offset.1);
-    if let Some(m) = a.from {
-        for (i, v) in m.iter().enumerate() {
-            skids.skid_from[i].set(*v);
-        }
-    }
-    if let Some((turned, m)) = a.turned {
-        skids.skid_turned_angle.set(turned);
-        for (i, v) in m.iter().enumerate() {
-            skids.skid_turned[i].set(*v);
-        }
-    }
-    skids.skid_next.set(next_point(skids.skid_next.get()));
+    skids.skid_next = next_point(skids.skid_next);
     Ok(())
 }
 
@@ -129,7 +108,7 @@ fn cars_refuse(shared: &RaceShared) -> Result<(), Refused> {
 /// turned by the car's crash matrix (`scene::rotate_point`, rounded). Otherwise the wheel's skid
 /// slot is set to -1. Refuses (before anything) a car without its block.
 pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
-    let skids = race.frame.shadow_skids.get();
+    let skids = &race.frame.shadow_skids;
     let shared = &race.shared;
     use crate::race::skidmarks::int_80;
     cars_refuse(&race.shared)?;
@@ -137,10 +116,10 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
     if count == 0 {
         return Ok(());
     }
-    let grip = skids.skid_grip.get();
+    let grip = skids.borrow().skid_grip;
     let zero = int_80(0);
     for c in 0..count {
-        skids.skid_cars.set(1 << (c & 31));
+        skids.borrow_mut().skid_cars = 1 << (c & 31);
         // The skid slots are the drawing's own (in the block); the wheels, the physics'.
         let slots = &shared.race_car(c as usize)?.skid_slots;
         let car = race
@@ -162,7 +141,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
                 &car.wheel_ground_z,
             ];
             for (i, run) in place.into_iter().enumerate() {
-                skids.skid_place[i].set(run[wheel].get());
+                skids.borrow_mut().skid_place[i] = run[wheel].get();
             }
             let side = if wheel % 2 == 0 {
                 0x1555u32
@@ -175,7 +154,24 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
             );
             for (i, v) in t.into_iter().enumerate() {
                 let n = crate::math::x87::tbyte_to_int(v);
-                skids.skid_place[i].set(skids.skid_place[i].get().wrapping_add(n));
+                let mut skids = skids.borrow_mut();
+                skids.skid_place[i] = skids.skid_place[i].wrapping_add(n);
+            }
+            // The wheel has not moved since its last point: that point stands for the place, and
+            // the strip goes on from it (see `rc2k_core::race::skids::is_repeat`).
+            let last = slot.get();
+            if last < rc2k_core::race::skids::POINTS {
+                let at = 0x18 * last as usize;
+                let (last_point, place) = {
+                    let skids = skids.borrow();
+                    (
+                        std::array::from_fn(|k| skids.point_word(at + 4 * k)),
+                        skids.skid_place,
+                    )
+                };
+                if rc2k_core::race::skids::is_repeat(&last_point, place) {
+                    continue;
+                }
             }
             add_skid_point(race, slot)?;
         }
@@ -185,10 +181,10 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
 
 /// `race::lay_skidmarks_if_on`: `lay_skidmarks` unless `scene_switch` or `replay_still_on`
 /// is set.
-pub fn lay_skidmarks_if_on(race: &Race) -> Result<(), Refused> {
+pub(super) fn lay_skidmarks_if_on(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
     if race.shared.vars.get().scene_switch.get() != 0
-        || frame.frame_work.get().replay_still_on.get() != 0
+        || frame.frame_work.borrow().replay_still_on != 0
     {
         return Ok(());
     }

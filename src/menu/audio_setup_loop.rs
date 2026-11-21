@@ -10,7 +10,9 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Frames, List, Screen, ScreenVar, Step, screen_entry};
 
 fn before(screens: &Screens) -> Result<(), Refused> {
-    screens.items.current[slot::AUDIO_SETUP].set(screens.items.first[slot::AUDIO_SETUP].get());
+    screens
+        .items
+        .set_current(slot::AUDIO_SETUP, screens.items.first(slot::AUDIO_SETUP));
     Ok(())
 }
 

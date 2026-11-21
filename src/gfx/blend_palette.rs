@@ -43,7 +43,7 @@ pub fn blend_palette(
             towards_second,
         );
         if let Some(scratch) = scratch {
-            formats.scratch.write(&scratch);
+            formats.scratch.set(scratch);
         }
         crate::gfx::glyph_store::write_bytes(fonts, out, 4 * n, &pixel.to_le_bytes(), "a palette")?;
     }

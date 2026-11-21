@@ -26,7 +26,10 @@ pub fn entry(
     Ok((slot_name(service, slot), len as usize))
 }
 
-pub fn backspace_setup_name(menus: &Menus, service: &'static Service) -> Result<(), BadInput> {
+pub(super) fn backspace_setup_name(
+    menus: &Menus,
+    service: &'static Service,
+) -> Result<(), BadInput> {
     let (name, len) = entry(menus, service)?;
     if len != 0 {
         let at = name;

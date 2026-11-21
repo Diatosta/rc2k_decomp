@@ -6,9 +6,7 @@ use crate::gfx::bar_store::BarVars;
 use crate::gfx::blit::Blitter;
 use crate::gfx::build_game_fonts::GameFontsMemory;
 use crate::gfx::build_glyphs::SheetVars;
-use crate::gfx::cards::Cards;
 use crate::gfx::choices_store::ScreenChoices;
-use crate::gfx::converters::Converters;
 use crate::gfx::decoder::Decoder;
 use crate::gfx::fill_row_table::ROW_TABLE_ROOM;
 use crate::gfx::fill_thirds_table::TABLE_LEN;
@@ -36,7 +34,8 @@ use crate::gfx::texture_upload::Textures;
 use crate::gfx::typefaces::FontObjects;
 use crate::gfx::upload::Upload;
 use crate::gfx::windscreen_drop_batch::WindscreenDrops;
-use crate::memory::session::{PlainBytes, PlainDword};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::PlainDword;
 
 /// The PNG reader's state: the file being decoded, its header and the setting that turns PNG files
 /// off.
@@ -57,10 +56,9 @@ impl Png {
     }
 }
 
-/// The screen modes: the 3D cards found, the mode table, the chosen modes and the graphics
+/// The screen modes: the mode table, the chosen modes and the graphics
 /// settings' choices.
 pub struct Display {
-    pub cards: Cards,
     pub modes: Modes,
     pub mode: ScreenMode,
     pub choices: ScreenChoices,
@@ -69,7 +67,6 @@ pub struct Display {
 impl Display {
     pub const fn new() -> Self {
         Display {
-            cards: Cards::new(),
             modes: Modes::new(),
             mode: ScreenMode::new(),
             choices: ScreenChoices::new(),
@@ -77,17 +74,15 @@ impl Display {
     }
 }
 
-/// The pixel formats and the converters between them.
+/// The pixel formats.
 pub struct Pixel {
     pub formats: Formats,
-    pub converters: Converters,
 }
 
 impl Pixel {
     pub const fn new() -> Self {
         Pixel {
             formats: Formats::new(),
-            converters: Converters::new(),
         }
     }
 }
@@ -99,7 +94,7 @@ pub struct Pictures {
     pub decoder: Decoder,
     pub pcx: Pcx,
     /// The planes of the row being written (a buffer, zero at the start).
-    pub planes: PlainBytes<PLANES_LEN>,
+    pub planes: PlainBuffer<PLANES_LEN>,
     /// 1 while a picture is being shown.
     pub showing: PlainDword,
     /// The picture buffers (`gfx::picture`).
@@ -112,7 +107,7 @@ impl Pictures {
             picture: Picture::new(),
             decoder: Decoder::new(),
             pcx: Pcx::new(),
-            planes: PlainBytes::new([0; PLANES_LEN]),
+            planes: PlainBuffer::new([0; PLANES_LEN]),
             showing: PlainDword::new(0),
             buffers: PictureBuffers::new(),
         }
@@ -157,13 +152,13 @@ pub struct Drawing {
     pub blit: Blitter,
     pub bar: BarVars,
     /// The surface the screen is drawn on: atomic cells, which the drawing threads read through
-    /// `platform::direct3d::Handles` while the game's thread waits.
+    /// `d3d::device::Handles` while the game's thread waits.
     pub draw_surface: DrawSurface,
     pub surfaces: Surfaces,
     /// Each row of a picture (602 of them), zero at the start: its offset in the decoded buffer.
     pub row_table: [PlainDword; ROW_TABLE_ROOM as usize],
-    /// `byte_4F4B30`: n / 3 for the sums of three components (zero until filled).
-    pub thirds: PlainBytes<TABLE_LEN>,
+    /// n / 3 for the sums of three components (zero until filled).
+    pub thirds: PlainBuffer<TABLE_LEN>,
     /// The picture buffer's number while it is the surface (`gfx::picture_as_surface`), else 0.
     pub on_picture: std::sync::atomic::AtomicU32,
 }
@@ -176,7 +171,7 @@ impl Drawing {
             draw_surface: DrawSurface::new(),
             surfaces: Surfaces::new(),
             row_table: [const { PlainDword::new(0) }; ROW_TABLE_ROOM as usize],
-            thirds: PlainBytes::new([0; TABLE_LEN]),
+            thirds: PlainBuffer::new([0; TABLE_LEN]),
             on_picture: std::sync::atomic::AtomicU32::new(0),
         }
     }
@@ -187,7 +182,7 @@ impl Drawing {
 pub struct Card3d {
     pub upload: Upload,
     /// The card's tables: atomic cells, which the drawing threads read through
-    /// `platform::direct3d::Handles` while the game's thread waits.
+    /// `d3d::device::Handles` while the game's thread waits.
     pub texture_tables: Textures,
     pub windscreen_drop_batch: WindscreenDrops,
 }

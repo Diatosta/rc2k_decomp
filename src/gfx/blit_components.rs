@@ -83,7 +83,7 @@ pub fn blit_components(
             "a surface's row",
         )?;
         if let Some(scratch) = scratch {
-            formats.scratch.write(&scratch);
+            formats.scratch.set(scratch);
         }
         source = source.wrapping_add(p.row_bytes as usize);
     }

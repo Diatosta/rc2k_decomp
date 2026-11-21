@@ -2,42 +2,68 @@
 //! matrices, view vars, scratch, batches, panel, overlay, text, shadows and skids, sound spots,
 //! map.
 
-use crate::memory::session::{DrawShared, GameThread};
+use crate::memory::MemoryList;
+use crate::memory::session::{DrawArc, DrawPlain, DrawShared, GameThread};
 use crate::race::clock_ticks_store::ClockTicks;
-use crate::race::draw_batches_store::DrawBatches;
 use crate::race::error_list_store::ErrorList;
 use crate::race::frame_counter_store::FrameCounter;
 use crate::race::frame_store::FrameWork;
 use crate::race::frame_text::Credits;
-use crate::race::game_map::MapVars;
-use crate::race::groups_store::{LightsAndGear, PanelAndOverlay, ViewAndRecords};
-use crate::race::matrices_store::SceneMatrices;
-use crate::race::panel_clock_store::PanelClock;
+use crate::race::game_map_store::MapVars;
+use crate::race::groups_store::ViewAndRecords;
+use crate::race::light_records_store::LightRecords;
+use crate::race::matrices_store::{SceneMatrices, ViewKept};
+use crate::race::overlay_store::OverlayBlock;
+use crate::race::panel_store::Panel;
 use crate::race::scratch_store::FrameScratch;
 use crate::race::shadow_skids_store::ShadowSkids;
-use crate::race::sound_spots_store::SoundSpotBlock;
-use crate::race::text_state_store::TextState;
+use crate::race::sound_spots_store::SoundSpots;
+use std::cell::{Ref, RefCell, RefMut};
+
+/// A list holding nothing.
+const NO_LIST: MemoryList = MemoryList {
+    head: 0,
+    total: 0,
+    cursor: 0,
+    remaining: 0,
+};
 
 /// The race's frame state. The view
-/// variables, the panel and the overlay are fields of `view_and_records` and
-/// `panel_and_overlay` (`view_vars_store`, `panel_store`, `overlay_store` read them there).
+/// variables are a field of `view_and_records` (`view_vars_store` reads them there).
 pub struct Frame {
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it (the two
-    /// counters nobody reads stay atomic).
-    pub frame_work: DrawShared<FrameWork>,
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it (the held
-    /// columns are each part's own, `scene::view_matrices::Held`, merged in the parts' order).
-    pub matrices: DrawShared<SceneMatrices>,
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the drawing only reads it.
-    pub shadow_skids: DrawShared<ShadowSkids>,
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the mirror's window and the
-    /// polygon drawing read it; the hud and the race write it on the game's thread.
-    pub panel_and_overlay: DrawShared<PanelAndOverlay>,
+    /// Whether the race is a split screen of three or four players: then the view slots are the
+    /// players' views (slot `n` player `n`) and there are no mirrors, where with one or two
+    /// players slots 2 and 3 are the first two players' mirrors. Set by the frame's drawing,
+    /// before its parts run.
+    pub many_views: std::sync::atomic::AtomicBool,
+    /// The frames drawn between ticks: each car's last two ticks and the next frame's place.
+    pub blend: crate::race::blend::Blend,
+    /// The overview map's picture of the stage: its colours (0xRRGGBB, `None` where the map has no
+    /// tile); `None` until it is made.
+    pub overview_picture: std::sync::Mutex<Option<Vec<Option<u32>>>>,
+    /// The whole nanosecond count at the last frame-rate measure.
+    pub last_frame_nanos: std::sync::atomic::AtomicU64,
+    /// A plain record, lent to the drawing parts as a copy (`scene::workers::DrawReads`): no part
+    /// writes it (short borrows on the game's thread).
+    pub frame_work: DrawPlain<FrameWork>,
+    /// A plain record, lent to the drawing parts as a copy (`scene::workers::DrawReads`): no part
+    /// writes it (the held columns are each part's own, `scene::view_matrices::Held`, merged in
+    /// the parts' order).
+    pub matrices: DrawPlain<SceneMatrices>,
+    /// The views' matrices kept for what is drawn or heard after them (short borrows); the game's thread's.
+    pub view_kept: DrawPlain<ViewKept>,
+    /// One record, lent to the drawing parts as a shared pointer (`scene::workers::DrawReads`): the drawing only reads it.
+    pub shadow_skids: DrawArc<ShadowSkids>,
+    /// A plain record, lent to the drawing parts as a copy (`scene::workers::DrawReads`): the mirror's
+    /// window reads one field; the hud and the race write it on the game's thread (short borrows).
+    pub panel: DrawPlain<Panel>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it. Each
     /// view draws on its own view variables (`ViewScratch::vars`).
     pub view_and_records: DrawShared<ViewAndRecords>,
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it.
-    pub lights_and_gear: DrawShared<LightsAndGear>,
+    /// The models' light records, shared with the drawing parts (`scene::workers::DrawReads`):
+    /// no part writes them. `scene::load_object` reads a kind's record past the 34 (an unbounded
+    /// kind) on into the gear figures (`LightRecords::group_at`).
+    pub light_records: DrawArc<LightRecords>,
     /// The cars as the frame's drawing sees them (`race::frame_view`); behind atomics, read by
     /// the drawing parts.
     pub cars: crate::race::frame_view::FrameCars,
@@ -46,80 +72,144 @@ pub struct Frame {
 
 /// What only the game's thread reaches (no drawing part and no other thread touches it).
 struct FrameMain {
-    scratch: FrameScratch,
-    counter: FrameCounter,
-    draw_batches: DrawBatches,
-    panel_clock: PanelClock,
-    text_state: TextState,
-    clock_ticks: ClockTicks,
-    sound_spots: SoundSpotBlock,
-    error_list: ErrorList,
-    credits: Credits,
-    map: MapVars,
+    /// The stage bar's parts, the forget flags and the position labels.
+    overlay: RefCell<OverlayBlock>,
+    scratch: RefCell<FrameScratch>,
+    counter: RefCell<FrameCounter>,
+    clock_ticks: RefCell<ClockTicks>,
+    sound_spots: RefCell<SoundSpots>,
+    error_list: RefCell<ErrorList>,
+    credits: RefCell<Credits>,
+    map: RefCell<MapVars>,
+    /// The list the map's tiles and pixels are counted on.
+    map_list: RefCell<MemoryList>,
+    /// The list the key sheet's memory is counted on.
+    map_key_list: RefCell<MemoryList>,
 }
 
 impl Frame {
     pub const fn new() -> Self {
         Frame {
-            frame_work: DrawShared::new(FrameWork::new()),
-            matrices: DrawShared::new(SceneMatrices::new()),
-            shadow_skids: DrawShared::new(ShadowSkids::new()),
-            panel_and_overlay: DrawShared::new(PanelAndOverlay::new()),
+            many_views: std::sync::atomic::AtomicBool::new(false),
+            blend: crate::race::blend::Blend::new(),
+            overview_picture: std::sync::Mutex::new(None),
+            last_frame_nanos: std::sync::atomic::AtomicU64::new(0),
+            frame_work: DrawPlain::new(FrameWork::new()),
+            matrices: DrawPlain::new(SceneMatrices::new()),
+            view_kept: DrawPlain::new(ViewKept::new()),
+            shadow_skids: DrawArc::new(ShadowSkids::new),
+            panel: DrawPlain::new(Panel::new()),
             view_and_records: DrawShared::new(ViewAndRecords::new()),
-            lights_and_gear: DrawShared::new(LightsAndGear::new()),
+            light_records: DrawArc::new(LightRecords::new),
             cars: crate::race::frame_view::FrameCars::new(),
             main: GameThread::new(FrameMain {
-                scratch: FrameScratch::new(),
-                counter: FrameCounter::new(),
-                draw_batches: DrawBatches::new(),
-                panel_clock: PanelClock::new(),
-                text_state: TextState::new(),
-                clock_ticks: ClockTicks::new(),
-                sound_spots: SoundSpotBlock::new(),
-                error_list: ErrorList::new(),
-                credits: Credits::new(),
-                map: MapVars::new(),
+                overlay: RefCell::new(OverlayBlock::new()),
+                scratch: RefCell::new(FrameScratch::new()),
+                counter: RefCell::new(FrameCounter::new()),
+                clock_ticks: RefCell::new(ClockTicks::new()),
+                sound_spots: RefCell::new(SoundSpots::new()),
+                error_list: RefCell::new(ErrorList::new()),
+                credits: RefCell::new(Credits::new()),
+                map: RefCell::new(MapVars::new()),
+                map_list: RefCell::new(NO_LIST),
+                map_key_list: RefCell::new(NO_LIST),
             }),
         }
     }
 
-    pub fn scratch(&self) -> &FrameScratch {
-        &self.main.get().scratch
+    /// The work vector, read.
+    pub fn scratch(&self) -> Ref<'_, FrameScratch> {
+        self.main.get().scratch.borrow()
     }
 
-    pub fn counter(&self) -> &FrameCounter {
-        &self.main.get().counter
+    /// The stage bar's parts, the forget flags and the position labels, read: no write borrow
+    /// may be held.
+    pub fn overlay(&self) -> Ref<'_, OverlayBlock> {
+        self.main.get().overlay.borrow()
     }
 
-    pub fn draw_batches(&self) -> &DrawBatches {
-        &self.main.get().draw_batches
+    /// The overlay, to write: no other borrow may be held.
+    pub fn overlay_mut(&self) -> RefMut<'_, OverlayBlock> {
+        self.main.get().overlay.borrow_mut()
     }
 
-    pub fn panel_clock(&self) -> &PanelClock {
-        &self.main.get().panel_clock
+    /// The overlay's cell, for a caller that borrows it itself (short borrows).
+    pub fn overlay_cell(&self) -> &RefCell<OverlayBlock> {
+        &self.main.get().overlay
     }
 
-    pub fn text_state(&self) -> &TextState {
-        &self.main.get().text_state
+    /// The work vector, to write: no other borrow may be held.
+    pub fn scratch_mut(&self) -> RefMut<'_, FrameScratch> {
+        self.main.get().scratch.borrow_mut()
     }
 
-    pub fn clock_ticks(&self) -> &ClockTicks {
-        &self.main.get().clock_ticks
+    /// The frame counter setting, read: no write borrow may be held.
+    pub fn counter(&self) -> Ref<'_, FrameCounter> {
+        self.main.get().counter.borrow()
     }
 
-    pub fn sound_spots(&self) -> &SoundSpotBlock {
-        &self.main.get().sound_spots
+    /// The frame counter setting, to write: no other borrow may be held.
+    pub fn counter_mut(&self) -> RefMut<'_, FrameCounter> {
+        self.main.get().counter.borrow_mut()
     }
 
-    pub fn error_list(&self) -> &ErrorList {
-        &self.main.get().error_list
+    /// The sound tick clock, read: no write borrow may be held.
+    pub fn clock_ticks(&self) -> Ref<'_, ClockTicks> {
+        self.main.get().clock_ticks.borrow()
     }
 
-    pub fn credits(&self) -> &Credits {
-        &self.main.get().credits
+    /// The sound tick clock, to write: no other borrow may be held.
+    pub fn clock_ticks_mut(&self) -> RefMut<'_, ClockTicks> {
+        self.main.get().clock_ticks.borrow_mut()
     }
 
-    pub fn map(&self) -> &MapVars {
-        &self.main.get().map
+    /// The sound spots, read: no write borrow may be held.
+    pub fn sound_spots(&self) -> Ref<'_, SoundSpots> {
+        self.main.get().sound_spots.borrow()
+    }
+
+    /// The sound spots, to write: no other borrow may be held.
+    pub fn sound_spots_mut(&self) -> RefMut<'_, SoundSpots> {
+        self.main.get().sound_spots.borrow_mut()
+    }
+
+    /// The error list, read: no write borrow may be held.
+    pub fn error_list(&self) -> Ref<'_, ErrorList> {
+        self.main.get().error_list.borrow()
+    }
+
+    /// The error list, to write: no other borrow may be held.
+    pub fn error_list_mut(&self) -> RefMut<'_, ErrorList> {
+        self.main.get().error_list.borrow_mut()
+    }
+
+    /// The credits' state, read: no write borrow may be held.
+    pub fn credits(&self) -> Ref<'_, Credits> {
+        self.main.get().credits.borrow()
+    }
+
+    /// The credits' state, to write: no other borrow may be held.
+    pub fn credits_mut(&self) -> RefMut<'_, Credits> {
+        self.main.get().credits.borrow_mut()
+    }
+
+    /// The map's variables, read: no write borrow may be held.
+    pub fn map(&self) -> Ref<'_, MapVars> {
+        self.main.get().map.borrow()
+    }
+
+    /// The map's variables, to write: no other borrow may be held.
+    pub fn map_mut(&self) -> RefMut<'_, MapVars> {
+        self.main.get().map.borrow_mut()
+    }
+
+    /// The list the map's tiles and pixels are counted on.
+    pub fn map_list(&self) -> &RefCell<MemoryList> {
+        &self.main.get().map_list
+    }
+
+    /// The list the key sheet's memory is counted on.
+    pub fn map_key_list(&self) -> &RefCell<MemoryList> {
+        &self.main.get().map_key_list
     }
 }

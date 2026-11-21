@@ -25,12 +25,12 @@ fn points_of(
     if slot >= SLOTS {
         return Err(BadInput("an object's slot past the tables"));
     }
-    let count = objects.slots.get().point_counts[slot as usize].get();
-    let memory: u32 = course.lists.get().object_points.get();
+    let count = objects.slots.borrow().point_counts[slot as usize];
+    let memory: u32 = course.lists.borrow().object_points;
     if count > MOST || (count != 0 && memory == 0) {
         return Err(BadInput("points without their memory, or too many"));
     }
-    let first = objects.slots.get().first_point[slot as usize].get();
+    let first = objects.slots.borrow().first_point[slot as usize];
     Ok((memory.wrapping_add(first.wrapping_mul(12)) as usize, count))
 }
 
@@ -41,7 +41,7 @@ pub fn measure_object(
 ) -> Result<(), BadInput> {
     use rc2k_core::scene::objects::{HIGHEST_START, LOWEST_START, measure};
     {
-        let slot: u32 = scene.object_work().loading_slot.get();
+        let slot: u32 = scene.object_work().loading_slot;
         let (at, count) = points_of(course, slot, scene)?;
         let mut points: Vec<[u32; 3]> = if count == 0 {
             Vec::new()
@@ -52,14 +52,9 @@ pub fn measure_object(
         };
         let Some(m) = measure(&mut points) else {
             // The half extents are not touched for an object of no points.
-            crate::memory::session::write_first(
-                &scene.objects.slots.get().measures[..3],
-                &[0u32; 3],
-            );
-            crate::memory::session::write_first(
-                &scene.objects.slots.get().measures[6..],
-                &[[LOWEST_START; 3], [HIGHEST_START; 3]].concat(),
-            );
+            let mut slots = scene.loaded_slots_mut();
+            slots.measures[..3].copy_from_slice(&[0u32; 3]);
+            slots.measures[6..].copy_from_slice(&[[LOWEST_START; 3], [HIGHEST_START; 3]].concat());
             return Ok(());
         };
         for (n, p) in points.iter().enumerate() {
@@ -68,10 +63,10 @@ pub fn measure_object(
                 .object_points
                 .set_point(at as u32 + 12 * n as u32, *p)?;
         }
-        crate::memory::session::write_first(
-            &scene.objects.slots.get().measures,
-            &[m.middle, m.half, m.lowest, m.highest].concat(),
-        );
+        scene
+            .loaded_slots_mut()
+            .measures
+            .copy_from_slice(&[m.middle, m.half, m.lowest, m.highest].concat());
         Ok(())
     }
 }

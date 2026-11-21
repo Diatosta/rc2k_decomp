@@ -1,9 +1,10 @@
 use crate::errors::Refused;
 use crate::memory::session::DwordLike;
-use crate::memory::session::PlainDword;
-use crate::menu::event_flow::switch_cell;
+use crate::menu::event_flow::{set_switch, switch_is_set};
+use crate::menu::event_store::EventWord;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
+use crate::menu::results_store::ResultsData;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::race::owner::Race;
@@ -17,6 +18,8 @@ struct Game<'a> {
     owners: crate::owners::Owners<'static>,
     cars: Option<CarList>,
     player0: crate::menu::standings::PlayerCell<'a>,
+    /// A launch's answer to the car choice, until it has given it.
+    answer: Option<crate::menu::launch::CarAnswer<'a>>,
 }
 
 /// The variables that are in the physics block.
@@ -32,24 +35,26 @@ fn cell(race: &Race, v: Var) -> Option<&dyn DwordLike> {
     })
 }
 
-fn address(menus: &Menus, v: Var) -> &'_ PlainDword {
+/// The first player's figure a variable names, in the results.
+fn figure(results: &mut ResultsData, v: Var) -> &mut u32 {
+    let player = &mut results.players[0];
     match v {
-        Var::Failed => &menus.play.arcade.retry,
-        Var::TotalA8 => &menus.play.results.players[0].before,
-        Var::Total798 => &menus.play.results.players[0].sum,
-        Var::TotalB8 => &menus.play.results.players[0].total,
-        Var::Figure768 => &menus.play.results.players[0].position,
-        Var::Figure758 => &menus.play.results.players[0].time_bonus,
-        Var::PlayerCount => &menus.screens.event.player_count,
-        Var::EventMode => &menus.screens.event.event_kind,
-        Var::Stage => &menus.play.arcade.stage,
-        Var::Level => &menus.play.arcade.level,
-        Var::Current => &menus.screens.event.current_player,
-        Var::Answer => &menus.tables.pages.yes_no_answer,
-        Var::Cheats => &menus.play.cheats.cheats,
-        Var::Qualifies => &menus.screens.event.trial.qualifies,
+        Var::TotalA8 => &mut player.before,
+        Var::Total798 => &mut player.sum,
+        Var::TotalB8 => &mut player.total,
+        Var::Figure768 => &mut player.position,
+        Var::Figure758 => &mut player.time_bonus,
         Var::Player0Entry => unreachable!("player 0's field is not at an address"),
-        Var::RaceStage
+        Var::PlayerCount
+        | Var::EventMode
+        | Var::Current
+        | Var::Qualifies
+        | Var::Failed
+        | Var::Stage
+        | Var::Level
+        | Var::Cheats
+        | Var::Answer
+        | Var::RaceStage
         | Var::RaceLevel
         | Var::CheatSwitch
         | Var::RaceResult
@@ -63,9 +68,22 @@ impl arcade::Arcade for Game<'_> {
 
     fn get(&mut self, v: Var) -> u32 {
         let menus = self.menus;
+        let arcade = menus.play.arcade.read();
+        match v {
+            Var::Failed => return arcade.retry,
+            Var::Stage => return arcade.stage,
+            Var::Level => return arcade.level,
+            Var::Cheats => return menus.play.cheats.read().cheats,
+            Var::Answer => return menus.tables.pages.read().yes_no_answer,
+            Var::Qualifies => return EventWord::TrialQualifies.get(&menus.screens.event),
+            Var::Current => return EventWord::CurrentPlayer.get(&menus.screens.event),
+            Var::EventMode => return EventWord::EventKind.get(&menus.screens.event),
+            Var::PlayerCount => return EventWord::PlayerCount.get(&menus.screens.event),
+            _ => {}
+        }
         match cell(self.owners.race, v) {
             Some(cell) => cell.get(),
-            None => address(menus, v).get(),
+            None => *figure(&mut menus.play.results.write(), v),
         }
     }
 
@@ -73,19 +91,28 @@ impl arcade::Arcade for Game<'_> {
         let menus = self.menus;
         match v {
             Var::Player0Entry => self.player0.update(|p| p.entry = value),
+            Var::Failed => menus.play.arcade.write().retry = value,
+            Var::Stage => menus.play.arcade.write().stage = value,
+            Var::Level => menus.play.arcade.write().level = value,
+            Var::Cheats => menus.play.cheats.write().cheats = value,
+            Var::Answer => menus.tables.pages.write().yes_no_answer = value,
+            Var::Qualifies => EventWord::TrialQualifies.set(&menus.screens.event, value),
+            Var::Current => EventWord::CurrentPlayer.set(&menus.screens.event, value),
+            Var::EventMode => EventWord::EventKind.set(&menus.screens.event, value),
+            Var::PlayerCount => EventWord::PlayerCount.set(&menus.screens.event, value),
             _ => match cell(self.owners.race, v) {
                 Some(cell) => cell.set(value),
-                None => address(menus, v).set(value),
+                None => *figure(&mut menus.play.results.write(), v) = value,
             },
         }
     }
 
     fn flag(&mut self, s: Switch) -> bool {
-        switch_cell(self.owners.menus, self.owners.system, s).is_set()
+        switch_is_set(self.owners.menus, self.owners.system, s)
     }
 
     fn set_flag(&mut self, s: Switch, on: bool) {
-        switch_cell(self.owners.menus, self.owners.system, s).set(on);
+        set_switch(self.owners.menus, self.owners.system, s, on);
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
@@ -104,7 +131,21 @@ impl arcade::Arcade for Game<'_> {
                 self.cars =
                     Some(m::cheat_car_list::cheat_car_list(menus).unwrap_or(CarList::Second));
             }
-            Step::SelectCarLoop => self.screen(ScreenId::SelectCar)?,
+            Step::SelectCarLoop => {
+                let handed = self.cars;
+                let answered = match (self.answer.as_mut(), handed) {
+                    (Some(answer), Some(list)) => answer(list)?,
+                    _ => None,
+                };
+                match answered {
+                    Some(list) => {
+                        self.answer = None;
+                        self.cars = Some(list);
+                        arcade::Arcade::set_flag(self, Switch::LeftByKey, false);
+                    }
+                    None => self.screen(ScreenId::SelectCar)?,
+                }
+            }
             Step::TakeShownCar => m::take_shown_car::take_shown_car(menus, self.cars)?,
             Step::NextStageLoop => self.screen(ScreenId::ArcadeNextStage)?,
             Step::TakeStageBest => {
@@ -118,11 +159,11 @@ impl arcade::Arcade for Game<'_> {
             Step::KeepStageBest => {
                 // The stage's record in the level's table.
                 let stages = &self.owners.system.records().stage_tables;
-                let level = stages.level_table(play.arcade.level.get())?;
+                let level = stages.level_table(play.arcade.read().level)?;
                 a::keep_arcade_stage_best(
                     menus,
                     stages,
-                    level.row(stages, play.arcade.stage.get())?,
+                    level.row(stages, play.arcade.read().stage)?,
                 )?;
             }
             Step::CheckStageTime => a::check_arcade_stage_time(menus, self.owners.system, tables)?,
@@ -156,6 +197,14 @@ impl Game<'_> {
 }
 
 pub fn arcade_event(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    arcade_event_with(o, None)
+}
+
+/// The arcade event with a launch's answer to its first car choice.
+pub(super) fn arcade_event_with<'a>(
+    o: crate::owners::Owners<'static>,
+    answer: Option<crate::menu::launch::CarAnswer<'a>>,
+) -> Result<(), Refused> {
     let menus = o.menus;
     let player0 = crate::menu::standings::player(menus, 0);
     let mut game = Game {
@@ -163,6 +212,7 @@ pub fn arcade_event(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         owners: o,
         cars: None,
         player0,
+        answer,
     };
     arcade::arcade_event(&mut game)
 }

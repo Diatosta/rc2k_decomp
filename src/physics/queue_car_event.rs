@@ -5,12 +5,11 @@
 //! `car_event_limit` is reduced by 0x20. The events are the pace-note symbols the HUD stacks
 //! (`race::panel_marks`), each shown for 3000 of the scene clock.
 //!
-//! Caller: `physics::queue_listed_event`. Refuses (before anything) a count above 7.
+//! Refuses (before anything) a count above 7.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::physics::cells::{set_changed, set_values_changed, values};
-use crate::physics::tables_store::PhysicsTables;
 use rc2k_core::physics::car_events::CarEvents;
 
 /// The work car's queue.
@@ -33,15 +32,15 @@ pub fn store(car: &Car, was: &CarEvents, now: &CarEvents) {
     set_changed(&car.car_event_position, was.shown, now.shown);
 }
 
-pub fn queue_car_event(
+pub(super) fn queue_car_event(
     car: &Car,
-    tables: &PhysicsTables,
+    scene_clock: u32,
     esi: u32,
     ebx: u32,
 ) -> Result<(), Refused> {
     let was = load(car);
     let mut q = was;
-    q.queue(tables.scene_clock.get(), esi, ebx)?;
+    q.queue(scene_clock, esi, ebx)?;
     store(car, &was, &q);
     Ok(())
 }

@@ -7,6 +7,14 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
+/// Set while a paused machine's race goes on for the others (`drive::race_loop::
+/// step_while_paused`): the own car's words are then full brake and the handbrake, so that it
+/// stays where it was paused.
+pub static HELD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The words of a held car: no throttle, the handbrake's key bit, no steering, full brake.
+const HELD_WORDS: [u32; 4] = [0, 4, 0, 0x100];
+
 pub fn car_input_words(
     race: &Race,
     input: &crate::input::owner::Input,
@@ -17,7 +25,19 @@ pub fn car_input_words(
     use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};
     let car = race_owner.shared.work.get().current_car.get();
     check_car(car)?;
-    let device = frame.frame_work.get().listed_car_sounds[car as usize].get();
+    let mut device = frame.frame_work.borrow().listed_car_sounds[car as usize];
+    // A replay that hears every car lists each by its own number, which names no device.
+    if crate::race::heard_cars::is_on(&race_owner.shared) {
+        device = NO_DEVICE;
+    }
+    // The third and fourth players of a larger split screen have no sound object or view
+    // to list them by: their devices are their own numbers.
+    if device == NO_DEVICE
+        && !net.race_slot.is_on()
+        && (2..race_owner.shared.view.get().players.get()).contains(&car)
+    {
+        device = car;
+    }
     let readings = if device != NO_DEVICE {
         Some(crate::drive::device_axes::device_axes(device, input)?)
     } else {
@@ -25,13 +45,18 @@ pub fn car_input_words(
     };
     let words = device_words(readings);
     for (k, v) in words.iter().enumerate() {
-        race_owner.shared.physics_tables.get().input_words[k].set(*v);
+        race_owner.shared.run_mut().input_words[k] = *v;
+    }
+    if HELD.load(std::sync::atomic::Ordering::Relaxed)
+        && net.race_slot.get().is_some_and(|n| n.player == car)
+    {
+        race_owner.shared.run_mut().input_words = HELD_WORDS;
     }
     if let Some(net_race) = net.race_slot.get() {
         let block = race_owner
             .shared
             .race_car_or(car as usize, "a car's block")?;
-        // +0xFD0 .. +0xFDC: the kept throttle, key bits, steering and brake words.
+        // The kept throttle, key bits, steering and brake words.
         let kept = [
             &block.kept_throttle_word,
             &block.kept_keys_word,
@@ -41,10 +66,10 @@ pub fn car_input_words(
         for (k, at) in kept.into_iter().enumerate() {
             match replay_words(car, net_race.player) {
                 ReplayWords::FromBlock => {
-                    race_owner.shared.physics_tables.get().input_words[k].set(at.get());
+                    race_owner.shared.run_mut().input_words[k] = at.get();
                 }
                 ReplayWords::IntoBlock => {
-                    at.set(race_owner.shared.physics_tables.get().input_words[k].get());
+                    at.set(race_owner.shared.run().input_words[k]);
                 }
             }
         }

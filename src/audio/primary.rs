@@ -4,8 +4,8 @@
 use crate::audio::own::AudioOwn;
 use crate::errors::Refused;
 
-const OPEN_TEXT: &std::ffi::CStr = c"AUD: open ds3d"; // "AUD: open ds3d"
-const FAILED_TEXT: &std::ffi::CStr = c"AUD: open ds3d failed rc="; // "AUD: open ds3d failed rc="
+const OPEN_TEXT: &std::ffi::CStr = c"AUD: open ds3d";
+const FAILED_TEXT: &std::ffi::CStr = c"AUD: open ds3d failed rc=";
 const MODE_3D: u32 = crate::audio::voices::MODE_3D;
 
 /// The first index of the volume table whose volume is at least `volume` (signed), or 0x40.
@@ -16,7 +16,7 @@ pub fn volume_index(state: &AudioOwn, volume: i32) -> u32 {
 
 /// `describe_wave_format` for the mode and `rate`, then `SetFormat`. False when there is no
 /// primary buffer or it failed.
-pub fn set_primary_format(state: &AudioOwn, mode: u32, rate: u32) -> Result<bool, Refused> {
+pub(super) fn set_primary_format(state: &AudioOwn, mode: u32, rate: u32) -> Result<bool, Refused> {
     {
         let p = state.primary_buffer.get();
         if p == 0 {
@@ -55,8 +55,9 @@ pub fn open_listener(state: &AudioOwn, has_fpu: u32) -> Result<bool, Refused> {
     Ok(false)
 }
 
-/// Nothing with A3D; no DirectSound or a failed create: false. The buffer description is zeroed,
-/// size 0x14, flags 0x81 (+0x10 in 3D); the primary buffer is created, its volume kept; the format
+/// No DirectSound or a failed create: false. The buffer description is zeroed,
+/// size 0x14, flags 0x81 (plus the 3D flag in 3D mode); the primary buffer is created, its
+/// volume kept; the format
 /// set; a master volume past 0x40 becomes `volume_index` of the kept one; it is shown and set; in
 /// 3D the listener is opened, whose failure takes 3D out of the mode.
 pub fn make_primary(
@@ -65,9 +66,6 @@ pub fn make_primary(
 ) -> Result<bool, Refused> {
     use crate::audio::make_buffer::BufferDescription;
     let state = &audio.state;
-    if crate::audio::buffer_settings::a3d(state) {
-        return Ok(true);
-    }
     let ds = state.direct_sound.get();
     if ds == 0 {
         return Ok(false);
@@ -97,7 +95,7 @@ pub fn make_primary(
     if stored {
         state.master_volume.set(volume);
     }
-    audio.levels.master_volume_shown.set(volume);
+    audio.levels.general_volume.set(volume);
     crate::audio::set_master_volume::set_master_volume(state, volume);
     if state.sound_mode.get() & MODE_3D != 0
         && !crate::audio::sound_device::open_listener(state, system)?

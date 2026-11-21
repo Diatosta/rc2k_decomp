@@ -1,79 +1,82 @@
 //! Emits: the coarse grit and speckle (dust grains, snow) a wheel throws up in bursts.
 //!
-//! `effects::emit_wheel_grit_bursts`: two bursts of ring entries from a wheel (kinds 0x11 and 0x10), when the
-//! wheel's second flags (+0x24, kept as `wheel_flags2`) >> 6 are not 0.
+//! `effects::emit_wheel_grit_bursts`: two bursts of ring entries from a wheel (kinds 0x11 and
+//! 0x10), when the wheel's second flags (`flags2`) >> 6 are not 0.
 //!
-//! Each half has a strength (the first the wheel's +0x10 times a factor; the second a blend of +0xC
-//! and +0x18) and a rate; when the half's random's bits 16 .. 23 are under the rate, a direction
-//! and a count (a random's low 12 bits modulo (flags >> 6) times 4) are drawn and that many entries
-//! made: their motion the direction spread (`effects::spread_point`), their place at the wheel less
-//! the car matrix's place plus a random side, a life of 2000. When the ring is full (0x3FE taken)
-//! inside a loop the bursts end (wiki/Fixed-bugs.md: "Crash driving over mud (particle ring
-//! full)"). Refuses (before anything) a null wheel, a null object, car or matrix where read.
+//! Each half has a strength (the first the wheel's `local_velocity_x` times a factor; the second a
+//! blend of `driven_speed` and `local_velocity_z`) and a rate; when the half's random's bits 16 ..
+//! 23 are under the rate, a direction and a count (a random's low 12 bits modulo (flags >> 6) times
+//! 4) are drawn and that many entries made: their motion the direction spread
+//! (`effects::spread_point`), their place at the wheel less the car matrix's place plus a random
+//! side, a life of 2000. When the ring is full (0x3FE taken) inside a loop the bursts end
+//! (wiki/Fixed-bugs.md: "Crash driving over mud (particle ring full)"). Refuses (before anything) a
+//! null wheel, a null object, car or matrix where read.
 
+use crate::effects::emit_wheel_grit_bursts_store::BurstTuning;
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
-use crate::memory::session::{PlainDword, PlainFloat, read_bits, write_bits};
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::scene::matrix3::{extended, rounded_value};
+use std::cell::RefCell;
 
 const LIFE: u32 = 0x7D0;
 
 /// One half's variables.
-pub struct Half<'a> {
+pub struct Half {
     pub kind: u32,
-    pub strength: &'a PlainFloat,
+    /// Which of `RingWork.strength` is the half's.
+    pub strength: usize,
     /// The direction's factors (x, y, z) and whether |s| is scaled by the half constant in y.
-    pub factors: [&'a PlainFloat; 3],
+    pub factors: [f32; 3],
     pub scaled: bool,
     /// The size's mask and base, the side's factors.
     pub size: (u32, u32),
-    pub sides: [&'a PlainFloat; 3],
+    pub sides: [f32; 3],
 }
 
 /// One function's variables: its two halves and the typed factors and randoms.
 pub struct BurstSet<'a> {
-    pub halves: [Half<'a>; 2],
-    pub tuning: &'a BurstTuning,
+    pub halves: [Half; 2],
+    pub tuning: &'a RefCell<BurstTuning>,
 }
 
 /// The two halves' variables (`emit_bursts_kind_3`'s are the same but for its tuning).
-pub fn halves(effects: &Effects) -> [Half<'_>; 2] {
+pub fn halves(effects: &Effects) -> [Half; 2] {
     [
         Half {
             kind: 0x11,
-            strength: &effects.ring.work.strength[0],
+            strength: 0,
             factors: [
-                &effects.kinds.emitter.side_a[0],
-                &effects.kinds.emitter.side_a[1],
-                &effects.kinds.emitter.side_a[2],
+                effects.kinds.emitter.borrow().side_a[0],
+                effects.kinds.emitter.borrow().side_a[1],
+                effects.kinds.emitter.borrow().side_a[2],
             ],
             scaled: false,
             size: (0x7FF, 0x400),
             sides: [
-                &effects.kinds.emitter.side_b[0],
-                &effects.kinds.emitter.side_b[1],
-                &effects.kinds.emitter.side_b[2],
+                effects.kinds.emitter.borrow().side_b[0],
+                effects.kinds.emitter.borrow().side_b[1],
+                effects.kinds.emitter.borrow().side_b[2],
             ],
         },
         Half {
             kind: 0x10,
-            strength: &effects.ring.work.strength[1],
+            strength: 1,
             factors: [
-                &effects.kinds.emitter.side_b[0],
-                &effects.kinds.emitter.side_b[1],
-                &effects.kinds.emitter.side_b[2],
+                effects.kinds.emitter.borrow().side_b[0],
+                effects.kinds.emitter.borrow().side_b[1],
+                effects.kinds.emitter.borrow().side_b[2],
             ],
             scaled: true,
             size: (0x3FF, 0x600),
             sides: [
-                &effects.kinds.emitter.side_a[0],
-                &effects.kinds.emitter.side_a[1],
-                &effects.kinds.emitter.side_a[2],
+                effects.kinds.emitter.borrow().side_a[0],
+                effects.kinds.emitter.borrow().side_a[1],
+                effects.kinds.emitter.borrow().side_a[2],
             ],
         },
     ]
@@ -87,13 +90,6 @@ pub fn first(effects: &Effects) -> BurstSet<'_> {
     }
 }
 
-impl BurstTuning {
-    /// The half's (`n` 0 or 1) rate, count and entry randoms.
-    pub fn randoms(&self, n: usize) -> &[PlainDword; 3] {
-        if n == 0 { &self.first } else { &self.second }
-    }
-}
-
 /// The half's strength and rate (`n` 0 or 1), from the wheel.
 fn strength(
     effects: &Effects,
@@ -102,15 +98,16 @@ fn strength(
     wheel: &MarkRecord,
 ) -> Result<(f32, i32), Refused> {
     Ok({
-        let scale = effects.setup.floats.thirty_two.get();
+        let scale = effects.setup.floats.thirty_two;
+        let tuning = set.tuning.borrow();
         if n == 0 {
-            x87::times_kept_abs_to_int(&wheel.local_velocity_x, &set.tuning.strength_k, scale)
+            x87::times_kept_abs_to_int(&wheel.local_velocity_x, tuning.strength_k, scale)
         } else {
             x87::blend_kept_abs_to_int(
                 &wheel.driven_speed,
                 &wheel.local_velocity_z,
-                &set.tuning.blend_k[0],
-                &set.tuning.blend_k[1],
+                tuning.blend_k[0],
+                tuning.blend_k[1],
                 scale,
             )
         }
@@ -126,15 +123,13 @@ fn counts(effects: &Effects, set: &BurstSet<'_>, wheel: &MarkRecord) -> Result<[
         }
         crate::effects::try_from_fn(|n| {
             let (_, rate) = strength(effects, set, n, wheel)?;
-            let r = set.tuning.randoms(n)[0]
-                .get()
+            let r = set.tuning.borrow().randoms(n)[0]
                 .wrapping_mul(0xC5)
                 .wrapping_add(0x5D);
             if (r.rotate_right(16) & 0xFF) as i32 >= rate {
                 return Ok(0);
             }
-            let c = set.tuning.randoms(n)[1]
-                .get()
+            let c = set.tuning.borrow().randoms(n)[1]
                 .wrapping_mul(0xC5)
                 .wrapping_add(0x5D);
             Ok((c & 0xFFF) % ((flags2 >> 6) << 2))
@@ -160,7 +155,7 @@ pub fn refusal(
     })
 }
 
-pub fn emit_wheel_grit_bursts(
+pub(super) fn emit_wheel_grit_bursts(
     effects: &Effects,
     wheel: &MarkRecord,
     object: &CarEffects,
@@ -169,54 +164,54 @@ pub fn emit_wheel_grit_bursts(
 }
 
 /// The shared body, on `set`'s variables.
-pub fn emit_bursts_with(
+pub(super) fn emit_bursts_with(
     effects: &Effects,
     set: &BurstSet<'_>,
     wheel: &MarkRecord,
     object: &CarEffects,
 ) -> Result<(), Refused> {
-    let (paths, masks, ring) = (&effects.paths, &effects.masks, &effects.ring);
+    let (paths, ring) = (&effects.paths, &effects.ring);
     {
         if let Some(why) = refusal(effects, set, wheel)? {
             return Err(BadInput(why).into());
         }
         let flags2 = wheel.flags2.get();
-        masks.surface.wheel_flags2.set(flags2);
         if flags2 >> 6 == 0 {
             return Ok(());
         }
         for (n, h) in set.halves.iter().enumerate() {
             let (s, rate) = strength(effects, set, n, wheel)?;
-            h.strength.set(s);
-            ring.work.whole.set(rate as u32);
-            let r = next_c5(&set.tuning.randoms(n)[0]);
+            ring.work.borrow_mut().strength[h.strength] = s;
+            ring.work.borrow_mut().whole = rate as u32;
+            let r = next_c5_plain(&mut set.tuning.borrow_mut().randoms_mut(n)[0]);
             if (r.rotate_right(16) & 0xFF) as i32 >= rate {
                 continue;
             }
             let car = emitting_car(effects)?;
-            let k = effects.setup.floats.burst_direction_k.get();
-            let s = h.strength.get();
-            let scale = h.scaled.then_some(&effects.setup.floats.half);
+            let k = effects.setup.floats.burst_direction_k;
+            let s = ring.work.borrow().strength[h.strength];
+            let scale = h.scaled.then_some(effects.setup.floats.half);
             let direction = [
                 x87::mul2(h.factors[0], s, k),
                 x87::times_less_abs_times(h.factors[1], s, scale, k),
                 x87::mul2(h.factors[2], s, k),
             ];
-            write_bits(&ring.work.direction, direction.map(f32::to_bits));
-            let count = (next_c5(&set.tuning.randoms(n)[1]) & 0xFFF) % ((flags2 >> 6) << 2);
+            ring.work.borrow_mut().direction = direction;
+            let count = (next_c5_plain(&mut set.tuning.borrow_mut().randoms_mut(n)[1]) & 0xFFF)
+                % ((flags2 >> 6) << 2);
             for _ in 0..count {
                 // The ring is full (0x3FE taken): the bursts end here (wiki/Fixed-bugs.md:
                 // "Crash driving over mud (particle ring full)").
-                if ring.work.count.get() == MOST_TAKEN {
+                if ring.work.borrow().count == MOST_TAKEN {
                     return Ok(());
                 }
                 let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, h.kind)?;
                 let slot = crate::effects::ring_entries::Slot::new(ring, e);
-                let d = read_bits(&ring.work.direction);
+                let d = ring.work.borrow().direction.map(f32::to_bits);
                 let (out, _) = crate::effects::spread_point::spread_point(
                     paths,
                     [
-                        extended(effects.setup.floats.half.get()),
+                        extended(effects.setup.floats.half),
                         extended(d[2]),
                         extended(d[1]),
                         extended(d[0]),
@@ -226,7 +221,7 @@ pub fn emit_bursts_with(
                 slot.put(|en| &mut en.motion[2], rounded_value(out[0]))?;
                 slot.put(|en| &mut en.motion[1], rounded_value(out[1]))?;
                 slot.put(|en| &mut en.motion[0], rounded_value(out[2]))?;
-                let r = next_c5(&set.tuning.randoms(n)[2]);
+                let r = next_c5_plain(&mut set.tuning.borrow_mut().randoms_mut(n)[2]);
                 let size = (r.rotate_right(8) & h.size.0) + h.size.1;
                 effects.setup.frame.emit_side.set(size);
                 slot.put(|en| &mut en.size, x87::from_int(size as i32).to_bits())?;
@@ -234,14 +229,14 @@ pub fn emit_bursts_with(
                     |en| &mut en.cell,
                     ((flags2 & 0x3F) << 4) + (r.rotate_right(17) & 3),
                 )?;
-                let tk = effects.setup.floats.minus_eighth.get();
+                let tk = effects.setup.floats.minus_eighth;
                 slot.put(|en| &mut en.push[2], x87::mul(&car.motion[2], tk))?;
                 slot.put(|en| &mut en.push[1], x87::mul(&car.motion[1], tk))?;
                 slot.put(|en| &mut en.push[0], x87::mul(&car.motion[0], tk))?;
                 for n in 0..3 {
                     slot.put(|en| &mut en.spare[n], 0)?;
                 }
-                let m = car.whole(effects.car_blocks()?)?;
+                let m = car.whole(effects.car_parts()?)?;
                 let side = (r.rotate_right(8) & 0x3FFF).wrapping_sub(0x2000);
                 effects.setup.frame.emit_side.set(side);
                 let place: [f32; 3] = crate::effects::try_from_fn(|k| {
@@ -258,60 +253,27 @@ pub fn emit_bursts_with(
                 slot.put(|en| &mut en.ground_y, place[1])?;
                 slot.put(|en| &mut en.place[2], place[2])?;
                 let pick = r & 0x7_FFFF;
-                ring.work.whole.set(pick);
+                ring.work.borrow_mut().whole = pick;
                 slot.put(
                     |en| &mut en.cell_rate,
                     x87::int_times_plus(
                         pick as i32,
-                        &effects.setup.floats.over_65536,
-                        &effects.setup.floats.one,
+                        effects.setup.floats.over_65536,
+                        effects.setup.floats.one,
                     ),
                 )?;
                 slot.put(|en| &mut en.life, LIFE)?;
                 slot.put(
                     |en| &mut en.box_limit[0],
-                    effects.kinds.emitter.looks[0].get(),
+                    effects.kinds.emitter.borrow().looks[0],
                 )?;
                 slot.put(
                     |en| &mut en.box_limit[1],
-                    effects.kinds.emitter.looks[1].get(),
+                    effects.kinds.emitter.borrow().looks[1],
                 )?;
-                slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
+                slot.put(|en| &mut en.car, effects.kinds.emitter.borrow().car)?;
             }
         }
     }
     Ok(())
-}
-
-/// One burst emitter's factors and randoms (`emit_wheel_grit_bursts`' and `emit_bursts_kind_3`'s).
-#[derive(rc2k_derive::Cells)]
-pub struct BurstTuning {
-    /// The strength's factor
-    pub strength_k: PlainFloat,
-    /// The first half's rate, count and entry randoms
-    pub first: [PlainDword; 3],
-    /// The blend's two factors
-    pub blend_k: [PlainFloat; 2],
-    /// The second half's rate, count and entry randoms
-    pub second: [PlainDword; 3],
-}
-
-impl BurstTuning {
-    /// The values the game starts with.
-    pub const fn first() -> Self {
-        BurstTuning {
-            strength_k: PlainFloat::new(-0.25),
-            first: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
-            blend_k: [PlainFloat::new(-0.25), PlainFloat::new(-0.05)],
-            second: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
-        }
-    }
 }

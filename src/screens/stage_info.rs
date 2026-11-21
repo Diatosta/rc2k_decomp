@@ -10,18 +10,18 @@ use crate::screens::game_screen::{Held, HeldText};
 use crate::text::draw_text::Canvas;
 
 /// The page's stage record, on the system's tables.
-pub fn stage_record_in(
+fn stage_record_in(
     system: &crate::system::owner::System,
     play: &Play,
 ) -> Result<RecordRef, BadInput> {
     let base = system
         .records()
         .stage_tables
-        .level_table(play.arcade.level.get())?;
+        .level_table(play.arcade.read().level)?;
     crate::records::stages_store::row(
         &system.records().stage_tables,
         base,
-        play.arcade.stage.get(),
+        play.arcade.read().stage,
     )
 }
 
@@ -29,14 +29,14 @@ pub fn stage_record_in(
 /// the given times and the stage record's fastest (nationality, name, car, speed). The fastest's
 /// flag sprite gets `Arcade.level` as its palette (unused). The speed is formatted before
 /// anything is drawn (its refusals first).
-pub fn draw_stage_best_and_fastest(
+fn draw_stage_best_and_fastest(
     o: crate::owners::Owners<'static>,
     play: &Play,
     system: &crate::system::owner::System,
     times: &rc2k_core::saves::entries::BestTime,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    use rc2k_core::screens::stage_panel::{CarRow, Holder};
+    use rc2k_core::screens::stage_panel::Holder;
     {
         let record = stage_record_in(system, play)?;
         let units = crate::strings::units::units(o.strings);
@@ -74,7 +74,6 @@ pub fn draw_stage_best_and_fastest(
             &mut crate::screens::stage_panel::PanelScreen::new(canvas, o),
             best,
             top,
-            CarRow::Second,
             crate::strings::append_time::show_hours(o.strings),
             units,
         )?;

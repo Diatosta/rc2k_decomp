@@ -1,7 +1,6 @@
 //! The players' stage results with their points: heads, the stage, and per player name, top
-//! speed, car, time or the gap to the first, flag, place and points; three rows when
-//! `event.player_count` is 3, else four, so two players get four (see
-//! `screens/players_results.rs`, `WITH_POINTS`). Refuses a row's offset past the four, a row's
+//! speed, car, time or the gap to the first, flag, place and points; one row per
+//! player (see `screens/players_results.rs`, `WITH_POINTS`). Refuses a row's offset past the four, a row's
 //! player without its record, name or points, no stage records, a stage line past the line buffer
 //! and a speed `screens::draw_spaced_number` refuses.
 

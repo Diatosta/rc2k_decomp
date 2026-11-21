@@ -48,13 +48,13 @@ pub fn scale_axes(a: &Axes) -> ScaledAxes {
 }
 
 /// The corner records (0x100 of 0x80 bytes, words) and the word pairs scaled, in the order they
-/// are made: +0, +4, +0xC, +8.
+/// are made: the words at 0, 4, 0xC, 8 of the record.
 pub const CORNERS: u32 = 0x100;
 pub const CORNER_PAIRS: [u32; 4] = [0, 4, 0xC, 8];
 
 /// A corner record scaled (`scale_corners`): the four pairs' words times the scale
-/// (each word as an unsigned 16-bit number), the two sides (|+4 - +0| and
-/// |+0xA - +2|, sixteen-bit differences) and the slope, the second side over the first.
+/// (each word as an unsigned 16-bit number), the two sides (the sixteen-bit differences of
+/// the first and second pairs' words) and the slope, the second side over the first.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Corner {
     pub values: [f32; 8],
@@ -62,7 +62,8 @@ pub struct Corner {
     pub slope: f32,
 }
 
-pub fn scale_corner(word: impl Fn(u32) -> u16, scale: f32) -> Corner {
+#[cfg(test)]
+pub(crate) fn scale_corner(word: impl Fn(u32) -> u16, scale: f32) -> Corner {
     let mut values = [0.0f32; 8];
     for (k, &o) in CORNER_PAIRS.iter().enumerate() {
         for h in 0..2 {

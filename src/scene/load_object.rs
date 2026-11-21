@@ -18,20 +18,20 @@
 //!   - part 0xA takes the rest again, part 0xB the whole file; the other parts nothing (part 0
 //!     loaded them).
 //!
-//! At the end three fatal errors: the faces' memory used up (0x80600011), the points' memory
-//! used up (0x80600010), and 0xC000 faces or more (0x80600012). One caller,
-//! `scene::load_front_end_objects`.
+//! At the end three fatal errors: the faces' memory used up (0x80600011), the points' memory used
+//! up (0x80600010), and 0xC000 faces or more (0x80600012).
 
 use crate::errors::{FatalError, Refused};
-use crate::files::read_whole_file::read_whole_file_plain_bytes;
+use crate::files::read_whole_file::read_whole_file_plain_buffer;
 use crate::memory::session::TextPlace;
+use crate::physics::figures::GROUND_DROP;
 use crate::scene::add_object_shape::add_object_shape;
 use crate::scene::list_object_textures::list_object_textures;
 use crate::scene::measure_object::measure_object;
 use crate::scene::objects::{FACES, FILE_ROOM, SLOTS};
 use crate::scene::set_object_file_names::set_object_file_names;
 use rc2k_core::scene::object_shape::{
-    PART_CELLS, PARTS, Parsed, REST_CELL, ShapeRequest, car_masks, first_part_slots, parse_shape,
+    PARTS, Parsed, ShapeRequest, car_masks, first_part_slots, parse_shape,
 };
 use rc2k_core::scene::objects::{Measures, measure};
 
@@ -63,7 +63,7 @@ const NO_FACE_ROOM: FatalError = FatalError {
 fn find_object_kind(race: &crate::race::owner::Race, kind: u32) -> u32 {
     (0..KNOWN_KINDS)
         .find(|&n| {
-            let known: u32 = race.kind_tables().known_object_kinds[n as usize].get();
+            let known: u32 = race.kind_tables().known_object_kinds[n as usize];
             kind == known || kind == known.wrapping_add(1)
         })
         .unwrap_or(KNOWN_KINDS)
@@ -72,7 +72,6 @@ fn find_object_kind(race: &crate::race::owner::Race, kind: u32) -> u32 {
 /// A shape worked out from the file, ready to be stored as `slot`.
 struct Planned {
     slot: u32,
-    group_mask: u32,
     parsed: Parsed,
     /// The middle and half extents of a measured part, when the shape has points to measure.
     measures: Option<Measures>,
@@ -83,27 +82,24 @@ pub fn load_object(
     scene: &crate::scene::owner::Scene,
     race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {
-    let course = &race.course;
-    let kind: u32 = scene.object_work().loading_kind.get();
+    let kind: u32 = scene.object_work().loading_kind;
     if kind == 0 {
         return Ok(());
     }
-    let slot: u32 = scene.object_work().loading_slot.get();
+    let slot: u32 = scene.object_work().loading_slot;
     if slot >= SLOTS {
         return Err(crate::errors::BadInput("an object's slot past the tables").into());
     }
-    scene.objects.tables.get().object_kinds[slot as usize].set(kind);
+    scene.objects.tables.borrow_mut().object_kinds[slot as usize] = kind;
     set_object_file_names(scene, kind)?;
-    let name = scene.file_numbers().object_ro3_number.get();
+    let name = scene.file_numbers().object_ro3_number;
     // The file read is the `.ro3` one, whatever the name's last character was.
     scene
-        .file_numbers()
-        .text_at(name as usize + 7)
+        .path_text(name as usize + 7)
         .write_text_at(0, b"3", "an object's file name")?;
-    let bytes_read = read_whole_file_plain_bytes(
+    let bytes_read = read_whole_file_plain_buffer(
         &scene
-            .file_numbers()
-            .text_at(scene.file_numbers().object_ro3_path.get() as usize)
+            .path_text(scene.file_numbers().object_ro3_path as usize)
             .text("an object's file path")?,
         crate::scene::objects::file(race),
     )?;
@@ -111,8 +107,7 @@ pub fn load_object(
         return Ok(());
     }
     scene
-        .file_numbers()
-        .text_at(name as usize + 7)
+        .path_text(name as usize + 7)
         .write_text_at(0, b"3", "an object's file name")?;
     if slot <= 0x40 {
         list_object_textures(race, scene)?;
@@ -122,36 +117,29 @@ pub fn load_object(
         group_mask,
         all_points,
         turned: (0x190..0x258).contains(&kind),
-        ground_drop: race.shared.physics_tables.get().ground_drop.get(),
+        ground_drop: GROUND_DROP,
     };
     if slot < FIRST_CAR_SLOT {
         let planned = plan(&file, slot, request(u32::MAX, true), false)?;
-        scene.draw_switches.get().loading_group_mask.set(u32::MAX);
         store(race, scene, &planned)?;
         return check(race, scene);
     }
-    scene.draw_switches.get().loading_group_mask.set(u32::MAX);
     let known = find_object_kind(race, kind);
-    race.frame.matrices.get().known_object.set(known);
     // The kind's light record, from its groups; a kind none of the known ones takes the place
     // after the 34 records, which reads on into the gear figures (`group_at`).
     let mut groups = [u32::MAX; PARTS];
     for (group, &offset) in groups.iter_mut().zip(&GROUPS) {
-        *group =
-            race.light_records()
-                .group_at(&race.frame.lights_and_gear.get().gear, known, offset)?;
+        *group = race
+            .light_records()
+            .group_at(race.physics.gear(), known, offset)?;
     }
     let masks = car_masks(groups, known);
-    for (part, &cell) in PART_CELLS.iter().enumerate() {
-        course.course.get().group_masks[cell].set(masks.parts[part]);
-    }
-    course.course.get().group_masks[REST_CELL].set(masks.rest);
     let (car, part) = (
         (slot - FIRST_CAR_SLOT) / 0x14,
         (slot - FIRST_CAR_SLOT) % 0x14,
     );
     let first = car * 0x14 + FIRST_CAR_SLOT;
-    crate::memory::session::write_all(&scene.object_work().loading_car, [car, part, first]);
+    scene.object_work_mut().loading_car = [car, part, first];
     match part {
         0 => {
             for car_slot in first_part_slots(&masks) {
@@ -190,7 +178,6 @@ fn plan(file: &[u8], slot: u32, request: ShapeRequest, measured: bool) -> Result
     }
     Ok(Planned {
         slot,
-        group_mask: request.group_mask,
         parsed,
         measures,
         measured,
@@ -203,29 +190,22 @@ fn store(
     scene: &crate::scene::owner::Scene,
     planned: &Planned,
 ) -> Result<(), Refused> {
-    add_object_shape(
-        race,
-        scene,
-        planned.slot,
-        planned.group_mask,
-        &planned.parsed,
-    )?;
+    add_object_shape(race, scene, planned.slot, &planned.parsed)?;
     if !planned.measured {
         return Ok(());
     }
     match &planned.measures {
-        Some(m) => crate::memory::session::write_first(
-            &scene.objects.slots.get().measures,
-            &[m.middle, m.half, m.lowest, m.highest].concat(),
-        ),
+        Some(m) => scene
+            .loaded_slots_mut()
+            .measures
+            .copy_from_slice(&[m.middle, m.half, m.lowest, m.highest].concat()),
         // A file of no points, or none taken: the object's own points are measured, which
         // leaves the half extents as they were.
         None => measure_object(&race.course, scene)?,
     }
-    let measures: [u32; 6] =
-        crate::memory::session::read_first(&scene.objects.slots.get().measures);
-    for (table, &value) in measures.iter().enumerate() {
-        scene.objects.slots.get().part_extents[table][planned.slot as usize].set(value);
+    let mut slots = scene.loaded_slots_mut();
+    for table in 0..6 {
+        slots.part_extents[table][planned.slot as usize] = slots.measures[table];
     }
     Ok(())
 }
@@ -236,21 +216,15 @@ fn check(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    if scene.object_work().face_cursor.get() > course.lists.get().face_memory_room.get() {
+    if scene.object_work().face_cursor > course.lists.borrow().face_memory_room {
         return Err(NO_FACE_MEMORY.into());
     }
-    if scene
-        .objects
-        .tables
-        .get()
-        .point_count
-        .get()
-        .wrapping_mul(12)
-        > course.lists.get().object_points_room.get()
+    if scene.objects.tables.borrow().point_count.wrapping_mul(12)
+        > course.lists.borrow().object_points_room
     {
         return Err(NO_POINT_MEMORY.into());
     }
-    if scene.objects.tables.get().face_count.get() >= FACES {
+    if scene.texture_levels().face_count >= FACES {
         return Err(NO_FACE_ROOM.into());
     }
     Ok(())

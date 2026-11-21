@@ -4,42 +4,35 @@
 //! Refuses what `countdown_cue` refuses.
 
 use crate::errors::Refused;
-use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use rc2k_core::drive::countdown::{self, Beep};
 
-/// The car block `block`, the second into `to`.
+/// The car block `block`, the second handed to `store`.
 pub fn countdown_beep(
     race: &Race,
     block: &Car,
-    to: &PlainDword,
+    store: impl FnOnce(u32),
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     let beep = countdown::countdown_beep(
         block.false_start_count.get(),
         block.driver_kind.get(),
         || {
-            block.run_ticks.get().wrapping_sub(
-                race.frame
-                    .panel_and_overlay
-                    .get()
-                    .overlay
-                    .countdown_start
-                    .get(),
-            )
+            block
+                .run_ticks
+                .get()
+                .wrapping_sub(crate::race::overlay_store::COUNTDOWN_START)
         },
     );
     let (second, cue) = match beep {
         Beep::Idle | Beep::Before(_) => return Ok(()),
         Beep::At { second, cue, .. } => (second, cue),
     };
-    to.set(second);
+    store(second);
     if cue {
         // The cue is only for 0 .. SECONDS.
-        let sound =
-            race.frame.panel_and_overlay.get().overlay.countdown_sounds[second as usize].get();
-        race.shared.physics_tables.get().countdown_sound.set(sound);
+        let sound = crate::race::overlay_store::COUNTDOWN_SOUNDS[second as usize];
         crate::drive::countdown_cue::countdown_cue(race, sound, audio)?;
     }
     Ok(())

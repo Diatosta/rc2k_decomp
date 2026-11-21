@@ -2,31 +2,28 @@
 //! writes them; `build_glyphs` makes a numbered path of a template in a buffer of its own.
 
 /// The text files\g\graphics\sprites\mbuts00.pcx (a NUL ends it).
-pub static MBUTS: [u8; 37] = *b"files\\g\\graphics\\sprites\\mbuts00.pcx\0";
-
-/// The text Finding 3d hardware (a NUL ends it).
-pub static FINDING_3D: [u8; 20] = *b"Finding 3d hardware\0";
+pub(super) static MBUTS: [u8; 37] = *b"files\\g\\graphics\\sprites\\mbuts00.pcx\0";
 
 /// The text files\d\gfx\jade.bun (a NUL ends it).
 pub static JADE: [u8; 21] = *b"files\\d\\gfx\\jade.bun\0";
 
 /// The text files\d\fnt\fnt22_00.pcx (a NUL ends it).
-pub static FNT22: [u8; 25] = *b"files\\d\\fnt\\fnt22_00.pcx\0";
+pub(super) static FNT22: [u8; 25] = *b"files\\d\\fnt\\fnt22_00.pcx\0";
 
 /// The text files\d\gfx\chatzone.pcx (a NUL ends it).
 pub static CHATZONE: [u8; 25] = *b"files\\d\\gfx\\chatzone.pcx\0";
 
 /// The text files\d\fnt\pal_00.pcx (a NUL ends it).
-pub static PAL_00: [u8; 23] = *b"files\\d\\fnt\\pal_00.pcx\0";
+pub(super) static PAL_00: [u8; 23] = *b"files\\d\\fnt\\pal_00.pcx\0";
 
 /// The text files\d\fnt\fnt13_00.pcx (a NUL ends it).
-pub static FNT13: [u8; 25] = *b"files\\d\\fnt\\fnt13_00.pcx\0";
+pub(super) static FNT13: [u8; 25] = *b"files\\d\\fnt\\fnt13_00.pcx\0";
 
 /// The text files\d\fnt\fnt21_00.pcx (a NUL ends it).
-pub static FNT21: [u8; 25] = *b"files\\d\\fnt\\fnt21_00.pcx\0";
+pub(super) static FNT21: [u8; 25] = *b"files\\d\\fnt\\fnt21_00.pcx\0";
 
 /// The text files\d\fnt\fnt23_00.pcx (a NUL ends it).
-pub static FNT23: [u8; 25] = *b"files\\d\\fnt\\fnt23_00.pcx\0";
+pub(super) static FNT23: [u8; 25] = *b"files\\d\\fnt\\fnt23_00.pcx\0";
 
 /// The text files\d\fnt\fnt27_00.pcx (a NUL ends it).
-pub static FNT27: [u8; 25] = *b"files\\d\\fnt\\fnt27_00.pcx\0";
+pub(super) static FNT27: [u8; 25] = *b"files\\d\\fnt\\fnt27_00.pcx\0";

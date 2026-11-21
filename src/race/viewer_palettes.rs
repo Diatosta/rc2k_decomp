@@ -4,8 +4,6 @@
 //! palette. That palette gets the fonts' 256 colours (the fonts' `palettes`), taken apart in the
 //! screen's format (`gfx::pixel_to_components`, `surface_format`), made opaque and put together in
 //! the texture format (`gfx::components_to_pixel`).
-//!
-//! Called by `race::viewer_load_stage`.
 
 use crate::errors::BadInput;
 use crate::race::owner_shared::RaceShared;
@@ -27,22 +25,22 @@ pub fn viewer_palettes(
     for (to, from) in [
         (
             &shared.replay_file().viewer_first_texture_a,
-            &textures.kinds.get().kind_first_textures[212],
+            textures.first_textures()[212],
         ),
         (
             &shared.replay_file().viewer_list_texture,
-            &textures.kinds.get().kind_first_slots[212],
+            textures.kinds.borrow().kind_first_slots[212],
         ),
         (
             &shared.replay_file().viewer_panel_texture,
-            &textures.kinds.get().kind_first_textures[201],
+            textures.first_textures()[201],
         ),
         (
             &shared.replay_file().viewer_device_texture,
-            &textures.kinds.get().kind_first_slots[201],
+            textures.kinds.borrow().kind_first_slots[201],
         ),
     ] {
-        to.set(from.get());
+        to.set(from);
     }
     for font in PALETTES {
         font.object(&gfx.fonts.typefaces)

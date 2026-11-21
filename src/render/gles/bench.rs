@@ -110,13 +110,7 @@ const WAYS: [Way; 10] = [
 
 /// Every how many parts the bench measures one (`RC2K_GL_BENCH`), if it is on.
 fn every() -> Option<u32> {
-    static EVERY: std::sync::OnceLock<Option<u32>> = std::sync::OnceLock::new();
-    *EVERY.get_or_init(|| {
-        std::env::var("RC2K_GL_BENCH")
-            .ok()
-            .and_then(|v| v.trim().parse().ok())
-            .filter(|&n| n > 0)
-    })
+    crate::render::dev::switches().gl_bench_every
 }
 
 /// Whether the bench is on: it reads the parts' commands at the GL, which are kept for it.
@@ -153,6 +147,9 @@ impl Gpu {
         height: i32,
     ) {
         self.bench_gathering(commands, batches, opaque);
+        // The ways set the values of the program for every kind themselves.
+        self.gl.use_program(self.programs[0].name);
+        self.programs[0].first = None;
         let changes =
             |f: &dyn Fn(&super::super::batches::Batch, &super::super::batches::Batch) -> bool| {
                 batches
@@ -335,7 +332,7 @@ impl Gpu {
                     | last.is_some_and(|l| l.values != batch.values)
             {
                 let v = &batch.values;
-                let l = &self.locations.first;
+                let l = &self.programs[0].locations.first;
                 gl.uniform_4fv(l.fog_colour, &v.fog_colour);
                 gl.uniform_1f(l.alpha_reference, v.alpha_reference);
                 gl.uniform_1i(l.alpha_function, v.alpha_function);

@@ -1,6 +1,6 @@
 # The game's logic, platform-free (Linux and Windows tests): `rc2k_core/`.
 [workspace]
-members = ["rc2k_core", "rc2k_derive"]
+members = ["rc2k_core", "rc2k_derive", "android", "tools/web/codes"]
 exclude = ["fuzz"]
 
 [workspace.lints.clippy]
@@ -21,6 +21,8 @@ edition = "2024"
 [features]
 # Remote control for automated test runs (`src/remote.rs`, `tools/remote.py`).
 remote = []
+# iOS: build SDL from its source and link it in (needs Apple's iOS SDK; `./build.sh ios`).
+ios-sdl-source = ["sdl3-sys/build-from-source-static"]
 
 [lib]
 crate-type = ["rlib"]
@@ -43,24 +45,36 @@ smallvec = { version = "1", features = ["const_generics"] }
 # The debug UI (`src/debug/`): Dear ImGui (docking branch), its C++ built from source;
 # the SDL glue is ours (`debug::imgui_sdl`). Its crate has no 32-bit Windows target: the
 # 32-bit build has no debug UI.
-[target.'cfg(all(target_pointer_width = "64", not(all(target_os = "linux", target_arch = "aarch64"))))'.dependencies]
+[target.'cfg(all(target_pointer_width = "64", not(target_os = "android"), not(target_os = "ios"), not(all(target_os = "linux", target_arch = "aarch64"))))'.dependencies]
 dear-imgui-rs = { version = "0.21", default-features = false }
 dear-imgui-sys = { version = "0.21", default-features = false, features = ["build-from-source"] }
 
 # The system's own facts on Unix (`src/platform/os/unix.rs`): free space, memory, the stack, `_exit`.
+# Bonjour (mDNS) for finding network games where broadcasts do not reach, beside the broadcast
+# probe: a host announces itself, a search hears it. iOS has its own (`net::bonjour`).
+[target.'cfg(not(any(target_os = "ios", target_os = "emscripten")))'.dependencies]
+mdns-sd = { version = "=0.21.7", default-features = false }
+
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
-# On Linux SDL is built from its source and linked into the program (as FFmpeg's decoders,
-# `tools/build_ffmpeg.sh linux`): one program for every distribution, nothing to install.
+# On Linux SDL is built from its source and linked into the program: one program for every
+# distribution, nothing to install.
 [target.'cfg(target_os = "linux")'.dependencies]
 sdl3-sys = { version = "0.7", features = ["build-from-source-static"] }
 
-# On macOS the same (SDL on Cocoa and Metal, `tools/build_ffmpeg.sh mac`): one program in its
+# On macOS the same (SDL on Cocoa and Metal): one program in its
 # `.app`, nothing to install (`deploy_standalone.sh mac`). Without SDL's camera: the game has
 # no use for one, and its AVFoundation capture calls are missing from Darling, where it is tested.
 [target.'cfg(target_os = "macos")'.dependencies]
 sdl3-sys = { version = "0.7", features = ["build-from-source-static", "no-sdl-camera"] }
+
+# iOS (`tools/ios/README.md`): SDL's UIKit and Metal backends. SDL is linked as a library
+# built elsewhere (`ios-sdl-source` builds it from source, which needs Apple's SDK), so that
+# `cargo check --target aarch64-apple-ios` works without the SDK. SDL's camera is on (the save
+# code page's QR scan; its CoreMedia driver links AVFoundation, CoreMedia and CoreVideo).
+[target.'cfg(target_os = "ios")'.dependencies]
+sdl3-sys = "0.7"
 
 # The handheld has neither X11 nor Wayland: SDL for its audio and joystick, the frames go to
 # the framebuffer (`handheld`).
@@ -71,6 +85,11 @@ sdl3-sys = { version = "0.7", features = ["build-from-source-static", "sdl-unix-
 [target.'cfg(target_os = "emscripten")'.dependencies]
 sdl3-sys = { version = "0.7", features = ["no-link"] }
 
+# Android: SDL is built by `tools/android/` (its Java glue must match) and linked as a shared
+# library; the program is a shared library its activity loads (`src/android.rs`).
+[target.'cfg(target_os = "android")'.dependencies]
+sdl3-sys = { version = "0.7", features = ["no-link"] }
+
 # Windows' own (`src/platform/os/windows.rs`, the fault handler, the profiler, the shortcuts).
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_System_SystemServices", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_Console", "Win32_System_Threading", "Win32_System_Diagnostics_Debug", "Win32_Storage", "Win32_Storage_FileSystem", "Win32_Security", "Win32_System_IO", "Win32_System_SystemInformation", "Win32_Globalization", "Win32_System_Environment", "Win32_UI_WindowsAndMessaging", "Win32_System_Registry", "Win32_System_WindowsProgramming", "Win32_System_Memory", "Win32_System_Kernel", "Win32_System_Com", "Win32_UI_Shell"] }
@@ -78,7 +97,57 @@ windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Syste
 [lints]
 workspace = true
 
+# Releases: one unit linked whole (fat LTO, one codegen unit): a smaller program (about 5 % on
+# Linux) and calls inlined across crates, at about a minute more of build. The builds that move
+# the symbols into a file of their own (Linux, the Steam Deck, the handheld: `build.sh`) add line
+# tables for it, so a fault's backtrace names files and lines.
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
 # The tests at opt-level 1: about six times faster than unoptimised. Safe since play makes no NaN
 # and the tests compare NaN results by class, not payload (LLVM folds NaN payloads freely).
 [profile.test]
 opt-level = 1
+
+# The libraries the slowest tests spend their time in (the QR reader and the vectors' inflater)
+# are fully optimised: the tests' own code stays at level 1.
+[profile.test.package.rqrr]
+opt-level = 3
+[profile.test.package.qrcode]
+opt-level = 3
+[profile.test.package.miniz_oxide]
+opt-level = 3
+
+# Cold libraries optimised for size: network discovery (a few packets a second at most), the
+# options file (read and written a few times per run), the debug window (drawn only when open)
+# and the save code's encoder. The game's own crates and the hot libraries (miniz_oxide, rayon,
+# SDL) stay at the release level.
+[profile.release.package.mdns-sd]
+opt-level = "z"
+[profile.release.package.flume]
+opt-level = "z"
+[profile.release.package.socket2]
+opt-level = "s"
+[profile.release.package.mio]
+opt-level = "s"
+[profile.release.package.if-addrs]
+opt-level = "s"
+[profile.release.package.toml]
+opt-level = "s"
+[profile.release.package.toml_parser]
+opt-level = "s"
+[profile.release.package.toml_writer]
+opt-level = "s"
+[profile.release.package.toml_datetime]
+opt-level = "s"
+[profile.release.package.serde_spanned]
+opt-level = "s"
+[profile.release.package.winnow]
+opt-level = "s"
+[profile.release.package.qrcode]
+opt-level = "s"
+[profile.release.package.dear-imgui-sys]
+opt-level = "z"
+[profile.release.package.dear-imgui-rs]
+opt-level = "z"

@@ -5,7 +5,7 @@ use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
 use crate::net::add_chat_line::add_chat_line;
 use crate::net::owner::Net;
-pub fn chat_line_locked(
+pub(super) fn chat_line_locked(
     net: &Net,
     gfx: &'static Gfx,
     player: u32,

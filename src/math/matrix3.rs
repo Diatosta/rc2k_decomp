@@ -1,0 +1,209 @@
+//! The 3 x 3 matrix helpers used by the marks: floats, rows of 12 bytes. The three that make a
+//! turn take their angle as an 80-bit extended value.
+//!
+//! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the tests compare against
+//! recorded vectors (`data/vectors`).
+
+use crate::errors::{BadInput, Refused};
+#[cfg(test)]
+use crate::math::cells::Cells;
+use crate::math::x87_float::{self as bh, ONE, Rounds, X, f80, from_f80, ld, st, stf};
+
+/// `multiply_matrices3` on plain floats: `a` x `b` (the product has its own cells, as when no
+/// `out` is one of the two).
+pub fn multiply_matrices3_plain(a: &[f32; 9], b: &[f32; 9]) -> [f32; 9] {
+    bh::at_rounding!(|r| {
+        let mut out = [0.0f32; 9];
+        for column in 0..3 {
+            for row in 0..3 {
+                let p = |k: usize| r.ld(a[3 * row + k]) * r.ld(b[column + 3 * k]);
+                let (p1, p2, p3) = (p(0), p(1), p(2));
+                out[3 * row + column] = r.stf(p1 + (p2 + p3));
+            }
+        }
+        out
+    })
+}
+
+#[cfg(test)]
+/// `math::x87::row_times_column` for 3 x 3 matrices: `a`'s first three cells times `b`'s
+/// cells 0, 3 and 6, p1 + (p2 + p3), before it is stored; at the rounding `r`.
+fn row_times_column<R: Rounds>(
+    r: R,
+    a: &(impl Cells + ?Sized),
+    b: &(impl Cells + ?Sized),
+) -> R::Reg {
+    let p = |k: usize| r.ld(a.float(k)) * r.ld(b.float(3 * k));
+    let (p1, p2, p3) = (p(0), p(1), p(2));
+    p1 + (p2 + p3)
+}
+
+/// `row_times_column` stored, as its bits (the frozen comparison's).
+#[cfg(test)]
+pub(crate) fn row_times_column_3(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized)) -> u32 {
+    bh::at_rounding!(|r| r.st(row_times_column(r, a, b)))
+}
+
+#[cfg(test)]
+/// Cells holding whole numbers (a point's three dwords).
+trait WholeCells: Cells {
+    /// Cell `n` as the whole number it holds.
+    fn whole(&self, n: usize) -> i32 {
+        self.bits(n) as i32
+    }
+    /// Cell `n` set to the whole number `value`.
+    fn set_whole(&self, n: usize, value: i32) {
+        self.set_bits(n, value as u32);
+    }
+}
+
+#[cfg(test)]
+impl<C: Cells + ?Sized> WholeCells for C {}
+
+#[cfg(test)]
+/// A point of three whole numbers at cells `from + 3 n` turned by the matrix `m` into cells
+/// `to + 3 n`: x m0 + (y m1 + z m2), x m3 + (y m4 + z m5), y m7 + (x m6 + z m8), each
+/// rounded to a whole number as made (`to` may be `from`).
+pub(crate) fn turn_int_point(
+    from: &(impl Cells + ?Sized),
+    m: &(impl Cells + ?Sized),
+    to: &(impl Cells + ?Sized),
+    n: usize,
+) {
+    bh::at_rounding!(|r| {
+        let int = |k: usize| r.int(from.whole(3 * n + k));
+        let (x, y, z) = (int(0), int(1), int(2));
+        let c = |k: usize| r.ld(m.float(k));
+        let first = x * c(0) + (y * c(1) + z * c(2));
+        to.set_whole(3 * n, r.to_int(first));
+        let second = x * c(3) + (y * c(4) + z * c(5));
+        to.set_whole(3 * n + 1, r.to_int(second));
+        let third = y * c(7) + (x * c(6) + z * c(8));
+        to.set_whole(3 * n + 2, r.to_int(third));
+    });
+}
+
+/// `transform_int_points` on plain bytes: `count` points of three little-endian whole numbers
+/// (12 bytes each) from `from` turned by the nine floats `m` into `to`. Refuses a count of
+/// 0x80000000 and one past either run's bytes. A caller that turns a run in place passes a copy
+/// of it as `from` (each point is read whole before it is written).
+pub fn transform_int_points_bytes(
+    from: &[u8],
+    to: &mut [u8],
+    count: u32,
+    m: &[f32; 9],
+) -> Result<(), Refused> {
+    if count == 0x8000_0000 {
+        return Err(BadInput("a count of 0x80000000: the original runs away").into());
+    }
+    let count = (count as i32).max(0) as usize;
+    if 12 * count > from.len() || 12 * count > to.len() {
+        return Err(BadInput("points past their run").into());
+    }
+    for n in 0..count {
+        let whole = |k: usize| {
+            let at = 12 * n + 4 * k;
+            i32::from_le_bytes([from[at], from[at + 1], from[at + 2], from[at + 3]])
+        };
+        let turned = bh::at_rounding!(|r| {
+            let int = |k: usize| r.int(whole(k));
+            let (x, y, z) = (int(0), int(1), int(2));
+            let c = |k: usize| r.ld(m[k]);
+            let first = x * c(0) + (y * c(1) + z * c(2));
+            let second = x * c(3) + (y * c(4) + z * c(5));
+            let third = y * c(7) + (x * c(6) + z * c(8));
+            [r.to_int(first), r.to_int(second), r.to_int(third)]
+        });
+        for (k, value) in turned.into_iter().enumerate() {
+            let at = 12 * n + 4 * k;
+            to[at..at + 4].copy_from_slice(&value.to_le_bytes());
+        }
+    }
+    Ok(())
+}
+
+/// The axis a turn is about.
+#[derive(Clone, Copy)]
+pub enum Axis {
+    X,
+    Y,
+    Z,
+}
+
+/// Refuses an angle `fsincos` leaves alone (finite, 2^63 or more). Infinities and NaNs give
+/// NaNs.
+pub fn turnable(angle: &[u8; 10]) -> Result<(), Refused> {
+    let exponent = u16::from_le_bytes([angle[8], angle[9]]) & 0x7FFF;
+    if (0x3FFF + 63..0x7FFF).contains(&exponent) {
+        return Err(BadInput("an angle fsincos cannot take").into());
+    }
+    Ok(())
+}
+
+/// `turn_matrix3` on nine plain floats.
+pub fn turn_matrix3_plain(axis: Axis, m: &mut [f32; 9], angle: [u8; 10]) -> Result<(), Refused> {
+    turnable(&angle)?;
+    let order = match axis {
+        Axis::X => TURN_X,
+        Axis::Y => TURN_Y,
+        Axis::Z => TURN_Z,
+    };
+    for (cell, value) in order.into_iter().zip(turn_values(angle)) {
+        m[cell] = stf(value);
+    }
+    Ok(())
+}
+
+/// A turn's stores as cell numbers: the 1.0, the four zeros, the two cosines, the sine and
+/// minus the sine.
+type Stores = [usize; 9];
+
+/// The turn about x: the identity's row and column of x, the cosine on the diagonal, the sine
+/// and minus the sine across.
+const TURN_X: Stores = [0, 1, 2, 3, 6, 4, 8, 5, 7];
+/// The turn about y (see `TURN_X`).
+const TURN_Y: Stores = [4, 1, 3, 5, 7, 0, 8, 2, 6];
+/// The turn about z (see `TURN_X`).
+const TURN_Z: Stores = [8, 2, 5, 6, 7, 0, 4, 1, 3];
+
+/// A turn's nine values: the 1.0, the four zeros, the two cosines, the sine and minus the sine.
+fn turn_values(angle: [u8; 10]) -> [X; 9] {
+    let t0 = from_f80(angle);
+    let (sine, cosine) = (t0.sin(), t0.cos());
+    [
+        ONE,
+        X(0.0),
+        X(0.0),
+        X(0.0),
+        X(0.0),
+        cosine,
+        cosine,
+        sine,
+        -sine,
+    ]
+}
+
+#[cfg(test)]
+fn turn(stores: Stores, angle: [u8; 10], m: &(impl Cells + ?Sized)) {
+    for (cell, value) in stores.into_iter().zip(turn_values(angle)) {
+        m.set_float(cell, stf(value));
+    }
+}
+
+/// A float made an 80-bit value (`fld dword; fstp tbyte`).
+pub fn extended(f: impl crate::math::x87_float::Loadable) -> [u8; 10] {
+    f80(ld(f))
+}
+
+/// An 80-bit value rounded to a float (`fld tbyte; fstp dword`).
+pub fn rounded(v: [u8; 10]) -> u32 {
+    st(from_f80(v))
+}
+
+/// As `rounded`, as a float.
+pub fn rounded_value(v: [u8; 10]) -> f32 {
+    stf(from_f80(v))
+}
+
+#[cfg(test)]
+mod tests;

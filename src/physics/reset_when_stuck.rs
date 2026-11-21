@@ -1,14 +1,14 @@
 //! With the grades' mode (`driver_kind`) 0 or 2 the `stuck_count` is set to 0; otherwise it goes
 //! up, and at 700 or more (unsigned) `physics::reset_car` puts the car back on the line.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses what `reset_car` refuses.
+//! Refuses what `reset_car` refuses.
 
 use crate::errors::Refused;
 use crate::physics::step_families::ResetInputs;
 use rc2k_core::physics::start::stuck_tick;
 
 // Core: `rc2k_core::physics::start::stuck_tick`.
-pub fn reset_when_stuck(
+pub(super) fn reset_when_stuck(
     c: &ResetInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {

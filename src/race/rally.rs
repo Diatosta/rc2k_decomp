@@ -25,24 +25,24 @@ const WORDS: [&std::ffi::CStr; 14] = [
 
 /// Where `copy_rally_times` takes its ten records from: the rally's times (by
 /// `EventState.stage.group`'s table, the rally `EventState.stage.sub`, the stage
-/// `EventState.stage.number` x 0xA4, its dword at +0x3C the stage in `stage_best_times_alt` when
+/// `EventState.stage.number` x 0xA4, the stage's dword in the record the stage in `stage_best_times_alt` when
 /// `EventState.stage.group` is 1, else in `ChampView.time_trial_best_times`). None when a table or
 /// the summary they go to (`BestTables::summary`) is not taken.
-pub fn rally_times_places<'t>(
+fn rally_times_places<'t>(
     system: &crate::system::owner::System,
     menus: &crate::menu::owner::Menus,
     best: &'t crate::saves::best_times::BestTables,
 ) -> Result<Option<(&'t StageTable, usize)>, BadInput> {
     let screens = &menus.screens;
     {
-        let kind = screens.event.stage.group.get();
+        let kind = screens.event.read().stage.group;
         let stages = system
             .records()
             .stage_tables
-            .group_event_table(kind, screens.event.stage.sub.get())?;
+            .group_event_table(kind, screens.event.read().stage.sub)?;
         let tables = &system.records().stage_tables;
         let stage =
-            crate::records::stages_store::row(tables, stages, screens.event.stage.number.get())?;
+            crate::records::stages_store::row(tables, stages, screens.event.read().stage.number)?;
         let n = stage.record(tables)?.event_slot() as usize;
         let table = if kind == 1 {
             &best.stage_times_alt
@@ -61,7 +61,7 @@ pub fn rally_times_places<'t>(
 /// nationality, car and name id, and the sixteen checkpoints; each is logged (the count,
 /// "GB_Timed", the sixteen "CTs", "GB_Shaun", the name, the sixteen again, rules). Refuses, before
 /// anything, a missing table on the way and a stage past its table.
-pub fn copy_rally_times(
+pub(super) fn copy_rally_times(
     system: &crate::system::owner::System,
     menus: &crate::menu::owner::Menus,
     best: &crate::saves::best_times::BestTables,

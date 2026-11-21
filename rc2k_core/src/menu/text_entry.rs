@@ -53,15 +53,12 @@ impl Entry {
         self.length = 0;
     }
 
-    /// `menu::begin_player_name`: unless the Enter came with the second byte 4 (`with_4`), the name
-    /// kept in `kept` (the players' own copy), cleared and an entry going on; either way
-    /// nothing typed.
-    pub fn begin_player_name(&mut self, with_4: bool, name: &mut Text, kept: &mut Text) {
-        if !with_4 {
-            *kept = *name;
-            self.clear(name);
-            self.entering = true;
-        }
+    /// `menu::begin_player_name`: the name kept in `kept` (the players' own copy), cleared, an
+    /// entry going on and nothing typed.
+    pub fn begin_player_name(&mut self, name: &mut Text, kept: &mut Text) {
+        *kept = *name;
+        self.clear(name);
+        self.entering = true;
         self.length = 0;
     }
 
@@ -81,7 +78,7 @@ impl Entry {
 }
 
 /// The widest a player's name may be shown, in pixels (`menu::fit_player_names`).
-pub const WIDEST_NAME: u32 = 0x15E;
+pub(crate) const WIDEST_NAME: u32 = 0x15E;
 
 /// `menu::fit_name`, of `menu::fit_player_names`: a name of `len` characters cut, one character at
 /// a time, until it is no wider than `WIDEST_NAME`; `measure(len)` ends the name at `len` (its NUL
@@ -149,7 +146,7 @@ pub fn appends(c: u8, len: i32, max: i32) -> bool {
 }
 
 /// The widest a name may measure, in pixels: one this wide or wider loses the character.
-pub const WIDEST: i32 = 0xEC;
+pub(crate) const WIDEST: i32 = 0xEC;
 
 pub fn too_wide(width: i32) -> bool {
     width >= WIDEST
@@ -203,13 +200,8 @@ mod tests {
             entering: false,
             backup: [0; TEXT_LEN],
         };
-        e.begin_player_name(true, &mut name, &mut kept);
-        assert_eq!(
-            (e.length, e.entering, name[0], kept[0]),
-            (0, false, b'n', 0)
-        );
-        e.begin_player_name(false, &mut name, &mut kept);
-        assert_eq!((e.entering, name[0], kept[0]), (true, 0, b'n'));
+        e.begin_player_name(&mut name, &mut kept);
+        assert_eq!((e.length, e.entering, name[0], kept[0]), (0, true, 0, b'n'));
         let text = b"abc\0";
         assert_eq!(text_length(|i| text[i]), Ok(3));
         assert!(text_length(|_| 1).is_err());

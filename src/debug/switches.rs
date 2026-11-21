@@ -5,13 +5,7 @@
 //! and a stage's load may put them back.
 
 use crate::race::owner::Race;
-use crate::scene::owner::Scene;
-use crate::system::owner::System;
 use dear_imgui_rs::Ui;
-use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
-
-/// The developers' switch, 1 by default; nothing reads it.
-pub static EXTENSIONS: AtomicU32 = AtomicU32::new(1);
 
 /// A tick box over a switch of 0 and 1, with the key it had and what it does.
 fn tick(ui: &Ui, key: u32, name: &str, cell: &crate::memory::session::PlainDword, about: &str) {
@@ -24,7 +18,7 @@ fn tick(ui: &Ui, key: u32, name: &str, cell: &crate::memory::session::PlainDword
 }
 
 /// The tab.
-pub fn tab(race: &Race, scene: &Scene, system: &System, ui: &Ui) {
+pub fn tab(race: &Race, ui: &Ui) {
     let shared = &race.shared;
     let words = &shared.vars.get().settings_words;
     ui.text_disabled("Numbered by the keypad key each had");
@@ -33,37 +27,10 @@ pub fn tab(race: &Race, scene: &Scene, system: &System, ui: &Ui) {
         1,
         "Mipmaps' setting",
         &shared.vars.get().mip_setting,
-        "the original's mipmaps; our rasteriser filters alike either way: no change",
+        "the mipmaps: the software rasteriser and the OpenGL renderer read smaller texture levels when on (the GPU API renderer draws alike)",
     );
-    ui.text_disabled("2: dword_6218E0: nothing reads it");
-    // Key 3: the switch masked with what the processor has.
-    let use_ = scene.draw_switches.get();
-    let mut on = EXTENSIONS.load(Relaxed) != 0;
-    if ui.checkbox("3: Processor's extensions", &mut on) {
-        let v = u32::from(on);
-        EXTENSIONS.store(v, Relaxed);
-        use_.use_sse
-            .set(on && system.machine().has_sse.get() & 1 != 0);
-        // The 3DNow way is not ported and would end the program, so it stays off on a
-        // processor that has it.
-        use_.use_3dnow.set(0);
-        use_.use_mmx.set(v & system.machine().has_mmx.get());
-    }
-    ui.same_line();
-    let used = [
-        (use_.use_sse.is_set(), "SSE"),
-        (use_.use_3dnow.get() != 0, "3DNow!"),
-        (use_.use_mmx.get() != 0, "MMX"),
-    ]
-    .iter()
-    .filter(|&&(in_use, _)| in_use)
-    .map(|&(_, name)| name)
-    .collect::<Vec<_>>()
-    .join(", ");
-    ui.text_disabled(format!(
-        "using: {}; the game's SSE paths, physics' ground too: a replay may not match",
-        if used.is_empty() { "none" } else { &used }
-    ));
+    ui.text_disabled("2: a switch nothing reads");
+    ui.text_disabled("3: the processor's extensions: one path now, nothing to switch");
     tick(ui, 4, "Car shadows", &words[2], "race::car_shadow");
     tick(
         ui,
@@ -95,11 +62,23 @@ pub fn tab(race: &Race, scene: &Scene, system: &System, ui: &Ui) {
         &words[4],
         "scene::add_car_lights: only other cars' lamps change; needs rivals, at night",
     );
+    let marks_before = shared.switches.borrow().view_marks_on;
+    let view_marks_on = crate::memory::session::PlainDword::new(marks_before);
     tick(
         ui,
         9,
         "View marks",
-        &shared.switches.get().view_marks_on,
+        &view_marks_on,
         "the effects on the view (race::frame_views); a stage's load sets it on",
     );
+    if view_marks_on.get() != marks_before {
+        shared.switches.borrow_mut().view_marks_on = view_marks_on.get();
+    }
+    let clear = &crate::scene::set_object_light::CLEAR_KIND_2_STRENGTH;
+    let mut on = clear.load(std::sync::atomic::Ordering::Relaxed);
+    if ui.checkbox("O: Light kind 2 without its strength", &mut on) {
+        clear.store(on, std::sync::atomic::Ordering::Relaxed);
+    }
+    ui.same_line();
+    ui.text_disabled("scene::set_object_light: those objects lit as kind 1 (the key O held, once)");
 }

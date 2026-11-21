@@ -1,5 +1,5 @@
-//! `menu::find_section_player`: the first of the four players whose entry for the section
-//! (`section`, +0xB4 + 4 * section) is 0x14 (a reading: done with it); none: index -1.
+//! `menu::find_section_player`: the first of the four players whose overall points for the section
+//! (`overall_points[section]`) are 0x14 (a reading: done with it); none: index -1.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
@@ -15,7 +15,7 @@ pub struct SectionPlayer<'a> {
 
 pub fn find_section_player(menus: &Menus) -> Result<SectionPlayer<'_>, Refused> {
     let screens = &menus.screens;
-    let section: u32 = screens.event.section.get();
+    let section: u32 = screens.event.read().section;
     let done: [u32; 4] =
         std::array::from_fn(|n| player(menus, n as u32).get().overall_points[section as usize]);
     let found = rc2k_core::menu::points::section_player(done);

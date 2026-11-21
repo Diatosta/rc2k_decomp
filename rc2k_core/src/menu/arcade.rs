@@ -7,7 +7,7 @@ use crate::Invalid;
 pub const LEVELS: u32 = 5;
 
 /// The cheat "Unlock Arcade": bit 0 of the cheats.
-pub const UNLOCK_ARCADE: u32 = 1;
+pub(crate) const UNLOCK_ARCADE: u32 = 1;
 
 /// The menu's sound for a level not open.
 pub const CLOSED_SOUND: u32 = 8;

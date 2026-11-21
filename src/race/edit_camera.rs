@@ -34,19 +34,25 @@ pub fn step_camera(race: &Race, step: i8) -> Result<(), Refused> {
     if block == race.shared.replay_file().index.block_count.get() {
         return Ok(());
     }
-    let at = crate::race::viewer::camera_byte(
-        0u32.wrapping_sub(1)
-            .wrapping_add(race.viewer_buffers().camera_edit.get())
-            .wrapping_add(block.wrapping_mul(8)),
-    );
+    // The camera edited is the one of the car shown: the first or second, or in a replay with the
+    // extra tape the third or fourth when the layout shows it alone.
+    let mut edited = 0u32
+        .wrapping_sub(1)
+        .wrapping_add(race.viewer_buffers().camera_edit.get());
+    if race.viewer_buffers().extra_tape.is_set() {
+        let layout: u8 = crate::race::viewer::camera_byte(5u32.wrapping_add(block.wrapping_mul(8)))
+            .read(race, "a replay camera byte")?;
+        edited = rc2k_core::race::viewer::shown_camera_byte(layout, edited);
+    }
+    let at = crate::race::viewer::camera_byte(edited.wrapping_add(block.wrapping_mul(8)));
     let old: u8 = at.read(race, "a replay camera byte")?;
     use rc2k_core::race::viewer::{camera_skipped, every_camera, step_camera};
     let every = every_camera(
-        race.replay_work().header_one_player.get() == 1,
-        race.replay_work().header_kind_0.get(),
+        race.replay_work().header_one_player == 1,
+        race.replay_work().header_kind_0,
     );
-    let dl = step_camera(old, step > 0, every, |n| camera_skipped(name_of(race, n)))?;
-    at.write(race, dl, "a replay camera byte")?;
+    let new_camera = step_camera(old, step > 0, every, |n| camera_skipped(name_of(race, n)))?;
+    at.write(race, new_camera, "a replay camera byte")?;
     let spread = crate::race::spread_camera::spread_camera(race, at, old);
     if spread.is_err() {
         // A refusal comes before anything is written: nothing is left written.

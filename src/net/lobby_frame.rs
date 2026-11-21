@@ -1,10 +1,11 @@
 //! The frame of the lobby: background, the table's headings, the sorted players one row each
 //! (flag, name, car, race time and total, or gaps to the first row when `show_gaps`), the chat's
-//! eight lines and input, the four buttons and two lines. More than eight players are refused.
+//! eight lines and input, the two rows of buttons and two lines. More than eight players are refused.
 
 use crate::errors::{BadInput, Refused};
 use crate::net::lobby::{FONT, blit, copy_picture, lock_surface, push_id, store_text};
 use crate::text::draw_text::GameCanvas;
+use rc2k_core::net::chat;
 use rc2k_core::net::players;
 use rc2k_core::net::screens;
 
@@ -33,16 +34,16 @@ fn time_text(
 
 /// Called through
 /// `screens::run_frame` by `net::lobby_loop`.
-pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (net, strings, gfx) = (o.net, o.strings, o.gfx);
     let text = &strings.text;
     let vars = &net.vars;
     // The logic is in `rc2k_core::net::screens` (`shown_time`, `flag_sprite`, `car_sprite`,
     // `NO_TIME`, `lobby_buttons`), the ready bit and no time of `rc2k_core::net::players`.
     crate::net::drain_chat::drain_chat(net, gfx)?;
-    if !lock_surface(o.gfx, o.system) {
+    let Some(locked) = lock_surface(o.gfx, o.system) else {
         return Ok(());
-    }
+    };
     if net.race_slot.players() > 8 {
         return Err(BadInput("more than eight players").into());
     }
@@ -60,26 +61,25 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         )?;
     }
     y += 0x1D;
+    draw_chosen_stage(o, &mut canvas)?;
+    draw_bots_label(o, &mut canvas)?;
     if net.race_slot.players() != 0 {
         let sorted = crate::net::sort_players::sort_players(net)?;
         let gaps = net.lobby().show_gaps.get() == 1;
-        let (first_time, first_total) = (
-            sorted[0].record.race_time.get(),
-            sorted[0].record.total.get(),
-        );
+        let (first_time, first_total) = (sorted[0].record.race_time(), sorted[0].record.total());
         for n in 0..net.race_slot.players() {
             let block = &sorted[n as usize];
             let mut x = 0x18;
             blit(
-                screens::flag_sprite(block.record.head.get(3)),
+                screens::flag_sprite(block.record.byte(3)),
                 x,
                 y,
                 o.gfx,
                 o.menus,
             )?;
             x += 0x28;
-            let name = block.name.text();
-            if name.len() == block.name.read().len() {
+            let name = block.name_text().to_vec();
+            if name.len() == block.name.len() {
                 return Err(BadInput("a text without its end in its buffer").into());
             }
             let name = store_text(strings, name)?;
@@ -89,9 +89,20 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                 NAME_FONT
             };
             crate::text::draw_text::draw_text_at(font, &name, x as i32, y as i32, &mut canvas)?;
+            // The ping to the host (its round trip in ms) at the end of the name's column.
+            if let Some(ping) = crate::net::dp_objects::ping_of(net.link.dplay(), block.id) {
+                let text = store_text(strings, screens::ping_text(ping))?;
+                crate::text::draw_text::draw_text_at(
+                    CHAT_FONT,
+                    &text,
+                    PING_X,
+                    y as i32 + 2,
+                    &mut canvas,
+                )?;
+            }
             x += 0x14A;
             blit(
-                screens::car_sprite(block.record.head.get(1)),
+                screens::car_sprite(block.record.byte(1)),
                 x,
                 y + 1,
                 o.gfx,
@@ -101,24 +112,25 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             let show_hours = &o.strings.text.show_hours;
             let kept_hours = show_hours.get();
             show_hours.set(1);
-            let time = block.record.race_time.get();
-            // The total is drawn at the y the drawing before it leaves: the text's, font offset
-            // included, when there is no time (kept as is).
-            let mut total_y = y;
+            let time = block.record.race_time();
             if time == players::NO_TIME {
+                // A player still racing shows how far through the stage it is, when that has
+                // been heard of; the others the text for no time.
+                let racing = block.record.state().has(players::State::WAITING)
+                    && !block.record.state().has(players::State::LEFT_OUT);
                 let mut none = Vec::new();
-                push_id(o, &mut none, screens::NO_TIME)?;
+                match crate::net::progress::share_of(block.id).filter(|_| racing) {
+                    Some(share) => none.extend(crate::net::progress::text(share)),
+                    None => push_id(o, &mut none, screens::NO_TIME)?,
+                }
                 let none = store_text(strings, none)?;
-                let out = {
-                    crate::text::draw_text::draw_text_at(
-                        NAME_FONT,
-                        &none,
-                        x as i32,
-                        y as i32,
-                        &mut canvas,
-                    )
-                }?;
-                total_y = out.y as u32;
+                crate::text::draw_text::draw_text_at(
+                    NAME_FONT,
+                    &none,
+                    x as i32,
+                    y as i32,
+                    &mut canvas,
+                )?;
             } else {
                 store_text(strings, time_text(strings, time, gaps, first_time))?;
                 {
@@ -135,19 +147,14 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             let timed = time != players::NO_TIME;
             store_text(
                 strings,
-                time_text(
-                    strings,
-                    block.record.total.get(),
-                    gaps && timed,
-                    first_total,
-                ),
+                time_text(strings, block.record.total(), gaps && timed, first_total),
             )?;
             {
                 crate::text::draw_time_text::draw_time_text(
                     FONT,
                     &text.buffer.text.read(),
                     x,
-                    total_y,
+                    y,
                     o.gfx,
                 )
             }?;
@@ -155,49 +162,69 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             y = y.wrapping_add(NAME_FONT.object(&o.gfx.fonts.typefaces).line_height.get());
         }
     }
-    y = 0x158;
+    y = CHAT_Y;
     {
         let _received = net.lock_received();
-        crate::text::draw_text::draw_text_at(
-            CHAT_FONT,
-            &vars.chat.read(),
-            0xA,
-            y as i32,
-            &mut canvas,
-        )?;
+        let chat = vars.chat.read();
+        // Only the newest lines are drawn, from the dividing line down: the oldest of the
+        // eight would run under the buttons.
+        let shown = chat::newest_lines(&chat, chat::SHOWN_LINES);
+        crate::text::draw_text::draw_text_at(CHAT_FONT, shown, 0xA, y as i32, &mut canvas)?;
     }
     y = y.wrapping_add(
         CHAT_FONT
             .object(&o.gfx.fonts.typefaces)
             .line_height
             .get()
-            .wrapping_mul(8),
+            .wrapping_mul(chat::SHOWN_LINES as u32),
     );
     crate::net::chat_input_line::chat_input_line(o, &net.lobby().chat_input.text(), 3, y)?;
-    let mut x = 0x310;
-    let mut item = 0;
-    for (n, (id, shown)) in
-        screens::lobby_buttons(net.lobby().car_item.get(), vars.stage_item.get())
-            .into_iter()
-            .enumerate()
-    {
-        if shown {
+    // The two rows of buttons, each drawn right to left: the bottom row, and above it the
+    // settings and (when the last network race's replay is kept) the button that saves it.
+    let replay_kept = net.lobby().replay_kept.get() == 1;
+    let car_item = net.lobby().car_item.get();
+    let rows = [
+        (
+            BOTTOM_ROW_Y,
+            0,
+            screens::lobby_buttons(
+                car_item,
+                vars.stage_item.get(),
+                net.vars.own.state().is_ready(),
+            )
+            .to_vec(),
+        ),
+        (
+            UPPER_ROW_Y,
+            screens::UPPER_ROW_FIRST,
+            screens::upper_buttons(
+                replay_kept,
+                crate::net::bots::host_setting(net),
+                crate::net::bots::host_arcade_start(net),
+                net.vars.own.state().is_host(),
+            )
+            .to_vec(),
+        ),
+    ];
+    for (y, first_item, buttons) in rows {
+        let mut x = ROW_RIGHT;
+        for (n, (id, shown)) in buttons.into_iter().enumerate() {
+            if !shown {
+                continue;
+            }
             x = crate::net::lobby_button::lobby_button(
                 crate::strings::append_string_by_id::StringOwners::of(o),
                 net,
                 id,
-                item,
+                first_item + n as u32,
                 x,
-                0x223,
+                y,
                 o.gfx,
                 o.menus,
             )?;
         }
-        if n != 3 {
-            item += 1;
-        }
     }
-    for line_y in [0x156, 0x217] {
+    for line_y in [CHAT_RULE_Y as i32, BUTTONS_RULE_Y as i32] {
         crate::gfx::rect::draw_hline(
             0,
             line_y,
@@ -207,7 +234,76 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             gfx,
         );
     }
-    crate::platform::unlock_surface(o.gfx);
-    crate::platform::show_frame_now(o);
+    drop(locked);
+    crate::shell::frame::show_frame_now(o);
+    Ok(())
+}
+
+/// Where the buttons' rows stand: the right edge they start from, and the y of the bottom row
+/// and of the one above it.
+const ROW_RIGHT: u32 = 0x310;
+const BOTTOM_ROW_Y: u32 = 0x223;
+const UPPER_ROW_Y: u32 = 0x1F2;
+/// Where a player's ping is drawn: at the right of the name's column (the car's picture starts
+/// at 0x18A).
+const PING_X: i32 = 0x130;
+
+/// The line between the chat's input and the buttons' rows.
+const BUTTONS_RULE_Y: u32 = 0x1EA;
+
+/// The line between the players' table (eight players end at y 0x144) and the chat, and where
+/// the chat's first line is drawn: the six lines and the input under them end above the upper
+/// row of buttons.
+const CHAT_RULE_Y: u32 = 0x148;
+const CHAT_Y: u32 = 0x14C;
+
+/// Where the chosen stage's name is drawn: the middle of the line of the table's headings (the
+/// text is centred on it), in their font.
+const STAGE_AT: (i32, i32) = (0xA8, 0x6F);
+/// Where the bots' label is drawn (centred): on the same line, between the stage's name and the headings.
+const BOTS_AT: (i32, i32) = (0x178, 0x6F);
+
+/// The stage the host has chosen, by its name, over the table (nothing while no host is listed
+/// or the stage is none of the loaded pack's).
+fn draw_chosen_stage(
+    o: crate::owners::Owners<'static>,
+    canvas: &mut GameCanvas,
+) -> Result<(), Refused> {
+    use crate::records::stages_store::TrackField;
+    let net = o.net;
+    let stages = &o.system.records().stage_tables;
+    let chosen = (0..net.race_slot.players())
+        .map(|n| net.vars.player_block_or_end(n))
+        .find(|block| block.record.state().is_host())
+        .map(|block| block.record.get().byte(rc2k_core::net::record::STAGE) & 0x7F);
+    let Some(stage) = chosen else {
+        return Ok(());
+    };
+    let Some(track) = stages
+        .trak_pak
+        .tracks
+        .iter()
+        .find(|track| track.get(TrackField::Stage) == u32::from(stage))
+    else {
+        return Ok(());
+    };
+    let mut text = Vec::new();
+    push_id(o, &mut text, track.get(TrackField::Name))?;
+    let text = store_text(o.strings, text)?;
+    crate::text::draw_text::draw_text_at(HEADING_FONT, &text, STAGE_AT.0, STAGE_AT.1, canvas)?;
+    Ok(())
+}
+
+/// The computer drivers the race will have ("bots: 3", "bots: off"), for every player to read:
+/// the players' table lists the players only.
+fn draw_bots_label(
+    o: crate::owners::Owners<'static>,
+    canvas: &mut GameCanvas,
+) -> Result<(), Refused> {
+    let count = crate::net::bots::listed_count(o.net).min(rc2k_core::net::bots::MOST_SETTING);
+    let mut text = Vec::new();
+    push_id(o, &mut text, rc2k_core::strings::own::id::BOTS + count)?;
+    let text = store_text(o.strings, text)?;
+    crate::text::draw_text::draw_text_at(HEADING_FONT, &text, BOTS_AT.0, BOTS_AT.1, canvas)?;
     Ok(())
 }

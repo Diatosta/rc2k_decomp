@@ -51,10 +51,7 @@ pub fn draw_time_trial_stage_info(
         TABLE_TITLE_Y,
     )?;
 
-    let heading = build_second_heading(
-        crate::strings::append_string_by_id::StringOwners::of(o),
-        sel.record,
-    )?;
+    let heading = build_second_heading(o, sel.record)?;
     draw_text_at(TITLE_FONT, &heading, TITLE_X, HEADING_Y, canvas)?;
     // The markers' palette is what `draw_text` left: a pointer into the heading (unused).
     draw_stage_body(o, gfx, sel.record, true, canvas)?;

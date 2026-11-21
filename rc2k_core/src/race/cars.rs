@@ -5,7 +5,7 @@ use crate::Invalid;
 use crate::math::random::Random;
 
 /// The cars the per-car tables hold (file numbers, kinds, car records).
-pub const TABLE_CARS: u32 = 0x22;
+pub(crate) const TABLE_CARS: u32 = 0x22;
 
 /// A car's entry in the per-car tables: the car held to 0 ..= 0x21 (signed).
 pub fn table_entry(car: u32) -> usize {
@@ -16,7 +16,7 @@ pub fn table_entry(car: u32) -> usize {
 pub const KINDS: u32 = 0x17;
 
 /// The kind no race uses.
-pub const UNUSABLE_KIND: u32 = 6;
+pub(crate) const UNUSABLE_KIND: u32 = 6;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct KindCheckFlags {
@@ -25,7 +25,7 @@ pub struct KindCheckFlags {
 }
 
 /// Carry for a kind of 0x17 or more; zero when it equals 0x17.
-pub fn kind_past_table(kind: u32) -> KindCheckFlags {
+pub(crate) fn kind_past_table(kind: u32) -> KindCheckFlags {
     KindCheckFlags {
         carry: kind >= KINDS,
         zero: kind == KINDS,
@@ -138,7 +138,7 @@ pub struct Message {
 
 impl Message {
     /// How long a new message stays, in frames.
-    pub const SHOWN_FOR: u32 = 0x12C;
+    pub(crate) const SHOWN_FOR: u32 = 0x12C;
 
     /// A new message.
     pub fn new(id: u32) -> Self {
@@ -151,7 +151,7 @@ impl Message {
 }
 
 /// A car record's limit past which its start value is 0.
-pub const START_LIMIT: u32 = 0x1B58;
+pub(crate) const START_LIMIT: u32 = 0x1B58;
 
 /// The car record a kind's start value comes from: the kind held to 0x21.
 pub fn start_record(kind: u32) -> u32 {
@@ -184,13 +184,15 @@ pub fn settled_state(state: u32) -> Option<u32> {
 }
 
 /// The longest result kept in mode 0 (300000).
-pub const MOST_MARGIN: i32 = 300_000;
+pub(crate) const MOST_MARGIN: i32 = 300_000;
 
+#[cfg(test)]
 /// The last stage mode 0's results hold to.
-pub const LAST_STAGE: i32 = 0x4C;
+pub(crate) const LAST_STAGE: i32 = 0x4C;
 
+#[cfg(test)]
 /// The stage held to 0 ..= 0x4C (mode 0).
-pub fn held_stage(stage: i32) -> u32 {
+pub(crate) fn held_stage(stage: i32) -> u32 {
     let mut s = stage.max(0);
     if s.wrapping_sub(LAST_STAGE) >= 0 {
         s = LAST_STAGE;
@@ -208,9 +210,9 @@ pub fn margin(total: u32, time: u32) -> u32 {
 }
 
 /// The first stage with an automatic set-up.
-pub const FIRST_SET_UP_STAGE: u32 = 0x15;
+pub(crate) const FIRST_SET_UP_STAGE: u32 = 0x15;
 /// The stages with an automatic set-up end before this.
-pub const SET_UP_STAGES_END: u32 = 0x50;
+pub(crate) const SET_UP_STAGES_END: u32 = 0x50;
 
 /// The set-up picked for a stage.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -242,7 +244,7 @@ pub fn drawn_kind(random: u32) -> u32 {
 }
 
 /// How far apart in the kinds' order an opponent may be from the first car (below).
-pub const OPPONENT_REACH: u32 = 5;
+pub(crate) const OPPONENT_REACH: u32 = 5;
 
 /// The places' distance and whether an opponent at `place` is close enough (below 5).
 pub fn opponent_distance(place: u32, first: u32) -> (u32, bool) {
@@ -254,19 +256,36 @@ pub fn opponent_distance(place: u32, first: u32) -> (u32, bool) {
 /// The car blocks reset for a race.
 pub const CAR_BLOCKS: u32 = 8;
 
-/// The car block's race-state reset: (offset, value) pairs, in order.
-pub const RACE_STATE: [(u32, u32); 11] = [
-    (0x730, 0),
-    (0x72C, 0x12C),
-    (0x724, 0),
-    (0x71C, 0xCA),
-    (0x720, 0),
-    (0x728, 0),
-    (0xA0C, u32::MAX),
-    (0xA10, u32::MAX),
-    (0xA14, u32::MAX),
-    (0xA18, u32::MAX),
-    (0xA1C, u32::MAX),
+/// A car block dword the race set-up and the overlay's set-up write by name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BlockWord {
+    NoticeId,
+    NoticeCounter,
+    NoticeLast,
+    NoticeShown,
+    NoticeTime,
+    NoticeTimeB,
+    /// Entry n of the split gaps.
+    SplitGap(usize),
+    /// Entry n of the car event codes.
+    EventCode(usize),
+    EventCount,
+    EventPosition,
+}
+
+/// The car block's race-state reset: (field, value) pairs, in order.
+pub const RACE_STATE: [(BlockWord, u32); 11] = [
+    (BlockWord::NoticeTimeB, 0),
+    (BlockWord::NoticeTime, 0x12C),
+    (BlockWord::NoticeLast, 0),
+    (BlockWord::NoticeId, 0xCA),
+    (BlockWord::NoticeCounter, 0),
+    (BlockWord::NoticeShown, 0),
+    (BlockWord::SplitGap(0), u32::MAX),
+    (BlockWord::SplitGap(1), u32::MAX),
+    (BlockWord::SplitGap(2), u32::MAX),
+    (BlockWord::SplitGap(3), u32::MAX),
+    (BlockWord::SplitGap(4), u32::MAX),
 ];
 /// The race's first four text dwords' reset: four spaces.
 pub const BLANK_TEXT: u32 = 0x2020_2020;
@@ -274,7 +293,7 @@ pub const BLANK_TEXT: u32 = 0x2020_2020;
 pub const UNSET_TEXT: u32 = u32::MAX;
 
 /// A car block's collision points: x, y and z lists of 0x40 floats' bits.
-pub type PointLists = [[u32; 0x40]; 3];
+pub(crate) type PointLists = [[u32; 0x40]; 3];
 
 /// A point's place (16.16) as a float: one rounding.
 pub fn point_float(whole: u32, scale: f32) -> f32 {
@@ -305,15 +324,13 @@ pub enum CarsStep {
     Times,
     /// The mode's set-up: 2 the arcade's, 0, 1 and 4 their own, 3 the race cars'.
     SetUp(u32),
-    /// The arcade's kept times cleared.
-    ClearArcadeTable,
 }
 
 /// The steps for a mode; none for others.
 pub fn cars_steps(mode: u32) -> &'static [CarsStep] {
     use CarsStep::*;
     match mode {
-        2 => &[Numbers, Times, SetUp(2), ClearArcadeTable],
+        2 => &[Numbers, Times, SetUp(2)],
         1 => &[SetUp(1)],
         3 => &[SetUp(3)],
         0 => &[Numbers, SetUp(0)],
@@ -489,7 +506,7 @@ mod tests {
     #[test]
     fn modes_and_draws() {
         assert_eq!(cars_steps(0), [CarsStep::Numbers, CarsStep::SetUp(0)]);
-        assert_eq!(cars_steps(2).len(), 4);
+        assert_eq!(cars_steps(2).len(), 3);
         assert!(cars_steps(5).is_empty());
         assert_eq!(held_brake(-1, |_| unreachable!()), 0);
         assert_eq!(held_brake(100, |_| unreachable!()), 0x100);

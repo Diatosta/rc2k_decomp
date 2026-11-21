@@ -13,12 +13,11 @@
 //!
 //! Then the texture is unlocked (`d3d::unlock_texture`).
 //!
-//! See `race/mud.rs`. Called by `race::mud_texture_turn`. Refuses (before anything) a texture
-//! past 3 and no mud, and its callees' refusals (the counts, the throws and the random state
-//! are put back).
+//! See `race/mud.rs`. Refuses (before anything) a texture past 3 and no mud, and its callees'
+//! refusals (the counts, the throws and the random state are put back).
 
-use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::{int, to_int};
 use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::flow::c0;
@@ -42,7 +41,7 @@ fn subtract_units(a: &PlainFloat, u: &PlainDword) {
 /// and set to 0 when negative. Returns it.
 fn whole_units(course: &Course, from: &PlainFloat, to: &PlainDword) -> i32 {
     round_units(from, to);
-    let zero = course.numbers.get().zero.get();
+    let zero = course.numbers.zero.get();
     if c0(to.get(), zero) {
         to.set(zero.to_bits());
     }
@@ -64,29 +63,16 @@ pub fn update_mud_texture(
     let frame = &race.frame;
     let n = texture_and_mud(&race.shared, &race.course.stage.mud)?;
     let k = n as usize;
-    crate::scene::forget_slot_texture::forget_slot_texture(
-        textures.kinds.get().kind_first_slots[256]
-            .get()
-            .wrapping_add(n),
-        scene,
-    )?;
-    frame.panel_and_overlay.get().panel.texture_changes.set(
-        frame
-            .panel_and_overlay
-            .get()
-            .panel
-            .texture_changes
-            .get()
-            .wrapping_add(0x1_0000),
-    );
-    let texture = textures.kinds.get().kind_first_textures[256]
-        .get()
-        .wrapping_add(n);
+    let slot = textures.kinds.borrow().kind_first_slots[256].wrapping_add(n);
+    crate::scene::forget_slot_texture::forget_slot_texture(slot, scene)?;
+    let value = frame.panel.borrow().texture_changes.wrapping_add(0x1_0000);
+    frame.panel.borrow_mut().texture_changes = value;
+    let texture = textures.first_textures()[256].wrapping_add(n);
     race.shared.vars.get().mud_locked.set(texture);
     if texture == 0 {
         return Ok(());
     }
-    if crate::d3d::lock_texture::lock_texture_in(gfx, texture)?.carry {
+    if !crate::d3d::lock_texture::lock_texture_in(gfx, texture)? {
         return Ok(());
     }
     // The throws.
@@ -175,8 +161,8 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     round_units(
-                        crate::scene::x87_mem::view::<PlainFloat>(a[0], 0),
-                        crate::scene::x87_mem::view::<PlainDword>(a[1], 0),
+                        crate::math::x87_mem::view::<PlainFloat>(a[0], 0),
+                        crate::math::x87_mem::view::<PlainDword>(a[1], 0),
                     );
                 },
             },
@@ -195,8 +181,8 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     subtract_units(
-                        crate::scene::x87_mem::view::<PlainFloat>(a[0], 0),
-                        crate::scene::x87_mem::view::<PlainDword>(a[1], 0),
+                        crate::math::x87_mem::view::<PlainFloat>(a[0], 0),
+                        crate::math::x87_mem::view::<PlainDword>(a[1], 0),
                     );
                 },
             },

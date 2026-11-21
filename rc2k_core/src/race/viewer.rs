@@ -5,13 +5,15 @@
 use crate::Invalid;
 
 /// The blocks a replay's table holds.
-pub const MOST_BLOCKS: u32 = 0x708;
+pub const MOST_BLOCKS: u32 = crate::race::replay_v2::MOST_BLOCKS;
 /// The frames of a block.
-pub const BLOCK_FRAMES: u32 = 100;
+pub(crate) const BLOCK_FRAMES: u32 = 100;
 /// The slot of the last race's replay.
 pub const LAST_RACE: u32 = 0xDE;
+/// The slot of a replay file named when the program was started.
+pub const GIVEN_FILE: u32 = 0xDD;
 /// The slots from which the game's own replays are numbered.
-pub const OWN_FROM: u32 = 100;
+pub(crate) const OWN_FROM: u32 = 100;
 
 /// A replay's file by its slot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -22,12 +24,16 @@ pub enum ReplayFile {
     Saved(u32),
     /// `files\replay\replayNN`, numbered from slot 100.
     Own(u32),
+    /// A file named when the program was started.
+    Given,
 }
 
 impl ReplayFile {
     pub fn of(slot: u32) -> Self {
         if slot == LAST_RACE {
             Self::LastRace
+        } else if slot == GIVEN_FILE {
+            Self::Given
         } else if slot < OWN_FROM {
             Self::Saved(slot)
         } else {
@@ -126,9 +132,9 @@ pub fn spread(count: u32, old: u8, byte: impl Fn(u32) -> u8) -> Result<Spread, I
 }
 
 /// The last camera's number.
-pub const LAST_CAMERA: u8 = 0x2E;
+pub(crate) const LAST_CAMERA: u8 = 0x2E;
 /// The names of the cameras a step passes over.
-pub const SKIPPED_NAMES: [u16; 2] = [0x1C1, 0x1C2];
+pub(crate) const SKIPPED_NAMES: [u16; 2] = [0x1C1, 0x1C2];
 
 /// Whether a camera of this name is passed over (unless every camera is offered).
 pub fn camera_skipped(name: u16) -> bool {
@@ -189,14 +195,14 @@ pub struct ViewerState {
     pub undo_blocks: u32,
     /// The block's camera (its byte 5).
     pub camera: u8,
-    /// The replay has one player.
+    /// The replay has one player and a single car (its view cannot be changed).
     pub one_player: bool,
 }
 
 /// The item's bit for "greyed".
-pub const GREY: u8 = 0x80;
+pub(crate) const GREY: u8 = 0x80;
 /// The item's bit for "ticked".
-pub const TICK: u8 = 0x40;
+pub(crate) const TICK: u8 = 0x40;
 
 /// The items marked (item, bit), in menu order.
 pub fn item_marks(s: &ViewerState) -> Vec<(u32, u8)> {
@@ -225,7 +231,9 @@ pub fn item_marks(s: &ViewerState) -> Vec<(u32, u8)> {
     if s.blocks == 0 {
         marks.extend((0..=0x11).chain(0x15..=0x19).map(|i| (i, GREY)));
     }
-    if s.camera == 0 {
+    // The first car alone, or (a replay with the extra tape) the third or fourth alone: the
+    // second camera's items are not for them.
+    if matches!(s.camera, 0 | 4 | 5) {
         marks.extend([(0x18, GREY), (0x19, GREY)]);
     }
     if s.camera == 1 {
@@ -521,11 +529,47 @@ pub fn mark_out_here(block: u32, mark_in: u32) -> bool {
     block >= mark_in
 }
 
+/// Whether the replay's cars can be chosen to show (the view byte 5 cycled): every replay but a
+/// one-player one with a single car. A network race's replay is a one-player one (the header's
+/// players is 1) with a car for each machine.
+pub fn views_choosable(one_player: bool, cars: u32) -> bool {
+    !one_player || cars >= 2
+}
+
+/// The head byte of the camera of the car a layout shows alone (4 for the third car, 5 for the
+/// fourth), or the first camera byte (`first`) for the other layouts.
+pub fn shown_camera_byte(layout: u8, first: u32) -> u32 {
+    match layout {
+        4 => 6,
+        5 => 7,
+        _ => first,
+    }
+}
+
+/// The picture the car item shows for a layout: the pictures are the first car alone (0), the
+/// second alone (1) and the two together (2 side by side, 3 one above the other). A further
+/// player alone shows the single car's, and every player of a split screen the two together; a
+/// byte that is no layout is left as it is (the picture table then refuses it).
+pub fn layout_picture(layout: u8) -> u32 {
+    match layout {
+        4..=9 => 0,
+        crate::race::replay_v2::SPLIT_LAYOUT_BYTE => 2,
+        other => u32::from(other),
+    }
+}
+
 /// A camera byte one on: byte 5 (the view) past 3 back to 2, byte 4 past 2 back to 0 (signed
-/// bytes).
-pub fn next_byte(byte: u32, old: u8) -> u8 {
+/// bytes). `whole_cycle` (a one-player replay's view: 0 the first car, 1 the second, 2 and 3 both
+/// side by side or above each other) takes byte 5 back to 0 instead.
+/// `extra_cars` (a replay with the extra tape: its players beyond two) adds the layouts that show
+/// the third and the fourth car alone (4 and 5) to the cycle, which then turns back to 2.
+pub fn next_byte(byte: u32, old: u8, whole_cycle: bool, extra_cars: u32) -> u8 {
     let next = old.wrapping_add(1);
-    let (last, back) = if byte == 5 { (3, 2) } else { (2, 0) };
+    let (last, back) = match (byte, whole_cycle) {
+        (5, false) => (3 + extra_cars as i8, 2),
+        (5, true) => (3, 0),
+        _ => (2, 0),
+    };
     if (next as i8) > last { back } else { next }
 }
 
@@ -585,10 +629,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn every_layout_has_a_picture() {
+        assert_eq!(
+            (0..=11).map(layout_picture).collect::<Vec<_>>(),
+            [0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 2, 11]
+        );
+    }
+
+    #[test]
     fn files_and_steps() {
         assert_eq!(ReplayFile::of(0xDE), ReplayFile::LastRace);
         assert_eq!(ReplayFile::of(99), ReplayFile::Saved(99));
         assert_eq!(ReplayFile::of(105), ReplayFile::Own(5));
+        assert_eq!(ReplayFile::of(GIVEN_FILE), ReplayFile::Given);
         assert_eq!(step(false, 0, 0, 9, 9), Step::Closed);
         assert_eq!(step(true, 9, 0, 9, 9), Step::AtLast { last: true });
         assert_eq!(step(true, 10, 0, 9, 9), Step::AtLast { last: false });
@@ -668,13 +721,40 @@ mod tests {
         assert_eq!(frame_on(3, 4, 10), (3, 5));
         assert!(mark_in_here(3, 3) && !mark_in_here(4, 3));
         assert!(mark_out_here(3, 3) && !mark_out_here(2, 3));
-        assert_eq!([3u8, 4, 0x7F].map(|b| next_byte(5, b)), [2, 2, 0x80]);
-        assert_eq!([1u8, 2, 0xFE].map(|b| next_byte(4, b)), [2, 0, 0xFF]);
+        assert_eq!(
+            [3u8, 4, 0x7F].map(|b| next_byte(5, b, false, 0)),
+            [2, 2, 0x80]
+        );
+        assert_eq!(
+            [1u8, 2, 0xFE].map(|b| next_byte(4, b, false, 0)),
+            [2, 0, 0xFF]
+        );
+        assert_eq!(
+            [0u8, 1, 2, 3].map(|b| next_byte(5, b, true, 0)),
+            [1, 2, 3, 0]
+        );
+        assert_eq!([1u8, 2].map(|b| next_byte(4, b, true, 0)), [2, 0]);
+        // Three players: 2, 3, then the third car alone, then round; four: the fourth car too.
+        assert_eq!([2u8, 3, 4].map(|b| next_byte(5, b, false, 1)), [3, 4, 2]);
+        assert_eq!(
+            [2u8, 3, 4, 5].map(|b| next_byte(5, b, false, 2)),
+            [3, 4, 5, 2]
+        );
+        assert_eq!(
+            [
+                shown_camera_byte(4, 0),
+                shown_camera_byte(5, 1),
+                shown_camera_byte(1, 1)
+            ],
+            [6, 7, 1]
+        );
+        assert!(views_choosable(false, 1) && views_choosable(true, 2));
+        assert!(!views_choosable(true, 1));
         assert_eq!(cut_marks(3, 3, 10), Ok(None));
         assert_eq!(cut_marks(2, 7, 10), Ok(Some((2, 7))));
         assert!(cut_marks(2, 11, 10).is_err());
         assert_eq!(pastes(0, 5, 9), Ok(false));
-        assert_eq!(pastes(3, 0x706, 9), Ok(false));
+        assert_eq!(pastes(3, MOST_BLOCKS - 2, 9), Ok(false));
         assert_eq!(pastes(3, 10, 10), Ok(true));
         assert!(pastes(3, 10, 11).is_err());
     }
@@ -685,7 +765,7 @@ mod tests {
         assert_eq!(clip(0, u32::MAX), Ok(None));
         assert_eq!(clip(2, 7), Ok(Some((2, 5))));
         assert!(clip(u32::MAX, 3).is_err());
-        assert!(clip(0, 0x709).is_err());
+        assert!(clip(0, MOST_BLOCKS + 1).is_err());
         let table = |n: u32| if n < 4 { 7 } else { 1 };
         assert_eq!(
             spread(10, 7, table),

@@ -10,7 +10,6 @@
 //! the second palette, which `game_fonts[3 ..= 5]` get with the same table.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::gfx::build_glyphs::SheetVars;
 use crate::gfx::build_glyphs::build_glyphs;
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::glyph_builder::{RUN_LENGTHS, WITH_ALPHA};
@@ -19,23 +18,23 @@ use crate::gfx::glyph_tables::{
 };
 use crate::memory::MemoryList;
 use crate::memory::take_from_list::rewind_list;
+use std::cell::Cell;
 
 /// The game fonts' memory.
-#[derive(rc2k_derive::Cells)]
 pub struct GameFontsMemory {
     /// The memory's size in units of 0x400 bytes times `Screen.bytes` (`gamegfxheapsize`, a
     /// `var\ral.cfg` setting).
-    pub units: crate::memory::session::PlainDword,
+    pub units: Cell<u32>,
     /// `GameFontsMemory.memory.head`: the list the fonts' tables lie on (16 bytes).
-    pub memory: crate::memory::ListCells,
+    pub memory: crate::memory::PlainList,
 }
 
 impl GameFontsMemory {
     /// The game fonts' memory.
     pub const fn new() -> Self {
         GameFontsMemory {
-            units: crate::memory::session::PlainDword::new(0x20),
-            memory: crate::memory::ListCells::new(MemoryList {
+            units: Cell::new(0x20),
+            memory: crate::memory::PlainList::new(MemoryList {
                 head: 0,
                 total: 0,
                 cursor: 0,
@@ -53,15 +52,15 @@ fn fatal(code: u32) -> Refused {
     FatalError { code, message: "" }.into()
 }
 
-/// `pixels_b` is where the place of the second palette's pixels is read from when they are made. (A
-/// failed allocation cannot come: the allocator reports its own error.)
+/// The second palette's pixels are made where the third font's palette is. (A failed allocation
+/// cannot come: the allocator reports its own error.)
 pub fn build_game_fonts(
-    vars: &SheetVars,
-    pixels_b: &crate::memory::session::PlainDword,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
     strings: &crate::strings::owner::Strings,
 ) -> Result<(), Refused> {
+    let vars = &gfx.sheet;
+    let pixels_b = &gfx.fonts.font_block.game_fonts[3].palette;
     let list = &gfx.fonts.game_fonts_memory.memory;
     let bytes = gfx
         .fonts
@@ -72,7 +71,7 @@ pub fn build_game_fonts(
         .wrapping_mul(system.session.screen.get().bytes.get());
     crate::memory::owned::count_on(list, bytes)?;
     rewind_list(list)?;
-    crate::race::load_times::mark("begin_glyph_tables");
+    crate::logfile::load_times::mark("begin_glyph_tables");
     begin_glyph_tables(vars, gfx, system, strings)?;
     gfx.pictures
         .decoder
@@ -88,14 +87,14 @@ pub fn build_game_fonts(
     let palette_b = crate::gfx::build_fonts::palette_place(&gfx.fonts, list)?;
     gfx.fonts.font_block.game_fonts[3].update(|f| f.palette = palette_b);
     begin_glyph_table(&gfx.fonts, vars, list)?;
-    crate::race::load_times::mark("build_glyphs fnt22");
+    crate::logfile::load_times::mark("build_glyphs fnt22");
     build_glyphs(vars, &crate::gfx::texts::FNT22, list, gfx, system, strings)?;
     let table = vars.table.get();
     gfx.fonts.font_block.game_fonts[0].update(|f| f.glyph_table = table);
     if vars.table_size.get() == 0 {
         return Err(fatal(0x80E4_8062));
     }
-    crate::race::load_times::mark("alpha_palette, palette_to_pixels");
+    crate::logfile::load_times::mark("alpha_palette, palette_to_pixels");
     alpha_palette(gfx);
     palette_to_pixels(
         gfx.fonts.font_block.game_fonts[0].get().palette,
@@ -115,7 +114,7 @@ pub fn build_game_fonts(
         });
     }
 
-    crate::race::load_times::mark("brighter palette");
+    crate::logfile::load_times::mark("brighter palette");
     // The sheet's palette made brighter where it lies, and its pixels.
     let to: u32 = pixels_b.get();
     let layout = gfx.pictures.decoder.format.get();
@@ -146,19 +145,4 @@ pub fn build_game_fonts(
         });
     }
     Ok(())
-}
-
-/// With the third font's palette's place, as the stage's loading calls it.
-pub fn build_game_fonts_in_game(
-    gfx: &crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
-    strings: &crate::strings::owner::Strings,
-) -> Result<(), Refused> {
-    build_game_fonts(
-        &gfx.sheet,
-        &gfx.fonts.font_block.game_fonts[3].palette,
-        gfx,
-        system,
-        strings,
-    )
 }

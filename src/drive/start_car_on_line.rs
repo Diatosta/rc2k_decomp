@@ -7,10 +7,10 @@
 //! 0x400 (the table `arcade_car_numbers` holds 90), and what the two calls refuse.
 
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::start_places;
 
@@ -29,7 +29,6 @@ pub fn start_car_on_line(
     distance: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let lights = &scene.lights;
     let start = race.shared.tables().start_slot.get();
     start_places::check_start(start)?;
     race.shared
@@ -49,12 +48,12 @@ pub fn start_car_on_line(
     ] {
         cell.set(checkpoint);
     }
-    lights.state.get().line_place.set(checkpoint);
-    lights.state.get().line_fraction.set(checkpoint);
+    scene.line_and_shake_mut().line_place = checkpoint;
+    scene.line_and_shake_mut().line_fraction = checkpoint;
     let share = start_places::start_share(
         start as i32,
         race.shared.tables().arcade_cars.get() as i32,
-        race.course.numbers.get().one.get(),
+        race.course.numbers.one.get(),
         race.shared.tables().start_share_first.get(),
         race.shared.tables().start_share_last.get(),
     );
@@ -65,20 +64,23 @@ pub fn start_car_on_line(
         &crate::physics::step_inputs::StepInputs::of(race).reset(),
         scene,
     )?;
-    race.shared.car().local_velocity[0].set(0.0);
-    race.shared.car().local_velocity[1].set(0.0);
-    race.shared.car().local_velocity[2].set(x87::loaded(&race.shared.tables().start_speed));
+    race.shared.car().local_velocity.set_at(0, 0.0);
+    race.shared.car().local_velocity.set_at(1, 0.0);
+    race.shared
+        .car()
+        .local_velocity
+        .set_at(2, x87::loaded(&race.shared.tables().start_speed));
     let m = &race.shared.car().crash_matrix;
     let out = rotate_point(
         m,
         [
-            extended(race.shared.car().local_velocity[0].get()),
-            extended(race.shared.car().local_velocity[1].get()),
-            extended(race.shared.car().local_velocity[2].get()),
+            extended(race.shared.car().local_velocity.at(0)),
+            extended(race.shared.car().local_velocity.at(1)),
+            extended(race.shared.car().local_velocity.at(2)),
         ],
     );
-    race.shared.car().velocity[0].set(rounded_value(out[0]));
-    race.shared.car().velocity[1].set(rounded_value(out[1]));
-    race.shared.car().velocity[2].set(rounded_value(out[2]));
+    race.shared.car().velocity.set_at(0, rounded_value(out[0]));
+    race.shared.car().velocity.set_at(1, rounded_value(out[1]));
+    race.shared.car().velocity.set_at(2, rounded_value(out[2]));
     Ok(())
 }

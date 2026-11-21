@@ -10,7 +10,6 @@
 //! a slot past 99, a length outside 0 .. 0x1F, no car object, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::add_text_length::add_text_length;
 use crate::menu::clear_text::clear_text;
@@ -39,7 +38,7 @@ fn put_cursor(
     let mut tail = Vec::new();
     push_string(so, &mut tail, CURSOR_STRING)?;
     tail.push(0);
-    let len = screens.loop_flags.text_length.get() as i32;
+    let len = screens.loop_flags.read().text_length as i32;
     name.add(len as u32).write(&tail, "the setup name")?;
     Ok(())
 }
@@ -51,7 +50,7 @@ fn put_char(name: crate::memory::place::BytePlace, at: i32, c: u8) -> Result<(),
 
 /// The name cut at its length.
 fn end_name(screens: &Screens, name: crate::memory::place::BytePlace) -> Result<(), BadInput> {
-    put_char(name, screens.loop_flags.text_length.get() as i32, 0)
+    put_char(name, screens.loop_flags.read().text_length as i32, 0)
 }
 
 pub fn edit_setup_name(
@@ -68,47 +67,55 @@ pub fn edit_setup_name(
     if current_player(menus).is_none() {
         return Err(BadInput("no current player object").into());
     }
-    if !has_layout(input) {
-        return Err(BadInput("no keyboard layout").into());
-    }
 
-    let key = take_key(input);
     use rc2k_core::menu::text_entry::{self as entry, Key};
+    let typed = crate::input::typed_text::take();
+    // A character: appended unless the name is full, and taken off again when too wide.
+    let mut append = |c: u8| -> Result<(), Refused> {
+        let len = screens.loop_flags.read().text_length as i32;
+        if entry::appends(c, len, screens.loop_flags.read().text_max as i32) {
+            put_char(name, len, c)?;
+            set_length(menus, len.wrapping_add(1));
+            // x is the length before this character.
+            let measured =
+                measure_text_at(MEASURING_FONT, &name.bytes("a setup's name")?, len, canvas)?;
+            if entry::too_wide(measured.width as i32) {
+                backspace_setup_name(menus, service)?;
+            }
+        }
+        Ok(())
+    };
+    for &c in &typed.chars {
+        append(c)?;
+    }
+    let key = take_key(input);
     match entry::key(key) {
         Key::None => {}
         Key::Escape => {
             restore_text(menus, name)?;
-            screens.entry.typing.set(false);
+            screens.entry.write().typing = false;
             return Ok(());
         }
         Key::Enter => {
-            if (screens.loop_flags.text_length.get() as i32) == 0 {
+            if (screens.loop_flags.read().text_length as i32) == 0 {
                 restore_text(menus, name)?;
                 add_text_length(menus, name)?;
             }
-            screens.entry.typing.set(false);
+            screens.entry.write().typing = false;
             end_name(screens, name)?;
-            write_setup_slot(menus, service, slot)?;
-            end_name(screens, name)?;
-            screens.entry.typing.set(false);
+            if !write_setup_slot(menus, service, slot)? {
+                // Not written: the list keeps the name from before.
+                crate::program_log::log(&format!(
+                    "service: the set-up in slot {slot} was not written"
+                ));
+                restore_text(menus, name)?;
+            }
             return Ok(());
         }
         Key::Clear => clear_text(menus, name)?,
         Key::Backspace => backspace_setup_name(menus, service)?,
-        Key::Other(key) => {
-            let c = key_to_char(input, key as u32)? as u8;
-            let len = screens.loop_flags.text_length.get() as i32;
-            if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
-                put_char(name, len, c)?;
-                set_length(menus, len.wrapping_add(1));
-                // x is the length before this character.
-                let measured =
-                    measure_text_at(MEASURING_FONT, &name.bytes("a setup's name")?, len, canvas)?;
-                if entry::too_wide(measured.width as i32) {
-                    backspace_setup_name(menus, service)?;
-                }
-            }
-        }
+        // Printable keys come as typed text, not as keys.
+        Key::Other(_) => {}
     }
     put_cursor(so, screens, name)?;
     Ok(())

@@ -7,7 +7,7 @@ use crate::errors::{BadInput, Refused};
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::message_box::{FILL, FRAME, STRING, layout};
 
-pub fn draw_message_box(
+pub(super) fn draw_message_box(
     o: crate::owners::Owners<'static>,
     x: i32,
     canvas: &mut dyn Canvas,

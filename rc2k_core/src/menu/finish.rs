@@ -23,7 +23,7 @@ pub enum Var {
     SetUpDriver,
     SetUpDriver2,
     SetUpSection,
-    /// The chosen player's race number (+0x28) and car (+8).
+    /// The chosen player's race number and car number.
     RacerNumber,
     RacerCar,
 }
@@ -73,7 +73,7 @@ pub const RACE: [Step; 8] = [
     FinishRace,
 ];
 /// The front end's set-up again (with the race's sounds once more).
-pub const FRONT_END: [Step; 9] = [
+pub(crate) const FRONT_END: [Step; 9] = [
     StopMusic,
     MenuScreenMode,
     RaceSounds,
@@ -85,7 +85,7 @@ pub const FRONT_END: [Step; 9] = [
     Tune3,
 ];
 /// `menu::section_finish`'s: without the race's sounds.
-pub const SECTION_FRONT_END: [Step; 8] = [
+pub(crate) const SECTION_FRONT_END: [Step; 8] = [
     StopMusic,
     MenuScreenMode,
     LoadingPicture,

@@ -11,7 +11,7 @@ pub fn draw_savegame_names(
 ) -> Result<bool, Refused> {
     let menus = o.menus;
     // The logic is in `rc2k_core::screens::slot_lists::names`.
-    let page: u32 = menus.tables.pages.save_page.get();
+    let page: u32 = menus.tables.pages.read().save_page;
     rc2k_core::screens::slot_lists::names(
         &mut crate::screens::game_screen::SlotScreen::new(canvas, o),
         &rc2k_core::screens::slot_lists::SAVED_GAMES,

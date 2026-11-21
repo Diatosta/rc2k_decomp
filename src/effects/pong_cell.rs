@@ -7,14 +7,14 @@
 //! whole number: exact in `f64`, as the x87's at double precision; at extended too while the
 //! product fits 53 bits, as the score's cells do).
 
-use crate::effects::pong::Pong;
+use crate::effects::pong_store::Pong;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
-use crate::scene::matrix3::extended;
+use crate::math::matrix3::extended;
 use rc2k_core::math::extended::from_f64;
 
 /// `pattern` is the pattern byte, `column` and `row` the cell's place.
-// Converted: `rc2k_core::effects::pong::cell_place`
+// The logic is in `rc2k_core::effects::pong::cell_place`
 #[allow(
     clippy::too_many_arguments,
     reason = "the effects' groups, the cell's place, the owners and the vertex buffer"
@@ -31,16 +31,12 @@ pub fn pong_cell(
 ) -> Result<(), Refused> {
     {
         if pattern != 0 {
-            let step = pong
-                .rules
-                .cell_step
-                .each_ref()
-                .map(crate::memory::session::PlainFloat::get);
-            let at = pong.state.digit_at.each_ref().map(|d| d.get() as i32);
+            let step = pong.rules.cell_step;
+            let at = pong.state.borrow().digit_at.map(|d| d as i32);
             let [x, y] = rc2k_core::effects::pong::cell_place(column as i32, row as i32, step, at);
             let values = [
-                extended(pong.rules.cell_size[1].get()),
-                extended(pong.rules.cell_size[0].get()),
+                extended(pong.rules.cell_size[1]),
+                extended(pong.rules.cell_size[0]),
                 from_f64(y),
                 from_f64(x),
             ];

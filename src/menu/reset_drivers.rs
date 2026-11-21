@@ -1,14 +1,15 @@
-//! `menu::reset_drivers`: every driver back in the event (+0x24 set to 1) with no stage or
-//! total time (+0xC, +0x10 set to 0): `Driver::reset`.
+//! `menu::reset_drivers`: every driver back in the event (`in_event` set to 1) with no stage or
+//! total time (`time`, `total` set to 0): `Driver::reset`.
 //!
-//! Callers: the event drivers. Refuses a table without its end entry, before anything.
+//! Refuses a table without its end entry, before anything.
 
 use crate::errors::Refused;
 use crate::menu::drivers_store::Driver;
 use crate::menu::owner::Menus;
-use crate::menu::standings::drivers;
+use crate::menu::standings::walked;
 
-pub fn reset_drivers(menus: &Menus) -> Result<(), Refused> {
-    drivers(menus)?.iter().for_each(Driver::reset);
+pub(super) fn reset_drivers(menus: &Menus) -> Result<(), Refused> {
+    let count = walked(&menus.cars)?;
+    menus.cars.drivers.each(count, Driver::reset);
     Ok(())
 }

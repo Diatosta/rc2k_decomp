@@ -15,7 +15,7 @@ use crate::audio::voices::{
 };
 
 /// The sound mode's bit: the right channel's sign follows the voice's pan sign (surround).
-pub const MODE_SURROUND: u32 = 0x200_0000;
+pub(crate) const MODE_SURROUND: u32 = 0x200_0000;
 
 /// A voice's dirty bits carried out on its channel; `rate` the mixing rate (not 0 when the
 /// frequency is dirty).

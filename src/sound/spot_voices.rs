@@ -4,47 +4,45 @@
 //!
 //! A voice's fields are named in `SpotVoice`.
 
-use crate::memory::session::{Cell32, PlainDword, PlainFloat};
-
-pub const VOICE_COUNT: u32 = 0x48;
+pub(super) const VOICE_COUNT: u32 = 0x48;
 pub const MOST_SPOTS: u32 = 36;
 pub const MOST_KIND: u32 = 0x15;
 
 /// A voice: the fields in the game's order. The whole numbers (ids,
 /// flags, counts, the clock's turns) are dwords; the place, the rate, the volume, the distance, its
 /// change and the two factors are floats.
-#[derive(rc2k_derive::Cells)]
+#[derive(Clone, Copy)]
 pub struct SpotVoice {
     /// The spot's id (`FREE_ID`: free).
-    pub id: PlainDword,
+    pub id: u32,
     /// 1 when heard this turn.
-    pub heard: PlainDword,
+    pub heard: u32,
     /// Where the spot is.
-    pub place: [PlainFloat; 3],
+    pub place: [f32; 3],
     /// The kind's sound (-2: freed).
-    pub sound: PlainDword,
-    pub kind: PlainDword,
+    pub sound: u32,
+    pub kind: u32,
     /// 1 << kind.
-    pub kind_bit: PlainDword,
+    pub kind_bit: u32,
     /// 1 until its first turn.
-    pub new: PlainDword,
+    pub new: u32,
     /// 1 to (re)start it.
-    pub restart: PlainDword,
-    pub playing: PlainDword,
-    pub repeats: PlainDword,
+    pub restart: u32,
+    pub playing: u32,
+    pub repeats: u32,
     /// The delay before the next start.
-    pub delay: PlainDword,
+    pub delay: u32,
     /// When it ends (the clock's turns).
-    pub ends: PlainDword,
-    pub rate: PlainFloat,
-    pub volume: PlainFloat,
-    pub distance: PlainFloat,
+    pub ends: u32,
+    pub rate: f32,
+    pub volume: f32,
+    pub distance: f32,
     /// The distance's change a second.
-    pub distance_change: PlainFloat,
+    pub distance_change: f32,
     /// The pitch factor.
-    pub pitch_factor: PlainFloat,
+    pub pitch_factor: f32,
     /// The volume factor.
-    pub volume_factor: PlainFloat,
+    pub volume_factor: f32,
 }
 
 impl SpotVoice {
@@ -54,104 +52,103 @@ impl SpotVoice {
     /// A free voice, as the game starts: the id free, the sound -2, the pitch factor 1.0.
     pub const fn free() -> SpotVoice {
         SpotVoice {
-            id: PlainDword::new(Self::FREE_ID),
-            heard: PlainDword::new(0),
-            place: [const { PlainFloat::new(0.0) }; 3],
-            sound: PlainDword::new(0xFFFF_FFFE),
-            kind: PlainDword::new(0),
-            kind_bit: PlainDword::new(0),
-            new: PlainDword::new(0),
-            restart: PlainDword::new(0),
-            playing: PlainDword::new(0),
-            repeats: PlainDword::new(0),
-            delay: PlainDword::new(0),
-            ends: PlainDword::new(0),
-            rate: PlainFloat::new(0.0),
-            volume: PlainFloat::new(0.0),
-            distance: PlainFloat::new(0.0),
-            distance_change: PlainFloat::new(0.0),
-            pitch_factor: PlainFloat::new(1.0),
-            volume_factor: PlainFloat::new(0.0),
+            id: Self::FREE_ID,
+            heard: 0,
+            place: [0.0; 3],
+            sound: 0xFFFF_FFFE,
+            kind: 0,
+            kind_bit: 0,
+            new: 0,
+            restart: 0,
+            playing: 0,
+            repeats: 0,
+            delay: 0,
+            ends: 0,
+            rate: 0.0,
+            volume: 0.0,
+            distance: 0.0,
+            distance_change: 0.0,
+            pitch_factor: 1.0,
+            volume_factor: 0.0,
         }
     }
 
-    /// The twenty dwords in the game's order, as the core's `Voice` takes them (a whole-record
-    /// transfer: each cell by its bits).
-    fn cells(&self) -> [&dyn Cell32; 20] {
+    /// The twenty dwords in the game's order, as the core's `Voice` takes them.
+    pub(super) fn to_words(self) -> [u32; 20] {
         [
-            &self.id,
-            &self.heard,
-            &self.place[0],
-            &self.place[1],
-            &self.place[2],
-            &self.sound,
-            &self.kind,
-            &self.kind_bit,
-            &self.new,
-            &self.restart,
-            &self.playing,
-            &self.repeats,
-            &self.delay,
-            &self.ends,
-            &self.rate,
-            &self.volume,
-            &self.distance,
-            &self.distance_change,
-            &self.pitch_factor,
-            &self.volume_factor,
+            self.id,
+            self.heard,
+            self.place[0].to_bits(),
+            self.place[1].to_bits(),
+            self.place[2].to_bits(),
+            self.sound,
+            self.kind,
+            self.kind_bit,
+            self.new,
+            self.restart,
+            self.playing,
+            self.repeats,
+            self.delay,
+            self.ends,
+            self.rate.to_bits(),
+            self.volume.to_bits(),
+            self.distance.to_bits(),
+            self.distance_change.to_bits(),
+            self.pitch_factor.to_bits(),
+            self.volume_factor.to_bits(),
         ]
     }
-}
 
-/// Voice `n` (under `VOICE_COUNT`).
-pub fn voice(n: u32, sound: &crate::sound::owner::Sound) -> &SpotVoice {
-    &sound.race.spot_voices.get().voices[n as usize]
+    /// A voice from its twenty dwords.
+    pub(super) fn from_words(w: [u32; 20]) -> SpotVoice {
+        let f = f32::from_bits;
+        SpotVoice {
+            id: w[0],
+            heard: w[1],
+            place: [f(w[2]), f(w[3]), f(w[4])],
+            sound: w[5],
+            kind: w[6],
+            kind_bit: w[7],
+            new: w[8],
+            restart: w[9],
+            playing: w[10],
+            repeats: w[11],
+            delay: w[12],
+            ends: w[13],
+            rate: f(w[14]),
+            volume: f(w[15]),
+            distance: f(w[16]),
+            distance_change: f(w[17]),
+            pitch_factor: f(w[18]),
+            volume_factor: f(w[19]),
+        }
+    }
 }
 
 /// The voices as the core's (`rc2k_core::sound::spot_voices`).
-pub fn load_voices(
+pub(super) fn load_voices(
     sound: &crate::sound::owner::Sound,
 ) -> [rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize] {
-    let words: [[u32; 20]; VOICE_COUNT as usize] = std::array::from_fn(|n| {
-        let cells = sound.race.spot_voices.get().voices[n].cells();
-        std::array::from_fn(|k| cells[k].bits())
-    });
-    words.map(rc2k_core::sound::spot_voices::Voice::from_words)
+    let voices = sound.race.spot_voices.get().voices.borrow();
+    std::array::from_fn(|n| rc2k_core::sound::spot_voices::Voice::from_words(voices[n].to_words()))
 }
 
 /// The voices stored back.
-pub fn store_voices(
+pub(super) fn store_voices(
     sound: &crate::sound::owner::Sound,
     voices: &[rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize],
 ) {
-    let words = voices.map(|v| v.to_words());
-    for (voice, words) in sound.race.spot_voices.get().voices.iter().zip(words) {
-        for (cell, word) in voice.cells().into_iter().zip(words) {
-            cell.set_bits(word);
-        }
+    let mut held = sound.race.spot_voices.get().voices.borrow_mut();
+    for (voice, new) in held.iter_mut().zip(voices) {
+        *voice = SpotVoice::from_words(new.to_words());
     }
 }
 
-/// A voice as the pickers' work holds it: its number + 1, or 0 for none (nothing reads the voice
-/// back by address).
-pub fn voice_or_0(n: Option<usize>) -> u32 {
-    n.map_or(0, |n| n as u32 + 1)
-}
-
-/// The pickers' work stored, and the scratch dword (1000.0, then the last distance x 1000) when a
-/// distance was worked out.
-pub fn store_picks(
-    sound: &crate::sound::owner::Sound,
-    picks: &rc2k_core::sound::spot_voices::Picks,
+/// The scratch dword (1000.0, then the last distance x 1000) when a distance was worked out.
+pub(super) fn store_scratch(
     trail: &rc2k_core::sound::spot_voices::Trail,
     system: &crate::system::owner::System,
 ) {
-    let work = sound.race.spot_picks.get();
-    work.pick_playing.set(voice_or_0(picks.playing));
-    work.pick_nearest_distance.set(picks.nearest_distance);
-    work.pick_nearest.set(voice_or_0(picks.nearest));
-    work.pick_next_distance.set(picks.next_distance);
-    work.pick_next.set(voice_or_0(picks.next));
     if let Some(d) = trail.last_distance {
         system.machine().scratch.set(d);
     }

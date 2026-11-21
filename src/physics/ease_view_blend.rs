@@ -2,27 +2,22 @@
 //! (`physics/camera_view.rs`; 1 less it for a blend below 0) between `view_shift_a` and
 //! `view_shift_b` goes into `camera_zoom`, and between `view_shift_c` and `view_shift_d`, times
 //! `k65536`, negated and rounded, into `camera_offset_z`.
-//!
-//! Caller: `physics::update_camera`.
 
-use crate::effects::cell_x87::CellX87;
-use crate::math::x87_float::X;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::to_int;
+use crate::math::x87_float::{X, ld};
 use crate::physics::camera_view::{record, share_done};
 use crate::physics::step_families::CameraInputs;
 use crate::race::owner_shared::RaceShared;
 
 /// The exact version, for `physics::update_camera`.
-pub fn ease_view_blend(
-    c: &CameraInputs<'_>,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), crate::errors::BadInput> {
-    let esi = record(c.view_records, c.car)?;
-    if esi.blend.get() == 0 || esi.change_time.get() == 0 {
+pub fn ease_view_blend(c: &CameraInputs<'_>) -> Result<(), crate::errors::BadInput> {
+    let view_record = record(c.view_records, c.car)?;
+    if view_record.blend.get() == 0 || view_record.change_time.get() == 0 {
         return Ok(());
     }
-    share_done(c.shared, esi, scene);
-    if (esi.blend.get() as i32) < 0 {
+    share_done(c.shared, view_record);
+    if (view_record.blend.get() as i32) < 0 {
         x87_1(c.shared);
     }
     x87_2(c);
@@ -47,25 +42,27 @@ fn x87_1(shared: &RaceShared) {
 /// `int [camera_offset_z] = -(((([view_shift_d] - [view_shift_c]) * [view_share]) + [view_shift_c])
 ///  * [k65536])`
 fn x87_2(c: &CameraInputs<'_>) {
-    let t0 = c.camera.view_shift_b.ld();
-    let t1 = c.camera.view_shift_a.ld();
+    let camera = c.camera.borrow();
+    let t0 = ld(camera.view_shift_b);
+    let t1 = ld(camera.view_shift_a);
     let t2 = t0 - t1;
     let t3 = c.race_tables.view_share.ld();
     let t4 = t2 * t3;
-    let t5 = c.camera.view_shift_a.ld();
+    let t5 = ld(camera.view_shift_a);
     let t6 = t4 + t5;
     c.car.camera_zoom.st(t6);
-    let t7 = c.camera.view_shift_d.ld();
-    let t8 = c.camera.view_shift_c.ld();
+    let t7 = ld(camera.view_shift_d);
+    let t8 = ld(camera.view_shift_c);
     let t9 = t7 - t8;
     let t10 = c.race_tables.view_share.ld();
     let t11 = t9 * t10;
-    let t12 = c.camera.view_shift_c.ld();
+    let t12 = ld(camera.view_shift_c);
     let t13 = t11 + t12;
     let t14 = c.numbers.k65536.ld();
     let t15 = t13 * t14;
     let t16 = -t15;
-    c.camera.camera_offset_z.set(to_int(t16) as u32);
+    drop(camera);
+    c.camera.borrow_mut().camera_offset_z = to_int(t16) as u32;
 }
 
 #[cfg(test)]
@@ -100,12 +97,15 @@ mod reference_vectors {
                 }],
                 ulps: 0,
                 plain: |_| {
-                    x87_2(
-                        &crate::physics::step_inputs::StepInputs::of(
-                            crate::test_support::own::race(),
-                        )
-                        .camera(),
-                    );
+                    let numbers = crate::test_support::race_places::numbers();
+                    let inputs = crate::physics::step_inputs::StepInputs::of(
+                        crate::test_support::own::race(),
+                    )
+                    .camera();
+                    x87_2(&CameraInputs {
+                        numbers: &numbers,
+                        ..inputs
+                    });
                 },
             },
         ]

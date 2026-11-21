@@ -4,7 +4,7 @@
 //! values between the menus' draws), passed down the drawing in a `DrawCtx`. Never read by
 //! another step.
 //!
-//! The slots are held by `scene::workers::DrawingScratch`. The race's four (views 0 and 1, mirrors 0
+//! The slots are held by `scene::scratch_store::DrawingScratch`. The race's four (views 0 and 1, mirrors 0
 //! and 1) are `PartCell`s: the parts of a drawing scope get theirs from `scene::workers::draw_parts`
 //! (`scene::workers::PartRun::view`), the main thread reaches them by `main_view`, `mirror` and `slot`
 //! outside the parts. The front end's slot belongs to the main thread alone (`front_end`).
@@ -13,16 +13,17 @@
 //! the effects and the listener read included): the scratch is reached by one thread at a time
 //! and handed from one to the next, so it is `Send` (asserted below) and not `Sync`. What
 //! stays atomic beside it is `DrawingScratch`'s last-drawn-view slot and the mutex of a part's
-//! noted drawing (`scene::workers::PartScratch::noted`).
+//! noted drawing (`scene::scratch_store::PartScratch::noted`).
 //!
 //! Holds the two sort lists the view's drawing fills, sorts and draws and their counts, the
 //! view's fog (`scene::fog`), its object's placing (`scene::object_place`) and its object lighting
 //! (`scene::object_light`), its face work (`race::face_work`), its cars' drawing state
 //! (`race::car_draw_state`), its matrices (`scene::view_matrices`) and its polygon pipeline's work
-//! (`scene::polygon_work`).
+//! (`scene::polygon_work_store`).
 
 use crate::errors::BadInput;
 use crate::memory::session::PlainDword;
+use crate::race::plain_slot::PlainSlot;
 
 /// The most entries in either list.
 pub const ENTRIES: usize = 0x1000;
@@ -61,7 +62,7 @@ impl SortLists {
     }
 
     /// Depth entry `n` (the key, the second word). One past the 0x1000 refused.
-    pub fn depth_entry(&self, n: u32) -> Result<&[PlainDword], BadInput> {
+    pub(super) fn depth_entry(&self, n: u32) -> Result<&[PlainDword], BadInput> {
         let n = n as usize;
         self.depth_entries()
             .get(2 * n..2 * n + 2)
@@ -78,12 +79,12 @@ impl SortLists {
 
     /// The cells from depth entry `n` on to the end (the sort entries and the overrun after
     /// them): what a flare drawn the described way reads as its description.
-    pub fn depth_from(&self, n: usize) -> &[PlainDword] {
+    pub(super) fn depth_from(&self, n: usize) -> &[PlainDword] {
         self.cells.get(2 * n..).unwrap_or(&[])
     }
 
     /// The same from sort entry `n` on.
-    pub fn sort_from(&self, n: usize) -> &[PlainDword] {
+    pub(super) fn sort_from(&self, n: usize) -> &[PlainDword] {
         self.cells.get(2 * ENTRIES + 2 * n..).unwrap_or(&[])
     }
 }
@@ -131,18 +132,18 @@ pub struct ViewScratch {
     pub cars: crate::race::car_draw_state::CarDrawState,
     /// The view's matrices and turning work (`scene::view_matrices`).
     pub matrices: crate::scene::view_matrices::ViewMatrices,
-    /// The polygon pipeline's working values (`scene::polygon_work`).
-    pub polygon: crate::scene::polygon_work::PolygonWork,
+    /// The polygon pipeline's working values (`scene::polygon_work_store`).
+    pub polygon: crate::scene::polygon_work_store::PolygonWork,
     /// The view's course grid (`race::view_grid`).
-    pub grid: crate::race::view_grid::ViewGrid,
+    pub grid: crate::race::view_grid::GridSlot,
     /// The course working values (`race::view_course`).
     pub course: crate::race::view_course::ViewCourse,
     /// The screen quad's texture coordinates and corners (`race::quad_work`).
-    pub quad: crate::race::quad_work::QuadWork,
+    pub quad: crate::race::quad_work::QuadSlot,
     /// The lamps and flares (`race::lamp_work`).
     pub lamps: crate::race::lamp_work::LampWork,
     /// The camera values and the drawn car (`race::view_state`).
-    pub state: crate::race::view_state::ViewState,
+    pub state: PlainSlot<crate::race::view_state::ViewState>,
     /// The view's car: a copy of its block that the view's camera, matrices, course and lights read
     /// (`race::frame::load_view_car`); the physics' work car and `current_car` are not touched.
     pub car: crate::physics::car_store::ViewCar,
@@ -161,18 +162,18 @@ impl ViewScratch {
         Self {
             slot: std::cell::Cell::new(slot),
             lists: SortLists::new(),
-            fog: crate::scene::fog::Fog::new(),
-            object: crate::scene::object_place::ObjectPlace::new(),
-            light: crate::scene::object_light::ObjectLight::new(),
-            face: crate::race::face_work::FaceWork::new(),
-            cars: crate::race::car_draw_state::CarDrawState::new(),
-            matrices: crate::scene::view_matrices::ViewMatrices::new(),
-            polygon: crate::scene::polygon_work::PolygonWork::new(),
-            grid: crate::race::view_grid::ViewGrid::new(),
-            course: crate::race::view_course::ViewCourse::new(),
-            quad: crate::race::quad_work::QuadWork::new(),
-            lamps: crate::race::lamp_work::LampWork::new(),
-            state: crate::race::view_state::ViewState::new(),
+            fog: PlainSlot::new(crate::scene::fog::FogValues::new()),
+            object: PlainSlot::new(crate::scene::object_place::ObjectPlaceValues::new()),
+            light: PlainSlot::new(crate::scene::object_light::ObjectLightValues::new()),
+            face: PlainSlot::new(crate::race::face_work::FaceValues::new()),
+            cars: PlainSlot::new(crate::race::car_draw_state::CarDrawValues::new()),
+            matrices: PlainSlot::new(crate::scene::view_matrices::MatrixValues::new()),
+            polygon: crate::scene::polygon_work_store::PolygonWork::new(),
+            grid: PlainSlot::new(crate::race::view_grid::ViewGrid::new()),
+            course: PlainSlot::new(crate::race::view_course::CourseValues::new()),
+            quad: PlainSlot::new(crate::race::quad_work::QuadWork::new()),
+            lamps: PlainSlot::new(crate::race::lamp_work::LampValues::new()),
+            state: PlainSlot::new(crate::race::view_state::ViewState::new()),
             car: crate::physics::car_store::ViewCar::new(),
             hand_off: crate::race::scene_hand_off::SceneHandOff::new(),
             vars: crate::race::view_vars_store::ViewVarsCopy::new(),
@@ -182,7 +183,7 @@ impl ViewScratch {
 
     /// The shared view variables (`reads.view_and_records`) into the view's (`vars`), as its
     /// drawing begins.
-    pub fn take_vars(&self, reads: crate::scene::workers::DrawReads<'_>) {
+    pub(super) fn take_vars(&self, reads: crate::scene::workers::DrawReads<'_>) {
         let shared = &reads.view_and_records.view_vars;
         use crate::memory::cells::Cells;
         self.vars.copy_from(shared);
@@ -191,7 +192,7 @@ impl ViewScratch {
 
     /// Hands what the view's drawing changed in its view variables into the shared ones (on the
     /// main thread, once it is drawn).
-    pub fn hand_on_vars(&self, race: &crate::race::owner::Race) {
+    pub(super) fn hand_on_vars(&self, race: &crate::race::owner::Race) {
         use crate::memory::cells::Cells;
         race.frame
             .view_and_records
@@ -206,36 +207,36 @@ impl ViewScratch {
     /// keep what its last drawing left (its light and sky read them before `race::reset_lamps`);
     /// the sort lists' counts are set at each view's start (`race::reset_lamps`).
     pub fn begin(&self) {
-        use crate::memory::cells::Cells;
-        self.fog.copy_from(&crate::scene::fog::Fog::new());
-        self.object
-            .copy_from(&crate::scene::object_place::ObjectPlace::new());
-        self.light
-            .copy_from(&crate::scene::object_light::ObjectLight::new());
-        self.face
-            .copy_from(&crate::race::face_work::FaceWork::new());
+        self.fog
+            .copy_from(&PlainSlot::new(crate::scene::fog::FogValues::new()));
+        self.object.copy_from(&PlainSlot::new(
+            crate::scene::object_place::ObjectPlaceValues::new(),
+        ));
+        self.light.copy_from(&PlainSlot::new(
+            crate::scene::object_light::ObjectLightValues::new(),
+        ));
+        self.face.reset(crate::race::face_work::FaceValues::new());
         self.cars
-            .copy_from(&crate::race::car_draw_state::CarDrawState::new());
+            .reset(crate::race::car_draw_state::CarDrawValues::new());
         self.matrices
-            .copy_from(&crate::scene::view_matrices::ViewMatrices::new());
+            .reset(crate::scene::view_matrices::MatrixValues::new());
         // What the view's set-up gave before its scene is kept: the mirror's flag
         // (`race::mirror_view_window`), the view's value (`race::fetch_view_value`) and its
         // window (`scene::view_window`). The fresh copy is made beside and copied in whole, so the
         // window is never seen reset: the mirror's part reads its view's depth while the view
         // begins.
-        let fresh = crate::scene::polygon_work::PolygonWork::new();
+        let fresh = crate::scene::polygon_work_store::PolygonWork::new();
         fresh.window.copy_from(&self.polygon.window);
-        fresh.view_mirrored.set(self.polygon.view_mirrored.get());
-        fresh.sun.view_out.set(self.polygon.sun.view_out.get());
+        let mirrored = self.polygon.scalars.borrow().view_mirrored;
+        fresh.scalars.borrow_mut().view_mirrored = mirrored;
+        fresh.sun.borrow_mut().view_out = self.polygon.sun.borrow().view_out;
         self.polygon.copy_from(&fresh);
         // The course grid is kept: it is made again only when the view's corner moves, and a
         // stage's start marks every corner unknown (`view_grid::reset_corners`).
         self.course
-            .copy_from(&crate::race::view_course::ViewCourse::new());
-        self.quad
-            .copy_from(&crate::race::quad_work::QuadWork::new());
-        self.state
-            .copy_from(&crate::race::view_state::ViewState::new());
+            .reset(crate::race::view_course::CourseValues::new());
+        self.quad.reset(crate::race::quad_work::QuadWork::new());
+        self.state.reset(crate::race::view_state::ViewState::new());
     }
 
     /// The slot's number.
@@ -253,7 +254,7 @@ impl ViewScratch {
 
     /// What `now` (a copy, `copy_drawing_from`) changed since it was `start` put into this
     /// view, part by part but the sort lists: the copy's drawing put after this view's own.
-    pub fn merge_drawing(&self, now: &ViewScratch, start: &ViewScratch) {
+    pub(super) fn merge_drawing(&self, now: &ViewScratch, start: &ViewScratch) {
         for_each_part!(merge_changes, self, now, start);
     }
 
@@ -263,6 +264,14 @@ impl ViewScratch {
     pub fn drawn_view(&self, race: &crate::race::owner::Race) -> u32 {
         match self.number() {
             4 => race.shared.view.get().drawn_view.get(),
+            // With more than two players the four slots are the players' views (no mirrors).
+            n if race
+                .frame
+                .many_views
+                .load(std::sync::atomic::Ordering::Relaxed) =>
+            {
+                n as u32
+            }
             n => (n % 2) as u32,
         }
     }
@@ -311,9 +320,9 @@ pub struct DrawCtx<'a> {
     /// The marks the faces' kinds pick: the car's while one is drawn (`race::draw_car`), none
     /// between cars, the menus' outside a race (`scene::car_marks`).
     pub marks: &'a crate::scene::car_marks::CarMarks,
-    /// The drawing part's scratch (`scene::workers::PartScratch`): the vertex buffer, the polygon
+    /// The drawing part's scratch (`scene::scratch_store::PartScratch`): the vertex buffer, the polygon
     /// work and the point records it draws with.
-    pub part: &'a crate::scene::workers::PartScratch,
+    pub part: &'a crate::scene::scratch_store::PartScratch,
     /// The stores every drawing part reads (`scene::workers::DrawReads`): the part's own inside a
     /// drawing scope, the owners' on the game's thread outside one.
     pub reads: crate::scene::workers::DrawReads<'a>,
@@ -331,7 +340,7 @@ impl<'a> DrawCtx<'a> {
         scene: &'a crate::scene::owner::Scene,
         input: &'a crate::input::owner::Input,
         view: &'a ViewScratch,
-        part: &'a crate::scene::workers::PartScratch,
+        part: &'a crate::scene::scratch_store::PartScratch,
         reads: crate::scene::workers::DrawReads<'a>,
     ) -> Self {
         Self {
@@ -339,7 +348,7 @@ impl<'a> DrawCtx<'a> {
             scene,
             input,
             view,
-            clock: reads.physics_tables.scene_clock.get(),
+            clock: reads.scene_clock,
             far_clip: true,
             marks: &crate::scene::car_marks::NONE,
             part,
@@ -348,20 +357,23 @@ impl<'a> DrawCtx<'a> {
     }
 }
 
-/// The texture filter's switches the view in slot `slot` starts from (`scene::polygon_work`'s
+/// The texture filter's switches the view in slot `slot` starts from (`scene::polygon_work_store`'s
 /// `smooth`, `plain_first`, `plain_second`): for the first view (slot 0) the front end's slot's,
 /// where the HUD's overlay left them the frame before (1, 1) or the menus' passes; for the others
 /// 0 (measured: the mirror and the second view always started from what the first view's last list
 /// entry left). The first view's sky is drawn smooth, the others' not. Taken on the main thread,
 /// before the parts (the front end's slot is not a part's); the view's drawing is handed the
 /// values.
-pub fn filter_input(scratch: &crate::scene::workers::DrawingScratch, slot: usize) -> [u32; 3] {
+pub fn filter_input(
+    scratch: &crate::scene::scratch_store::DrawingScratch,
+    slot: usize,
+) -> [u32; 3] {
     if slot == 0 {
         let from = &scratch.front_end().polygon;
         [
-            from.smooth.get(),
-            from.plain_first.get(),
-            from.plain_second.get(),
+            from.scalars.borrow().smooth,
+            from.scalars.borrow().plain_first,
+            from.scalars.borrow().plain_second,
         ]
     } else {
         [0; 3]
@@ -378,14 +390,20 @@ mod tests {
     #[test]
     fn the_course_grid_is_kept_between_frames_and_starts_unmade() {
         let view = ViewScratch::new(0);
-        assert_eq!(view.grid.x.get(), crate::race::view_grid::UNKNOWN_CORNER);
-        assert_eq!(view.grid.z.get(), crate::race::view_grid::UNKNOWN_CORNER);
-        view.grid.x.set(0);
-        view.grid.z.set(0);
-        view.grid.cells[3].set(42);
+        let unknown = crate::race::view_grid::UNKNOWN_CORNER;
+        assert_eq!(
+            (view.grid.borrow().x, view.grid.borrow().z),
+            (unknown, unknown)
+        );
+        {
+            let mut grid = view.grid.borrow_mut();
+            grid.x = 0;
+            grid.z = 0;
+            grid.cells[3] = 42;
+        }
         view.begin();
-        assert_eq!((view.grid.x.get(), view.grid.z.get()), (0, 0));
-        assert_eq!(view.grid.cells[3].get(), 42);
+        assert_eq!((view.grid.borrow().x, view.grid.borrow().z), (0, 0));
+        assert_eq!(view.grid.borrow().cells[3], 42);
     }
 
     /// A copy answers with its source's slot; merging it back puts what it changed since it
@@ -397,20 +415,20 @@ mod tests {
             ViewScratch::new(0),
             ViewScratch::new(0),
         );
-        view.cars.car_depth.set(5);
-        view.light.view_kind.set(7);
+        view.cars.borrow_mut().car_depth = 5;
+        view.light.borrow_mut().view_kind = 7;
         copy.copy_drawing_from(&view);
         taken.copy_drawing_from(&view);
         assert_eq!(copy.number(), 1);
         // The view draws on; the copy changes the depth and the object number.
-        view.light.view_kind.set(2);
-        view.cars.object_number.set(3);
-        copy.cars.car_depth.set(9);
-        copy.cars.object_number.set(4);
+        view.light.borrow_mut().view_kind = 2;
+        view.cars.borrow_mut().object_number = 3;
+        copy.cars.borrow_mut().car_depth = 9;
+        copy.cars.borrow_mut().object_number = 4;
         view.merge_drawing(&copy, &taken);
-        assert_eq!(view.cars.car_depth.get(), 9);
-        assert_eq!(view.cars.object_number.get(), 4);
-        assert_eq!(view.light.view_kind.get(), 2);
+        assert_eq!(view.cars.borrow().car_depth, 9);
+        assert_eq!(view.cars.borrow().object_number, 4);
+        assert_eq!(view.light.borrow().view_kind, 2);
         assert_eq!(view.number(), 1);
     }
 }

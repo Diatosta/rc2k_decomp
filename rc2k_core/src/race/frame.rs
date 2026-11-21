@@ -4,14 +4,14 @@
 use crate::Invalid;
 
 /// The dwords each view's colour buffer holds.
-pub const COLOUR_BUFFER_DWORDS: u32 = 0x40;
+pub(crate) const COLOUR_BUFFER_DWORDS: u32 = 0x40;
 
 /// The colour of a stretch not reached (the split colours' fill).
 pub const SPLIT_UNREACHED: u32 = 0xC;
 /// The colour of a split not above the one before.
-pub const SPLIT_SLOWER: u32 = 8;
+pub(crate) const SPLIT_SLOWER: u32 = 8;
 /// The colour of a split above the one before.
-pub const SPLIT_FASTER: u32 = 4;
+pub(crate) const SPLIT_FASTER: u32 = 4;
 
 /// The split colours' refusal: a fill or a split count past the colour buffer.
 pub fn check_split_colours(fill: u32, count: u32) -> Result<(), Invalid> {
@@ -78,7 +78,7 @@ pub struct ViewMarks {
 }
 
 /// The most marks a view shows.
-pub const MOST_MARKS: u32 = 4;
+pub(crate) const MOST_MARKS: u32 = 4;
 
 /// The panel marks for one view: its value, count and marks (asked for `shown` only).
 pub fn view_marks(offset: u32, count: u32, mark: impl Fn(u32) -> u32) -> ViewMarks {
@@ -110,7 +110,7 @@ pub fn car_lit(parts_shown: u32, lights: impl FnOnce() -> u32) -> bool {
 }
 
 /// The keys past which a sort entry's first dword stays 0.
-pub const SORT_KEY_LIMIT: u32 = 0x100_0000;
+pub(crate) const SORT_KEY_LIMIT: u32 = 0x100_0000;
 
 /// One sort entry: its first dword and the key (masked with 0x7FFFFFFF).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -150,11 +150,11 @@ pub fn record_cell(place: u32) -> Option<(u32, u32)> {
 /// The cell a record at (`x`, `z`) goes in, from the corner (& 0x7FF); None outside the span.
 pub fn grid_cell(x: u32, z: u32, corner: (u32, u32), span: u32) -> Option<u32> {
     let column = x.wrapping_sub(corner.0) & 0x7FF;
-    if column > span {
+    if column > span || column >= GRID_SIDE {
         return None;
     }
     let row = z.wrapping_sub(corner.1) & 0x7FF;
-    if row > span {
+    if row > span || row >= GRID_SIDE {
         return None;
     }
     Some(row.wrapping_mul(GRID_SIDE).wrapping_add(column))
@@ -254,6 +254,12 @@ mod tests {
         assert_eq!(grid_cell(5, 7, (4, 4), 4), Some(3 * 32 + 1));
         assert_eq!(grid_cell(9, 7, (4, 4), 4), None);
         assert_eq!(grid_cell(3, 7, (4, 4), 4), None);
+        // A span of 32 reaches the cells 0 ..= 32; the grid ends at 31.
+        assert_eq!(grid_cell(36, 4, (4, 4), 32), None);
+        assert_eq!(grid_cell(4, 36, (4, 4), 32), None);
+        assert_eq!(grid_cell(36, 36, (4, 4), 32), None);
+        assert_eq!(grid_cell(35, 34, (4, 4), 32), Some(30 * 32 + 31));
+        assert_eq!(grid_cell(36, 34, (4, 4), 32), None);
     }
 
     #[test]

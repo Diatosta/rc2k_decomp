@@ -78,18 +78,18 @@ impl Link {
     }
 
     /// The DirectPlay object is made.
-    pub fn has_dplay(&self) -> bool {
+    pub(super) fn has_dplay(&self) -> bool {
         self.dplay() != 0
     }
 
     /// A test's object kept as the DirectPlay object: the link releases it.
     #[cfg(test)]
-    pub fn set_dplay(&self, id: u32) {
+    pub(super) fn set_dplay(&self, id: u32) {
         self.cells.dplay.set(id);
     }
 
     /// The cell `co_create` puts the DirectPlay object's id in.
-    pub fn dplay_cell(&self) -> &Dword {
+    pub(super) fn dplay_cell(&self) -> &Dword {
         &self.cells.dplay
     }
 
@@ -99,31 +99,31 @@ impl Link {
     }
 
     /// The cell `co_create` puts the lobby object's id in.
-    pub fn lobby_cell(&self) -> &Dword {
+    pub(super) fn lobby_cell(&self) -> &Dword {
         &self.cells.lobby
     }
 
     /// This machine's player (0: none).
-    pub fn player_id(&self) -> u32 {
+    pub(super) fn player_id(&self) -> u32 {
         self.cells.player_id.get()
     }
 
-    pub fn set_player_id(&self, id: u32) {
+    pub(super) fn set_player_id(&self, id: u32) {
         self.cells.player_id.set(id);
     }
 
     /// The group the messages go to.
-    pub fn send_to(&self) -> u32 {
+    pub(super) fn send_to(&self) -> u32 {
         self.cells.send_to.get()
     }
 
-    pub fn set_send_to(&self, id: u32) {
+    pub(super) fn set_send_to(&self, id: u32) {
         self.cells.send_to.set(id);
     }
 
     /// The DirectPlay object released and forgotten: the references it has left, or none when
     /// there was no object.
-    pub fn release_dplay(&self) -> Option<u32> {
+    pub(super) fn release_dplay(&self) -> Option<u32> {
         let id = self.dplay();
         if id == 0 {
             return None;
@@ -135,7 +135,7 @@ impl Link {
 
     /// The lobby object released and forgotten: the references it has left, or none when
     /// there was no object.
-    pub fn release_lobby(&self) -> Option<u32> {
+    pub(super) fn release_lobby(&self) -> Option<u32> {
         let id = self.lobby();
         if id == 0 {
             return None;
@@ -146,7 +146,7 @@ impl Link {
     }
 
     /// The session closed if one is open.
-    pub fn close_session(&self) {
+    pub(super) fn close_session(&self) {
         if self.cells.session_open.get() == 1 {
             self.cells.session_open.set(0);
             crate::net::dp_objects::close(self.dplay());
@@ -154,14 +154,14 @@ impl Link {
     }
 
     /// The session is open.
-    pub fn mark_session_open(&self) {
+    pub(super) fn mark_session_open(&self) {
         self.cells.session_open.set(1);
     }
 
     // ---- the session's description ----
 
     /// The session description.
-    pub fn session_desc(&self) -> &SessionDesc {
+    pub(super) fn session_desc(&self) -> &SessionDesc {
         &self.cells.session_desc
     }
 
@@ -193,7 +193,7 @@ impl Link {
     }
 
     /// The tables taken (counted on the memory list) and both counts 0.
-    pub fn take_tables(&self) -> Result<(), Refused> {
+    pub(super) fn take_tables(&self) -> Result<(), Refused> {
         crate::net::tables::take(self)?;
         self.cells.connections.set(0);
         self.cells.sessions.set(0);
@@ -201,7 +201,7 @@ impl Link {
     }
 
     /// The tables given back and the counts 0. The memory list is freed by the caller.
-    pub fn give_back_tables(&self) {
+    pub(super) fn give_back_tables(&self) {
         self.tables.give_back();
         self.cells.connections.set(0);
         self.cells.sessions.set(0);
@@ -210,7 +210,7 @@ impl Link {
     // ---- the address being built ----
 
     /// One more element of the compound address.
-    pub fn push_element(&self, element: Element) {
+    pub(super) fn push_element(&self, element: Element) {
         self.elements
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -218,7 +218,7 @@ impl Link {
     }
 
     /// No elements.
-    pub fn clear_elements(&self) {
+    pub(super) fn clear_elements(&self) {
         self.elements
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)

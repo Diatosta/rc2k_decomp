@@ -1,12 +1,11 @@
 //! Fills the levels' best scores (`BestTables::level_scores`) with made-up entries.
 //!
-//! The table (0x15E0 bytes) is seven groups of ten entries of 0x50 bytes. In each group the
-//! entries get 100,000 and then 0xAB3 less each time at +0x14, and a random driver
-//! (`saves::random_driver`, a number under 0xAA): the driver's class to the entry's +0x1C,
-//! nationality to +8, car to +0x10, the id of the name's string to +0xC and the name (without
-//! a NUL) to +0x20. What the table is has not been worked out; "class times" is a guess.
-//! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded. Refuses a missing
-//! table and a name that does not fit.
+//! The table (0x15E0 bytes) is seven groups of ten entries of 0x50 bytes. In each group the entries
+//! get 100,000 and then 0xAB3 less each time in `stage_time`, and a random driver (`saves::random_driver`,
+//! a number under 0xAA): the driver's class to the entry's `group`, `nation`, `car`,
+//! the id of the name's string to `name_id` and the name (without a NUL) to `name`. What the table is has
+//! not been worked out; "class times" is a guess. Refuses a missing table and a name that does not
+//! fit.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

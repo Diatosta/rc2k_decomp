@@ -6,6 +6,7 @@ use crate::menu::screen_loop::Screen;
 /// One of the front end's screens.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ScreenId {
+    Advanced,
     AdvancedAudio,
     ArcadeBestScores,
     ArcadeBestTimes,
@@ -58,6 +59,8 @@ pub enum ScreenId {
     Player4Buttons,
     Player4Controller,
     Player4Details,
+    PlayerAxes,
+    PlayerAxis,
     PlayerDetails,
     RallyStages,
     RedefineKeysPlayer1,
@@ -94,9 +97,53 @@ pub enum ScreenId {
 }
 
 impl ScreenId {
+    /// Whether leaving the screen saves the settings: the options pages, the players' pages and
+    /// the reviews after a stage (where the options are opened from), so a crash or a killed
+    /// process keeps what was changed. Saved once on leaving, not on every key.
+    pub(super) fn changes_settings(self) -> bool {
+        matches!(
+            self,
+            ScreenId::Advanced
+                | ScreenId::AdvancedAudio
+                | ScreenId::AudioSetup
+                | ScreenId::InGameOptions
+                | ScreenId::Options
+                | ScreenId::Player1Buttons
+                | ScreenId::Player1Controller
+                | ScreenId::Player1Details
+                | ScreenId::Player2Buttons
+                | ScreenId::Player2Controller
+                | ScreenId::Player2Details
+                | ScreenId::Player3Buttons
+                | ScreenId::Player3Controller
+                | ScreenId::Player3Details
+                | ScreenId::Player4Buttons
+                | ScreenId::Player4Controller
+                | ScreenId::Player4Details
+                | ScreenId::PlayerAxes
+                | ScreenId::PlayerAxis
+                | ScreenId::PlayerDetails
+                | ScreenId::RedefineKeysPlayer1
+                | ScreenId::RedefineKeysPlayer2
+                | ScreenId::RedefineKeysPlayer3
+                | ScreenId::RedefineKeysPlayer4
+                | ScreenId::VisualOptions
+                | ScreenId::VisualPreferences
+                | ScreenId::ArcadeNextLevelReview
+                | ScreenId::ArcadeRetryReview
+                | ScreenId::ArcadeReviewOptions
+                | ScreenId::ChampionshipEndReview
+                | ScreenId::ChampionshipRacesReview
+                | ScreenId::ChampionshipServiceReview
+                | ScreenId::ChampionshipStandingsReview
+                | ScreenId::SingleRallyReview
+        )
+    }
+
     /// Every screen, in the order of the variants (the tests walk it).
     #[cfg(test)]
-    pub const ALL: [ScreenId; 85] = [
+    pub const ALL: [ScreenId; 88] = [
+        ScreenId::Advanced,
         ScreenId::AdvancedAudio,
         ScreenId::ArcadeBestScores,
         ScreenId::ArcadeBestTimes,
@@ -149,6 +196,8 @@ impl ScreenId {
         ScreenId::Player4Buttons,
         ScreenId::Player4Controller,
         ScreenId::Player4Details,
+        ScreenId::PlayerAxes,
+        ScreenId::PlayerAxis,
         ScreenId::PlayerDetails,
         ScreenId::RallyStages,
         ScreenId::RedefineKeysPlayer1,
@@ -187,6 +236,7 @@ impl ScreenId {
     /// The screen's description.
     pub fn screen(self) -> &'static Screen {
         match self {
+            ScreenId::Advanced => &crate::menu::advanced_loop::SCREEN,
             ScreenId::AdvancedAudio => &crate::menu::advanced_audio_loop::SCREEN,
             ScreenId::ArcadeBestScores => &crate::menu::arcade_best_scores_loop::SCREEN,
             ScreenId::ArcadeBestTimes => &crate::menu::arcade_best_times_loop::SCREEN,
@@ -249,6 +299,8 @@ impl ScreenId {
             ScreenId::Player4Buttons => &crate::menu::player_pages::PlayerPage::<3>::BUTTONS,
             ScreenId::Player4Controller => &crate::menu::player_pages::PlayerPage::<3>::CONTROLLER,
             ScreenId::Player4Details => &crate::menu::player_pages::PlayerPage::<3>::DETAILS,
+            ScreenId::PlayerAxes => &crate::menu::player_axes_loop::SCREEN,
+            ScreenId::PlayerAxis => &crate::menu::player_axis_loop::SCREEN,
             ScreenId::PlayerDetails => &crate::menu::player_details_loop::SCREEN,
             ScreenId::RallyStages => &crate::menu::rally_stages_loop::SCREEN,
             ScreenId::RedefineKeysPlayer1 => {

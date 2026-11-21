@@ -2,14 +2,13 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 
 pub fn race_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    crate::drive::race_frame::race_frame(race, o, 0)?;
-    Ok(())
+    crate::drive::race_frame::race_frame(race, o)
 }
 
-pub fn restart_clock(race: &Race, system: &crate::system::owner::System) {
+pub fn restart_clock(race: &Race, picture_clock: &crate::clock::tick_count::PictureClock) {
     crate::scene::restart_clock::restart_clock(
         &race.shared,
-        crate::system::tick_count::tick_count(&system.session.picture_clock),
+        crate::clock::tick_count::tick_count(picture_clock),
     );
 }
 
@@ -38,7 +37,7 @@ pub fn players_all_out(
     crate::race::frame::players_all_out(race, net_race)
 }
 
-pub fn stop_race_sounds(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn stop_race_sounds(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::race::race_end::reset_race_sounds(&crate::race::race_end::SoundVars::game(o.sound), o)
 }
 
@@ -46,9 +45,9 @@ pub fn wake_car_sounds(
     race: &Race,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
-    system: &crate::system::owner::System,
+    picture_clock: &crate::clock::tick_count::PictureClock,
 ) -> Result<(), Refused> {
-    crate::race::sounds::wake_car_sounds(race, sound, audio, system)?;
+    crate::race::sounds::wake_car_sounds(race, sound, audio, picture_clock)?;
     Ok(())
 }
 

@@ -1,18 +1,21 @@
-//! `menu::sealed_player_time`: the current player's (`event.current_player`) time (+0x88)
-//! sealed (`records::seal_time`) with the player's +8, the run kind and a byte given by the
+//! `menu::sealed_player_time`: the current player's (`event.current_player`) `time`
+//! sealed (`records::seal_time`) with the player's car number, the run kind and a byte given by the
 //! caller.
 //!
-//! Callers: `menu::enter_time_trial_best`, `menu::enter_record_entry`. Refuses a current player
-//! past 3 or missing, before anything.
+//! Refuses a current player past 3 or missing, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 use crate::race::owner::Race;
 
 /// `byte` is the low byte sealed; the sealed block's two dwords come out.
-pub fn sealed_player_time(menus: &Menus, race: &Race, byte: u32) -> Result<[u32; 2], Refused> {
+pub(super) fn sealed_player_time(
+    menus: &Menus,
+    race: &Race,
+    byte: u32,
+) -> Result<[u32; 2], Refused> {
     let screens = &menus.screens;
-    let n: u32 = screens.event.current_player.get();
+    let n: u32 = screens.event.read().current_player;
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing").into());
     }

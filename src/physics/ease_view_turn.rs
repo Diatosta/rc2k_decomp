@@ -4,78 +4,55 @@
 //! share, rounded, is added.
 //!
 //! Returns the last step.
-//!
-//! Caller: `physics::camera_avoid_ground`.
 
-use crate::drive::replay_frames_store::ReplayFrames;
-use crate::effects::cell_x87::CellX87;
-use crate::math::x87_float::int;
-use crate::math::x87_float::to_int;
-use crate::memory::session::Cell32;
+use crate::math::x87_float::{int, ld, to_int};
 use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
 
 /// The exact version, for `physics::camera_avoid_ground`.
-pub fn ease_view_turn(
-    camera: &CameraWork,
-    replay_frames: &ReplayFrames,
-    car: &Car,
-    scene: &crate::scene::owner::Scene,
-) {
-    let drawing = &scene.drawing;
-    if replay_frames.step_first.get() != 0 {
-        for share in [
-            &camera.view_share_pitch,
-            &camera.view_share_heading,
-            &camera.view_share_roll,
-        ] {
-            share.set(1.0);
-        }
+pub fn ease_view_turn(camera: &mut CameraWork, step_first: u32, car: &Car) {
+    if step_first != 0 {
+        camera.view_share_pitch = 1.0;
+        camera.view_share_heading = 1.0;
+        camera.view_share_roll = 1.0;
     }
     for (target, turn, share) in [
         (
-            &camera.start_heading,
+            camera.start_heading,
             &car.camera_heading,
-            &camera.view_share_heading,
+            camera.view_share_heading,
         ),
         (
-            &camera.start_pitch,
+            camera.start_pitch,
             &car.camera_pitch,
-            &camera.view_share_pitch,
+            camera.view_share_pitch,
         ),
         (
-            &camera.start_roll,
+            camera.start_roll,
             &car.camera_roll_turn,
-            &camera.view_share_roll,
+            camera.view_share_roll,
         ),
     ] {
-        drawing
-            .scene
-            .get()
-            .scratch
-            .set(target.get().wrapping_sub(turn.get()));
-        x87_1(share, scene);
-        turn.set(turn.get().wrapping_add(drawing.scene.get().scratch.get()));
+        let step = x87_1(share, target.wrapping_sub(turn.get()));
+        turn.set(turn.get().wrapping_add(step));
     }
 }
 
 // ---- the x87 arithmetic ----
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [scratch] = int [scratch] * [s + 0]`
-fn x87_1(s: &impl Cell32, scene: &crate::scene::owner::Scene) {
-    let drawing = &scene.drawing;
-    let t0 = int(drawing.scene.get().scratch.get() as i32);
-    let t1 = s.ld();
+/// The game's x87 arithmetic as plain Rust over `X`: `int step = int step * share`.
+fn x87_1(share: f32, step: u32) -> u32 {
+    let t0 = int(step as i32);
+    let t1 = ld(share);
     let t2 = t0 * t1;
-    drawing.scene.get().scratch.set(to_int(t2) as u32);
+    to_int(t2) as u32
 }
 
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::HostCell;
+    use crate::math::x87_mem::HostCell;
+    use crate::memory::session::Cell32;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -92,7 +69,10 @@ mod reference_vectors {
                 },
             ],
             ulps: 0,
-            plain: |a| x87_1(&HostCell(a[1]), crate::test_support::own::scene()),
+            plain: |a| {
+                let scratch = &crate::test_support::own::scene().scratch_cell();
+                scratch.set(x87_1(f32::from_bits(HostCell(a[1]).bits()), scratch.get()));
+            },
         }]
     }
 

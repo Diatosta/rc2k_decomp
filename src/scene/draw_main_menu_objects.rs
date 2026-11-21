@@ -11,7 +11,7 @@ use crate::scene::assign_menu_textures::assign_menu_textures;
 use crate::scene::choose_carousel_pictures::choose_carousel_pictures;
 use crate::scene::clear_depth_buffer::clear_depth_buffer;
 use crate::scene::draw_main_menu_carousel::draw_main_menu_carousel;
-use crate::scene::load_slot_textures::load_slot_textures_in_game;
+use crate::scene::load_slot_textures::load_slot_textures;
 use crate::scene::map_texture_places::map_texture_places;
 
 /// Its seven calls in order. The slots-in-use count the textures' loading gives back is the
@@ -29,7 +29,7 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
     choose_carousel_pictures(menus, scene)?;
     assign_menu_textures(&menus.screens.carousel, scene)?;
     map_texture_places(scene);
-    let count = load_slot_textures_in_game(&race.frame, scene)?;
+    let count = load_slot_textures(&race.frame, scene)?;
     // The front end's 3D draws on a slot of its own.
     let ctx = crate::race::view_scratch::DrawCtx::new(
         race,
@@ -39,6 +39,6 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
         o.scene.scratch.game_scratch(),
         crate::scene::workers::DrawReads::on_game_thread(crate::scene::workers::LentOwners::of(o)),
     );
-    let _held = ctx.view.matrices.hold(ctx.reads.matrices, ctx.part);
+    let _held = crate::scene::view_matrices::hold(&ctx.view.matrices, ctx.reads.matrices, ctx.part);
     draw_main_menu_carousel(menus, &ctx, count)
 }

@@ -113,7 +113,7 @@ const CLIO: u32 = 0x21;
 
 struct Page<'a, S> {
     s: &'a mut S,
-    carry: bool,
+    too_wide: bool,
     units: u32,
 }
 
@@ -131,12 +131,12 @@ impl<S: Screen<Font = Font, Work = Work>> Page<'_, S> {
     }
 
     fn string(&mut self, id: u32, font: Font, x: i32, y: i32) -> Result<(), S::Error> {
-        self.carry = self.s.string(font, id, x, y)?.too_wide;
+        self.too_wide = self.s.string(font, id, x, y)?.too_wide;
         Ok(())
     }
 
     fn line(&mut self, line: &[u8], x: i32, y: i32) -> Result<(), S::Error> {
-        self.carry = self.s.line(Font::Figures, line, x, y)?.too_wide;
+        self.too_wide = self.s.line(Font::Figures, line, x, y)?.too_wide;
         Ok(())
     }
 
@@ -194,7 +194,7 @@ pub fn page<S: Screen<Font = Font, Work = Work>>(
     let clio = notice_kind == 3 && d.car == CLIO;
     let mut p = Page {
         s,
-        carry: false,
+        too_wide: false,
         units,
     };
     match page {
@@ -207,7 +207,7 @@ pub fn page<S: Screen<Font = Font, Work = Work>>(
             } else {
                 let text = p.s.strings(d.description, 7)?;
                 p.s.store(Buffer::Text, &text)?;
-                p.carry = p.s.draw(Font::Figures, Buffer::Text, 0x1A4, 0xD5)?.too_wide;
+                p.too_wide = p.s.draw(Font::Figures, Buffer::Text, 0x1A4, 0xD5)?.too_wide;
             }
         }
         1 => {
@@ -294,7 +294,7 @@ pub fn page<S: Screen<Font = Font, Work = Work>>(
             p.line(&line, x, 0x194)?;
         }
     }
-    Ok(p.carry)
+    Ok(p.too_wide)
 }
 
 #[cfg(test)]

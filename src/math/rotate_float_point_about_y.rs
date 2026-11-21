@@ -9,7 +9,7 @@ use crate::math::x87::Flt;
 
 /// x', y, z' (the first) and the angle table's entry (the second).
 pub fn rotate_float_point_about_y(
-    tables: &crate::scene::engine_tables_store::EngineTables,
+    tables: crate::math::engine_tables::EngineTablesRef,
     x: impl Flt,
     y: impl Flt,
     z: impl Flt,
@@ -25,7 +25,7 @@ pub fn rotate_float_point_about_y(
 
 /// The converted version, on `rotate_scratch_about_y_plain`.
 pub fn rotate_float_point_about_y_plain(
-    tables: &crate::scene::engine_tables_store::EngineTables,
+    tables: crate::math::engine_tables::EngineTablesRef,
     x: impl Flt,
     y: impl Flt,
     z: impl Flt,
@@ -41,10 +41,10 @@ pub fn rotate_float_point_about_y_plain(
 
 /// The point (x, y, z, as they are held) through the scratch point.
 fn turn_float_with(
-    tables: &crate::scene::engine_tables_store::EngineTables,
+    tables: crate::math::engine_tables::EngineTablesRef,
     [x, y, z]: [u32; 3],
     angle: u32,
-    turn: fn(&crate::scene::engine_tables_store::EngineTables, &mut Scratch, u32) -> u32,
+    turn: fn(crate::math::engine_tables::EngineTablesRef, &mut Scratch, u32) -> u32,
 ) -> ([f32; 3], u32) {
     let mut point = Scratch {
         x: f32::from_bits(x),

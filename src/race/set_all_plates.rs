@@ -6,7 +6,7 @@
 //! - Each car gets eight pictures: its kind's picture (`scene::known_kind_picture` of
 //!   `race_car_kinds`[car]) and the seven after it.
 //!
-//! Called by `race::loadlevel_init`. Refuses more than 8 cars.
+//! Refuses more than 8 cars.
 
 use crate::errors::Refused;
 
@@ -23,8 +23,9 @@ pub fn set_all_plates(
     };
     let cars: u32 = shared.view.get().race_cars.get();
     check_picture_cars(cars)?;
-    let pictures = &scene.textures.places.get().kind_pictures;
-    let prefs = course.stage_prefs.get();
+    let mut places = scene.texture_places_mut();
+    let pictures = &mut places.kind_pictures;
+    let prefs = course.stage_prefs.borrow();
     for (kind, dwords) in PREF_PIECES {
         // The prefs hold three picture lists of 64 kinds each (`picture_lists_a`, `_b`, `_c`):
         // a piece is read from the list its first kind falls in.
@@ -34,11 +35,11 @@ pub fn set_all_plates(
             _ => &prefs.picture_lists_c,
         };
         for n in 0..dwords {
-            pictures[kind + n].set(list[kind % 64 + n].get());
+            pictures[kind + n] = list[kind % 64 + n];
         }
     }
     for (kind, picture) in FIXED_PICTURES {
-        pictures[kind].set(picture);
+        pictures[kind] = picture;
     }
     let mut at = CAR_PICTURE_KINDS;
     for car in 0..cars {
@@ -47,13 +48,14 @@ pub fn set_all_plates(
             shared.vars.get().race_car_kinds[car as usize].get(),
         );
         for picture in car_pictures(first) {
-            pictures[at].set(picture);
+            pictures[at] = picture;
             at += 1;
         }
     }
-    crate::race::load_times::mark("reload_system_textures");
+    drop(places);
+    crate::logfile::load_times::mark("reload_system_textures");
     crate::scene::reload_system_textures::reload_system_textures(o, progress)?;
-    crate::race::load_times::mark("reload_slot_textures");
+    crate::logfile::load_times::mark("reload_slot_textures");
     crate::scene::reload_slot_textures::reload_slot_textures(&race.frame, scene)?;
     Ok(())
 }

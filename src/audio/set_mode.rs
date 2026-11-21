@@ -8,9 +8,9 @@
 use crate::audio::own::AudioThread;
 use crate::errors::Refused;
 
-const SAM_TEXT: &std::ffi::CStr = c"SAM:"; // "SAM:"
-const OK_TEXT: &std::ffi::CStr = c"SAM: OK"; // "SAM: OK"
-const FAIL_TEXT: &std::ffi::CStr = c"SAM: FAIL"; // "SAM: FAIL"
+const SAM_TEXT: &std::ffi::CStr = c"SAM:";
+const OK_TEXT: &std::ffi::CStr = c"SAM: OK";
+const FAIL_TEXT: &std::ffi::CStr = c"SAM: FAIL";
 
 /// True when it worked.
 pub fn set_mode(
@@ -30,7 +30,7 @@ pub fn set_mode(
     close_way(audio, system, audio.state.sound_mode.get())?;
     sd::release_primary(&audio.state);
     audio.state.sound_mode.set(mode);
-    // The sound caps: free hardware buffers +0x24 all, +0x28 static, +0x3C 3D all, +0x40 3D static.
+    // The sound caps: free hardware buffers (all, static), free 3D buffers (all, static).
     let (channels, _) = rc2k_core::audio::modes::channels(
         mode,
         [caps.get_u32(0x24), caps.get_u32(0x28)],
@@ -41,7 +41,8 @@ pub fn set_mode(
         && crate::audio::primary::make_primary(audio, system)?;
     if ok {
         open_way(audio, system, audio.state.sound_mode.get())?;
-        crate::system::sleep::sleep(1000);
+        // No pause before playing (the sound card of 1999 needed a second's wait on every start
+        // and every change of the sound mode).
         crate::audio::thread_parts::play_primary(&audio.state);
         audio
             .state

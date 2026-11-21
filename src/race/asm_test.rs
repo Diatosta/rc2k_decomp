@@ -1,15 +1,6 @@
 //! Helpers of the differential tests that compare the plain-float versions with the assembly
-//! reference blocks kept (the `asm_reference` modules of the files here): one lock for all of
-//! them (they write shared statics and the control word), a seeded generator, and the two control
+//! reference blocks kept (the `asm_reference` modules of the files here): a seeded generator, and the two control
 //! words the tests run at.
-
-use std::sync::MutexGuard;
-
-/// Holds the lock of the tests that share statics or the control word
-/// (`crate::test_support::test_lock`, shared with every test of the statics).
-pub(crate) fn lock() -> MutexGuard<'static, ()> {
-    crate::test_support::test_lock()
-}
 
 /// A seeded generator of the inputs.
 pub(crate) struct Rng(pub(crate) u64);

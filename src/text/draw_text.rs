@@ -27,7 +27,7 @@ pub trait Canvas {
     fn typefaces(&self) -> &'static crate::gfx::typefaces::FontObjects {
         &self.fonts().typefaces
     }
-    /// False for a canvas that only predicts: font objects in game memory are then left alone.
+    /// False for a canvas that only predicts: the fonts' own objects are then left alone.
     fn keeps_font_changes(&self) -> bool;
     /// The kerning row table the canvas keeps.
     fn kerning(&self) -> State;
@@ -91,7 +91,7 @@ pub struct Outcome {
 }
 
 /// A canvas of this crate as the core's.
-pub struct Adapt<'a> {
+pub(super) struct Adapt<'a> {
     canvas: &'a mut dyn Canvas,
     kerning: State,
 }
@@ -177,7 +177,7 @@ pub fn draw_text(
     })
 }
 
-/// `draw_text` with a font object in game memory, for Rust callers. The object is only written (it
+/// `draw_text` with the font named by its handle. The object is only written (it
 /// only changes in `MODE_MEASURE`) if the canvas keeps font changes.
 pub fn draw_text_at(
     font: impl Into<FontRef>,

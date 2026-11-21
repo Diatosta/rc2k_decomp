@@ -15,29 +15,29 @@ use crate::errors::Refused;
 use crate::gfx::blit_bar::Bar;
 use crate::gfx::blit_bar_marker::blit_bar_marker;
 use crate::gfx::owner::Gfx;
-use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
 use crate::service::owner::Service;
 use crate::service::state::{blink_on, edit_mode, repair_flag};
 use crate::text::draw_text::Canvas;
+use std::cell::Cell;
 
 pub use rc2k_core::screens::setup_markers::{BAR_WIDTH, LEFT_X, RIGHT_X};
 
-pub fn lower_left_chosen(service: &Service) -> &PlainDword {
+pub(super) fn lower_left_chosen(service: &Service) -> &Cell<u32> {
     &service.setups[2].chosen
 }
-pub fn lower_left_installed(service: &Service) -> &PlainDword {
+pub(super) fn lower_left_installed(service: &Service) -> &Cell<u32> {
     &service.setups[2].installed
 }
-pub fn lower_right_chosen(service: &Service) -> &PlainDword {
+pub(super) fn lower_right_chosen(service: &Service) -> &Cell<u32> {
     &service.setups[3].chosen
 }
-pub fn lower_right_installed(service: &Service) -> &PlainDword {
+pub(super) fn lower_right_installed(service: &Service) -> &Cell<u32> {
     &service.setups[3].installed
 }
 
 /// A setup value the markers read.
-pub type Setting = for<'a> fn(&'a Service) -> &'a PlainDword;
+pub type Setting = for<'a> fn(&'a Service) -> &'a Cell<u32>;
 
 /// One of the six functions.
 #[derive(Clone, Copy)]
@@ -83,8 +83,7 @@ fn place(
     Ok(())
 }
 
-/// `player` is the player for the upper bars. Its one caller, `screens::draw_service_area`,
-/// reads no result.
+/// `player` is the player for the upper bars.
 pub fn draw_marker(
     menus: &Menus,
     gfx: &Gfx,
@@ -97,7 +96,7 @@ pub fn draw_marker(
     use rc2k_core::screens::setup_markers::{Marker as M, Menu, Plan};
     let menu = Menu {
         edit_mode: edit_mode(menus),
-        item: menus.screens.loop_flags.item.get(),
+        item: menus.screens.loop_flags.read().item,
         blink_on: blink_on(menus),
     };
     let read = |cell: Setting| -> Result<i32, Refused> { Ok(cell(&menus.service).get() as i32) };

@@ -2,7 +2,7 @@
 
 use crate::audio::own::AudioOwn;
 
-pub fn release_voice_manager(state: &AudioOwn) {
+pub(super) fn release_voice_manager(state: &AudioOwn) {
     let object = state.voice_manager.get();
     if object != 0 {
         crate::platform::sound::release(object);

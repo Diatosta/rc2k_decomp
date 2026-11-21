@@ -2,9 +2,10 @@
 //! addresses, their callees, the record the last search found and the car
 //! list handed on to the car choice.
 
-use crate::errors::{BadInput, FatalError, Refused};
+use crate::errors::{BadInput, FatalError, Fault, Refused};
 use crate::memory::session::DwordLike;
 use crate::menu::event_flow::*;
+use crate::menu::event_store::EventWord;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 use crate::menu::screen_id::ScreenId;
@@ -48,6 +49,11 @@ impl<'a> Game<'a> {
         self.fault.check()?;
         done
     }
+
+    /// The car list the next car choice shows, if one was handed.
+    pub(super) fn handed_cars(&self) -> Option<CarList> {
+        self.cars
+    }
 }
 
 /// The player's fields the flows read and write.
@@ -66,10 +72,77 @@ impl PlayerField {
     }
 }
 
+/// The variables kept as plain fields.
+#[derive(Clone, Copy)]
+enum PlainField {
+    Cheats,
+    Answer,
+    CarListKind,
+    StartSection,
+    StartSectionA8,
+    Event(EventWord),
+    ClassMode,
+    ReviewKind,
+    ChampMode,
+    ChampResetTimes,
+    ChampServices,
+    SpeechChannel,
+    Round,
+    /// Player `n`'s total before the stage.
+    ClearedBefore(usize),
+    /// Player `n`'s total.
+    ClearedTotal(usize),
+}
+
+impl PlainField {
+    fn get(self, menus: &Menus) -> u32 {
+        let flow = menus.screens.flow.read();
+        match self {
+            PlainField::Cheats => menus.play.cheats.read().cheats,
+            PlainField::Answer => menus.tables.pages.read().yes_no_answer,
+            PlainField::CarListKind => flow.car_list_kind,
+            PlainField::StartSection => flow.start_section,
+            PlainField::StartSectionA8 => flow.start_section_a8,
+            PlainField::Event(word) => word.get(&menus.screens.event),
+            PlainField::ClassMode => menus.screens.state.read().menus.class_mode,
+            PlainField::ReviewKind => menus.screens.state.read().menus.review_kind,
+            PlainField::ChampMode => menus.play.champ_view.read().event_mode,
+            PlainField::ChampResetTimes => menus.play.champ_view.read().reset_times,
+            PlainField::ChampServices => menus.play.champ_view.read().services,
+            PlainField::SpeechChannel => menus.options.read().menu_voices_volume,
+            PlainField::Round => menus.play.results.read().round,
+            PlainField::ClearedBefore(k) => menus.play.results.read().players[k].before,
+            PlainField::ClearedTotal(k) => menus.play.results.read().players[k].total,
+        }
+    }
+
+    fn set(self, menus: &Menus, value: u32) {
+        match self {
+            PlainField::Cheats => menus.play.cheats.write().cheats = value,
+            PlainField::Answer => menus.tables.pages.write().yes_no_answer = value,
+            PlainField::CarListKind => menus.screens.flow.write().car_list_kind = value,
+            PlainField::StartSection => menus.screens.flow.write().start_section = value,
+            PlainField::StartSectionA8 => menus.screens.flow.write().start_section_a8 = value,
+            PlainField::Event(word) => word.set(&menus.screens.event, value),
+            PlainField::ClassMode => menus.screens.state.write().menus.class_mode = value,
+            PlainField::ReviewKind => menus.screens.state.write().menus.review_kind = value,
+            PlainField::ChampMode => menus.play.champ_view.write().event_mode = value,
+            PlainField::ChampResetTimes => menus.play.champ_view.write().reset_times = value,
+            PlainField::ChampServices => menus.play.champ_view.write().services = value,
+            PlainField::SpeechChannel => menus.options.write().menu_voices_volume = value,
+            PlainField::Round => menus.play.results.write().round = value,
+            PlainField::ClearedBefore(k) => menus.play.results.write().players[k].before = value,
+            PlainField::ClearedTotal(k) => menus.play.results.write().players[k].total = value,
+        }
+    }
+}
+
 /// Where a variable is.
 enum Place<'a> {
     /// A variable of the front end's or the physics block's.
     Cell(&'a dyn DwordLike),
+    /// A field of a store of plain values.
+    Plain(PlainField),
     /// Player n's field.
     Player(u32, PlayerField),
     /// The found record's field.
@@ -78,45 +151,46 @@ enum Place<'a> {
     Refused(&'static str),
 }
 
-fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
+fn place(race: &Race, v: Var) -> Place<'_> {
     use Place::Cell;
     match v {
-        Var::Answer => Cell(&menus.tables.pages.yes_no_answer),
-        Var::PlayerCount => Cell(&menus.screens.event.player_count),
-        Var::EventMode => Cell(&menus.screens.event.event_kind),
-        Var::EventType => Cell(&menus.screens.event.event_type),
-        Var::Mode => Cell(&menus.play.champ_view.event_mode),
-        Var::Current => Cell(&menus.screens.event.current_player),
-        Var::Round => Cell(&menus.play.results.round),
-        Var::Qualifies => Cell(&menus.screens.event.trial.qualifies),
-        Var::ServiceDue => Cell(&menus.screens.event.service.due),
+        Var::Answer => Place::Plain(PlainField::Answer),
+        Var::PlayerCount => Place::Plain(PlainField::Event(EventWord::PlayerCount)),
+        Var::EventMode => Place::Plain(PlainField::Event(EventWord::EventKind)),
+        Var::EventType => Place::Plain(PlainField::Event(EventWord::EventType)),
+        Var::Mode => Place::Plain(PlainField::ChampMode),
+        Var::Current => Place::Plain(PlainField::Event(EventWord::CurrentPlayer)),
+        Var::Round => Place::Plain(PlainField::Round),
+        Var::Qualifies => Place::Plain(PlainField::Event(EventWord::TrialQualifies)),
+        Var::ServiceDue => Place::Plain(PlainField::Event(EventWord::ServiceDue)),
         Var::RaceResult => Cell(&race.shared.state.results.results[0].result),
         Var::RaceResult2 => Cell(&race.shared.state.results.results[1].result),
-        Var::CarListKind => Cell(&menus.screens.flow.car_list_kind),
-        Var::Cheats => Cell(&menus.play.cheats.cheats),
+        Var::RaceResultOf(k) => Cell(&race.shared.state.result(k as usize).result),
+        Var::CarListKind => Place::Plain(PlainField::CarListKind),
+        Var::Cheats => Place::Plain(PlainField::Cheats),
         // The eight cleared figures are the four totals before the stage, then the four totals.
-        Var::Cleared(k @ 0..4) => Cell(&menus.play.results.players[k as usize].before),
-        Var::Cleared(k @ 4..8) => Cell(&menus.play.results.players[k as usize - 4].total),
+        Var::Cleared(k @ 0..4) => Place::Plain(PlainField::ClearedBefore(k as usize)),
+        Var::Cleared(k @ 4..8) => Place::Plain(PlainField::ClearedTotal(k as usize - 4)),
         Var::Cleared(_) => Place::Refused("a cleared figure past the eight"),
         Var::PlayerTime(n) => Place::Player(n, PlayerField::Time),
         Var::PlayerEntry(n) => Place::Player(n, PlayerField::Entry),
-        Var::Continuing => Cell(&menus.screens.event.continuing_save),
-        Var::StagesDone => Cell(&menus.screens.event.stages_done),
-        Var::ResetTimes => Cell(&menus.play.champ_view.reset_times),
-        Var::Services => Cell(&menus.play.champ_view.services),
-        Var::ModeAB40 => Cell(&menus.screens.state.menus.class_mode),
-        Var::StartSection { a8: false } => Cell(&menus.screens.flow.start_section),
-        Var::StartSection { a8: true } => Cell(&menus.screens.flow.start_section_a8),
-        Var::ServiceTime => Cell(&menus.screens.event.service.minutes),
-        Var::CpuSpreadFirst => Cell(&menus.screens.event.service.spread_first),
-        Var::ServiceNext => Cell(&menus.screens.event.service.next),
-        Var::TheEnd => Cell(&menus.screens.event.championship_end),
-        Var::GoesOn => Cell(&menus.screens.event.event_goes_on),
-        Var::Section => Cell(&menus.screens.event.section),
-        Var::Index => Cell(&menus.screens.event.stage_in_section),
-        Var::ReviewKind => Cell(&menus.screens.state.menus.review_kind),
+        Var::Continuing => Place::Plain(PlainField::Event(EventWord::ContinuingSave)),
+        Var::StagesDone => Place::Plain(PlainField::Event(EventWord::StagesDone)),
+        Var::ResetTimes => Place::Plain(PlainField::ChampResetTimes),
+        Var::Services => Place::Plain(PlainField::ChampServices),
+        Var::ModeAB40 => Place::Plain(PlainField::ClassMode),
+        Var::StartSection { a8: false } => Place::Plain(PlainField::StartSection),
+        Var::StartSection { a8: true } => Place::Plain(PlainField::StartSectionA8),
+        Var::ServiceTime => Place::Plain(PlainField::Event(EventWord::ServiceMinutes)),
+        Var::CpuSpreadFirst => Place::Plain(PlainField::Event(EventWord::SpreadFirst)),
+        Var::ServiceNext => Place::Plain(PlainField::Event(EventWord::ServiceNext)),
+        Var::TheEnd => Place::Plain(PlainField::Event(EventWord::ChampionshipEnd)),
+        Var::GoesOn => Place::Plain(PlainField::Event(EventWord::EventGoesOn)),
+        Var::Section => Place::Plain(PlainField::Event(EventWord::Section)),
+        Var::Index => Place::Plain(PlainField::Event(EventWord::StageInSection)),
+        Var::ReviewKind => Place::Plain(PlainField::ReviewKind),
         Var::Record(offset) => Place::Record(offset),
-        Var::SpeechChannel => Cell(&menus.options.speech_level),
+        Var::SpeechChannel => Place::Plain(PlainField::SpeechChannel),
     }
 }
 
@@ -138,8 +212,9 @@ impl flow::Game for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
-        match place(self.menus, self.owners.race, v) {
+        match place(self.owners.race, v) {
             Place::Cell(cell) => cell.get(),
+            Place::Plain(field) => field.get(self.menus),
             Place::Player(n, field) => *field.of(&mut player(self.menus, n).get()),
             Place::Refused(why) => {
                 self.fault.ok::<()>(Err(BadInput(why)));
@@ -153,8 +228,9 @@ impl flow::Game for Game<'_> {
     }
 
     fn set(&mut self, v: Var, value: u32) {
-        match place(self.menus, self.owners.race, v) {
+        match place(self.owners.race, v) {
             Place::Cell(cell) => cell.set(value),
+            Place::Plain(field) => field.set(self.menus, value),
             Place::Player(n, field) => player(self.menus, n).update(|q| *field.of(q) = value),
             Place::Refused(why) => {
                 self.fault.ok::<()>(Err(BadInput(why)));
@@ -168,11 +244,11 @@ impl flow::Game for Game<'_> {
     }
 
     fn flag(&mut self, s: Switch) -> bool {
-        switch_cell(self.owners.menus, self.owners.system, s).is_set()
+        switch_is_set(self.owners.menus, self.owners.system, s)
     }
 
     fn set_flag(&mut self, s: Switch, on: bool) {
-        switch_cell(self.owners.menus, self.owners.system, s).set(on);
+        set_switch(self.owners.menus, self.owners.system, s, on);
     }
 
     fn run(&mut self, c: flow::Call) -> Result<(), Refused> {
@@ -404,15 +480,12 @@ impl flow::Game for Game<'_> {
             }
             C::ConvertPicture => {
                 // Whether it worked is not looked at.
-                crate::gfx::convert_picture::convert_picture_now_in(
-                    self.owners.gfx,
-                    self.owners.system,
-                )?;
+                crate::gfx::convert_picture::convert_picture_now_in(self.owners.gfx)?;
             }
             C::RunFrame => {
                 // `screens::run_frame` with `menu::picture_frame` (whether the frame was
                 // made is not looked at).
-                if let Some(made) = crate::platform::run_frame_now(self.owners, || {
+                if let Some(made) = crate::shell::frame::run_frame_now(self.owners, || {
                     m::picture_frame::picture_frame(self.owners)
                 }) {
                     made?;
@@ -464,8 +537,8 @@ impl flow::Game for Game<'_> {
     fn stream_playing(&mut self) -> Result<bool, Refused> {
         self.fault.check()?;
         // The welcome polls this until a key comes: the window goes on meanwhile.
-        crate::system::sleep::sleep(10);
-        crate::platform::pump_messages_now(self.owners);
+        crate::clock::sleep::sleep(10);
+        crate::shell::frame::pump_messages_now(self.owners);
         let (playing, _) = crate::sound::stream_playing::stream_playing(self.owners.audio);
         Ok(playing)
     }
@@ -488,25 +561,23 @@ mod tests {
         let _lock = crate::test_support::test_lock();
         let menus = crate::test_support::own::menus();
         let race = crate::test_support::own::race();
-        let players = &menus.play.results.players;
-        let kept: Vec<(u32, u32)> = players
-            .iter()
-            .map(|p| (p.before.get(), p.total.get()))
-            .collect();
+        let figures = || -> Vec<(u32, u32)> {
+            let results = menus.play.results.read();
+            results
+                .players
+                .iter()
+                .map(|p| (p.before, p.total))
+                .collect()
+        };
+        let kept = menus.play.results.read().players;
         for k in 0..8u32 {
-            match place(menus, race, Var::Cleared(k)) {
-                Place::Cell(cell) => cell.set(0x100 + k),
-                _ => panic!("cleared figure {k} is not a cell"),
+            match place(race, Var::Cleared(k)) {
+                Place::Plain(field) => field.set(menus, 0x100 + k),
+                _ => panic!("cleared figure {k} is not a plain field"),
             }
         }
-        let read: Vec<(u32, u32)> = players
-            .iter()
-            .map(|p| (p.before.get(), p.total.get()))
-            .collect();
-        for (p, (before, total)) in players.iter().zip(kept) {
-            p.before.set(before);
-            p.total.set(total);
-        }
+        let read = figures();
+        menus.play.results.write().players = kept;
         assert_eq!(
             read,
             vec![
@@ -516,9 +587,6 @@ mod tests {
                 (0x103, 0x107)
             ]
         );
-        assert!(matches!(
-            place(menus, race, Var::Cleared(8)),
-            Place::Refused(_)
-        ));
+        assert!(matches!(place(race, Var::Cleared(8)), Place::Refused(_)));
     }
 }

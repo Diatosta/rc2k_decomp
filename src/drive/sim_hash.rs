@@ -32,19 +32,86 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 
 /// The hash of the eight cars' fields in groups, one for each car (`.cars[3]`): each is the sum of one hash per run of like cells over its path, length and
 /// bytes. The groups added up are the whole blocks' hash (`total`).
-pub fn car_blocks_groups(blocks: &CarBlocks) -> Vec<(String, u64)> {
+pub fn car_blocks_groups(
+    blocks: &CarBlocks,
+    parts: &crate::race::car_parts_store::CarParts,
+) -> Vec<(String, u64)> {
     let mut hasher = GroupHasher::default();
     blocks.visit(&mut hasher);
+    // The drawing's own fields of each car were once in its block: the same paths.
+    parts.visit(&mut hasher);
+    #[cfg(any(test, feature = "remote"))]
+    hasher.add_removed_fields();
     hasher.groups
 }
 
+/// A check: every field of the cars' blocks, one line each, `sim field <tick> <path> <hash>`.
+#[cfg(feature = "remote")]
+pub fn log_fields(blocks: &CarBlocks, parts: &crate::race::car_parts_store::CarParts, tick: u32) {
+    struct Each {
+        path: String,
+        marks: Vec<usize>,
+        tick: u32,
+    }
+    impl CellVisitor for Each {
+        fn enter(&mut self, name: &'static str) {
+            self.marks.push(self.path.len());
+            self.path.push('.');
+            self.path.push_str(name);
+        }
+        fn index(&mut self, i: usize) {
+            self.marks.push(self.path.len());
+            self.path.push_str(&format!("[{i}]"));
+        }
+        fn leave(&mut self) {
+            let mark = self.marks.pop().expect("a part entered");
+            self.path.truncate(mark);
+        }
+        fn leaf(&mut self, bytes: &[u8]) {
+            if !is_gap(&self.path) {
+                crate::program_log::log(&format!(
+                    "sim field {} {} {:016x}",
+                    self.tick,
+                    self.path,
+                    fnv1a(bytes)
+                ));
+            }
+        }
+    }
+    let mut each = Each {
+        path: String::new(),
+        marks: Vec::new(),
+        tick,
+    };
+    blocks.visit(&mut each);
+    parts.visit(&mut each);
+}
+
 /// The hash of one whole record by field path and value (the cars' hash for any other store):
-/// its layout and its gap fields do not count.
-#[cfg(any(test, feature = "remote"))]
+/// its layout and its gap fields do not count. The tests' reference for the hash's scheme.
+#[cfg(test)]
 pub fn record_hash<T: Cells>(record: &T) -> u64 {
     let mut hasher = GroupHasher::default();
     record.visit(&mut hasher);
     total(&hasher.groups)
+}
+
+/// The hash `record_hash` adds for one run of dwords at `path` (`.counters[0]`, or `.kind_slot_bytes`
+/// for a lone field): a store of plain fields hashes as the cell store it replaced by adding these.
+#[cfg(feature = "remote")]
+pub fn dword_run_hash(path: &str, dwords: &[u32]) -> u64 {
+    let bytes: Vec<u8> = dwords.iter().flat_map(|d| d.to_le_bytes()).collect();
+    byte_run_hash(path, &bytes)
+}
+
+/// The hash `record_hash` adds for one run of bytes at `path`.
+#[cfg(any(test, feature = "remote"))]
+pub fn byte_run_hash(path: &str, bytes: &[u8]) -> u64 {
+    let mut entry = path.as_bytes().to_vec();
+    entry.push(0);
+    entry.extend((bytes.len() as u64).to_le_bytes());
+    entry.extend(bytes);
+    fnv1a(&entry)
 }
 
 /// FNV-1a of `bytes` and their count, for a store that is a table of bytes.
@@ -62,6 +129,23 @@ struct GroupHasher {
     /// The path's length before each part entered.
     marks: Vec<usize>,
     groups: Vec<(String, u64)>,
+}
+
+impl GroupHasher {
+    /// Adds the runs of the cars' fields that were removed, which always held 0 (`state_bits`),
+    /// so that the hash of a state stays the one it always was.
+    #[cfg(any(test, feature = "remote"))]
+    fn add_removed_fields(&mut self) {
+        for car in 0..crate::race::blocks_store::BLOCK_COUNT {
+            let path = format!(".cars[{car}].state_bits");
+            let hash = byte_run_hash(&path, &[0; 4]);
+            let group = path_group(&path);
+            match self.groups.iter_mut().find(|g| g.0 == group) {
+                Some(g) => g.1 = g.1.wrapping_add(hash),
+                None => self.groups.push((group, hash)),
+            }
+        }
+    }
 }
 
 impl CellVisitor for GroupHasher {
@@ -103,6 +187,7 @@ impl CellVisitor for GroupHasher {
 /// thread makes on its own clock, 0 until its first poll and the centred hat (0xE00) after, so
 /// the same tick recorded 0 in one run and 0xE00 in another. The cars never see those bits (the
 /// computer drives them), only the replay file keeps them, and the file is not changed.
+#[cfg(feature = "remote")]
 pub fn staging_group(bytes: &[u8]) -> (String, u64) {
     use rc2k_core::drive::replay_frames::START_DWORDS;
     /// The hat's angle (the top byte) and direction (the second byte's low nibble) in the
@@ -139,6 +224,7 @@ fn path_group(path: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::race::car_parts_store::CarParts;
 
     /// Varied bytes through every run of the blocks (the gap fields too).
     fn filled(seed: u32) -> CarBlocks {
@@ -166,23 +252,41 @@ mod tests {
     #[test]
     fn the_groups_are_one_per_car() {
         for blocks in [CarBlocks::new(), filled(1), filled(0xDEAD_BEEF)] {
-            let groups = car_blocks_groups(&blocks);
+            let groups = car_blocks_groups(&blocks, &CarParts::new());
             assert_eq!(groups.len(), 8);
         }
     }
 
     #[test]
-    fn a_field_changes_the_hash_and_a_gap_does_not() {
-        let blocks = &CarBlocks::new();
-        let first = total(&car_blocks_groups(blocks));
-        assert_eq!(first, total(&car_blocks_groups(blocks)));
-        use crate::test_support::paths::{set_bytes, set_u32};
-        assert!(set_bytes(blocks, ".cars[2]._pad_part_switches", &[0x55; 3]));
-        assert_eq!(first, total(&car_blocks_groups(blocks)));
+    fn a_field_changes_the_hash() {
+        let (blocks, parts) = (&CarBlocks::new(), &CarParts::new());
+        let first = total(&car_blocks_groups(blocks, parts));
+        assert_eq!(first, total(&car_blocks_groups(blocks, parts)));
+        use crate::test_support::paths::set_u32;
         assert!(set_u32(blocks, ".cars[2].gear", 0x7B));
-        assert_ne!(first, total(&car_blocks_groups(blocks)));
-        let groups = car_blocks_groups(blocks);
+        assert_ne!(first, total(&car_blocks_groups(blocks, parts)));
+        // A field of the drawing's state counts as one of the car's.
+        let before = total(&car_blocks_groups(blocks, parts));
+        parts.cars[5].mode_on.set(1);
+        assert_ne!(before, total(&car_blocks_groups(blocks, parts)));
+        let groups = car_blocks_groups(blocks, parts);
         assert_eq!(groups.len(), 8);
         assert_eq!(groups[2].0, ".cars[2]");
+    }
+
+    /// A gap field (`_pad_*`) is left out of the hash.
+    #[test]
+    fn a_gap_does_not_change_the_hash() {
+        #[derive(rc2k_derive::Cells)]
+        struct Padded {
+            value: crate::memory::session::PlainDword,
+            _pad_value: crate::memory::session::PlainDword,
+        }
+        let record: Padded = crate::memory::cells::zeroed_cells();
+        let first = record_hash(&record);
+        record._pad_value.set(0x55);
+        assert_eq!(first, record_hash(&record));
+        record.value.set(1);
+        assert_ne!(first, record_hash(&record));
     }
 }

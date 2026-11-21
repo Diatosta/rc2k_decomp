@@ -1,28 +1,29 @@
 //! `effects::add_drift_particle`: one entry of the marks' particle ring (the ring's first
-//! free entry, while the used count is not 0xFFF) started from six values `v`: +8 the
-//! kind; `v[0]` .. `v[2]` at +0x34, +0x2C, +0x28 (the motion); `v[3]` at +0x14 and +0x20;
-//! `v[4]` at +0x10 and (less the drift lowering) +0x1C; `v[5]` at +0xC and +0x18 (the
-//! place, now and last); +0x38 0x8000, +0x3C 0xFF000000, +0x44 50000, +0x24 the view's
-//! +0x34. With the ring full the six are dropped.
+//! free entry, while the used count is not 0xFFF) started from six values `v`: the kind;
+//! `v[0]` .. `v[2]` the motion (the lift is not set); `v[3]`, `v[4]` and `v[5]` the place's
+//! three coordinates, each stored as the place and as the last place (the second coordinate of
+//! the last place less the drift lowering); the size 0x8000, the colour 0xFF000000, the life
+//! 50000, and the ground taken from the view's place. With the ring full the six are dropped.
 //!
 //! Refuses a null ring (an entry to take), before anything.
 
-use crate::effects::blocks::{particle, set_particle};
+use crate::effects::blocks::{read_particle, update_particle};
+use crate::effects::blocks_store::ParticleKind;
+use crate::effects::particles_store::Particles;
 use crate::effects::ring_store::Ring;
-use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
+use crate::math::matrix3::rounded;
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
-use crate::scene::matrix3::rounded;
 
 const FULL: u32 = 0xFFF;
 const LIFE: u32 = 0xC350;
 
-pub fn add_drift_particle(
+pub(super) fn add_drift_particle(
     frame: &Frame,
     particles: &Particles,
     ring: &Ring,
-    kind: u32,
+    kind: ParticleKind,
     v: [[u8; 10]; 6],
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
@@ -32,33 +33,30 @@ pub fn add_drift_particle(
             return Ok(());
         }
         let free: u32 = ring.pool.free.get();
-        if free == 0 || particle(particles, free, 0)? == 0 {
+        if free == 0 || read_particle(particles, free)?.before == 0 {
             return Err(BadInput("a null particle ring entry").into());
         }
-        let e = particle(particles, free, 0)?;
+        let e = read_particle(particles, free)?.before;
         ring.pool.free.set(e);
         ring.pool.used.set(used.wrapping_add(1));
-        let put = |o: u32, x: u32| set_particle(particles, e, o, x);
-        put(8, kind)?;
-        put(0x34, rounded(v[0]))?;
-        put(0x2C, rounded(v[1]))?;
-        put(0x28, rounded(v[2]))?;
-        put(0x14, rounded(v[3]))?;
-        put(0x20, rounded(v[3]))?;
-        put(0x10, rounded(v[4]))?;
-        put(
-            0x1C,
-            x87::ext_less(v[4], &effects.kinds.particle_tuning.drift_lower).to_bits(),
-        )?;
-        put(0xC, rounded(v[5]))?;
-        put(0x18, rounded(v[5]))?;
-        put(0x38, 0x8000)?;
-        put(0x3C, 0xFF00_0000)?;
-        put(0x44, LIFE)?;
-        put(
-            0x24,
-            x87::loaded(&frame.matrices.get().view_place[13]).to_bits(),
-        )?;
+        let lowered = x87::ext_less(v[4], effects.kinds.particle_tuning.drift_lower).to_bits();
+        let ground = x87::loaded(frame.view_kept.borrow().view_place[13]).to_bits();
+        update_particle(particles, e, |p| {
+            p.kind = kind as u32;
+            p.motion_z = rounded(v[0]);
+            p.motion_y = rounded(v[1]);
+            p.motion_x = rounded(v[2]);
+            p.z = rounded(v[3]);
+            p.last_z = rounded(v[3]);
+            p.y = rounded(v[4]);
+            p.last_y = lowered;
+            p.x = rounded(v[5]);
+            p.last_x = rounded(v[5]);
+            p.size = 0x8000;
+            p.colour = 0xFF00_0000;
+            p.life = LIFE;
+            p.ground = ground;
+        })?;
     }
     Ok(())
 }

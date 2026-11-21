@@ -8,17 +8,9 @@
 //! no lobbies (the network protocol is our own), so the "launched from a lobby" flag stays 0.
 
 use crate::errors::Refused;
-use crate::logfile::program_log::log;
 use crate::owners::Owners;
+use crate::program_log::log;
 use crate::threading::thread_slot::SlotOwners;
-
-/// `InstallerPages.script_set_up` when the installer's script is set up.
-const INSTALLER_MARK: u16 = 0xBD;
-
-/// The base directory's first character.
-fn base_drive() -> u8 {
-    crate::files::state::directory_byte(0)
-}
 
 /// `logfile::log_write` of a line of the game's log.
 fn log_line(text: &std::ffi::CStr) {
@@ -31,19 +23,27 @@ fn quit_and_leave(owners: SlotOwners<'static>) -> Result<(), Refused> {
     log_line(c"Leaving main loop...");
     Ok(())
 }
+/// The main loop, logged on the way in and out.
 pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
+    log("system::main_loop: runs");
+    run(o)?;
+    log("system::main_loop: has come back");
+    Ok(())
+}
+
+/// The loop itself: the wait for the window, the set-up, the front end, the way out.
+fn run(o: Owners<'static>) -> Result<(), Refused> {
     let session = &o.system.session;
     let saves = o.saves;
     let gfx = o.gfx;
-    let sound = o.sound;
     let install = o.install;
     let menus = o.menus;
     log_line(c"");
     log_line(c"Entering main loop...");
-    // Wait for the window to be the active one and the key thread to have run; the quit
-    // switch leaves without asking to quit.
+    // Wait for the window to be the active one and the key thread to have run, looked at
+    // every 10 ms; the quit switch leaves
+    // without asking to quit.
     loop {
-        crate::system::sleep::sleep(1000);
         if session.flags.quitting.is_set() {
             log_line(c"Leaving main loop...");
             return Ok(());
@@ -51,16 +51,17 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
         if session.flags.window_active.is_set() && session.key_clock.ticks.is_set() {
             break;
         }
+        crate::clock::sleep::sleep(10);
     }
     crate::platform::set_menu_mode_now(gfx, o.system);
     crate::sound::apply_settings::apply_settings(o)?;
-    crate::gfx::load_jade::load_jade_in_game(gfx, o.system)?;
+    crate::gfx::load_jade::load_jade(gfx, o.system)?;
     crate::menu::build_notice::build_notice(menus, o.strings);
-    // The standalone in the download folder installs from it (`install::portable`); and with
+    // A program in the download folder installs from it (`install::record`); and with
     // `-u` (`flags.updating`) it uninstalls where it is: its record is in the installed folder, so
     // the uninstall runs from there.
-    if install.pages.main_menu.items[1].text.get() == INSTALLER_MARK
-        || crate::install::portable::is_source_folder()
+    if install.flags.update_entry.get().is_some()
+        || crate::install::record::is_source_folder()
         || install.flags.updating.get()
     {
         crate::install::run_installer::run_installer(install, o)?;
@@ -69,16 +70,10 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     if !install.flags.installing.get() {
         crate::install::runs_from_source::source_against_directory(
             install,
-            &mut crate::install::outside::Game {
-                install,
-                system: o.system,
-            },
+            &mut crate::install::outside::Game { install },
         )?;
     }
     install.flags.clear_command();
-    crate::sound::stop_cd_audio::stop_cd_audio(sound);
-    // Its answer is not read.
-    crate::files::is_cd_drive::is_cd_drive(base_drive());
     crate::menu::run_front_end::run_front_end(o)?;
     crate::sound::stop_music::stop_music(o);
     if session.flags.quitting.is_set() {
@@ -91,12 +86,4 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     crate::saves::save_game_data::save_in_game(o, saves)?;
     crate::saves::free_best_times::free_in_game(saves)?;
     quit_and_leave(SlotOwners::of(o))
-}
-
-/// The main loop, logged on the way in and out.
-pub fn main_loop_in_game(o: Owners<'static>) -> Result<(), Refused> {
-    log("system::main_loop: runs");
-    main_loop(o)?;
-    log("system::main_loop: has come back");
-    Ok(())
 }

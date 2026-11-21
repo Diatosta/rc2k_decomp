@@ -74,7 +74,7 @@ def setup(args):
         shutil.copy2(args.linux, os.path.join(GAME, "linux", "rc2k"))
     if args.windows:
         shutil.copy2(args.windows, os.path.join(GAME, "rc2k.exe"))
-        for dll in ("SDL3.dll", "avcodec-61.dll", "avutil-59.dll"):
+        for dll in ("SDL3.dll",):
             beside = os.path.join(os.path.dirname(args.windows), dll)
             if os.path.exists(beside):
                 shutil.copy2(beside, os.path.join(GAME, dll))

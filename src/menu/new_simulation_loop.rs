@@ -9,20 +9,22 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, List, SceneVar, Screen, SetUp, Step, screen_entry};
 
 fn before(screens: &Screens) -> Result<(), Refused> {
-    screens.items.current[slot::NEW_SIMULATION]
-        .set(screens.items.first[slot::NEW_SIMULATION].get());
-    screens.event.event_over.set(false);
+    screens.items.set_current(
+        slot::NEW_SIMULATION,
+        screens.items.first(slot::NEW_SIMULATION),
+    );
+    screens.event.write().event_over = false;
     Ok(())
 }
 
 fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
     let screens = &set_up.menus.screens;
-    screens.flow.turning.set(0x1u32);
-    screens.carousel.menu.set(0x2u32);
+    screens.flow.write().turning = 0x1u32;
+    screens.carousel.write().menu = 0x2u32;
     set_up.carousel_with(None)?;
-    let item = screens.items.current[slot::NEW_SIMULATION].get();
-    screens.loop_flags.item.set(item);
-    screens.carousel.front.set(item.wrapping_sub(1));
+    let item = screens.items.current(slot::NEW_SIMULATION);
+    screens.loop_flags.write().item = item;
+    screens.carousel.write().front = item.wrapping_sub(1);
 
     Ok(())
 }

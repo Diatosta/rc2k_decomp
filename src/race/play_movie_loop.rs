@@ -5,8 +5,6 @@
 //! (`input::update`), a key pressed (`keys_pressed + 1`) ending it, the race's step
 //! (`drive::race_step`) and frame (`drive::race_frame`), until the block played is the one to stop
 //! at; "dpg replay exit".
-//!
-//! Caller: `race::play_movie`.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
@@ -26,7 +24,10 @@ fn log_number(n: u32) {
     crate::logfile::log_int::log_int(n as i32, true, 1);
 }
 
-pub fn play_movie_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub(super) fn play_movie_loop(
+    race: &Race,
+    o: crate::owners::Owners<'static>,
+) -> Result<(), Refused> {
     let input = o.input;
     use crate::drive::race_parts;
     crate::race::stage_prefs::init_skidmarks(race)?;
@@ -35,16 +36,17 @@ pub fn play_movie_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result
     log_number(race.replay.replay_view().replay_block.get());
     log_text(TEXTS[2], false);
     log_number(race.replay.replay_view().play_end.get());
-    race.course.numbers.get().replay_mode.set(2);
-    race_parts::restart_clock(race, o.system);
-    race.shared
-        .physics_tables
-        .get()
-        .race_clock_base
-        .set(race.shared.physics_tables.get().scene_clock.get());
+    race.course.set_replay_mode(2);
+    // A replay rendered to a video runs on the video's clock from here on.
+    crate::video::race_loop_begins();
+    race_parts::restart_clock(race, &o.system.session.picture_clock);
+    let scene_clock = race.shared.run().scene_clock;
+    race.shared.run_mut().race_clock_base = scene_clock;
+    let pad_at_start = input.pad_marker();
+    let _racing = crate::race::blend::Racing::begin(race);
     loop {
         race_parts::input_update(o);
-        if input.devices.keys_pressed.get(1) != 0 {
+        if input.devices.keys_pressed.get(1) != 0 || input.pad_pressed_since(pad_at_start) {
             break;
         }
         { crate::drive::race_step::race_step(o, race) }?;

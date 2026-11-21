@@ -1,18 +1,18 @@
 //! `scene::project_point`: a point's place in the view and on the screen, worked out once and
 //! kept.
 //!
-//! The records are 0x20 bytes each in the scene's point records: +0 the point's number, +0xC
-//! the x on the screen, +0x10, +0x14, +0x18 the point in the view, +0x1C the y on the screen. A
-//! point n of the scene has record n & 0xFFF; a point -n of an object has record
-//! 0x1000 + (n & 0xFFF), which is made elsewhere and only found here. A record whose number is
-//! not the point's is made anew: the point's three whole numbers (12 bytes each in the course's
-//! point table) through the view matrix (`scene::rotate_point`: three rows of x, y, z factors
-//! and a fourth to add), the screen's two set to 0, and, unless the depth is under 4096:
-//! x = x' * (view scale / depth) + the view's centre x, y = the centre y - y' * (the same).
-//! With the stage's flat-depth switch set the depth divided by is a fixed depth + 1 instead.
-//! With the lights' draw mode at 1 the record's depth is then lowered by 262144. Fatal errors
-//! 0x80600902 and 0x80600903 for a number past the object's or the scene's points. One caller,
-//! `scene::project_polygon`.
+//! The records are eight dwords each in the scene's point records: the point's number, the x
+//! on the screen (after three unused dwords), the point in the view (three floats), the y on the
+//! screen. A point n
+//! of the scene has record n & 0xFFF; a point -n of an object has record 0x1000 + (n & 0xFFF),
+//! which is made elsewhere and only found here. A record whose number is not the point's is made
+//! anew: the point's three whole numbers (12 bytes each in the course's point table) through the
+//! view matrix (`scene::rotate_point`: three rows of x, y, z factors and a fourth to add), the
+//! screen's two set to 0, and, unless the depth is under 4096: x = x' * (view scale / depth) + the
+//! view's centre x, y = the centre y - y' * (the same). With the stage's flat-depth switch set the
+//! depth divided by is a fixed depth + 1 instead. With the lights' draw mode at 1 the record's
+//! depth is then lowered by 262144. Fatal errors 0x80600902 and 0x80600903 for a number past the
+//! object's or the scene's points.
 //!
 //! `record_offset` is the core's (`rc2k_core::scene::projection`); the arithmetic is the
 //! x87's, in plain Rust over `X` (`math/x87_float.rs`); the tests compare against recorded
@@ -21,8 +21,8 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87;
 use crate::math::x87_float::{ONE, Rounds, at_rounding, int, ld, st};
+use crate::math::x87_mem::{Base, fstp};
 use crate::scene::point_records;
-use crate::scene::x87_mem::{Base, fstp};
 
 // ---- game data ----
 
@@ -42,7 +42,7 @@ const TOO_HIGH: FatalError = FatalError {
 };
 
 /// `scene::rotate_point` as `project_point` uses it: the point's three whole numbers through the
-/// matrix, into the record's +0x10, +0x14, +0x18.
+/// matrix, into the record's three view floats.
 pub(crate) fn rotate(point: &[u32], matrix: &[f32; 16], record: &mut [u32]) {
     at_rounding!(|r| rotate_with(r, point, matrix, record));
 }
@@ -93,8 +93,11 @@ pub(crate) fn to_screen(
     checked: impl Base,
 ) {
     let screen = Screen {
-        scale: window.view_scale.get(),
-        centre: [window.view_centre[0].get(), window.view_centre[1].get()],
+        scale: window.borrow().view_scale,
+        centre: [
+            window.borrow().view_centre[0],
+            window.borrow().view_centre[1],
+        ],
         flat_depth: flat_depth as i32,
     };
     let view = [4, 5, 6].map(|k| f32::from_bits(record[k]));
@@ -147,8 +150,8 @@ pub fn record_offset(
     use rc2k_core::scene::projection::TooHigh;
     rc2k_core::scene::projection::record_offset(
         point,
-        reads.object_tables.point_count.get(),
-        reads.course_work.scene_point_count.get(),
+        reads.object_tables.point_count(),
+        reads.course_work.get().scene_point_count,
     )
     .map_err(|e| match e {
         TooHigh::Object => TOO_HIGH_OBJECT,
@@ -165,7 +168,7 @@ pub struct Projected {
 
 /// A scene point's record made anew: the point through the view's matrix and onto the screen.
 pub(crate) fn make_scene_record(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     point: u32,
     record: u32,
     reads: crate::scene::workers::DrawReads<'_>,
@@ -178,29 +181,21 @@ pub(crate) fn make_scene_record(
     let mut r = point_records::get(part, record)?;
     r[0] = point;
     let place = crate::race::scene_points::point_number(reads.course(), &part.points, point)?;
-    rotate(
-        &place,
-        &view
-            .matrices
-            .view_matrix
-            .each_ref()
-            .map(crate::memory::session::PlainFloat::get),
-        &mut r,
-    );
+    rotate(&place, &view.matrices.borrow().view_matrix, &mut r);
     r[3] = 0;
     r[7] = 0;
     if f32::from_bits(r[6]) >= NEAR {
-        let flat = reads.stage_prefs.flat_depth.get() != 0;
+        let flat = reads.stage_prefs.read(|p| p.flat_depth) != 0;
         // The depth it stores is a work value nothing reads.
         to_screen(
             &mut r,
             &view.polygon.window,
-            reads.course_work.flat_depth.get(),
+            reads.course_work.get().flat_depth,
             flat,
             &crate::memory::session::Dword::new(0),
         );
     }
-    if reads.light_state.draw_mode.get() == 1 {
+    if reads.light_work.draw_mode == 1 {
         r[6] = x87::sub(r[6], LOWERED_BY.to_bits()).to_bits();
     }
     point_records::set(part, record, r)?;
@@ -208,7 +203,7 @@ pub(crate) fn make_scene_record(
 }
 
 pub fn project_point(
-    part: &crate::scene::workers::PartScratch,
+    part: &crate::scene::scratch_store::PartScratch,
     point: u32,
     reads: crate::scene::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
@@ -225,99 +220,4 @@ pub fn project_point(
 }
 
 #[cfg(test)]
-mod reference_vectors {
-    use super::*;
-    use crate::test_support::vectors::{Differential, Kind, differential};
-
-    #[test]
-    fn rotate_matches_the_assembly() {
-        // dwords 0 .. 3 the point, 4 .. 19 the matrix, 20 .. 28 the record
-        let test = Differential {
-            name: "scene.project_point.rotate",
-            cases: 8000,
-            seed: 13,
-            kinds: [Kind::Float; 28],
-            fill: &|rng, m| {
-                m.fill(0xAAAA_AAAA);
-                for d in m.iter_mut().take(3) {
-                    *d = rng.int();
-                }
-                let moderate = rng.below(2) == 0;
-                for d in m.iter_mut().skip(4).take(15) {
-                    *d = if moderate { rng.moderate() } else { rng.fl() };
-                }
-            },
-            plain: &|c| {
-                let m: [f32; 16] = std::array::from_fn(|k| f32::from_bits(c[4 + k].get()));
-                let place = rotate_at([0, 1, 2].map(|k| c[k].get() as i32), &m);
-                for (k, v) in place.into_iter().enumerate() {
-                    c[24 + k].set(v.to_bits());
-                }
-            },
-        };
-        differential(test);
-    }
-
-    /// The window's values and the place in the view of a test's block.
-    fn screen_of(c: &[std::cell::Cell<u32>]) -> (Screen, [f32; 3]) {
-        let f = |k: usize| f32::from_bits(c[k].get());
-        let screen = Screen {
-            scale: f(0),
-            centre: [f(1), f(2)],
-            flat_depth: c[3].get() as i32,
-        };
-        (screen, [f(12), f(13), f(14)])
-    }
-
-    /// The screen's x and y into the test's record (+0xC, +0x1C).
-    fn put_screen(c: &[std::cell::Cell<u32>], [x, y]: [u32; 2]) {
-        c[11].set(x);
-        c[15].set(y);
-    }
-
-    /// dwords 0 .. 4 the scale, centre x, centre y and whole number, 4 the checked word, 8 ..
-    /// 16 the record (+0x10 .. +0x18 the place in the view).
-    fn screen_fill(rng: &mut crate::test_support::vectors::Rng, m: &mut [u32; 16]) {
-        m.fill(0xAAAA_AAAA);
-        let moderate = rng.below(2) == 0;
-        for d in m.iter_mut().take(3) {
-            *d = if moderate { rng.moderate() } else { rng.fl() };
-        }
-        m[3] = rng.int();
-        for d in m.iter_mut().skip(12).take(3) {
-            *d = if moderate { rng.moderate() } else { rng.fl() };
-        }
-    }
-
-    #[test]
-    fn screen_flat_matches_the_assembly() {
-        let test = Differential {
-            name: "scene.project_point.screen_flat",
-            cases: 8000,
-            seed: 14,
-            kinds: [Kind::Float; 16],
-            fill: &screen_fill,
-            plain: &|c| {
-                let (screen, view) = screen_of(c);
-                put_screen(c, screen_flat(view, screen, &c[4..]));
-            },
-        };
-        differential(test);
-    }
-
-    #[test]
-    fn screen_plain_matches_the_assembly() {
-        let test = Differential {
-            name: "scene.project_point.screen_plain",
-            cases: 8000,
-            seed: 15,
-            kinds: [Kind::Float; 16],
-            fill: &screen_fill,
-            plain: &|c| {
-                let (screen, view) = screen_of(c);
-                put_screen(c, screen_plain(view, screen));
-            },
-        };
-        differential(test);
-    }
-}
+mod tests;

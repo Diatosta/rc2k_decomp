@@ -1,9 +1,8 @@
 //! `physics::face_contact` for each face of a course record (the course records: its first and last
 //! face; none when the first is -1 or past the last).
 //!
-//! Caller: `physics::cell_face_contacts`. Refuses (before anything) a record whose faces (the first
-//! not -1) run to -1 or past `course_face_count`, and what `face_contact` refuses (what was written
-//! is put back).
+//! Refuses (before anything) a record whose faces (the first not -1) run to -1 or past
+//! `course_face_count`, and what `face_contact` refuses (what was written is put back).
 
 use crate::errors::Refused;
 use crate::physics::face_contact;
@@ -28,7 +27,7 @@ pub fn steps(
     ground_search::each_face(
         first,
         last,
-        c.course.course.get().course_face_count.get(),
+        c.course.course.borrow().course_face_count,
         |number| face_contact::steps(c, number, scene),
     )?;
     Ok(())

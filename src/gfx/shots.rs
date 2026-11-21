@@ -1,24 +1,23 @@
 //! The screenshot switch, its lock and the file name's template.
 
-use crate::memory::session::{PlainBytes, PlainDword};
+use std::cell::Cell;
 
-#[derive(rc2k_derive::Cells)]
 pub struct Shots {
     /// 1 = screenshots on (the `screensnapshot` setting in `var\ral.cfg`).
-    pub on: PlainDword,
+    pub on: Cell<u32>,
     /// The lock a screenshot holds.
-    pub locked_here: PlainDword,
-    /// The screenshot file's name, "000.pcx" and its NUL (the number's three digits are counted up
-    /// for each file).
-    pub name: PlainBytes<8>,
+    pub locked_here: Cell<u32>,
+    /// The screenshot file's name, "000.png" (the number's three digits are counted up for each
+    /// file).
+    pub name: Cell<[u8; 7]>,
 }
 
 impl Shots {
     pub const fn new() -> Self {
         Shots {
-            on: PlainDword::new(0),
-            locked_here: PlainDword::new(0),
-            name: PlainBytes::new(*b"000.pcx\0"),
+            on: Cell::new(0),
+            locked_here: Cell::new(0),
+            name: Cell::new(*b"000.png"),
         }
     }
 }

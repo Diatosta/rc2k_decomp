@@ -18,13 +18,13 @@ pub fn arcade_level_end(
 ) -> Result<(), Refused> {
     let play = &menus.play;
     use rc2k_core::menu::arcade::{first_win, won, won_level};
-    if !won(play.results.players[0].position.get()) {
+    if !won(play.results.read().players[0].position) {
         crate::sound::play_tune_7::play_tune_7(entry.owners);
         run_screen(ScreenId::ArcadeLevelEndResults, entry)?;
-        play.arcade.retry.set(1u32);
+        play.arcade.write().retry = 1u32;
         return Ok(());
     }
-    let level = won_level(play.arcade.level.get())?;
+    let level = won_level(play.arcade.read().level)?;
     crate::sound::play_tune_6::play_tune_6(entry.owners);
     crate::menu::arcade_finale::arcade_finale(entry.owners)?;
     if first_win(play.arcade.opened(level as usize)) {

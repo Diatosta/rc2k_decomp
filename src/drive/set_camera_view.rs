@@ -1,14 +1,15 @@
-//! A block's view taken: +0x684 = the wanted +0x688, +0x694, +0x69C, +0x698 0, +0x690 = the
-//! step count `step_clock`. The block's camera view (+0x684, 0 .. 0x33, drawn by
+//! A block's view taken: `camera_view` = the wanted `camera_blend_view`, `camera_switch_active`,
+//! `camera_switch_share`, `camera_switch_length` 0, `camera_switch_clock` = the step count
+//! `step_clock`. The block's camera view (`camera_view`, 0 .. 0x33, drawn by
 //! `physics::update_camera`) is switched there; the change-view key (`drive::next_camera_view`,
-//! from `read_car_controls`) sets the wanted +0x688 and calls this, `race::race_keys` too.
+//! from `read_car_controls`) sets the wanted `camera_blend_view` and calls this, `race::race_keys` too.
 
 use crate::errors::BadInput;
 use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use rc2k_core::drive::camera_views::CameraView;
 
-pub fn set_view_at(car: &Car, step: &PlainDword) -> Result<(), BadInput> {
+pub(super) fn set_view_at(car: &Car, step: &PlainDword) -> Result<(), BadInput> {
     let mut v = CameraView {
         wanted: car.camera_blend_view.get(),
         ..CameraView::default()

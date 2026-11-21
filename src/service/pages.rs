@@ -29,7 +29,7 @@ use crate::service::{
 use crate::system::owner::System;
 use rc2k_core::menu::player::SetupField;
 
-pub const KEY_CONFIRM: u8 = 0x1C;
+const KEY_CONFIRM: u8 = 0x1C;
 
 /// A page whose value is changed in the car itself.
 #[derive(Clone, Copy)]
@@ -52,12 +52,12 @@ pub struct ChangePage {
     pub item: u32,
 }
 
-pub const STEERING_SENSITIVITY: SimplePage = SimplePage {
+pub(super) const STEERING_SENSITIVITY: SimplePage = SimplePage {
     down: step_steering_sensitivity_down::STEPPER,
     up: step_steering_sensitivity_up::STEPPER,
     in_car: SetupField::SteeringSensitivity,
 };
-pub const BRAKE_BALANCE: SimplePage = SimplePage {
+pub(super) const BRAKE_BALANCE: SimplePage = SimplePage {
     down: step_brake_balance_down::STEPPER,
     up: step_brake_balance_up::STEPPER,
     in_car: SetupField::BrakeBalance,
@@ -111,12 +111,7 @@ fn key_and_step(
     if action == PageKey::None {
         return Ok(0);
     }
-    menus
-        .play
-        .champ_view
-        .key_clock
-        .last_key_time
-        .set(system.clocks().frame.get());
+    menus.play.champ_view.write().key_clock.last_key_time = system.clocks().frame.get();
     match action {
         PageKey::Down => {
             step(menus, down)?;
@@ -129,7 +124,7 @@ fn key_and_step(
     Ok(key)
 }
 
-pub fn simple_page(
+pub(super) fn simple_page(
     menus: &Menus,
     system: &System,
     input: &crate::input::owner::Input,
@@ -145,7 +140,7 @@ pub fn simple_page(
 
 /// `confirm`: act as if the confirm key had been pressed, without taking a key (callers
 /// outside the key handler pass true).
-pub fn change_page(
+pub(super) fn change_page(
     menus: &Menus,
     system: &System,
     input: &crate::input::owner::Input,
@@ -184,7 +179,7 @@ pub fn change_page(
         &mut f,
         &mut m,
         item as usize,
-        screens.event.service.minutes.get() as i32,
+        screens.event.read().service.minutes as i32,
         v,
         |item| time_of(&menus.service, item),
     )
@@ -193,7 +188,7 @@ pub fn change_page(
     store_marks(&menus.service, &m);
     page.change.chosen(&menus.service).set(c.chosen);
     if let Some(status) = c.status {
-        screens.state.service_ui.status.set(status);
+        screens.state.write().service_ui.status = status;
     }
     menus.service.repair_time.set(c.total as u32);
     leave_edit_mode(screens);

@@ -246,14 +246,6 @@ pub fn packed_level_path(path: &[u8]) -> Result<Vec<u8>, Invalid> {
     Ok(out)
 }
 
-/// The drive kind of a CD-ROM.
-pub const CD_ROM: u32 = 5;
-
-/// `files::is_cd_drive`: (below, equal) of a drive's kind compared with a CD-ROM's.
-pub fn is_cd(kind: u32) -> (bool, bool) {
-    (kind < CD_ROM, kind == CD_ROM)
-}
-
 /// A stream's buffer size.
 pub const BUFFER_LEN: usize = 0x2000;
 
@@ -409,25 +401,18 @@ pub fn write_stream_byte<F: Files>(
     Ok(true)
 }
 
-/// Bytes into a stream: (how many, whether a write failed, whether there was none to write
-/// or the last word was 0); `word` is that value at entry, its low byte each byte in turn.
-pub fn write_stream_block<F: Files>(
+/// Bytes into a stream, one by one until one fails: whether all were written.
+pub fn write_stream_all<F: Files>(
     f: &mut F,
     s: &mut Stream<F::Handle>,
     bytes: &[u8],
-    word: u32,
-) -> Result<(u32, bool, bool), Invalid> {
-    if bytes.is_empty() {
-        return Ok((0, false, true));
-    }
-    let mut word = word;
-    for (n, &b) in bytes.iter().enumerate() {
-        word = word & !0xFF | b as u32;
+) -> Result<bool, Invalid> {
+    for &b in bytes {
         if !write_stream_byte(f, s, b)? {
-            return Ok((n as u32, true, false));
+            return Ok(false);
         }
     }
-    Ok((bytes.len() as u32, false, word == 0))
+    Ok(true)
 }
 
 #[cfg(test)]
@@ -530,12 +515,7 @@ mod tests {
         for &b in &data[..0x2100] {
             assert!(write_stream_byte(&mut f, &mut s, b).unwrap());
         }
-        assert_eq!(
-            write_stream_block(&mut f, &mut s, &data[0x2100..], 0)
-                .unwrap()
-                .0,
-            0x2467
-        );
+        assert!(write_stream_all(&mut f, &mut s, &data[0x2100..]).unwrap());
         assert!(close_stream(&mut f, &mut s, u32::MAX).unwrap());
         assert_eq!(f.files[&3], data);
         let mut f2 = Memory {

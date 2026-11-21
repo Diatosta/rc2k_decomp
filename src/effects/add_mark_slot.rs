@@ -11,26 +11,24 @@ use crate::math::x87_float as bh;
 
 const TIME: u32 = 0x3C;
 
-pub fn add_mark_slot(what: u32, matrix: u32, effects: &crate::effects::owner::Effects) {
+pub(super) fn add_mark_slot(what: u32, matrix: u32, effects: &crate::effects::owner::Effects) {
     let blocks = &effects.blocks;
-    for slot in blocks.slots.slots.iter().rev() {
-        if slot.life.get() as i32 > 0 {
-            continue;
-        }
-        let random = blocks
-            .slot_tuning
-            .slot_random
-            .get()
-            .wrapping_mul(0xC5)
-            .wrapping_add(0x5D);
-        blocks.slot_tuning.slot_random.set(random);
-        let float =
-            bh::stf(bh::int((random & 0xFFFF) as i32) + bh::ld(blocks.slot_tuning.base.get()));
-        slot.life.set(TIME);
-        slot.point.set(what);
-        slot.matrix.set(matrix);
-        slot.spare.set(0);
-        slot.size.set(float);
+    let mut slots = blocks.slots.borrow_mut();
+    let Some(slot) = slots
+        .slots
+        .iter_mut()
+        .rev()
+        .find(|slot| slot.life as i32 <= 0)
+    else {
         return;
-    }
+    };
+    let mut tuning = blocks.slot_tuning.borrow_mut();
+    let random = tuning.slot_random.wrapping_mul(0xC5).wrapping_add(0x5D);
+    tuning.slot_random = random;
+    let float = bh::stf(bh::int((random & 0xFFFF) as i32) + bh::ld(tuning.base));
+    slot.life = TIME;
+    slot.point = what;
+    slot.matrix = matrix;
+    slot.spare = 0;
+    slot.size = float;
 }

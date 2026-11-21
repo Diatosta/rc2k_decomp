@@ -1,32 +1,28 @@
-//! Asks the game to shut down: sets `flags.quitting` to 1 and, if it was not 1 already, starts
-//! the thread of slot 3, which logs "SHUTDOWN:START", waits for the other threads and posts a
-//! close message to the window. Used by the fatal-error reporter and `system::main_loop`; it
-//! cannot be run twice or undone.
+//! Asks the game to shut down: sets `flags.quitting` to 1 and, if it was not 1 already, starts the
+//! shutdown thread, which waits for the other threads. It cannot be run twice or undone.
 
 use crate::errors::FatalError;
-use crate::logfile::program_log::log;
-use crate::threading::start_slot_thread::start_slot_thread;
-use crate::threading::thread_slot::SlotOwners;
+use crate::program_log::log;
+use crate::threading::thread_slot::{SlotOwners, SlotThread};
 use std::sync::atomic::{AtomicU32, Ordering};
 
-/// `requested` is the shutdown switch; `start` starts the thread of the slot of the number
-/// it is given.
-pub fn request_quit_with(
+/// `requested` is the shutdown switch; `start` starts the shutdown thread.
+fn request_quit_with(
     requested: &AtomicU32,
-    start: &mut dyn FnMut(usize) -> Result<(), FatalError>,
+    start: &mut dyn FnMut() -> Result<(), FatalError>,
 ) -> Result<(), FatalError> {
     use rc2k_core::threading::{QUITTING, starts_shutdown};
     if !starts_shutdown(requested.swap(QUITTING, Ordering::SeqCst)) {
         return Ok(());
     }
-    start(crate::threading::thread_slot::SHUTDOWN)
+    start()
 }
 
 /// `request_quit` on the system of `owners`, the owners the shutdown thread gets.
 pub fn request_quit_in(owners: SlotOwners<'static>) -> Result<(), FatalError> {
     let requested = owners.system.session.flags.quitting.atomic();
     let before = requested.load(Ordering::SeqCst);
-    let result = request_quit_with(requested, &mut |slot| start_slot_thread(slot, owners));
+    let result = request_quit_with(requested, &mut || SlotThread::Shutdown.start(owners));
     if result.is_err() {
         // Left as it was, so that a later request tries the thread again.
         requested.store(before, Ordering::SeqCst);

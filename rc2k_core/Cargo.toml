@@ -12,6 +12,10 @@ miniz_oxide = "0.8"
 # The options file `var/rc2k.toml` (`options`).
 serde = { version = "1", features = ["derive"] }
 toml = { version = "1.1", features = ["preserve_order"] }
+# The save code (`saves::code`): the QR code that carries a player's state, encoded and read back
+# (both pure Rust, MIT / Apache-2.0).
+qrcode = { version = "0.14", default-features = false }
+rqrr = { version = "0.11", default-features = false }
 
 [lints]
 workspace = true

@@ -1,279 +1,293 @@
 //! The game's numbers: its float constants (1.0, 65536.0, pi, the tenths, ...), named by value,
-//! with three variables among them (the replay's mode, `in_race`, the grip change). Read-only but
-//! for those three and `physics::clamped_asin`'s turn of `one`. The fields keep a fixed layout.
-//! Plain cells: a drawing store (`session::DrawShared`), written on the game's thread
-//! between frames and read by the drawing parts through their `scene::workers::DrawReads`.
+//! with two variables among them (the replay's mode, `in_race`) kept apart.
+//! The constants are a plain `Copy` value every reader holds by reference; the variables are
+//! a plain record (`session::DrawPlain`), written on the game's thread between frames; the
+//! drawing parts read a copy through their `scene::workers::DrawReads`.
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::{PlainDword, PlainFlag, PlainFloat};
+use crate::memory::session::{ConstFloat, DrawPlain, PlainRead};
 
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+/// The game's float constants (a plain value: nothing writes them).
+#[derive(Clone, Copy)]
 pub struct Numbers {
-    /// The replay's mode, 1 recording, 2 playing (`drive::keep_replay_frame`; the scene skips
-    /// the tyre screen while 2).
-    pub replay_mode: PlainDword,
-    /// Unused; it only keeps the layout.
-    pub unused_4: [PlainDword; 2],
-    /// `in_race`.
-    pub in_race: PlainFlag,
     /// 1609.3457 (`metres_in_mile`).
-    pub metres_in_mile: PlainFloat,
-    /// 0.001.
-    pub thousandth_a: PlainFloat,
-    /// 100.0.
-    pub hundred_a: PlainFloat,
+    pub metres_in_mile: ConstFloat,
     /// 0.01.
-    pub hundredth_a: PlainFloat,
+    pub hundredth_a: ConstFloat,
     /// 2.25.
-    pub two_and_a_quarter: PlainFloat,
-    /// -1.0.
-    pub minus_one_a: PlainFloat,
+    pub two_and_a_quarter: ConstFloat,
     /// 16.0.
-    pub sixteen: PlainFloat,
+    pub sixteen: ConstFloat,
     /// 20.0.
-    pub twenty: PlainFloat,
-    /// 40.0.
-    pub forty: PlainFloat,
+    pub twenty: ConstFloat,
     /// 100.0.
-    pub hundred: PlainFloat,
+    pub hundred: ConstFloat,
     /// 1000.0.
-    pub thousand: PlainFloat,
-    /// 1024.0.
-    pub k1024: PlainFloat,
-    /// 3000.0.
-    pub k3000: PlainFloat,
-    /// 3100.0.
-    pub k3100: PlainFloat,
-    /// 25.0.
-    pub twenty_five: PlainFloat,
-    /// 24.0.
-    pub twenty_four: PlainFloat,
+    pub thousand: ConstFloat,
     /// 32.0.
-    pub thirty_two: PlainFloat,
-    /// 50.0.
-    pub fifty: PlainFloat,
-    /// 1.0 (`physics::clamped_asin` negates it and back around its own use).
-    pub one: PlainFloat,
+    pub thirty_two: ConstFloat,
+    /// 1.0.
+    pub one: ConstFloat,
     /// 2.0.
-    pub two: PlainFloat,
+    pub two: ConstFloat,
     /// 3.0.
-    pub three: PlainFloat,
+    pub three: ConstFloat,
     /// 4.0.
-    pub four: PlainFloat,
+    pub four: ConstFloat,
     /// 5.0.
-    pub five: PlainFloat,
+    pub five: ConstFloat,
     /// 6.0.
-    pub six: PlainFloat,
+    pub six: ConstFloat,
     /// 8.0.
-    pub eight: PlainFloat,
+    pub eight: ConstFloat,
     /// 10.0.
-    pub ten: PlainFloat,
+    pub ten: ConstFloat,
     /// 12.0.
-    pub twelve: PlainFloat,
+    pub twelve: ConstFloat,
     /// 60.0.
-    pub sixty: PlainFloat,
+    pub sixty: ConstFloat,
     /// 64.0.
-    pub sixty_four: PlainFloat,
-    /// 128.0.
-    pub k128: PlainFloat,
+    pub sixty_four: ConstFloat,
     /// 384.0.
-    pub k384: PlainFloat,
+    pub k384: ConstFloat,
     /// 800.0.
-    pub k800: PlainFloat,
+    pub k800: ConstFloat,
     /// 600.0.
-    pub k600: PlainFloat,
+    pub k600: ConstFloat,
     /// -1.0.
-    pub minus_one: PlainFloat,
+    pub minus_one: ConstFloat,
     /// 0.2.
-    pub fifth: PlainFloat,
-    /// 1.1.
-    pub one_point_one: PlainFloat,
-    /// 0.9.
-    pub nine_tenths_a: PlainFloat,
-    /// 0.1.
-    pub tenth_a: PlainFloat,
-    /// 0.99.
-    pub point_99: PlainFloat,
+    pub fifth: ConstFloat,
     /// 0.01.
-    pub hundredth: PlainFloat,
+    pub hundredth: ConstFloat,
     /// 0.0.
-    pub zero: PlainFloat,
-    /// 65536.0.
-    pub k65536_a: PlainFloat,
+    pub zero: ConstFloat,
     /// 65536.0 (a 16.16 whole number's scale, a turn's units).
-    pub k65536: PlainFloat,
-    /// 16777216.0.
-    pub k16777216: PlainFloat,
+    pub k65536: ConstFloat,
     /// 1 / 65536.
-    pub one_over_65536: PlainFloat,
+    pub one_over_65536: ConstFloat,
     /// 0.25.
-    pub quarter: PlainFloat,
-    /// 0.75.
-    pub three_quarters: PlainFloat,
-    /// 1.25.
-    pub five_quarters: PlainFloat,
-    /// 2.5.
-    pub two_and_a_half: PlainFloat,
+    pub quarter: ConstFloat,
     /// 1.5.
-    pub one_and_a_half: PlainFloat,
-    /// 0.1.
-    pub tenth_b: PlainFloat,
+    pub one_and_a_half: ConstFloat,
     /// Pi.
-    pub pi: PlainFloat,
-    /// Pi / 2.
-    pub half_pi: PlainFloat,
-    /// 0.785.
-    pub point_785: PlainFloat,
+    pub pi: ConstFloat,
     /// 1 / pi.
-    pub one_over_pi: PlainFloat,
-    /// 2 / pi.
-    pub two_over_pi: PlainFloat,
+    pub one_over_pi: ConstFloat,
     /// 0.1.
-    pub tenth: PlainFloat,
+    pub tenth: ConstFloat,
     /// 1 / (2 pi).
-    pub one_over_two_pi: PlainFloat,
-    /// 0.9.
-    pub nine_tenths: PlainFloat,
+    pub one_over_two_pi: ConstFloat,
     /// 0.1, 0.2 .. 0.9.
-    pub tenths: [PlainFloat; 9],
+    pub tenths: [ConstFloat; 9],
     /// 2.56.
-    pub brake_scale: PlainFloat,
-    /// 0.95.
-    pub point_95: PlainFloat,
+    pub brake_scale: ConstFloat,
     /// 1.6093457.
-    pub kilometres_in_mile: PlainFloat,
-    /// The debug font's pixel size (1 at first; `debug::draw` writes it before each of the
-    /// overlay's prints).
-    pub debug_scale: PlainDword,
-    /// Unused; it only keeps the layout.
-    pub unused_130: [PlainDword; 2],
+    pub kilometres_in_mile: ConstFloat,
     /// 4096.0.
-    pub k4096_a: PlainFloat,
-    /// 262144.0.
-    pub k262144: PlainFloat,
+    pub k4096_a: ConstFloat,
     /// 4096.0.
-    pub k4096_b: PlainFloat,
-    /// 16384.0.
-    pub k16384: PlainFloat,
+    pub k4096_b: ConstFloat,
     /// 4096.0.
-    pub k4096: PlainFloat,
+    pub k4096: ConstFloat,
     /// 256.0.
-    pub k256: PlainFloat,
-    /// 512.0.
-    pub k512: PlainFloat,
+    pub k256: ConstFloat,
     /// 10000.0.
-    pub k10000: PlainFloat,
-    /// 80.0.
-    pub eighty: PlainFloat,
-    /// 48.0.
-    pub forty_eight: PlainFloat,
+    pub k10000: ConstFloat,
     /// 0.5.
-    pub half: PlainFloat,
-    /// 0.001.
-    pub thousandth: PlainFloat,
-    /// The grip forces' sum's change, eased to 0 (`physics::drive_grip_forces`; a
-    /// variable).
-    pub grip_change: PlainFloat,
+    pub half: ConstFloat,
     /// 98304.0.
-    pub k98304: PlainFloat,
+    pub k98304: ConstFloat,
+    /// 0.85, 0.75, 2.5: the car's turning inertia by axis (`physics::apply_torque`).
+    pub inertia: [ConstFloat; 3],
+    /// 1.0, 0.9, 0.85, 1.0 (`physics::wheel_surfaces`).
+    pub surface_blend: [ConstFloat; 4],
+    /// 7.5 (`physics::drive_grip_forces`).
+    pub grip_slide_scale: ConstFloat,
+    /// 5.0 (`physics::drive_grip_forces`).
+    pub grip_slip_limit: ConstFloat,
+    /// 10.0, held both ways (`physics::drive_grip_forces`).
+    pub grip_force_limit: ConstFloat,
+    /// 0.9 (`physics::load_car_specs`).
+    pub spec_scale_a4: ConstFloat,
+    /// 8500.0 (`physics::load_car_specs`).
+    pub rev_limit_scale: ConstFloat,
+    /// 2.5 (`physics::drive_wheels_step`).
+    pub drive_speed_scale: ConstFloat,
+    /// 0.05 (`physics::drive_grip_forces`).
+    pub side_force_scale: ConstFloat,
+    /// 0.5 (`physics::drive_wheels_step`).
+    pub slip_blend: ConstFloat,
+    /// 0.5 (`physics::drive_wheels_step`).
+    pub slip_share: ConstFloat,
+    /// 1.5 (`physics::drive_wheels_step`).
+    pub wheel_speed_margin: ConstFloat,
+    /// 0.1 (`physics::drive_wheels_step`).
+    pub wheel_speed_gap: ConstFloat,
+    /// 1.0 (`physics::car_sound_state`).
+    pub sound_speed_scale: ConstFloat,
+    /// 0.85 (`physics::load_car_specs`).
+    pub spec_scale_1b8: ConstFloat,
+    /// 2.0 (`physics::drive_grip_forces`).
+    pub grip_ramp: ConstFloat,
+    /// 0.25 (`physics::drive_grip_forces`).
+    pub grip_ramp_share: ConstFloat,
+    /// 5.0 (`physics::air_drag`, the test drive).
+    pub air_drag: ConstFloat,
+    /// 0.75 (the test drive).
+    pub rolling_drag: ConstFloat,
+    /// 5.0 (`physics::free_rev`).
+    pub free_rev_add: ConstFloat,
+    /// 0.005 (`physics::free_rev`).
+    pub free_rev_scale: ConstFloat,
+    /// 1.2 (`physics::load_car_specs`).
+    pub rev_top_scale: ConstFloat,
+    /// 0.0025 (`physics::wheel_surfaces`).
+    pub wheel_load_scale: ConstFloat,
+    /// 0.05 (`physics::camera_frame`).
+    pub camera_frame_scale: ConstFloat,
+    /// 0.01: the physics step's length in seconds (`figures::STEP_TIME`, the same value; the
+    /// contact routines still read the cell).
+    pub step_time: ConstFloat,
 }
 
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
+/// The two variables among the game's numbers the game's thread writes between frames
+/// (`owner_course::Course::number_vars`); the drawing parts get a copy (`NumberVarsRef`). The
+/// third, the grip change, is a cell of its own (`Course::grip_change`): the grip forces' x87
+/// code loads and stores it as an operand.
+#[derive(Clone, Copy)]
+pub struct NumberVars {
+    /// The replay's mode, 1 recording, 2 playing (`drive::keep_replay_frame`; the scene skips
+    /// the tyre screen while 2).
+    pub replay_mode: u32,
+    /// `in_race`.
+    pub in_race: bool,
+}
 
-/// The piece (a field of `race::owner::Race::course`), with its first values.
+impl NumberVars {
+    pub const fn new() -> Self {
+        Self {
+            replay_mode: 0,
+            in_race: false,
+        }
+    }
+}
+
+/// The variables as one reader finds them: the game's thread's own (read through the store when
+/// used), or a drawing part's copy.
+#[derive(Clone, Copy)]
+pub enum NumberVarsRef<'a> {
+    Store(&'a DrawPlain<NumberVars>),
+    Copy(&'a NumberVars),
+}
+
+impl NumberVarsRef<'_> {
+    /// Whether the race is on.
+    pub fn in_race(self) -> bool {
+        match self {
+            Self::Store(store) => store.borrow().in_race,
+            Self::Copy(vars) => vars.in_race,
+        }
+    }
+}
+
+impl<'a> From<&'a PlainRead<NumberVars>> for NumberVarsRef<'a> {
+    fn from(copy: &'a PlainRead<NumberVars>) -> Self {
+        Self::Copy(copy)
+    }
+}
+
+/// The constants.
 impl Numbers {
     pub const fn new() -> Self {
         Self {
-            // Game addresses:
-            unused_4: [PlainDword::new(0x7A7978), PlainDword::new(0)],
-            metres_in_mile: PlainFloat::new(1609.3457),
-            thousandth_a: PlainFloat::new(0.001),
-            hundred_a: PlainFloat::new(100.0),
-            hundredth_a: PlainFloat::new(0.01),
-            two_and_a_quarter: PlainFloat::new(2.25),
-            minus_one_a: PlainFloat::new(-1.0),
-            sixteen: PlainFloat::new(16.0),
-            twenty: PlainFloat::new(20.0),
-            forty: PlainFloat::new(40.0),
-            hundred: PlainFloat::new(100.0),
-            thousand: PlainFloat::new(1000.0),
-            k1024: PlainFloat::new(1024.0),
-            k3000: PlainFloat::new(3000.0),
-            k3100: PlainFloat::new(3100.0),
-            twenty_five: PlainFloat::new(25.0),
-            twenty_four: PlainFloat::new(24.0),
-            thirty_two: PlainFloat::new(32.0),
-            fifty: PlainFloat::new(50.0),
-            one: PlainFloat::new(1.0),
-            two: PlainFloat::new(2.0),
-            three: PlainFloat::new(3.0),
-            four: PlainFloat::new(4.0),
-            five: PlainFloat::new(5.0),
-            six: PlainFloat::new(6.0),
-            eight: PlainFloat::new(8.0),
-            ten: PlainFloat::new(10.0),
-            twelve: PlainFloat::new(12.0),
-            sixty: PlainFloat::new(60.0),
-            sixty_four: PlainFloat::new(64.0),
-            k128: PlainFloat::new(128.0),
-            k384: PlainFloat::new(384.0),
-            k800: PlainFloat::new(800.0),
-            k600: PlainFloat::new(600.0),
-            minus_one: PlainFloat::new(-1.0),
-            fifth: PlainFloat::new(0.2),
-            one_point_one: PlainFloat::new(1.1),
-            nine_tenths_a: PlainFloat::new(0.9),
-            tenth_a: PlainFloat::new(0.1),
-            point_99: PlainFloat::new(0.99),
-            hundredth: PlainFloat::new(0.01),
-            k65536_a: PlainFloat::new(65536.0),
-            k65536: PlainFloat::new(65536.0),
-            k16777216: PlainFloat::new(16777216.0),
-            one_over_65536: PlainFloat::new(0.000015258789),
-            quarter: PlainFloat::new(0.25),
-            three_quarters: PlainFloat::new(0.75),
-            five_quarters: PlainFloat::new(1.25),
-            two_and_a_half: PlainFloat::new(2.5),
-            one_and_a_half: PlainFloat::new(1.5),
-            tenth_b: PlainFloat::new(0.1),
-            pi: PlainFloat::new(core::f32::consts::PI),
-            half_pi: PlainFloat::new(1.5707964),
-            point_785: PlainFloat::new(0.785),
-            one_over_pi: PlainFloat::new(0.31830987),
-            two_over_pi: PlainFloat::new(0.63661975),
-            tenth: PlainFloat::new(0.1),
-            one_over_two_pi: PlainFloat::new(0.15915494),
-            nine_tenths: PlainFloat::new(0.9),
+            zero: ConstFloat::new(0.0),
+            metres_in_mile: ConstFloat::new(1609.3457),
+            hundredth_a: ConstFloat::new(0.01),
+            two_and_a_quarter: ConstFloat::new(2.25),
+            sixteen: ConstFloat::new(16.0),
+            twenty: ConstFloat::new(20.0),
+            hundred: ConstFloat::new(100.0),
+            thousand: ConstFloat::new(1000.0),
+            thirty_two: ConstFloat::new(32.0),
+            one: ConstFloat::new(1.0),
+            two: ConstFloat::new(2.0),
+            three: ConstFloat::new(3.0),
+            four: ConstFloat::new(4.0),
+            five: ConstFloat::new(5.0),
+            six: ConstFloat::new(6.0),
+            eight: ConstFloat::new(8.0),
+            ten: ConstFloat::new(10.0),
+            twelve: ConstFloat::new(12.0),
+            sixty: ConstFloat::new(60.0),
+            sixty_four: ConstFloat::new(64.0),
+            k384: ConstFloat::new(384.0),
+            k800: ConstFloat::new(800.0),
+            k600: ConstFloat::new(600.0),
+            minus_one: ConstFloat::new(-1.0),
+            fifth: ConstFloat::new(0.2),
+            hundredth: ConstFloat::new(0.01),
+            k65536: ConstFloat::new(65536.0),
+            one_over_65536: ConstFloat::new(0.000015258789),
+            quarter: ConstFloat::new(0.25),
+            one_and_a_half: ConstFloat::new(1.5),
+            pi: ConstFloat::new(core::f32::consts::PI),
+            one_over_pi: ConstFloat::new(0.31830987),
+            tenth: ConstFloat::new(0.1),
+            one_over_two_pi: ConstFloat::new(0.15915494),
             tenths: [
-                PlainFloat::new(0.1),
-                PlainFloat::new(0.2),
-                PlainFloat::new(0.3),
-                PlainFloat::new(0.4),
-                PlainFloat::new(0.5),
-                PlainFloat::new(0.6),
-                PlainFloat::new(0.7),
-                PlainFloat::new(0.8),
-                PlainFloat::new(0.9),
+                ConstFloat::new(0.1),
+                ConstFloat::new(0.2),
+                ConstFloat::new(0.3),
+                ConstFloat::new(0.4),
+                ConstFloat::new(0.5),
+                ConstFloat::new(0.6),
+                ConstFloat::new(0.7),
+                ConstFloat::new(0.8),
+                ConstFloat::new(0.9),
             ],
-            brake_scale: PlainFloat::new(2.56),
-            point_95: PlainFloat::new(0.95),
-            kilometres_in_mile: PlainFloat::new(1.6093457),
-            debug_scale: PlainDword::new(1),
-            k4096_a: PlainFloat::new(4096.0),
-            k262144: PlainFloat::new(262144.0),
-            k4096_b: PlainFloat::new(4096.0),
-            k16384: PlainFloat::new(16384.0),
-            k4096: PlainFloat::new(4096.0),
-            k256: PlainFloat::new(256.0),
-            k512: PlainFloat::new(512.0),
-            k10000: PlainFloat::new(10000.0),
-            eighty: PlainFloat::new(80.0),
-            forty_eight: PlainFloat::new(48.0),
-            half: PlainFloat::new(0.5),
-            thousandth: PlainFloat::new(0.001),
-            k98304: PlainFloat::new(98304.0),
-            ..ZeroCells::ZERO
+            brake_scale: ConstFloat::new(2.56),
+            kilometres_in_mile: ConstFloat::new(1.6093457),
+            k4096_a: ConstFloat::new(4096.0),
+            k4096_b: ConstFloat::new(4096.0),
+            k4096: ConstFloat::new(4096.0),
+            k256: ConstFloat::new(256.0),
+            k10000: ConstFloat::new(10000.0),
+            half: ConstFloat::new(0.5),
+            k98304: ConstFloat::new(98304.0),
+            inertia: [
+                ConstFloat::new(0.85),
+                ConstFloat::new(0.75),
+                ConstFloat::new(2.5),
+            ],
+            surface_blend: [
+                ConstFloat::new(1.0),
+                ConstFloat::new(0.9),
+                ConstFloat::new(0.85),
+                ConstFloat::new(1.0),
+            ],
+            grip_slide_scale: ConstFloat::new(crate::physics::figures::GRIP_SLIDE_SCALE),
+            grip_slip_limit: ConstFloat::new(crate::physics::figures::GRIP_SLIP_LIMIT),
+            grip_force_limit: ConstFloat::new(crate::physics::figures::GRIP_FORCE_LIMIT),
+            spec_scale_a4: ConstFloat::new(crate::physics::figures::SPEC_SCALE_A4),
+            rev_limit_scale: ConstFloat::new(crate::physics::figures::REV_LIMIT_SCALE),
+            drive_speed_scale: ConstFloat::new(crate::physics::figures::DRIVE_SPEED_SCALE),
+            side_force_scale: ConstFloat::new(crate::physics::figures::SIDE_FORCE_SCALE),
+            slip_blend: ConstFloat::new(crate::physics::figures::SLIP_BLEND),
+            slip_share: ConstFloat::new(crate::physics::figures::SLIP_SHARE),
+            wheel_speed_margin: ConstFloat::new(crate::physics::figures::WHEEL_SPEED_MARGIN),
+            wheel_speed_gap: ConstFloat::new(crate::physics::figures::WHEEL_SPEED_GAP),
+            sound_speed_scale: ConstFloat::new(crate::physics::figures::SOUND_SPEED_SCALE),
+            spec_scale_1b8: ConstFloat::new(crate::physics::figures::SPEC_SCALE_1B8),
+            grip_ramp: ConstFloat::new(crate::physics::figures::GRIP_RAMP),
+            grip_ramp_share: ConstFloat::new(crate::physics::figures::GRIP_RAMP_SHARE),
+            air_drag: ConstFloat::new(crate::physics::figures::AIR_DRAG),
+            rolling_drag: ConstFloat::new(crate::physics::figures::ROLLING_DRAG),
+            free_rev_add: ConstFloat::new(crate::physics::figures::FREE_REV_ADD),
+            free_rev_scale: ConstFloat::new(crate::physics::figures::FREE_REV_SCALE),
+            rev_top_scale: ConstFloat::new(crate::physics::figures::REV_TOP_SCALE),
+            wheel_load_scale: ConstFloat::new(crate::physics::figures::WHEEL_LOAD_SCALE),
+            camera_frame_scale: ConstFloat::new(crate::physics::figures::CAMERA_FRAME_SCALE),
+            step_time: ConstFloat::new(crate::physics::figures::STEP_TIME),
         }
     }
 }
