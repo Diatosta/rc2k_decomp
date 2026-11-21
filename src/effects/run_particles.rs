@@ -292,7 +292,7 @@ pub fn run_particles(
                 } => {
                     draw_particle::draw_particle(
                         buffer,
-                        view.view_matrix,
+                        &view.view_matrix,
                         place,
                         colour,
                         size,
@@ -327,7 +327,8 @@ pub fn run_particles(
             s & 0xFFFF
         };
         let r = seed();
-        let view = |o: usize| frame.view_kept.get().view_place[o / 4].get();
+        let view_place = frame.view_kept.borrow().view_place;
+        let view = |o: usize| view_place[o / 4];
         let uv_k: f32 = effects.frame.draw_work.borrow().uv_k;
         let wave = |k: &[f32; 3], add: f32, cosine: bool| {
             x87::int_times3_wave_plus(r as i32, [uv_k, k[0], k[1]], k[2], add, cosine)

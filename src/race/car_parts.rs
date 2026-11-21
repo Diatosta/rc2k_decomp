@@ -228,13 +228,14 @@ pub(super) fn ready_car_parts(
                 to.set(value);
             }
             copy_cells(&work.placed_matrices[..16], kept[5], 16);
+            let old_place = frame.view_kept.borrow().view_place;
             let whole = product(
                 &body_turn,
                 &matrix_of(&frame.frame_work.get().placed_matrices),
-                matrix_of(&frame.view_kept.get().view_place),
+                old_place,
             );
-            store_matrix(&frame.view_kept.get().view_place, &whole);
-            copy_cells(&frame.view_kept.get().view_place, &block.whole_matrix, 16);
+            frame.view_kept.borrow_mut().view_place = whole;
+            store_matrix(&block.whole_matrix, &whole);
         }
         c += 1;
         if c == count {

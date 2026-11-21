@@ -21,9 +21,9 @@ use crate::math::x87_float::to_int;
 use crate::physics::car_sound_state::car_sound_state;
 use crate::physics::car_store::Car;
 use crate::physics::gear_change_sound::gear_change_sound;
-use crate::race::matrices_store::ViewKept;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
+use crate::scene::matrix::Matrix;
 use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 
@@ -61,7 +61,7 @@ fn run_at(car: &Car, numbers: &Numbers) {
 // and the rounding stay x87).
 pub(super) fn engine_sound(
     numbers: &Numbers,
-    matrices: &ViewKept,
+    view_turn: &Matrix,
     shared: &RaceShared,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
@@ -75,7 +75,7 @@ pub(super) fn engine_sound(
     let whole = ext_to_int(extended(held.to_bits())) as u32;
     let (revs, _) = ease_revs(shared.car().engine_sound_revs.get(), whole);
     shared.car().engine_sound_revs.set(revs);
-    { car_sound_state(numbers, matrices, shared, sound) }?;
+    { car_sound_state(numbers, view_turn, shared, sound) }?;
     gear_change_sound(shared.car(), sound, shared.work.get())
 }
 

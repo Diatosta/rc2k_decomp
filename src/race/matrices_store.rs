@@ -74,30 +74,33 @@ impl<'a> From<&'a PlainRead<SceneMatrices>> for SceneMatricesRef<'a> {
 }
 
 /// The view's matrices kept after the views are drawn, read outside the drawing (the effects, the
-/// listener, the heard turn). Plain cells: a drawing store (`session::DrawShared`), written on the
-/// game's thread between frames.
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+/// listener, the heard turn): a plain record (`session::DrawPlain`) of values, written on the
+/// game's thread between frames and read as a copy.
+#[derive(Clone, Copy)]
 pub struct ViewKept {
     /// The view's place matrix: the copy of the placed matrix (the view's place negated) made in
     /// `race::frame_draw::view_place_tail`.
-    pub view_place_matrix: [PlainFloat; 16],
+    pub view_place_matrix: Matrix,
     /// The view turned back (`scene::view_matrix`, `scene::reflect_vector`).
-    pub view_back_matrix: [PlainFloat; 16],
+    pub view_back_matrix: Matrix,
     /// The view's turn (`drive::set_listener`, `physics::car_sounds`, `race::frame_draw`).
-    pub view_turn_matrix: [PlainFloat; 16],
+    pub view_turn_matrix: Matrix,
     /// The view matrix and its elements, used in place (`scene::project_point`,
     /// `effects::draw_particle`, `race::skidmarks`).
-    pub view_matrix: [PlainFloat; 16],
+    pub view_matrix: Matrix,
     /// The view's matrix, place (the last row of its 4 x 4 floats) (`effects::view_motion`, `race::frame_views`).
-    pub view_place: [PlainFloat; 16],
+    pub view_place: Matrix,
 }
-
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
 
 impl ViewKept {
     pub const fn new() -> Self {
-        Self::ZERO
+        Self {
+            view_place_matrix: [0.0; 16],
+            view_back_matrix: [0.0; 16],
+            view_turn_matrix: [0.0; 16],
+            view_matrix: [0.0; 16],
+            view_place: [0.0; 16],
+        }
     }
 }
 

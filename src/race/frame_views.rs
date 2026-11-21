@@ -594,11 +594,10 @@ pub fn run_view_marks(
         .copied()
         .unwrap_or(0);
     race.effects_settings().marks_layout.set(layout);
-    crate::math::cells::copy_cells(
+    let whole = crate::scene::matrix::matrix_of(
         &ctx.reads.car_blocks.cars[ctx.reads.view.view_number(view as usize)?].whole_matrix,
-        &race.frame.view_kept.get().view_place,
-        16,
     );
+    race.frame.view_kept.borrow_mut().view_place = whole;
     crate::drive::share_all_cars::share_all_cars(
         race,
         sound,

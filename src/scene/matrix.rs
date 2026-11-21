@@ -233,7 +233,7 @@ pub fn copy_matrix_with_place(
 pub fn set_light_direction(
     tables: &EngineTables,
     v: &ViewMatrices,
-    view_turn: &[impl FloatLike; 16],
+    view_turn: &Matrix,
     light: &crate::scene::object_light::ObjectLight,
 ) {
     let turns = light.borrow().light_turns;
@@ -250,7 +250,14 @@ pub fn set_light_direction(
         (turns[0] << 8).wrapping_neg(),
     );
     multiply_matrices(&v.turn_x_matrix, &v.turn_y_matrix, &v.turned_matrix);
-    multiply_matrices(&v.turned_matrix, view_turn, &v.lit_matrix);
+    store_matrix(
+        &v.lit_matrix,
+        &product(
+            &matrix_of(&v.turned_matrix),
+            view_turn,
+            matrix_of(&v.lit_matrix),
+        ),
+    );
     // `fld1; fldz; fldz; call scene::rotate_point`, the results popped in turn.
     let ahead = rotate_at(
         [0, 0, 1],
@@ -265,7 +272,7 @@ pub fn set_light_direction(
 pub fn make_object_matrix(
     tables: &EngineTables,
     v: &ViewMatrices,
-    view_turn: &[impl FloatLike; 16],
+    view_turn: &Matrix,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
 ) {

@@ -34,9 +34,9 @@ pub(super) fn windscreen_drops_drift(
         hex.moved = 1;
         if second != 0 {
             view_moved_x87(&mut hex, m, &effects.setup.clock.borrow());
-            let view = &frame.view_kept.get().view_place;
+            let view = frame.view_kept.borrow().view_place;
             for col in 0..3usize {
-                let v = [view[col].get(), view[4 + col].get(), view[8 + col].get()];
+                let v = [view[col], view[4 + col], view[8 + col]];
                 for (k, x) in v.into_iter().enumerate() {
                     hex.turn[3 * col + k] = x;
                 }

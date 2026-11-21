@@ -17,7 +17,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::race::owner::Race;
-use crate::scene::rotate_point::rotate_point;
+use crate::scene::rotate_point::rotate_point_by;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
@@ -91,11 +91,11 @@ pub fn draw_mark_slots(
         let z = x87::mul(c, k4[0]);
         let y = x87::sub_mul(b, k4[1], k4[2]);
         let x = x87::mul(a, k4[3]);
-        let once = rotate_point(
-            slot_matrix(&race.frame, matrix)?,
+        let once = rotate_point_by(
+            &slot_matrix(&race.frame, matrix)?,
             [extended(z), extended(y), extended(x)],
         );
-        let twice = rotate_point(view.view_matrix, once);
+        let twice = rotate_point_by(&view.view_matrix, once);
         let [z, y, x] = twice.map(rounded_value);
         effects.blocks.slots.borrow_mut().work = [z, y, x];
         let r = {

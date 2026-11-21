@@ -15,7 +15,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::race::owner::Race;
-use crate::scene::rotate_point::rotate_point;
+use crate::scene::rotate_point::rotate_point_by;
 use core::cell::Cell;
 const CORNERS_FROM: u32 = 0x1C_2000;
 const CORNERS_LEN: u32 = 0x8000;
@@ -40,10 +40,10 @@ pub fn draw_frame(
     if !crate::race::course_places::info_held(&race.course.stage.course) {
         return Err(BadInput("no course info").into());
     }
-    let m = &race.frame.view_kept.get().view_place;
+    let m = race.frame.view_kept.borrow().view_place;
     for n in 0..3 {
         let p: [u32; 3] = effects.frame.draw_frame.borrow().points[n].map(f32::to_bits);
-        let turned = rotate_point(m, [extended(p[2]), extended(p[1]), extended(p[0])]);
+        let turned = rotate_point_by(&m, [extended(p[2]), extended(p[1]), extended(p[0])]);
         for (k, v) in turned.iter().enumerate() {
             effects.frame.view_vars.borrow_mut().turned_points[n][k] = rounded_value(*v);
         }

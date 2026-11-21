@@ -377,7 +377,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     crate::scene::matrix::set_light_direction(
         &ctx.reads.buffers.engine_tables,
         &ctx.view.matrices,
-        &ctx.view.matrices.view_turn_matrix,
+        &crate::scene::matrix::matrix_of(&ctx.view.matrices.view_turn_matrix),
         &ctx.view.light,
     );
     place();

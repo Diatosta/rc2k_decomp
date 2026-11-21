@@ -320,12 +320,12 @@ pub fn view_matrices(
 /// game's thread, once the view is drawn, in the views' order (`race::draw_race_scene`'s
 /// `view_drawn`; no drawing part reads them).
 pub fn hand_on_view_matrices(race: &Race, m: &ViewMatrices) {
-    let shared = &race.frame.view_kept.get();
-    use crate::math::cells::copy_cells;
-    copy_cells(&m.view_turn_matrix, &shared.view_turn_matrix, 16);
-    copy_cells(&m.view_place_matrix, &shared.view_place_matrix, 16);
-    copy_cells(&m.view_matrix, &shared.view_matrix, 16);
-    copy_cells(&m.view_back_matrix, &shared.view_back_matrix, 16);
+    use crate::scene::matrix::matrix_of;
+    let mut shared = race.frame.view_kept.borrow_mut();
+    shared.view_turn_matrix = matrix_of(&m.view_turn_matrix);
+    shared.view_place_matrix = matrix_of(&m.view_place_matrix);
+    shared.view_matrix = matrix_of(&m.view_matrix);
+    shared.view_back_matrix = matrix_of(&m.view_back_matrix);
 }
 
 /// `view_matrices` into the view's own matrices.

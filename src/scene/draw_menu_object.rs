@@ -43,10 +43,11 @@ pub fn draw_menu_object_in_game(
     draw_menu_object(
         &mut |step| match step {
             Step::Matrix => {
+                let view_turn = race.frame.view_kept.borrow().view_turn_matrix;
                 make_object_matrix(
                     &ctx.reads.buffers.engine_tables,
                     &ctx.view.matrices,
-                    &race.frame.view_kept.get().view_turn_matrix,
+                    &view_turn,
                     &ctx.view.light,
                     &ctx.view.object,
                 );

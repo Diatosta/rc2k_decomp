@@ -143,16 +143,22 @@ pub fn invert_turn(
     square_matrix(course, out)
 }
 
+/// `invert_turn` on matrices as values: the turning of `from` undone (every float of the result
+/// is set, so the result does not depend on what the matrix it replaces held).
+pub fn inverted_turn(course: CourseReads<'_>, from: &matrix::Matrix) -> matrix::Matrix {
+    let from: [PlainFloat; 16] = from.map(PlainFloat::new);
+    let out = [const { PlainFloat::new(0.0) }; 16];
+    invert_turn(course, &from, &out);
+    matrix::matrix_of(&out)
+}
+
 /// `scene::set_view_matrices`, working in `scratch` (the front end's).
 pub fn set_view_matrices(
     course: CourseReads<'_>,
     frame: &crate::race::owner_frame::Frame,
     scratch: &ViewMatrices,
 ) {
-    crate::memory::session::write_bits(
-        &frame.view_kept.get().view_turn_matrix,
-        crate::memory::session::read_bits(&crate::race::matrices_store::identity_matrix()),
-    );
+    let old_view_matrix = frame.view_kept.borrow().view_matrix;
     let angles: [u32; 3] =
         crate::memory::session::read_first(&frame.view_and_records.get().view_vars.view_angles);
     set_fine_turn(course, scratch, Axis::Y, angles[0].wrapping_neg());
@@ -163,37 +169,32 @@ pub fn set_view_matrices(
         &scratch.turn_x_matrix,
         &scratch.lit_matrix,
     );
-    matrix::multiply_matrices(
-        &scratch.lit_matrix,
-        &scratch.turn_z_matrix,
-        &frame.view_kept.get().view_turn_matrix,
+    // The turn starts as the identity, its fourth column kept by the product.
+    let view_turn = matrix::product(
+        &matrix::matrix_of(&scratch.lit_matrix),
+        &matrix::matrix_of(&scratch.turn_z_matrix),
+        matrix::matrix_of(&crate::race::matrices_store::identity_matrix()),
     );
     let place = crate::memory::session::read_bits::<_, 3>(
         &frame.view_and_records.get().view_vars.view_place,
     )
     .map(u32::wrapping_neg);
     matrix::set_place(&scratch.placed_matrix, place);
-    crate::memory::session::write_bits(
-        &frame.view_kept.get().view_place_matrix,
-        crate::memory::session::read_bits(&scratch.placed_matrix),
-    );
-    matrix::multiply_matrices(
-        &scratch.placed_matrix,
-        &frame.view_kept.get().view_turn_matrix,
-        &frame.view_kept.get().view_matrix,
-    );
-    invert_turn(
-        course,
-        &frame.view_kept.get().view_turn_matrix,
-        &frame.view_kept.get().view_back_matrix,
-    );
+    let view_place_matrix = matrix::matrix_of(&scratch.placed_matrix);
+    let view_matrix = matrix::product(&view_place_matrix, &view_turn, old_view_matrix);
+    let view_back_matrix = inverted_turn(course, &view_turn);
+    {
+        let mut kept = frame.view_kept.borrow_mut();
+        kept.view_turn_matrix = view_turn;
+        kept.view_place_matrix = view_place_matrix;
+        kept.view_matrix = view_matrix;
+        kept.view_back_matrix = view_back_matrix;
+    }
     // The front end's own (its drawing reads them).
-    let m = &frame.view_kept.get();
-    use crate::math::cells::copy_cells;
-    copy_cells(&m.view_turn_matrix, &scratch.view_turn_matrix, 16);
-    copy_cells(&m.view_place_matrix, &scratch.view_place_matrix, 16);
-    copy_cells(&m.view_matrix, &scratch.view_matrix, 16);
-    copy_cells(&m.view_back_matrix, &scratch.view_back_matrix, 16);
+    matrix::store_matrix(&scratch.view_turn_matrix, &view_turn);
+    matrix::store_matrix(&scratch.view_place_matrix, &view_place_matrix);
+    matrix::store_matrix(&scratch.view_matrix, &view_matrix);
+    matrix::store_matrix(&scratch.view_back_matrix, &view_back_matrix);
 }
 
 // ---- the converted versions (`rc2k_core::scene::matrices`) ----

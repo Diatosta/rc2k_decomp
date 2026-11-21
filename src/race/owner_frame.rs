@@ -48,8 +48,8 @@ pub struct Frame {
     /// writes it (the held columns are each part's own, `scene::view_matrices::Held`, merged in
     /// the parts' order).
     pub matrices: DrawPlain<SceneMatrices>,
-    /// The views' matrices kept for what is drawn or heard after them; the game's thread's.
-    pub view_kept: DrawShared<ViewKept>,
+    /// The views' matrices kept for what is drawn or heard after them (short borrows); the game's thread's.
+    pub view_kept: DrawPlain<ViewKept>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the drawing only reads it.
     pub shadow_skids: DrawShared<ShadowSkids>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the mirror's window and the
@@ -90,7 +90,7 @@ impl Frame {
             last_frame_nanos: std::sync::atomic::AtomicU64::new(0),
             frame_work: DrawShared::new(FrameWork::new()),
             matrices: DrawPlain::new(SceneMatrices::new()),
-            view_kept: DrawShared::new(ViewKept::new()),
+            view_kept: DrawPlain::new(ViewKept::new()),
             shadow_skids: DrawShared::new(ShadowSkids::new()),
             panel_and_overlay: DrawShared::new(PanelAndOverlay::new()),
             view_and_records: DrawShared::new(ViewAndRecords::new()),

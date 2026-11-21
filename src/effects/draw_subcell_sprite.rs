@@ -15,7 +15,6 @@ use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
 use crate::effects::ring_store::RingWork;
 use crate::errors::{BadInput, Refused};
-use crate::math::cell_x87::CellX87;
 use crate::scene::fog_at::fog_at;
 
 /// The sub-cell places in the surface's table. The bursts, the only entries drawn this way,
@@ -24,7 +23,7 @@ const SUBCELLS: u32 = 0x400;
 
 /// The place turned by the view.
 fn turn(
-    view_matrix: &[crate::memory::session::PlainFloat; 16],
+    view_matrix: &crate::scene::matrix::Matrix,
     ring: &Ring,
     p: &[[u8; 10]; 3],
     effects: &crate::effects::owner::Effects,
@@ -73,7 +72,7 @@ pub(super) fn draw_subcell_sprite(
     if effects.setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    turn(view.view_matrix, ring, &place, effects);
+    turn(&view.view_matrix, ring, &place, effects);
     if crate::math::x87::bits_at_or_below(
         effects.frame.draw_work.borrow().turned[2],
         effects.frame.draw_work.borrow().near,
@@ -126,7 +125,7 @@ use crate::math::x87_float::ld;
 
 /// `turn`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn turn_x87(
-    view_matrix: &[crate::memory::session::PlainFloat; 16],
+    view_matrix: &crate::scene::matrix::Matrix,
     p: &[[u8; 10]; 3],
     w: &mut RingWork,
     dw: &mut DrawWork,
@@ -134,33 +133,33 @@ fn turn_x87(
     let t0 = bh::from_f80(p[2]);
     let t1 = bh::from_f80(p[1]);
     let t2 = bh::from_f80(p[0]);
-    let t3 = view_matrix[0].ld();
+    let t3 = bh::ld(view_matrix[0]);
     let t4 = t3 * t2;
-    let t5 = view_matrix[4].ld();
+    let t5 = bh::ld(view_matrix[4]);
     let t6 = t5 * t1;
-    let t7 = view_matrix[8].ld();
+    let t7 = bh::ld(view_matrix[8]);
     let t8 = t7 * t0;
     let t9 = t6 + t8;
     let t10 = t4 + t9;
-    let t11 = t10 + view_matrix[12].ld();
-    let t12 = view_matrix[1].ld();
+    let t11 = t10 + bh::ld(view_matrix[12]);
+    let t12 = bh::ld(view_matrix[1]);
     let t13 = t12 * t2;
-    let t14 = view_matrix[5].ld();
+    let t14 = bh::ld(view_matrix[5]);
     let t15 = t14 * t1;
-    let t16 = view_matrix[9].ld();
+    let t16 = bh::ld(view_matrix[9]);
     let t17 = t16 * t0;
     let t18 = t15 + t17;
     let t19 = t13 + t18;
-    let t20 = t19 + view_matrix[13].ld();
-    let t21 = view_matrix[2].ld();
+    let t20 = t19 + bh::ld(view_matrix[13]);
+    let t21 = bh::ld(view_matrix[2]);
     let t22 = t2 * t21;
-    let t23 = view_matrix[6].ld();
+    let t23 = bh::ld(view_matrix[6]);
     let t24 = t1 * t23;
-    let t25 = view_matrix[10].ld();
+    let t25 = bh::ld(view_matrix[10]);
     let t26 = t0 * t25;
     let t27 = t26 + t24;
     let t28 = t22 + t27;
-    let t29 = t28 + view_matrix[14].ld();
+    let t29 = t28 + bh::ld(view_matrix[14]);
     dw.turned[0] = bh::stf(t11);
     dw.turned[1] = bh::stf(t20);
     w.whole = bh::to_int(t29) as u32;

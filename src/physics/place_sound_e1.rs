@@ -23,7 +23,7 @@ pub fn place_sound_e1(c: &SoundInputs<'_>) -> Result<(), Refused> {
     o.borrow_mut().hit_volume = b;
     let at = place(
         c.numbers,
-        c.view_kept,
+        &c.view_turn,
         c.heard_turn,
         c.car,
         c.listener,

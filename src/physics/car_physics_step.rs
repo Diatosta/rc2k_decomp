@@ -272,12 +272,8 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     }
     ph::feel_ground::feel_ground(&inputs.ground())?;
     ph::reset_when_stuck::reset_when_stuck(&inputs.reset(), scene)?;
-    ph::engine_sound::engine_sound(
-        &race.course.numbers,
-        race.frame.view_kept.get(),
-        &race.shared,
-        sound,
-    )?;
+    let view_turn = race.frame.view_kept.borrow().view_turn_matrix;
+    ph::engine_sound::engine_sound(&race.course.numbers, &view_turn, &race.shared, sound)?;
     ph::spin_wheels::spin_wheels(
         race.shared.car(),
         race.shared.physics_tables.get(),
@@ -298,9 +294,10 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         &mut race.physics.damage_mut(),
         race.shared.work.get(),
     )?;
+    let view_turn = race.frame.view_kept.borrow().view_turn_matrix;
     ph::hit_part_checks::hit_part_checks(
         &race.course.numbers,
-        race.frame.view_kept.get(),
+        &view_turn,
         &race.shared,
         race.kind_tables(),
         scene,

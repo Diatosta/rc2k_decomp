@@ -10,18 +10,18 @@ use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::memory::session::PlainFloat;
 use crate::race::owner_frame::Frame;
-use crate::scene::rotate_point::rotate_point;
+use crate::scene::rotate_point::rotate_point_by;
 use crate::scene::vector3::{dot_product3, normalise};
 
 pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
-    let m = &frame.view_kept.get().view_place;
+    let m = frame.view_kept.borrow().view_place;
     // Six floats: the third row, then the step.
     let local: [PlainFloat; 6] = std::array::from_fn(|_| PlainFloat::new(0.0));
     for k in 0..3 {
-        local[k].set(x87::loaded(&m[8 + k]));
+        local[k].set(x87::loaded(m[8 + k]));
     }
     let zero = [extended(0); 3];
-    let place = rotate_point(m, zero);
+    let place = rotate_point_by(&m, zero);
     let last = effects.frame.draw_frame.borrow().last;
     for k in 0..3 {
         let step = x87::ext_less(place[k], last[k]);
@@ -39,7 +39,7 @@ pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> R
         0.0
     };
     effects.frame.view_vars.borrow_mut().facing = facing;
-    let place = rotate_point(m, zero);
+    let place = rotate_point_by(&m, zero);
     for (k, p) in place.iter().enumerate() {
         effects.frame.draw_frame.borrow_mut().last[k] = rounded_value(*p);
     }

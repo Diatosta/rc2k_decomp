@@ -62,7 +62,7 @@ fn turn_x87_matches() {
                     &crate::test_support::own::race()
                         .frame
                         .view_kept
-                        .get()
+                        .borrow()
                         .view_matrix,
                     &place,
                     &mut w.borrow_mut(),

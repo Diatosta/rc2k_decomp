@@ -11,7 +11,7 @@ use crate::math::x87;
 /// `colour` is the vertices' colour, `size` the half side.
 pub fn draw_particle(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
-    view_matrix: &[crate::memory::session::PlainFloat; 16],
+    view_matrix: &crate::scene::matrix::Matrix,
     place: [[u8; 10]; 3],
     colour: u32,
     size: u32,
@@ -19,7 +19,7 @@ pub fn draw_particle(
     effects: &crate::effects::owner::Effects,
 ) {
     let effects_frame = &effects.frame;
-    let turned = x87::column_turn(&place, view_matrix);
+    let turned = x87::column_turn_by(&place, view_matrix);
     for (n, v) in turned.into_iter().enumerate() {
         effects_frame.draw_work.borrow_mut().turned[n] = v;
     }

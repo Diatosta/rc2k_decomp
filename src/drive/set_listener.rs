@@ -10,11 +10,10 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87::{ext_to_int, int_80};
 use crate::math::x87_float as bh;
-use crate::memory::session::PlainFloat;
 use crate::physics::figures::GROUND_DROP;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
-use crate::scene::matrix::{matrix_of, product};
+use crate::scene::matrix::{Matrix, matrix_of, product};
 use rc2k_core::drive::listener;
 use rc2k_core::net::net_race::NetRace;
 
@@ -38,8 +37,8 @@ fn figures(race: &Race, net_race: Option<NetRace>, viewed: u32) -> Result<[i32; 
 pub struct ListenerView<'a> {
     /// Which car's view (0 or 1).
     pub drawn_view: u32,
-    pub view_matrix: &'a [PlainFloat; 16],
-    pub view_turn_matrix: &'a [PlainFloat; 16],
+    pub view_matrix: Matrix,
+    pub view_turn_matrix: Matrix,
     pub view_place: [u32; 3],
     /// The view's sun (its place and the view's value).
     pub sun: &'a crate::scene::polygon_work_store::ViewSun,
@@ -50,8 +49,8 @@ impl<'a> ListenerView<'a> {
     pub fn of(view: &'a crate::race::view_scratch::ViewScratch, race: &Race) -> Self {
         Self {
             drawn_view: view.drawn_view(race),
-            view_matrix: &view.matrices.view_matrix,
-            view_turn_matrix: &view.matrices.view_turn_matrix,
+            view_matrix: matrix_of(&view.matrices.view_matrix),
+            view_turn_matrix: matrix_of(&view.matrices.view_turn_matrix),
             view_place: view.state.borrow().view_place,
             sun: &view.polygon.sun,
         }
@@ -62,10 +61,11 @@ impl<'a> ListenerView<'a> {
     /// either way).
     pub fn before_any_view(race: &'a Race, scene: &'a crate::scene::owner::Scene) -> Self {
         let frame = &race.frame;
+        let kept = *frame.view_kept.borrow();
         Self {
             drawn_view: race.shared.view.get().drawn_view.get(),
-            view_matrix: &frame.view_kept.get().view_matrix,
-            view_turn_matrix: &frame.view_kept.get().view_turn_matrix,
+            view_matrix: kept.view_matrix,
+            view_turn_matrix: kept.view_turn_matrix,
             view_place: crate::memory::session::read_bits(
                 &frame.view_and_records.get().view_vars.view_place,
             ),
@@ -104,7 +104,7 @@ pub fn set_listener(
         cell.set(place.wrapping_neg());
     }
     for (k, figure) in listener::TURN_FIGURES.into_iter().enumerate() {
-        race.effects_settings().listener_turn[k].set(view.view_turn_matrix[figure].get());
+        race.effects_settings().listener_turn[k].set(view.view_turn_matrix[figure]);
     }
     let sun = *view.sun.borrow();
     race.effects_settings().listener_figures[0].set(listener::first_figure(
@@ -120,7 +120,7 @@ pub fn set_listener(
     // The car block 0's body matrix, turned by the car's turn and then by the view's matrix.
     let turned = matrix_of(&car.body_matrix);
     let place_matrix = matrix_of(&car.place_matrix);
-    let view_matrix = matrix_of(view.view_matrix);
+    let view_matrix = view.view_matrix;
     let made = {
         let mut kept = race.frame.matrices.borrow_mut();
         kept.turned_matrix = turned;

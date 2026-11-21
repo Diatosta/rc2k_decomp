@@ -11,8 +11,9 @@ use crate::scene::vector3::angle_between_vectors_plain;
 
 pub fn view_heading(frame: &Frame, effects: &crate::effects::owner::Effects) {
     let effects_frame = &effects.frame;
-    let x = x87::loaded(&frame.view_kept.get().view_place[2]);
-    let z = x87::loaded(&frame.view_kept.get().view_place[10]);
+    let view_place = frame.view_kept.borrow().view_place;
+    let x = x87::loaded(view_place[2]);
+    let z = x87::loaded(view_place[10]);
     effects_frame.draw_frame.borrow_mut().level = [x, 0.0, z];
     // A forward direction with no level part (the view looking straight up or down, or its
     // matrix not set yet: a stage's first frame) has no heading, and it is left as it was

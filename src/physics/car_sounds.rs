@@ -15,9 +15,9 @@ use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::physics::step_families::SoundInputs;
 use crate::race::frame_store::FrameWork;
-use crate::race::matrices_store::ViewKept;
 use crate::race::numbers_store::Numbers;
-use crate::scene::rotate_point::rotate_point;
+use crate::scene::matrix::Matrix;
+use crate::scene::rotate_point::rotate_point_by;
 use crate::sound::store::SoundObjectCell;
 use rc2k_core::physics::sound_places::{FIRST, PLAY, SECOND, Slot};
 
@@ -37,7 +37,7 @@ pub fn object<'a>(c: &SoundInputs<'a>) -> &'a SoundObjectCell {
 /// The place (with `offset` added to the car's, when given), turned and scaled.
 pub fn place(
     numbers: &Numbers,
-    matrices: &ViewKept,
+    view_turn: &Matrix,
     heard_turn: &crate::race::heard_turn::HeardTurn,
     car: &Car,
     listener: &Car,
@@ -54,7 +54,7 @@ pub fn place(
             None => car_part(here, listener),
         }
     };
-    let out = rotate_point(heard_turn.turn(matrices), [part(0), part(1), part(2)]);
+    let out = rotate_point_by(&heard_turn.turn(view_turn), [part(0), part(1), part(2)]);
     let k = numbers.one_over_65536.get();
     out.map(|e| rounded_value(ext_times(e, k)))
 }
@@ -62,18 +62,19 @@ pub fn place(
 /// The converted place (`rc2k_core::physics::sound_places::place`).
 fn place_plain(
     numbers: &Numbers,
-    matrices: &ViewKept,
+    view_turn: &Matrix,
     heard_turn: &crate::race::heard_turn::HeardTurn,
     car: &Car,
     listener: &Car,
     offset: Option<[u32; 3]>,
 ) -> [f32; 3] {
     let whole = |x: &[PlainDword; 3]| [0, 1, 2].map(|k| x[k].get() as i32);
+    let turn = heard_turn.turn(view_turn);
     rc2k_core::physics::sound_places::place(
         whole(&car.position),
         whole(&listener.camera_position),
         offset.map(|o| o.map(|v| v as i32)),
-        &std::array::from_fn(|n| heard_turn.turn(matrices)[n].get()),
+        &std::array::from_fn(|n| turn[n]),
         numbers.one_over_65536.get(),
     )
 }
@@ -103,7 +104,7 @@ pub(super) fn cue_plain(
     *band_cell = band;
     let place = place_plain(
         c.numbers,
-        c.view_kept,
+        &c.view_turn,
         c.heard_turn,
         c.car,
         c.listener,

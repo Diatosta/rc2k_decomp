@@ -13,7 +13,6 @@
 use crate::effects::rain_store::Weather;
 use crate::effects::snow_store::SnowLight;
 use crate::errors::Refused;
-use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::owner::Race;
@@ -24,11 +23,7 @@ const MOST: i32 = 0x800;
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
 /// The light's place and way turned by the view.
-fn turn_light(
-    frame: &Frame,
-    view_matrix: &[crate::memory::session::PlainFloat; 16],
-    weather: &Weather,
-) {
+fn turn_light(frame: &Frame, view_matrix: &crate::scene::matrix::Matrix, weather: &Weather) {
     turn_light_x87(frame, view_matrix, &mut weather.snow_light.borrow_mut());
 }
 
@@ -47,7 +42,7 @@ pub fn run_snow(
     {
         let marks = effects.settings()?;
         l.borrow_mut().kept = marks.snow_light_words[1].get();
-        turn_light(frame, view.view_matrix, weather);
+        turn_light(frame, &view.view_matrix, weather);
         crate::effects::make_fade_colours::make_fade_colours(view.light, weather, effects);
         let mut flakes = marks.snow_flakes.get() as i32;
         snow.borrow_mut().flakes = flakes as u32;
@@ -125,119 +120,116 @@ pub fn run_snow(
 }
 
 /// `turn_light`'s arithmetic as plain Rust on the x87 model, in the same order.
-fn turn_light_x87(
-    frame: &Frame,
-    view_matrix: &[crate::memory::session::PlainFloat; 16],
-    l: &mut SnowLight,
-) {
+fn turn_light_x87(frame: &Frame, view_matrix: &crate::scene::matrix::Matrix, l: &mut SnowLight) {
+    let view_place = frame.view_kept.borrow().view_place;
     let t0 = bh::ld(l.light_source[0]);
     let t1 = bh::ld(l.light_source[1]);
     let t2 = bh::ld(l.light_source[2]);
-    let t3 = frame.view_kept.get().view_place[0].ld();
+    let t3 = bh::ld(view_place[0]);
     let t4 = t3 * t2;
-    let t5 = frame.view_kept.get().view_place[4].ld();
+    let t5 = bh::ld(view_place[4]);
     let t6 = t5 * t1;
-    let t7 = frame.view_kept.get().view_place[8].ld();
+    let t7 = bh::ld(view_place[8]);
     let t8 = t7 * t0;
     let t9 = t6 + t8;
     let t10 = t4 + t9;
-    let t11 = t10 + frame.view_kept.get().view_place[12].ld();
-    let t12 = frame.view_kept.get().view_place[1].ld();
+    let t11 = t10 + bh::ld(view_place[12]);
+    let t12 = bh::ld(view_place[1]);
     let t13 = t12 * t2;
-    let t14 = frame.view_kept.get().view_place[5].ld();
+    let t14 = bh::ld(view_place[5]);
     let t15 = t14 * t1;
-    let t16 = frame.view_kept.get().view_place[9].ld();
+    let t16 = bh::ld(view_place[9]);
     let t17 = t16 * t0;
     let t18 = t15 + t17;
     let t19 = t13 + t18;
-    let t20 = t19 + frame.view_kept.get().view_place[13].ld();
-    let t21 = frame.view_kept.get().view_place[2].ld();
+    let t20 = t19 + bh::ld(view_place[13]);
+    let t21 = bh::ld(view_place[2]);
     let t22 = t2 * t21;
-    let t23 = frame.view_kept.get().view_place[6].ld();
+    let t23 = bh::ld(view_place[6]);
     let t24 = t1 * t23;
-    let t25 = frame.view_kept.get().view_place[10].ld();
+    let t25 = bh::ld(view_place[10]);
     let t26 = t0 * t25;
     let t27 = t26 + t24;
     let t28 = t22 + t27;
-    let t29 = t28 + frame.view_kept.get().view_place[14].ld();
-    let t30 = view_matrix[0].ld();
+    let t29 = t28 + bh::ld(view_place[14]);
+    let t30 = bh::ld(view_matrix[0]);
     let t31 = t30 * t11;
-    let t32 = view_matrix[4].ld();
+    let t32 = bh::ld(view_matrix[4]);
     let t33 = t32 * t20;
-    let t34 = view_matrix[8].ld();
+    let t34 = bh::ld(view_matrix[8]);
     let t35 = t34 * t29;
     let t36 = t33 + t35;
     let t37 = t31 + t36;
-    let t38 = t37 + view_matrix[12].ld();
-    let t39 = view_matrix[1].ld();
+    let t38 = t37 + bh::ld(view_matrix[12]);
+    let t39 = bh::ld(view_matrix[1]);
     let t40 = t39 * t11;
-    let t41 = view_matrix[5].ld();
+    let t41 = bh::ld(view_matrix[5]);
     let t42 = t41 * t20;
-    let t43 = view_matrix[9].ld();
+    let t43 = bh::ld(view_matrix[9]);
     let t44 = t43 * t29;
     let t45 = t42 + t44;
     let t46 = t40 + t45;
-    let t47 = t46 + view_matrix[13].ld();
-    let t48 = view_matrix[2].ld();
+    let t47 = t46 + bh::ld(view_matrix[13]);
+    let t48 = bh::ld(view_matrix[2]);
     let t49 = t11 * t48;
-    let t50 = view_matrix[6].ld();
+    let t50 = bh::ld(view_matrix[6]);
     let t51 = t20 * t50;
-    let t52 = view_matrix[10].ld();
+    let t52 = bh::ld(view_matrix[10]);
     let t53 = t29 * t52;
     let t54 = t53 + t51;
     let t55 = t49 + t54;
-    let t56 = t55 + view_matrix[14].ld();
+    let t56 = t55 + bh::ld(view_matrix[14]);
     l.light_place[0] = f32::from_bits(bh::st(t38));
     l.light_place[1] = f32::from_bits(bh::st(t47));
     l.light_place[2] = f32::from_bits(bh::st(t56));
     let t57 = bh::ld(l.light_source_way[0]);
     let t58 = bh::ld(l.light_source_way[1]);
     let t59 = bh::ld(l.light_source_way[2]);
-    let t60 = frame.view_kept.get().view_place[0].ld();
+    let t60 = bh::ld(view_place[0]);
     let t61 = t60 * t59;
-    let t62 = frame.view_kept.get().view_place[4].ld();
+    let t62 = bh::ld(view_place[4]);
     let t63 = t62 * t58;
-    let t64 = frame.view_kept.get().view_place[8].ld();
+    let t64 = bh::ld(view_place[8]);
     let t65 = t64 * t57;
     let t66 = t63 + t65;
     let t67 = t61 + t66;
-    let t68 = frame.view_kept.get().view_place[1].ld();
+    let t68 = bh::ld(view_place[1]);
     let t69 = t68 * t59;
-    let t70 = frame.view_kept.get().view_place[5].ld();
+    let t70 = bh::ld(view_place[5]);
     let t71 = t70 * t58;
-    let t72 = frame.view_kept.get().view_place[9].ld();
+    let t72 = bh::ld(view_place[9]);
     let t73 = t72 * t57;
     let t74 = t71 + t73;
     let t75 = t69 + t74;
-    let t76 = frame.view_kept.get().view_place[2].ld();
+    let t76 = bh::ld(view_place[2]);
     let t77 = t59 * t76;
-    let t78 = frame.view_kept.get().view_place[6].ld();
+    let t78 = bh::ld(view_place[6]);
     let t79 = t58 * t78;
-    let t80 = frame.view_kept.get().view_place[10].ld();
+    let t80 = bh::ld(view_place[10]);
     let t81 = t57 * t80;
     let t82 = t81 + t79;
     let t83 = t77 + t82;
-    let t84 = view_matrix[0].ld();
+    let t84 = bh::ld(view_matrix[0]);
     let t85 = t84 * t67;
-    let t86 = view_matrix[4].ld();
+    let t86 = bh::ld(view_matrix[4]);
     let t87 = t86 * t75;
-    let t88 = view_matrix[8].ld();
+    let t88 = bh::ld(view_matrix[8]);
     let t89 = t88 * t83;
     let t90 = t87 + t89;
     let t91 = t85 + t90;
-    let t92 = view_matrix[1].ld();
+    let t92 = bh::ld(view_matrix[1]);
     let t93 = t92 * t67;
-    let t94 = view_matrix[5].ld();
+    let t94 = bh::ld(view_matrix[5]);
     let t95 = t94 * t75;
-    let t96 = view_matrix[9].ld();
+    let t96 = bh::ld(view_matrix[9]);
     let t97 = t96 * t83;
     let t98 = t95 + t97;
     let t99 = t93 + t98;
-    let t100 = view_matrix[2].ld();
+    let t100 = bh::ld(view_matrix[2]);
     let t101 = t67 * t100;
-    let t102 = view_matrix[6].ld();
+    let t102 = bh::ld(view_matrix[6]);
     let t103 = t75 * t102;
-    let t104 = view_matrix[10].ld();
+    let t104 = bh::ld(view_matrix[10]);
     let t105 = t83 * t104;
     let t106 = t105 + t103;
     let t107 = t101 + t106;

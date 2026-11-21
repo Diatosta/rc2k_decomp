@@ -10,9 +10,9 @@ pub(super) const VIEW_PLACE_MATRIX: u32 = 0xCD00_0001;
 pub(super) fn slot_matrix(
     frame: &Frame,
     handle: u32,
-) -> Result<&[crate::memory::session::PlainFloat; 16], crate::errors::BadInput> {
+) -> Result<crate::scene::matrix::Matrix, crate::errors::BadInput> {
     match handle {
-        VIEW_PLACE_MATRIX => Ok(&frame.view_kept.get().view_place),
+        VIEW_PLACE_MATRIX => Ok(frame.view_kept.borrow().view_place),
         _ => Err(crate::errors::BadInput(
             "a mark slot's matrix handle that names none",
         )),

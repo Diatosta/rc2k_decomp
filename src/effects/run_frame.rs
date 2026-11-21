@@ -45,7 +45,7 @@ fn share(at: usize, start: Option<u32>, effects: &crate::effects::owner::Effects
 #[derive(Clone, Copy)]
 pub struct EffectsView<'a> {
     pub fog: &'a crate::scene::fog::Fog,
-    pub view_matrix: &'a [crate::memory::session::PlainFloat; 16],
+    pub view_matrix: crate::scene::matrix::Matrix,
     pub light: u32,
     pub engine_tables: &'a crate::math::engine_tables::EngineTables,
 }
@@ -55,7 +55,7 @@ impl<'a> EffectsView<'a> {
     pub fn of(race: &'a Race, view: &'a crate::race::view_scratch::ViewScratch) -> Self {
         Self {
             fog: &view.fog,
-            view_matrix: &view.matrices.view_matrix,
+            view_matrix: crate::scene::matrix::matrix_of(&view.matrices.view_matrix),
             light: view.light.borrow().view_light,
             engine_tables: race.engine_tables(),
         }
@@ -69,7 +69,7 @@ impl<'a> EffectsView<'a> {
         let front_end = scene.scratch.front_end();
         Self {
             fog: &front_end.fog,
-            view_matrix: &race.frame.view_kept.get().view_matrix,
+            view_matrix: race.frame.view_kept.borrow().view_matrix,
             light: front_end.light.borrow().view_light,
             engine_tables: race.engine_tables(),
         }

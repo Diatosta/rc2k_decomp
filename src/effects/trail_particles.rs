@@ -125,7 +125,7 @@ pub(super) fn trail_particles(
             let size = x87::times_plus_to_int(a, read_particle(particles, p)?.motion_y, b) as u32;
             let colour_step =
                 x87::over_int(effects.kinds.particle_tuning.trail_life_k, LIFE as i32).to_bits();
-            let ground = x87::loaded(&frame.view_kept.get().view_place[13]).to_bits();
+            let ground = x87::loaded(frame.view_kept.borrow().view_place[13]).to_bits();
             update_particle(particles, e, |q| {
                 q.size = size;
                 q.colour = 0xFF00_0000;

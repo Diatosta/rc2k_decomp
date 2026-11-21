@@ -1367,10 +1367,20 @@ pub fn toward(a: impl Flt, b: impl Flt, r: impl Flt) -> f32 {
 
 /// `effects::draw_particle`'s turn: the point p (x, y, z, 80 bits) by the matrix at m read by
 /// columns, each (m[c] x + (m[c+4] y + m[c+8] z)) + m[c+12]; the three rounded.
+#[cfg(test)]
 pub fn column_turn(p: &[[u8; 10]; 3], m: &(impl crate::math::cells::Cells + ?Sized)) -> [f32; 3] {
+    column_turn_bits(p, &matrix_at(m))
+}
+
+/// `column_turn` by a matrix held as values (its first fifteen floats).
+pub fn column_turn_by(p: &[[u8; 10]; 3], m: &[f32; 16]) -> [f32; 3] {
+    column_turn_bits(p, &std::array::from_fn(|n| m[n].to_bits()))
+}
+
+fn column_turn_bits(p: &[[u8; 10]; 3], m: &[u32; 15]) -> [f32; 3] {
     let [x, y, z] = {
         matrix_turn(
-            &matrix_at(m),
+            m,
             bh::from_f80(p[0]),
             bh::from_f80(p[1]),
             bh::from_f80(p[2]),

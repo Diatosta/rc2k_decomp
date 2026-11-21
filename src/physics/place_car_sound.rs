@@ -9,15 +9,15 @@ use crate::errors::Refused;
 use crate::math::matrix3::rounded_value;
 use crate::math::x87::{ext_times, ints_diff_80};
 use crate::memory::session::PlainDword;
-use crate::race::matrices_store::ViewKept;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::rotate_point::rotate_point;
+use crate::scene::matrix::Matrix;
+use crate::scene::rotate_point::rotate_point_by;
 
 /// The exact x87 version (for `physics::sound_on_bit`).
 pub(super) fn place_car_sound(
     numbers: &Numbers,
-    matrices: &ViewKept,
+    view_turn: &Matrix,
     shared: &RaceShared,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
@@ -30,7 +30,7 @@ pub(super) fn place_car_sound(
         d(&shared.car().position[1], &listener.camera_position[1]),
         d(&shared.car().position[2], &listener.camera_position[2]),
     ];
-    let out = rotate_point(shared.heard_turn.get().turn(matrices), p);
+    let out = rotate_point_by(&shared.heard_turn.get().turn(view_turn), p);
     let k = numbers.one_over_65536.get();
     for (n, e) in out.iter().enumerate() {
         so.borrow_mut().place_b[n] = rounded_value(ext_times(*e, k));

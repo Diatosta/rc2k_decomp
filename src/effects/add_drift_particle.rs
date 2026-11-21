@@ -40,7 +40,7 @@ pub(super) fn add_drift_particle(
         ring.pool.free.set(e);
         ring.pool.used.set(used.wrapping_add(1));
         let lowered = x87::ext_less(v[4], effects.kinds.particle_tuning.drift_lower).to_bits();
-        let ground = x87::loaded(&frame.view_kept.get().view_place[13]).to_bits();
+        let ground = x87::loaded(frame.view_kept.borrow().view_place[13]).to_bits();
         update_particle(particles, e, |p| {
             p.kind = kind as u32;
             p.motion_z = rounded(v[0]);

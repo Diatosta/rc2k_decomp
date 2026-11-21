@@ -14,7 +14,6 @@ use crate::effects::ring_entries::{entry, ld, set, st, walk_ring};
 use crate::effects::ring_store::Ring;
 use crate::effects::setup_store::MarksClock;
 use crate::errors::{BadInput, Refused};
-use crate::math::cell_x87::CellX87;
 use crate::math::x87;
 use crate::scene::fog_at::fog_at;
 
@@ -22,7 +21,7 @@ const STREAK: u32 = 0x12;
 
 /// A new streak's place turned into its last place, and a first move.
 fn first_frame(
-    view_matrix: &[crate::memory::session::PlainFloat; 16],
+    view_matrix: &crate::scene::matrix::Matrix,
     ring: &Ring,
     e: u32,
     effects: &crate::effects::owner::Effects,
@@ -43,7 +42,7 @@ fn move_(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
 
 /// The place turned by the view into `DrawWork.turned[0]` ...
 fn turn_place(
-    view_matrix: &[crate::memory::session::PlainFloat; 16],
+    view_matrix: &crate::scene::matrix::Matrix,
     ring: &Ring,
     e: u32,
     effects: &crate::effects::owner::Effects,
@@ -127,7 +126,7 @@ fn refusal(
 /// The streak step at e (see the header): whether the entry dies.
 fn streak(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
-    view_matrix: &[crate::memory::session::PlainFloat; 16],
+    view_matrix: &crate::scene::matrix::Matrix,
     ring: &Ring,
     e: u32,
     scene: &crate::scene::owner::Scene,
@@ -201,7 +200,7 @@ pub fn run_ribbons(
         // The settings' streak switch: the first car record's `streaks_on`.
         Ok(effects.settings()?.cars[0].streaks_on.get() != 0
             && entry(ring, e)?.kind == STREAK
-            && streak(buffer, view_matrix, ring, e, scene, effects, fog)?)
+            && streak(buffer, &view_matrix, ring, e, scene, effects, fog)?)
     })
 }
 
@@ -211,47 +210,43 @@ use crate::math::x87_float::int;
 
 /// The entry's place turned by the view matrix (its rows' x, y, z columns plus the translation
 /// in cells 12 .. 14), in the x87's order: the three results unrounded to a stored float.
-fn view_turned(
-    view_matrix: &[crate::memory::session::PlainFloat; 16],
-    ring: &Ring,
-    e: u32,
-) -> [bh::X; 3] {
+fn view_turned(view_matrix: &crate::scene::matrix::Matrix, ring: &Ring, e: u32) -> [bh::X; 3] {
     let t0 = ld(ring, e, |en| en.place[2]);
     let t1 = ld(ring, e, |en| en.place[1]);
     let t2 = ld(ring, e, |en| en.place[0]);
-    let t3 = view_matrix[0].ld();
+    let t3 = bh::ld(view_matrix[0]);
     let t4 = t3 * t2;
-    let t5 = view_matrix[4].ld();
+    let t5 = bh::ld(view_matrix[4]);
     let t6 = t5 * t1;
-    let t7 = view_matrix[8].ld();
+    let t7 = bh::ld(view_matrix[8]);
     let t8 = t7 * t0;
     let t9 = t6 + t8;
     let t10 = t4 + t9;
-    let t11 = t10 + view_matrix[12].ld();
-    let t12 = view_matrix[1].ld();
+    let t11 = t10 + bh::ld(view_matrix[12]);
+    let t12 = bh::ld(view_matrix[1]);
     let t13 = t12 * t2;
-    let t14 = view_matrix[5].ld();
+    let t14 = bh::ld(view_matrix[5]);
     let t15 = t14 * t1;
-    let t16 = view_matrix[9].ld();
+    let t16 = bh::ld(view_matrix[9]);
     let t17 = t16 * t0;
     let t18 = t15 + t17;
     let t19 = t13 + t18;
-    let t20 = t19 + view_matrix[13].ld();
-    let t21 = view_matrix[2].ld();
+    let t20 = t19 + bh::ld(view_matrix[13]);
+    let t21 = bh::ld(view_matrix[2]);
     let t22 = t2 * t21;
-    let t23 = view_matrix[6].ld();
+    let t23 = bh::ld(view_matrix[6]);
     let t24 = t1 * t23;
-    let t25 = view_matrix[10].ld();
+    let t25 = bh::ld(view_matrix[10]);
     let t26 = t0 * t25;
     let t27 = t26 + t24;
     let t28 = t22 + t27;
-    let t29 = t28 + view_matrix[14].ld();
+    let t29 = t28 + bh::ld(view_matrix[14]);
     [t11, t20, t29]
 }
 
 /// `first_frame`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn first_frame_x87(
-    view_matrix: &[crate::memory::session::PlainFloat; 16],
+    view_matrix: &crate::scene::matrix::Matrix,
     ring: &Ring,
     e: u32,
     c: &MarksClock,
@@ -287,7 +282,7 @@ fn move_x87(ring: &Ring, e: u32, c: &MarksClock, y_gain: f32) {
 
 /// `turn_place`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn turn_place_x87(
-    view_matrix: &[crate::memory::session::PlainFloat; 16],
+    view_matrix: &crate::scene::matrix::Matrix,
     ring: &Ring,
     e: u32,
     dw: &mut DrawWork,

@@ -17,10 +17,10 @@ use crate::math::x87::{ext_times, ints_diff_80};
 use crate::math::x87_float::X;
 use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
-use crate::race::matrices_store::ViewKept;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::rotate_point::rotate_point;
+use crate::scene::matrix::Matrix;
+use crate::scene::rotate_point::rotate_point_by;
 
 /// The shares into the voices; the integer steps between are in Rust.
 fn shares(numbers: &Numbers, shared: &RaceShared, so: &crate::sound::store::SoundObjectCell) {
@@ -49,7 +49,7 @@ fn listener(shared: &RaceShared) -> Option<&crate::physics::car_store::Car> {
 /// The exact x87 version (for `physics::engine_sound`).
 pub fn car_sound_state(
     numbers: &Numbers,
-    matrices: &ViewKept,
+    view_turn: &Matrix,
     shared: &RaceShared,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
@@ -77,14 +77,14 @@ pub fn car_sound_state(
         d(&shared.car().position[1], &l.camera_position[1]),
         d(&shared.car().position[2], &l.camera_position[2]),
     ];
-    let m = shared.heard_turn.get().turn(matrices);
-    let out = rotate_point(m, place);
+    let m = shared.heard_turn.get().turn(view_turn);
+    let out = rotate_point_by(&m, place);
     let k = numbers.one_over_65536.get();
     for (i, e) in out.iter().enumerate() {
         so.borrow_mut().place[i] = rounded_value(ext_times(*e, k));
     }
-    let out = rotate_point(
-        m,
+    let out = rotate_point_by(
+        &m,
         [
             extended(shared.car().crash_matrix[8].get()),
             extended(shared.car().crash_matrix[9].get()),
