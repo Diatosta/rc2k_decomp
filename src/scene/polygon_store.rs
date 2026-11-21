@@ -3,11 +3,10 @@
 //! by entry and the list before a clip), the pool of point records the clip makes, the textures'
 //! records and the objects' materials.
 
-use crate::memory::session::{PlainByte, PlainBytes, PlainDword};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::{PlainByte, PlainDword};
 
 /// A polygon work entry (0x44 bytes).
-#[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells)]
 pub struct PolygonEntry {
     /// The scene point's number.
     pub point: PlainDword,
@@ -32,12 +31,30 @@ pub struct PolygonEntry {
     pub amount: PlainByte,
     /// The two top bytes of the dword holding `fog` and `amount`; copied along with the
     /// entry, never given a meaning (padding).
-    pub pad_22: PlainBytes<2>,
+    pub pad_22: PlainBuffer<2>,
     /// Work space of the clip (`scene::clip`).
-    pub work: PlainBytes<32>,
+    pub work: PlainBuffer<32>,
 }
 
 impl PolygonEntry {
+    /// An entry of zeros.
+    pub const fn new() -> Self {
+        Self {
+            point: PlainDword::new(0),
+            record: PlainDword::new(0),
+            u: PlainDword::new(0),
+            v: PlainDword::new(0),
+            u2: PlainDword::new(0),
+            v2: PlainDword::new(0),
+            light: PlainDword::new(0),
+            lamp_light: PlainDword::new(0),
+            fog: PlainByte::new(0),
+            amount: PlainByte::new(0),
+            pad_22: PlainBuffer::new([0; 2]),
+            work: PlainBuffer::new([0; 32]),
+        }
+    }
+
     /// The dword at `offset` (a multiple of 4 below 0x44), for the callers that pick a field by
     /// an offset.
     pub fn word(&self, offset: usize) -> u32 {
@@ -115,8 +132,7 @@ impl PolygonEntry {
 
 /// A texture's record (0x40 bytes: `scene::draw_polygon`, `race::course_faces`,
 /// `race::level_init`).
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells)]
 pub struct TextureInfo {
     pub words: [PlainDword; 16],
 }
@@ -136,8 +152,7 @@ impl crate::memory::session::Run for TextureInfo {
 
 /// An object kind's material record (0x80 bytes: `scene::set_object_material`,
 /// `physics::face_contact`).
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells)]
 pub struct ObjectMaterial {
     pub words: [PlainDword; 32],
 }
@@ -155,7 +170,6 @@ impl crate::memory::session::Run for ObjectMaterial {
     }
 }
 
-#[derive(rc2k_derive::Cells)]
 pub struct PolygonWork {
     /// The 64 work entries, then from entry 64 the 64 entries kept for the fan: the table
     /// `scene::draw_polygon` takes room for 0x80 (`scene::clip`, `scene::draw_object_polygon`,
@@ -174,8 +188,7 @@ pub struct PolygonWork {
 
 /// The textures' records and the objects' materials, after the work: shared by every drawing
 /// thread, unlike the work.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells)]
 pub struct PolygonTables {
     /// 256 records of 0x40 bytes (`scene::draw_polygon`, `race::course_faces`,
     /// `physics::wheel_surfaces`, `race::level_init`); word 8 of a record is the kind of the
@@ -190,6 +203,40 @@ impl PolygonWork {
     /// The work area, zeroed as in the image: one for each drawing part
     /// (`scene::scratch_store::PartScratch::polygon`).
     pub const fn new() -> Self {
-        crate::memory::cells::zeroed_cells()
+        Self {
+            entries: [const { PolygonEntry::new() }; 0x80],
+            list: [const { PlainDword::new(0) }; 64],
+            old_list: [const { PlainDword::new(0) }; 64],
+            reserved_2400: [const { PlainDword::new(0) }; 0x180],
+            record_pool: [const { PlainDword::new(0) }; 0x808],
+        }
+    }
+}
+
+impl TextureInfo {
+    /// A record of zeros.
+    pub const fn new() -> Self {
+        Self {
+            words: [const { PlainDword::new(0) }; 16],
+        }
+    }
+}
+
+impl ObjectMaterial {
+    /// A record of zeros.
+    pub const fn new() -> Self {
+        Self {
+            words: [const { PlainDword::new(0) }; 32],
+        }
+    }
+}
+
+impl PolygonTables {
+    /// The tables, zeroed as in the image.
+    pub const fn new() -> Self {
+        Self {
+            texture_infos: [const { TextureInfo::new() }; 256],
+            object_materials: [const { ObjectMaterial::new() }; 1200],
+        }
     }
 }

@@ -20,8 +20,6 @@ use crate::scene::polygon_store::PolygonEntry;
 
 /// One shadow point (0x20 bytes): the corner of the car's shadow, first as floats, then
 /// as whole numbers.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
 pub(super) struct ShadowPoint {
     /// X.
     pub x: PlainDword,
@@ -39,8 +37,6 @@ pub(super) struct ShadowPoint {
     /// sorted, never read for a value.
     pub carried_words: [PlainDword; 2],
 }
-
-const _: () = assert!(core::mem::size_of::<ShadowPoint>() == 0x20);
 
 impl ShadowPoint {
     /// A record of zeros.
@@ -74,7 +70,6 @@ impl ShadowPoint {
 /// The shadow's working state: what `cast_car_shadows` writes and reads within itself, one for each
 /// call, given down to its parts. Every value is written before it is read, so nothing carries over
 /// from one call to the next.
-#[derive(rc2k_derive::Cells)]
 pub(super) struct ShadowWork {
     /// The shadow's points, records of 0x20 bytes (0x40 at most), the hull's records after.
     points: [ShadowPoint; 0x100],
@@ -929,7 +924,7 @@ pub(super) fn cast_car_shadows(
     use rc2k_core::race::shadow::{
         SHADOW_STRENGTH, SUN_PASS, casts_shadow, check_shadow_cars, first_pass,
     };
-    let cars: u32 = ctx.reads.view.race_cars.get();
+    let cars: u32 = ctx.reads.view.race_cars();
     check_shadow_cars(cars, |n| {
         u32::from(ctx.reads.work.has_car_block(n as usize))
     })?;
@@ -1039,11 +1034,10 @@ mod reference_vectors {
                         .collect::<Vec<u8>>(),
                 );
                 let entry = super::vector_tests::entry_of([0xAAAA_AAAA; 17]);
-                let cells = crate::memory::cells::dwords_in::<_, 17>(&entry, 0);
                 // Only the entry's dwords 4 and 5 are written.
                 let a: [u32; 2] = words(&mut file);
                 circle_place(&entry, k, n, radius, unit);
-                let b: [u32; 17] = std::array::from_fn(|w| cells[w].get());
+                let b: [u32; 17] = std::array::from_fn(|w| entry.word(4 * w));
                 for (w, &want) in [4, 5].iter().zip(&a) {
                     let got = b[*w];
                     assert!(
@@ -1072,11 +1066,11 @@ mod vector_tests {
 
     /// A polygon entry of the words `words`.
     pub(super) fn entry_of(words: [u32; 17]) -> PolygonEntry {
-        let mut bytes = [0u8; 68];
-        for (b, w) in bytes.as_chunks_mut::<4>().0.iter_mut().zip(words) {
-            b.copy_from_slice(&w.to_le_bytes());
+        let entry = PolygonEntry::new();
+        for (k, w) in words.into_iter().enumerate() {
+            entry.set_word(4 * k, w);
         }
-        crate::memory::cells::cells_of_bytes(bytes)
+        entry
     }
 
     #[test]

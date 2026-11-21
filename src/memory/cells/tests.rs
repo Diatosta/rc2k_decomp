@@ -4,105 +4,6 @@
 //! `Cells` alone promises.
 
 use super::*;
-use crate::memory::shared_memory;
-
-/// The runs of `record`, checked to tile it: each starts where the last ended, lies inside,
-/// starts on a multiple of its width, and is the run every byte in it names (sampled in a
-/// store of megabytes, a debug build).
-fn check_tiling<T: ByteView>(record: &T, name: &str) {
-    let base = std::ptr::from_ref(record) as usize;
-    let size = size_of::<T>();
-    let step = (size / 0x4000).max(1);
-    let mut at = 0;
-    while at < size {
-        let (start, run) = record.cell_run(at);
-        assert_eq!(start, at, "{name}: a run begins at byte {at:#x}");
-        assert!(
-            run.len() > 0 && at + run.len() <= size,
-            "{name}: the run at {at:#x}"
-        );
-        assert_eq!(
-            run.first(),
-            base + start,
-            "{name}: the run at {at:#x} lies there"
-        );
-        assert!(
-            (base + at).is_multiple_of(run.width()),
-            "{name}: the run at {at:#x} unaligned"
-        );
-        for inside in (at..at + run.len()).step_by(step) {
-            let (s, r) = record.cell_run(inside);
-            assert!(
-                s <= inside && inside < s + r.len() && r.first() + inside - s == base + inside,
-                "{name}: byte {inside:#x} in its run"
-            );
-        }
-        at += run.len();
-    }
-}
-
-/// The runs the copies are tried on: short and longer lengths, at every offset of a small
-/// record and further apart in one of megabytes (a debug build).
-fn runs(size: usize) -> impl Iterator<Item = (usize, usize)> {
-    let step = (size / 0x4000).max(1);
-    (0..size)
-        .filter(move |at| at % step == 0)
-        .flat_map(move |at| {
-            [1, 2, 3, 4, 5, 7, 8, 16, 33]
-                .into_iter()
-                .map(move |len| (at, len))
-                .filter(move |&(at, len)| at + len <= size)
-        })
-}
-
-fn check_load<T: ByteView>(record: &T, name: &str) {
-    let base = std::ptr::from_ref(record).cast::<u8>();
-    for (at, len) in runs(size_of::<T>()) {
-        let (mut mine, mut raw) = (vec![0; len], vec![0; len]);
-        load_cells(record, at, &mut mine).unwrap();
-        // SAFETY: inside the record.
-        unsafe { shared_memory::load(base.add(at), raw.as_mut_ptr(), len) };
-        assert_eq!(mine, raw, "{name}: {len} bytes at {at:#x}");
-    }
-    let mut past = [0; 2];
-    assert!(
-        load_cells(record, size_of::<T>() - 1, &mut past).is_err(),
-        "{name}: past its end"
-    );
-}
-
-/// `store_cells` into a zeroed twin of `T` against `memory::shared_memory::store` into another, a
-/// pattern written first and the two compared whole after the writes.
-fn check_store<T: ByteView>(name: &str) {
-    let size = size_of::<T>();
-    let (mine, raw) = (boxed_zeroed_cells::<T>(), boxed_zeroed_cells::<T>());
-    let bytes = |r: &T| {
-        let mut out = vec![0; size];
-        // SAFETY: inside the record.
-        unsafe { shared_memory::load(std::ptr::from_ref(r).cast(), out.as_mut_ptr(), size) };
-        out
-    };
-    let raw_store = |at: usize, new: &[u8]| {
-        let to = std::ptr::from_ref(&*raw).cast::<u8>().cast_mut();
-        // SAFETY: inside the record.
-        unsafe { shared_memory::store(to.add(at), new.as_ptr(), new.len()) };
-    };
-    let pattern: Vec<u8> = (0..size).map(|n| (n * 7 + 3) as u8).collect();
-    store_cells(&*mine, 0, &pattern).unwrap();
-    raw_store(0, &pattern);
-    assert_eq!(bytes(&mine), pattern, "{name}: the pattern");
-    let step = (size / 0x400).max(1);
-    for (at, len) in runs(size).filter(|&(at, _)| at % step == 0) {
-        let new: Vec<u8> = (0..len).map(|n| (at + n) as u8 ^ 0xA5).collect();
-        store_cells(&*mine, at, &new).unwrap();
-        raw_store(at, &new);
-    }
-    assert_eq!(bytes(&mine), bytes(&raw), "{name}: after the writes");
-    assert!(
-        store_cells(&*mine, size, &[0]).is_err(),
-        "{name}: past its end"
-    );
-}
 
 /// Fills every run of primitive cells with varied values (each byte a function of its place in
 /// the record and `seed`); with `flip`, changes every byte of the runs numbered `0 mod 3`
@@ -208,23 +109,6 @@ fn check_cells<T: Cells>(record: &T, name: &str) {
     assert_eq!(flatten(&*to), expected, "{name}: merge_changes");
 }
 
-fn check<T: ByteView>(record: &T, name: &str) {
-    check_tiling(record, name);
-    check_load(record, name);
-    check_store::<T>(name);
-}
-
-/// The stores that are an explicit `ByteView` opt-in (`#[derive(ByteView)]` or a hand-written
-/// impl, the ones that keep their `#[repr(C)]` layout): the byte runs are checked on them. Test
-/// builds give the byte view to every `#[repr(C)]` record, so the classification below was
-/// taken from the impls outside that path (the build with it off listed every other store as
-/// lacking `ByteView`). Every other store is `Cells` only.
-macro_rules! byte_view_stores {
-    ($($store:expr,)*) => {
-        $( check(&$store, stringify!($store)); )*
-    };
-}
-
 macro_rules! cells_stores {
     ($($store:expr,)*) => {
         $( check_cells(&$store, stringify!($store)); )*
@@ -234,21 +118,15 @@ macro_rules! cells_stores {
 #[test]
 fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
     let audio = crate::test_support::own::audio();
-    let scene = crate::test_support::own::scene();
     let menus = crate::test_support::own::menus();
     let race = crate::test_support::own::race();
     let _lock = crate::test_support::test_lock();
-    byte_view_stores! {
-        race.shared.replay_file().index,
-    }
     cells_stores! {
         *race.shared.car(),
         audio.state,
         audio.sample_records,
         menus.play.slots.pointers,
         *race.shared.physics_tables.get(),
-        scene.scratch.game_scratch().vertices,
-        scene.scratch.game_scratch().polygon,
         *race.shared.buffers.reads.get(),
         *race.shared.viewer_buffers(),
         *race.shared.car_blocks.get(),
@@ -256,10 +134,8 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         *race.frame.overlay.get(),
         *race.frame.view_and_records.get(),
         *race.course.number_vars.get(),
-        *race.shared.replay_file(),
         *race.frame.shadow_skids.get(),
         *race.shared.tables(),
-        *race.shared.view.get(),
         *race.shared.work.get(),
     }
 }

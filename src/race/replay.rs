@@ -357,10 +357,10 @@ pub fn close_replay(race: &Race, system: &System) -> Result<(), Refused> {
     );
     replay.replay_view().frames_in_block.set(frames);
     crate::race::race_shell::seal_stage_time(race)?;
-    crate::files::handle::write_cells(
-        shared.replay_file().replay_handle.get(),
-        shared.replay_file().index.dwords(),
-    );
+    shared
+        .replay_file()
+        .index
+        .write_to(shared.replay_file().replay_handle.get());
     crate::files::handle::close(shared.replay_file().replay_handle.get());
     shared.replay_file().replay_open.set(false);
     shared.replay_file().replay_closed.set(1);
@@ -442,9 +442,7 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
         .write_at(0x30, &stage, "the replay header's stage")?;
     let extension_bytes = extension.to_bytes();
     header.set_u32(EXT_LEN_AT, extension_bytes.len() as u32);
-    for cell in shared.replay_file().index.dwords() {
-        cell.set(0);
-    }
+    shared.replay_file().index.clear();
     shared.replay_file().index.magic.set(INDEX_MAGIC);
     race.viewer_buffers().block_used.set(0);
     replay.replay_view().frames_in_block.set(0);
@@ -492,7 +490,7 @@ mod header_tests {
 
     const LOCALE: &str = "owners.strings.language.locale";
     const REPLAYS: &str = "owners.race.shared.replays";
-    const REPLAY_FILE: &str = "owners.race.shared.replay_file";
+    const SEASON_CODE: &str = "owners.race.shared.replay_file.season_code";
     const WORK: &str = "owners.race.shared.work";
     const STATE: &str = "owners.race.shared.state";
     #[derive(Clone, Copy)]
@@ -533,7 +531,7 @@ mod header_tests {
         ),
         (1, Door, STATE, Cell(".settings.cars[0].own.race_number")),
         (1, Sealed(0x37), STATE, Cell(".settings.cars[0].own.view")),
-        (4, Sealed(0x9), REPLAY_FILE, Cell(".season_code")),
+        (4, Sealed(0x9), SEASON_CODE, Cell("")),
         (4, Sealed(0x2E), "", Cheats),
         (
             1,

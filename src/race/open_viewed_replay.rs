@@ -155,13 +155,13 @@ pub fn open_viewed_replay(
             2,
         )
     };
-    let places = &shared.replay_file().index.dwords()[..index_len as usize / 4];
-    for cell in shared.replay_file().index.dwords() {
-        cell.set(0);
-    }
+    shared.replay_file().index.clear();
     if at.is_none()
         || !good(
-            handle::read_cells(shared.replay_file().replay_handle.get(), places),
+            shared
+                .replay_file()
+                .index
+                .read_from(shared.replay_file().replay_handle.get(), index_len as usize),
             index_len,
             &|| race.shared.replay_file().index.magic.get(),
             false,

@@ -36,7 +36,7 @@ impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
         self.4.vars.settings_word(4) == 1
     }
     fn near(&self) -> u32 {
-        self.4.view.players.get()
+        self.4.view.players()
     }
     fn view(&self) -> u32 {
         self.4.vars.run_kind()
@@ -61,7 +61,7 @@ pub fn add_car_lights(
     add: &mut dyn FnMut(&CarView, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     {
-        let cars: u32 = reads.view.race_cars.get();
+        let cars: u32 = reads.view.race_cars();
         if cars == 0 || cars > BLOCKS {
             return Err(BadInput("no cars, or more than their blocks").into());
         }

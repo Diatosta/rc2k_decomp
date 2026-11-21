@@ -19,63 +19,34 @@ fn log_number(v: u32) {
     crate::logfile::log_int::log_int(v as i32, true, 1);
 }
 
-/// A variable's place: a cell of the race's shared state, or a drawing store's plain cell (the
-/// finish routine's own variables, the view records).
-enum Place<'a> {
-    Shared(&'a dyn crate::memory::session::DwordLike),
-    Plain(&'a crate::memory::session::PlainDword),
-    /// A word of the frame switches.
-    Switch(
-        &'a crate::memory::session::DrawPlain<crate::race::switches_store::FrameSwitches>,
-        fn(&mut crate::race::switches_store::FrameSwitches) -> &mut u32,
-    ),
-    /// The finish state's "no place" switch.
-    Finish(&'a crate::race::owner_replay::Replay),
-    /// The split tables' arcade kind.
-    ArcadeKind(&'a crate::race::owner_physics::Physics),
-}
-
-impl Place<'_> {
-    fn set(&self, value: u32) {
-        match self {
-            Place::Shared(cell) => cell.set(value),
-            Place::Plain(cell) => cell.set(value),
-            Place::Switch(store, word) => *word(&mut store.borrow_mut()) = value,
-            Place::Finish(replay) => replay.finish_mut().no_place = value,
-            Place::ArcadeKind(physics) => physics.split_tables_mut().arcade_kind = value,
-        }
-    }
-}
-
-fn var(race: &Race, v: Var) -> Place<'_> {
-    Place::Shared(match v {
-        Var::D60101C => return Place::ArcadeKind(&race.physics),
-        Var::D621514 => return Place::Switch(&race.shared.switches, |s| &mut s.editor_mode),
-        Var::D623854 => &race.shared.vars.get().direction,
-        Var::D6235FC => &race.shared.vars.get().car_tyres[0],
-        Var::RaceMode => &race.shared.vars.get().run_kind,
-        Var::D6238A4 => &race.shared.vars.get().split,
-        Var::RaceCars => &race.shared.view.get().players,
-        Var::D63DB90 => &race.shared.view.get().race_cars,
-        Var::D6238A8 => &race.shared.vars.get().settings_words[0],
-        Var::D6238AC => &race.shared.vars.get().settings_words[1],
-        Var::D6238B0 => &race.shared.vars.get().settings_words[2],
-        Var::D6238B4 => &race.shared.vars.get().settings_words[3],
-        Var::D6238B8 => &race.shared.vars.get().settings_words[4],
-        Var::D621890 => return Place::Switch(&race.shared.switches, |s| &mut s.view_marks_on),
-        Var::D6238CC => &race.shared.vars.get().race_level,
-        Var::D6238D0 => &race.shared.vars.get().race_stage,
-        Var::D64BB18 => return Place::Finish(&race.replay),
-        Var::D5C2F88 => &race.effects_settings().race_done,
+/// Writes a finish routine variable: a word of the race's shared state, a drawing store's plain
+/// cell (the finish routine's own variables, the view records), or a field of its owner.
+fn set_var(race: &Race, v: Var, value: u32) {
+    let (vars, view) = (race.shared.vars.get(), race.shared.view.get());
+    match v {
+        Var::D60101C => race.physics.split_tables_mut().arcade_kind = value,
+        Var::D621514 => race.shared.switches.borrow_mut().editor_mode = value,
+        Var::D623854 => vars.direction.set(value),
+        Var::D6235FC => vars.car_tyres[0].set(value),
+        Var::RaceMode => vars.run_kind.set(value),
+        Var::D6238A4 => vars.split.set(value),
+        Var::RaceCars => view.players.set(value),
+        Var::D63DB90 => view.race_cars.set(value),
+        Var::D6238A8 => vars.settings_words[0].set(value),
+        Var::D6238AC => vars.settings_words[1].set(value),
+        Var::D6238B0 => vars.settings_words[2].set(value),
+        Var::D6238B4 => vars.settings_words[3].set(value),
+        Var::D6238B8 => vars.settings_words[4].set(value),
+        Var::D621890 => race.shared.switches.borrow_mut().view_marks_on = value,
+        Var::D6238CC => vars.race_level.set(value),
+        Var::D6238D0 => vars.race_stage.set(value),
+        Var::D64BB18 => race.replay.finish_mut().no_place = value,
+        Var::D5C2F88 => race.effects_settings().race_done.set(value),
         // View record 6's first two angles (the finish camera's).
-        Var::D606744 => {
-            return Place::Plain(&race.frame.view_and_records.get().records[6].angles[0]);
-        }
-        Var::D606748 => {
-            return Place::Plain(&race.frame.view_and_records.get().records[6].angles[1]);
-        }
-        Var::D63DB84 => &race.shared.view.get().after_credits,
-    })
+        Var::D606744 => race.frame.view_and_records.get().records[6].angles[0].set(value),
+        Var::D606748 => race.frame.view_and_records.get().records[6].angles[1].set(value),
+        Var::D63DB84 => view.after_credits.set(value),
+    }
 }
 
 fn lead_cell(car: &Car, field: Lead) -> &dyn Cell32 {
@@ -94,7 +65,7 @@ fn lead_cell(car: &Car, field: Lead) -> &dyn Cell32 {
 fn set_up(race: &Race) {
     for (at, v) in finish_routine::set_up() {
         match at {
-            Set::Var(x) => var(race, x).set(v),
+            Set::Var(x) => set_var(race, x, v),
             Set::Lead(field) => lead_cell(&race.car_blocks().cars[0], field).set_bits(v),
         }
     }
@@ -128,13 +99,13 @@ pub fn finish_race(race: &'static Race, o: crate::owners::Owners<'static>) -> Re
     log_number(race.car_blocks().cars[0].start_slot_value.get());
     set_up(race);
     crate::race::stage_loading::load_stage(race, o)?;
-    var(race, finish_routine::BEFORE_RUN).set(0);
+    set_var(race, finish_routine::BEFORE_RUN, 0);
     crate::drive::finish_run::finish_run(race, o)?;
     // `race::tidy_everything` takes no real input from `finish_run`'s leftover, which has
     // no reader: a scratch.
     crate::race::race_end::tidy_everything(race, o)?;
     for x in finish_routine::AFTER {
-        var(race, x).set(0);
+        set_var(race, x, 0);
     }
     log_line(c"EXITING FINISH ROUTINE");
     log_line(c"----------------------");

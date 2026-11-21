@@ -108,8 +108,7 @@ fn face_normals(
     rc2k_core::race::faces::check_face_count(count)?;
     let points: u32 = race.course.course.borrow().scene_point_count;
     // The fourth corner the last drawn face left is -1 for a face of three points.
-    let fourth_corner_set =
-        crate::race::face_work::last_fourth_corner(&race.shared, scratch) != u32::MAX;
+    let fourth_corner_set = crate::race::face_work::last_fourth_corner(scratch) != u32::MAX;
     let mut out = Normals {
         faces: Vec::new(),
         work_vector,

@@ -475,10 +475,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.net.main.get().settings.edit.edit_width),
         ),
         listed!(
-            "owners.net.main.settings.edit.edit_font",
-            on_game(&o.net.main.get().settings.edit.edit_font),
-        ),
-        listed!(
             "owners.net.main.settings.edit.text_before_edit",
             on_buffer(&o.net.main.get().settings.edit.text_before_edit),
         ),
@@ -557,10 +553,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.net.main.lobby.edit.edit_width",
             on_game(&o.net.main.get().lobby.edit.edit_width),
-        ),
-        listed!(
-            "owners.net.main.lobby.edit.edit_font",
-            on_game(&o.net.main.get().lobby.edit.edit_font),
         ),
         listed!(
             "owners.net.main.lobby.edit.text_before_edit",
@@ -748,7 +740,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.system.records.stage_tables",
             on_game(&o.system.records().stage_tables),
         ),
-        listed!("owners.saves.rally_times", on_game(&o.saves.rally_times),),
         listed!(
             "owners.saves.best_times.list",
             on_list(&o.saves.best_times.memory),
@@ -760,10 +751,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.saves.best_times.loaded",
             on_game(&o.saves.best_times.loaded),
-        ),
-        listed!(
-            "owners.saves.best_times.tables",
-            on_game(&o.saves.best_times.tables),
         ),
         listed!(
             "owners.system.start.texts",
@@ -785,14 +772,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!("owners.gfx.d3d.cards", on_game(o.gfx.d3d.cards.get()),),
         listed!("owners.audio.sample_names", &o.audio.sample_names,),
-        listed!(
-            "workers.PARTS[0].vertices",
-            on_game(&o.scene.scratch.game_scratch().vertices),
-        ),
-        listed!(
-            "workers.PARTS[0].polygon",
-            on_game(&o.scene.scratch.game_scratch().polygon),
-        ),
         listed!(
             "owners.race.shared.buffers.reads",
             on_game(o.race.shared.buffers.reads.get()),
@@ -870,8 +849,104 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.frame.shadow_skids.get()),
         ),
         listed!(
-            "owners.race.shared.replay_file",
-            on_game(o.race.shared.replay_file()),
+            "owners.race.shared.replay_file.replays_on",
+            on_game(&o.race.shared.replay_file().replays_on),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.no_replay_switch",
+            on_game(&o.race.shared.replay_file().no_replay_switch),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.chunks_plain",
+            on_game(&o.race.shared.replay_file().chunks_plain),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.replay_closed",
+            on_game(&o.race.shared.replay_file().replay_closed),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.replay_open",
+            on_game(&o.race.shared.replay_file().replay_open),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.replay_handle",
+            on_game(&o.race.shared.replay_file().replay_handle),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.replay_at_end",
+            on_game(&o.race.shared.replay_file().replay_at_end),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.hold_car_revs",
+            on_game(&o.race.shared.replay_file().hold_car_revs),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.viewer_stopped",
+            on_game(&o.race.shared.replay_file().viewer_stopped),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.viewer_mode",
+            on_game(&o.race.shared.replay_file().viewer_mode),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.viewer_slot",
+            on_game(&o.race.shared.replay_file().viewer_slot),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.viewer_sound",
+            on_game(&o.race.shared.replay_file().viewer_sound),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.viewer_editing",
+            on_game(&o.race.shared.replay_file().viewer_editing),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.season_code",
+            on_game(&o.race.shared.replay_file().season_code),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.viewer_first_texture_a",
+            on_game(&o.race.shared.replay_file().viewer_first_texture_a),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.viewer_list_texture",
+            on_game(&o.race.shared.replay_file().viewer_list_texture),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.viewer_panel_texture",
+            on_game(&o.race.shared.replay_file().viewer_panel_texture),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.viewer_device_texture",
+            on_game(&o.race.shared.replay_file().viewer_device_texture),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.viewer_stage_loaded",
+            on_game(&o.race.shared.replay_file().viewer_stage_loaded),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.viewer_fonts_built",
+            on_game(&o.race.shared.replay_file().viewer_fonts_built),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.index.magic",
+            on_game(&o.race.shared.replay_file().index.magic),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.index.seal",
+            on_game(&o.race.shared.replay_file().index.seal),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.index.block_count",
+            on_game(&o.race.shared.replay_file().index.block_count),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.index.frame_count",
+            on_game(&o.race.shared.replay_file().index.frame_count),
+        ),
+        listed!(
+            "owners.race.shared.replay_file.index.block_places",
+            on_game(&o.race.shared.replay_file().index.block_places),
         ),
         listed!(
             "owners.race.course.number_vars",
@@ -890,7 +965,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.race.shared.vars.mud_scale_a",
             on_game(&o.race.shared.vars.get().mud_scale_a),
         ),
-        listed!("owners.race.shared.view", on_game(o.race.shared.view.get()),),
         listed!("owners.race.shared.car", on_game(o.race.shared.car()),),
         listed!("owners.race.shared.work", on_game(o.race.shared.work.get()),),
         listed!("owners.race.shared.state", &o.race.shared.state,),
@@ -913,10 +987,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!(
             "owners.effects.masks.edge_settings.tilt_scale",
             on_game(&o.race.effects.get().masks.edge_settings.tilt_scale),
-        ),
-        listed!(
-            "owners.effects.blocks.corners",
-            on_game(&o.race.effects.get().blocks.corners),
         ),
         listed!(
             "owners.effects.masks.ground_names.ground",

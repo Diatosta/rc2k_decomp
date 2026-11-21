@@ -36,7 +36,7 @@ pub fn own_car(ctx: &DrawCtx<'_>) -> Option<u32> {
         .view
         .drawn_view_car(ctx.view.drawn_view(ctx.race))
         .ok()?;
-    if n >= ctx.reads.view.race_cars.get() || !ctx.reads.work.has_car_block(n as usize) {
+    if n >= ctx.reads.view.race_cars() || !ctx.reads.work.has_car_block(n as usize) {
         return None;
     }
     let block = ctx.reads.work.block_number(n as usize).ok()?;

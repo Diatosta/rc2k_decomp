@@ -606,7 +606,7 @@ pub fn run_view_marks(
         effects_window.borrow().view_centre[0],
         effects_window.borrow().view_centre[1],
     );
-    let part_split = ctx.reads.view.players.get() > 2;
+    let part_split = ctx.reads.view.players() > 2;
     if part_split {
         // A part of a larger split screen: the effects are placed about the part's own middle,
         // in screen pixels, and cut to the part (the two-player layouts' table has no entry for

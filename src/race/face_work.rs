@@ -70,7 +70,7 @@ pub struct FaceValues {
     /// `face_any_shine`: whether a vertex of the object face
     /// being drawn shines (`scene::draw_object_face`), each view's own.
     pub face_any_shine: u32,
-    /// `depth_test` (`RaceView.depth_test`): the face turned the depth test off
+    /// `depth_test` (the face work's own): the face turned the depth test off
     /// (`race::face_depth_test_off`), each view's own.
     pub depth_test: u32,
 }
@@ -179,14 +179,11 @@ impl Merge for FaceValues {
 pub type FaceWork = PlainSlot<FaceValues>;
 
 /// The fourth corner of the last face drawn by any view (-1 for a face of three points), read by
-/// `race::norms` at a stage's start-up as `RaceView.corners[3]` was (it should be the face's own: a
+/// `race::norms` at a stage's start-up as the view record's did (it should be the face's own: a
 /// slip kept as is); before any face was drawn it is the image's first value.
-pub(super) fn last_fourth_corner(
-    shared: &crate::race::owner_shared::RaceShared,
-    scratch: &crate::scene::scratch_store::DrawingScratch,
-) -> u32 {
+pub(super) fn last_fourth_corner(scratch: &crate::scene::scratch_store::DrawingScratch) -> u32 {
     match scratch.last_face_view() {
-        None => shared.view.get().corners[3].get(),
+        None => crate::race::view_store::FIRST_FOURTH_CORNER,
         Some(slot) => scratch.slot(slot).face.borrow().corners[3],
     }
 }

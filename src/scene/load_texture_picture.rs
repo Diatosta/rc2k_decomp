@@ -8,7 +8,7 @@
 //! `files\m` name gets its third digit twice: slips of the 1999 code, kept).
 //!
 //! For a picture 1000 .. 1999 of a car (the texture less kind 0x100's first texture, over 8, is
-//! a car's number under `RaceView.race_cars`): "carnum `<n>` grav `<g>`" is logged, g being
+//! a car's number under `RaceView::race_cars`): "carnum `<n>` grav `<g>`" is logged, g being
 //! `RaceVars.car_tyres[0][car]`; with g at 3 or more and the file there, the picture is taken
 //! from `files\b\gravel` instead, and its second name logged.
 //!

@@ -1,8 +1,8 @@
 //! Draws the mirror's view, unless `Finish.no_place` or `in_credits` is set or `scene_set_up` is 0
 //! (it is always 1 once a scene is set up, so it never stops the mirror). The steps: keep
-//! `RaceView.view_depth[1]` in `view_value_kept`; save `view_scale` and make it `k256`'s value
+//! the view window's `view_depth[1]` in `view_value_kept`; save `view_scale` and make it `k256`'s value
 //! (the mirror's own view variables, `ViewScratch::vars`, are taken first); set the mirror's
-//! window (`race::mirror_view_window`); put `RaceView.view_depth[1]` back from `view_value_kept`;
+//! window (`race::mirror_view_window`); put the view window's `view_depth[1]` back from `view_value_kept`;
 //! draw the backdrop (`race::draw_view_backdrop`) and the scene (`race::draw_view_scene`); put
 //! `view_scale` back; set the full view's window again (`race::frame_views::full_view_window`, now
 //! the front end's window: `race::draw_race_scene`). Returns the scene's output (`ViewOutput`: its

@@ -111,17 +111,6 @@ pub fn read_slice(file: u32, into: &mut [u8]) -> (u32, bool) {
     }
 }
 
-/// `read` into dwords (a typed store's, their bytes in order); what the file does not
-/// reach is kept.
-pub fn read_cells(file: u32, cells: &[impl crate::memory::session::Cell32]) -> (u32, bool) {
-    let mut bytes: Vec<u8> = cells.iter().flat_map(|c| c.bits().to_le_bytes()).collect();
-    let got = read_slice(file, &mut bytes);
-    for (c, b) in cells.iter().zip(bytes.as_chunks::<4>().0) {
-        c.set_bits(u32::from_le_bytes(*b));
-    }
-    got
-}
-
 /// `write` from dwords (their bytes in order).
 pub fn write_cells(file: u32, cells: &[impl crate::memory::session::Cell32]) -> (u32, bool) {
     let bytes: Vec<u8> = cells.iter().flat_map(|c| c.bits().to_le_bytes()).collect();

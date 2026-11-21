@@ -23,12 +23,12 @@ pub fn car_light_modes(
     states: &crate::race::car_draw_state::CarDrawState,
     work: &crate::race::work_store::RaceWork,
     vars: crate::race::vars_store::DrawnVarsRef<'_>,
-    race_view: &crate::race::view_store::RaceView,
+    race_view: crate::race::view_store::DrawnViewRef<'_>,
     mirrored: bool,
     view: u32,
 ) -> Result<(), Refused> {
     let block = |n: u32| work.block_number(n as usize);
-    let cars: u32 = race_view.race_cars.get();
+    let cars: u32 = race_view.race_cars();
     if (0..8).any(|n| !work.has_car_block(n as usize)) {
         return Err(BadInput("a null car block").into());
     }
@@ -210,9 +210,9 @@ pub(super) fn car_lights_on_point(
     let light_tables = reads.light_tables;
     let blocks = &reads.car_blocks;
     let (race_work, race_vars, race_view) = (reads.work, reads.vars, reads.view);
-    let cars: u32 = race_view.race_cars.get();
+    let cars: u32 = race_view.race_cars();
     let all = race_vars.settings_word(4) == 1;
-    let one = net_race.is_some() || race_view.lights_follow_view.get() != 0;
+    let one = net_race.is_some() || race_view.lights_follow_view() != 0;
     for n in 0..cars {
         let trap = Trap::new();
         let view_car = || {
@@ -226,7 +226,7 @@ pub(super) fn car_lights_on_point(
             one,
             || net_race.map_or_else(view_car, |n| n.player),
             all,
-            || race_view.players.get(),
+            || race_view.players(),
             || race_vars.run_kind(),
             view_car,
         );
@@ -295,11 +295,11 @@ pub(super) fn lamp_lights_on_point(
 /// eight, a null block it would read, more than 16 lamps.
 pub fn check_light_colour(
     work: &crate::race::work_store::RaceWork,
-    race_view: &crate::race::view_store::RaceView,
+    race_view: crate::race::view_store::DrawnViewRef<'_>,
     lamps: &crate::race::lamp_work::LampWork,
 ) -> Result<(), Refused> {
     Ok(rc2k_core::race::lights::check_light_colour(
-        race_view.race_cars.get(),
+        race_view.race_cars(),
         |n| u32::from(work.has_car_block(n as usize)),
         || lamps.borrow().lamp_count,
     )?)

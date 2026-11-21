@@ -56,7 +56,7 @@ pub fn side_widening(
     view: &crate::race::view_scratch::ViewScratch,
 ) -> f32 {
     // With more than two players the view is a part of the screen, with a shape of its own.
-    let (width, height) = if reads.view.players.get() > 2 {
+    let (width, height) = if reads.view.players() > 2 {
         let size = view.polygon.window.borrow().view_size;
         (size[0], size[1])
     } else {

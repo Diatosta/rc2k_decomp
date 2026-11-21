@@ -4,8 +4,7 @@
 //! offset resolves to), and the copies between them.
 //!
 //! `ByteView::cell_run` and `CellRun`: the byte-wise copies, `load_cells` and
-//! `checkpoints_store::run_on` walk runs. `ByteView::field_path` stays for `drive::sim_hash`
-//! (the held races' hash, `remote` and tests).
+//! `checkpoints_store::run_on` walk runs. `ByteView::field_path` is for the tests.
 
 #![allow(unsafe_code)]
 
@@ -70,7 +69,7 @@ pub unsafe trait ByteView: Cells {
 
     /// The path of the field holding byte `offset` (`.a.b[2]`) added to `path`, and the type of
     /// the primitive cell it ends in: the debug pages' rows are named by it.
-    #[cfg(any(test, feature = "remote"))]
+    #[cfg(test)]
     fn field_path(&self, _offset: usize, _path: &mut String) -> &'static str
     where
         Self: Sized,
@@ -1128,7 +1127,7 @@ unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
 // SAFETY: `N` records of fixed layout one after another, an array's layout: no padding (the
 // elements have none, nor does an array between them), any bits a value.
 unsafe impl<T: ByteView, const N: usize> ByteView for [T; N] {
-    #[cfg(any(test, feature = "remote"))]
+    #[cfg(test)]
     fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
         let size = size_of::<T>();
         path.push_str(&format!("[{}]", offset / size));
@@ -1163,7 +1162,7 @@ unsafe impl<T: Cells> Cells for crate::memory::session::GameThread<T> {
 }
 // SAFETY: one `T` (`repr(transparent)`), whose cells are handed out only on the game's thread.
 unsafe impl<T: ByteView> ByteView for crate::memory::session::GameThread<T> {
-    #[cfg(any(test, feature = "remote"))]
+    #[cfg(test)]
     fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
         self.get().field_path(offset, path)
     }
@@ -1442,63 +1441,6 @@ pub const fn cells_of_bytes<T: ByteView, const N: usize>(bytes: [u8; N]) -> T {
     // SAFETY: `T` is made of cells over plain integers with no padding (`ByteView`), so any
     // bytes are a valid value, and the sizes are equal (checked above).
     core::mem::ManuallyDrop::into_inner(unsafe { bits.record })
-}
-
-/// `N` dwords of a record of cells from byte `at` on, for a record read as a run of dwords.
-#[cfg(test)]
-pub fn dwords_in<T: ByteView, const N: usize>(
-    cells: &T,
-    at: usize,
-) -> &[crate::memory::session::Dword; N] {
-    dwords_as(cells, at)
-}
-
-/// `dwords_in` for a record of the game thread's cells.
-pub fn plain_dwords_in<T: PlainCellsOnly, const N: usize>(
-    cells: &T,
-    at: usize,
-) -> &[crate::memory::session::PlainDword; N] {
-    dwords_as(cells, at)
-}
-
-/// A record of fixed layout made of plain (non-atomic) cells only: its dwords may be reached
-/// as `PlainDword`s (`plain_dwords_in`).
-///
-/// # Safety
-/// Every byte of the record is inside a `Cell` (no atomic among them), so a `PlainDword` over
-/// four of its bytes reaches them as its own cells do: non-atomically, on the one thread a
-/// record of `Cell`s (`!Sync`) is reached from.
-pub unsafe trait PlainCellsOnly: ByteView {}
-
-/// `unsafe impl PlainCellsOnly` for records whose every field is a `PlainDword` (or an array
-/// of them), used beside the record's definition.
-macro_rules! plain_cells_only {
-    ($($t:ty),* $(,)?) => { $(
-        // SAFETY: every field is a `PlainDword` or an array of them: no atomic among its bytes.
-        #[allow(unsafe_code)]
-        unsafe impl $crate::memory::cells::PlainCellsOnly for $t {}
-    )* };
-}
-pub(crate) use plain_cells_only;
-
-/// A cell over one dword, any bits valid: `Dword` and `PlainDword` (`dwords_as`'s kinds).
-trait DwordCell {}
-impl DwordCell for crate::memory::session::Dword {}
-impl DwordCell for crate::memory::session::PlainDword {}
-
-fn dwords_as<D: DwordCell, T: ByteView, const N: usize>(cells: &T, at: usize) -> &[D; N] {
-    assert!(
-        at + N * size_of::<D>() <= size_of::<T>(),
-        "dwords past the record"
-    );
-    let first = std::ptr::from_ref::<T>(cells).cast::<u8>().wrapping_add(at);
-    assert!(first.cast::<D>().is_aligned(), "dwords on an odd place");
-    // SAFETY: inside `cells` (checked above), whose every byte is a cell (`ByteView`) for as long
-    // as the borrow, aligned (checked above), and any bits make a `D` (`DwordCell`: a cell over a
-    // `u32`). The cells there are of `D`'s kind, so no byte is reached both atomically and not:
-    // `plain_dwords_in` takes records of plain cells only (`PlainCellsOnly`), `dwords_in` (the
-    // tests) records of `Dword`s.
-    unsafe { &*first.cast() }
 }
 
 /// The `T` at byte `offset` of `store` (any alignment; a run past the store is refused).

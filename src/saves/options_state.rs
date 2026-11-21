@@ -328,7 +328,7 @@ impl Field<'_> {
             Self::Bytes { len, .. } => *len,
             Self::Player(_) => size_of::<Player>(),
             Self::Records(records) => records.len() * RECORD_LEN as usize,
-            Self::TimeEntries(entries) => size_of_val(*entries),
+            Self::TimeEntries(entries) => entries.len() * TimeEntry::FILE_LEN,
         }
     }
 

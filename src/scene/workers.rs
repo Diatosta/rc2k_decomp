@@ -138,7 +138,7 @@ pub struct Lent<'s> {
     switches: crate::memory::session::PlainRead<crate::race::switches_store::FrameSwitches>,
     checkpoints: crate::memory::session::ArcRead<crate::race::checkpoints_store::Checkpoints>,
     vars: crate::race::vars_store::DrawnVars,
-    view: crate::memory::session::PhaseRead<'s, crate::race::view_store::RaceView>,
+    view: crate::race::view_store::DrawnView,
     work: crate::memory::session::PhaseRead<'s, crate::race::work_store::RaceWork>,
     physics_tables:
         crate::memory::session::PhaseRead<'s, crate::physics::tables_store::PhysicsTables>,
@@ -204,7 +204,7 @@ impl<'s> Lent<'s> {
             switches: crate::memory::session::PlainRead::lend(&race.shared.switches, scope),
             checkpoints: crate::memory::session::ArcRead::lend(&race.shared.checkpoints, scope),
             vars: race.shared.vars.get().drawn(),
-            view: PhaseRead::lend(&race.shared.view, scope),
+            view: race.shared.view.get().drawn(),
             work: PhaseRead::lend(&race.shared.work, scope),
             physics_tables: PhaseRead::lend(&race.shared.physics_tables, scope),
             // The frame's matrices and the physics' contact work.
@@ -256,7 +256,7 @@ impl<'s> Lent<'s> {
             switches: (&self.switches).into(),
             checkpoints: (&self.checkpoints).into(),
             vars: crate::race::vars_store::DrawnVarsRef::Copy(&self.vars),
-            view: &self.view,
+            view: crate::race::view_store::DrawnViewRef::Copy(&self.view),
             work: &self.work,
             physics_tables: &self.physics_tables,
             // The frame's matrices and the physics' contact work.
@@ -353,7 +353,7 @@ pub struct DrawReads<'a> {
     pub vars: crate::race::vars_store::DrawnVarsRef<'a>,
     /// The race's view and face work (`race::owner_shared::RaceShared::view`): the players
     /// and views, their cars, the face tables.
-    pub view: &'a crate::race::view_store::RaceView,
+    pub view: crate::race::view_store::DrawnViewRef<'a>,
     /// The race's work variables (`race::owner_shared::RaceShared::work`): the cars' block
     /// handles, the number textures, the loose parts' slots, the credits flag.
     pub work: &'a crate::race::work_store::RaceWork,
@@ -449,7 +449,7 @@ impl<'a> DrawReads<'a> {
             switches: crate::race::switches_store::FrameSwitchesRef::Store(&race.shared.switches),
             checkpoints: race.shared.checkpoints(),
             vars: crate::race::vars_store::DrawnVarsRef::Store(race.shared.vars.get()),
-            view: race.shared.view.get(),
+            view: crate::race::view_store::DrawnViewRef::Store(race.shared.view.get()),
             work: race.shared.work.get(),
             physics_tables: race.shared.physics_tables.get(),
             // The frame's matrices and the physics' contact work.

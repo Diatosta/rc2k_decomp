@@ -39,7 +39,7 @@ fn draw_slot_object(
     let object = slot.part.get();
     ctx.view.cars.borrow_mut().object_number = object;
     let mode: u32 = ctx.reads.vars.run_kind();
-    if ctx.reads.view.players.get() != 1 && mode != 0 && mode != 2 {
+    if ctx.reads.view.players() != 1 && mode != 0 && mode != 2 {
         let n = object.wrapping_sub(0x50);
         if ctx.reads.frame_work.listed_car_sounds()[((n / 0x14) & 7) as usize]
             != ctx.view.drawn_view(race)
@@ -436,7 +436,7 @@ pub fn car_lights(ctx: &DrawCtx) -> Result<(), Refused> {
     }
     // The null block's refusal comes between the two checks.
     use rc2k_core::race::lights::{check_car_lights, lights_on};
-    let cars: u32 = ctx.reads.view.race_cars.get();
+    let cars: u32 = ctx.reads.view.race_cars();
     check_car_lights(cars, 0, SORT_MAX)?;
     if (0..cars).any(|n| !ctx.reads.work.has_car_block(n as usize)) {
         return Err(BadInput("a null car block").into());

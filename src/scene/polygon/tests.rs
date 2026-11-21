@@ -1,29 +1,49 @@
 use super::*;
 use crate::scene::polygon_store::PolygonTables;
-use core::mem::{offset_of, size_of};
+use core::mem::size_of_val;
 
+/// The bytes of the textures' records.
+const INFOS_LEN: usize = 256 * 0x40;
+/// The bytes of the textures' records and the materials after them.
+const TABLES_LEN: usize = INFOS_LEN + 1200 * 0x80;
+
+/// The tables with dword `k` (the records' dwords in order) set to `k` times a constant.
 fn filled() -> Box<PolygonTables> {
-    let t: Box<PolygonTables> = Box::new(crate::memory::cells::zeroed_cells());
-    for k in 0..size_of::<PolygonTables>() / 4 {
-        crate::memory::cells::store_value::<u32>(&*t, 4 * k, (k as u32).wrapping_mul(0x9E37_79B1))
-            .unwrap();
+    let t = Box::new(PolygonTables::new());
+    let words = t
+        .texture_infos
+        .iter()
+        .flat_map(|info| &info.words)
+        .chain(t.object_materials.iter().flat_map(|m| &m.words));
+    for (k, word) in words.enumerate() {
+        word.set((k as u32).wrapping_mul(0x9E37_79B1));
     }
     t
 }
 
+/// The tables' bytes `at ..` read in the files' order: refused past the end.
+fn loaded(at: usize, into: &mut [u8]) -> Result<(), BadInput> {
+    if at
+        .checked_add(into.len())
+        .is_none_or(|end| end > TABLES_LEN)
+    {
+        return Err(BadInput(""));
+    }
+    for (n, byte) in into.iter_mut().enumerate() {
+        let a = at + n;
+        *byte = ((a / 4) as u32).wrapping_mul(0x9E37_79B1).to_le_bytes()[a % 4];
+    }
+    Ok(())
+}
+
 /// The byte readers as they read through the whole tables' bytes.
-fn old_field_byte(
-    t: &PolygonTables,
-    field: usize,
-    len: usize,
-    offset: u32,
-) -> Result<u8, BadInput> {
+fn old_field_byte(field: usize, len: usize, offset: u32) -> Result<u8, BadInput> {
     let offset = offset as usize;
     if offset >= len {
         return Err(BadInput(""));
     }
     let mut byte = [0u8];
-    crate::memory::cells::load_cells(t, field + offset, &mut byte)?;
+    loaded(field + offset, &mut byte)?;
     Ok(byte[0])
 }
 
@@ -36,7 +56,7 @@ fn field_bytes_read_as_the_byte_read() {
     for offset in 0..infos as u32 + 8 {
         assert_eq!(
             field_byte(&t.texture_infos, offset, "x").ok(),
-            old_field_byte(&t, 0, infos, offset).ok(),
+            old_field_byte(0, infos, offset).ok(),
             "info byte {offset}"
         );
     }
@@ -44,13 +64,7 @@ fn field_bytes_read_as_the_byte_read() {
     for offset in (0..materials as u32 + 8).step_by(3) {
         assert_eq!(
             field_byte(&t.object_materials, offset, "x").ok(),
-            old_field_byte(
-                &t,
-                offset_of!(PolygonTables, object_materials),
-                materials,
-                offset
-            )
-            .ok(),
+            old_field_byte(INFOS_LEN, materials, offset).ok(),
             "material byte {offset}"
         );
     }
@@ -62,7 +76,7 @@ fn field_bytes_read_as_the_byte_read() {
 #[test]
 fn material_runs_read_as_the_byte_read() {
     let t = filled();
-    let base = offset_of!(PolygonTables, object_materials) as u32;
+    let base = INFOS_LEN as u32;
     for kind in [u32::MAX, 0, 1, 1198, 1199, 1200] {
         for offset in [0u32, 1, 3, 0x1F, 0x7C, 0x7F, 0x80, 0x100] {
             for len in [1usize, 2, 4, 8] {
@@ -70,7 +84,7 @@ fn material_runs_read_as_the_byte_read() {
                     .wrapping_add(kind.wrapping_mul(0x80))
                     .wrapping_add(offset);
                 let (mut old, mut new) = ([0u8; 8], [0u8; 8]);
-                let o = crate::memory::cells::load_cells(&*t, at as usize, &mut old[..len]);
+                let o = loaded(at as usize, &mut old[..len]);
                 let n = material_run(&t, kind, offset, &mut new[..len]);
                 assert_eq!(
                     o.is_ok(),

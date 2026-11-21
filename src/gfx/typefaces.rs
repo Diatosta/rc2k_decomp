@@ -276,13 +276,11 @@ impl FontRef {
 }
 
 /// A font a table of the game's keeps (a menu item's): the object by number.
-#[repr(transparent)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
-pub struct FontCell(crate::memory::session::Dword);
+pub struct FontCell(crate::memory::session::PlainDword);
 
 impl FontCell {
     pub const fn new(font: FontId) -> Self {
-        Self(crate::memory::session::Dword::new(font.0 as u32))
+        Self(crate::memory::session::PlainDword::new(font.0 as u32))
     }
 
     pub fn get(&self) -> FontId {

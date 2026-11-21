@@ -159,7 +159,7 @@ fn share_car_state_at(
     }
     o.gear_notice.set(p.borrow().gear_notice);
     p.borrow_mut().gear_notice = 0;
-    let from = race.shared.view.get().level_from.get();
+    let from = crate::race::view_store::LEVEL_FROM.get();
     let step = race.course.numbers.four.get();
     for (level, gauge) in o.levels.iter().zip([&car.engine_heat, &car.engine_damage]) {
         level.set(0);

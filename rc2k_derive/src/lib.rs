@@ -300,7 +300,7 @@ fn byte_view_impl(input: &DeriveInput, cfg: Tokens) -> Result<Tokens, Tokens> {
         // SAFETY: `#[repr(C)]` over `ByteView` fields and no byte outside them (checked
         // above), so any bytes make a value and every byte is in a cell.
         unsafe impl #with crate::memory::cells::ByteView for #name #of #clause {
-            #[cfg(any(test, feature = "remote"))]
+            #[cfg(test)]
             fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
                 #starts
                 let field = starts.partition_point(|&start| start <= offset).wrapping_sub(1);

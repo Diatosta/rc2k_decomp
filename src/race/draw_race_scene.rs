@@ -90,7 +90,7 @@ fn load_car(
     crate::race::frame::load_view_car(
         race.shared.work.get(),
         race.shared.car_blocks(),
-        race.shared.view.get(),
+        race.shared.view.get().into(),
         car,
         scratch.main_view(car),
     )
@@ -100,7 +100,7 @@ fn load_car(
 /// work of `view`, a player's scene's slot or its mirror's.
 fn fetch_value(
     race: &Race,
-    race_view: &crate::race::view_store::RaceView,
+    race_view: crate::race::view_store::DrawnViewRef<'_>,
     view: &ViewScratch,
 ) -> Result<(), Refused> {
     crate::race::frame_draw::fetch_view_value(
@@ -248,7 +248,7 @@ fn draw_view(
     load_car(o.race, &o.scene.scratch, car)?;
     fetch_value(
         o.race,
-        o.race.shared.view.get(),
+        o.race.shared.view.get().into(),
         o.scene.scratch.main_view(car),
     )?;
     // Only the first two players have mirrors (a third's and fourth's slots hold their views).
@@ -256,7 +256,7 @@ fn draw_view(
     if has_mirror {
         fetch_value(
             o.race,
-            o.race.shared.view.get(),
+            o.race.shared.view.get().into(),
             o.scene.scratch.mirror(car),
         )?;
     }
@@ -352,7 +352,7 @@ fn draw_players_beside(
     let own = |p: usize,
                view: &ViewScratch,
                window: Option<crate::scene::workers::DrawReads<'_>>,
-               race_view: &crate::race::view_store::RaceView| {
+               race_view: crate::race::view_store::DrawnViewRef<'_>| {
         player(p as u32, view, window);
         fetch_value(o.race, race_view, view)
     };
@@ -397,7 +397,7 @@ fn draw_players_beside(
                 p,
                 o.scene.scratch.main_view(p),
                 None,
-                o.race.shared.view.get(),
+                o.race.shared.view.get().into(),
             )?;
             o.scene.scratch.main_view(p).hand_off.put(o.race);
             view_drawn(o.race, o.scene, o.system, p, false)?;
@@ -486,7 +486,6 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     let blocks = view_blocks(&race.shared)?;
     check_light_texture_slots(race, scene)?;
     crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
-    crate::memory::session::write_bits(&race.shared.view.get().view_cleared, [0u32; 0x20]);
     // The split screen's further views show their own player's car; each is on.
     let views = race.shared.view.get().views.get();
     race.frame

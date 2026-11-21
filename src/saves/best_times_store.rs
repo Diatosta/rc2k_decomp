@@ -1,12 +1,12 @@
 //! The best times: the six rallies' tables (`RallyTimes`), then the memory the nine other tables
 //! are taken on, the two switches and where each table is (`BestTimes`). The nine tables are
-//! typed and Rust's own (`saves::best_times`): each pair keeps only the size. `TimeEntry` keeps
-//! its `#[repr(C)]` (`ByteView`: entries are copied in runs).
+//! typed and Rust's own (`saves::best_times`): each pair keeps only the size. `TimeEntry` is a
+//! plain record: `saves::options_state` writes and reads its fields in the file's order.
 
-use crate::memory::session::{PlainBytes, PlainDword};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::PlainDword;
 
 /// Where one table is: its address (0, since the tables are typed) and its size in bytes.
-#[derive(rc2k_derive::Cells)]
 pub struct TablePlace {
     pub address: PlainDword,
     pub size: PlainDword,
@@ -50,8 +50,6 @@ impl BestTimes {
 /// A best-time entry (0x9C bytes), as the rally and stage tables hold them (and the
 /// standings' table A, `menu::standings`). Fields by `rc2k_core::saves::defaults::TimeEntry`
 /// and the section screen (readings).
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct TimeEntry {
     /// Read by no code.
     pub unread_0: PlainDword,
@@ -70,7 +68,7 @@ pub struct TimeEntry {
     /// The group (the driver's class).
     pub group: PlainDword,
     /// The name, NUL-ended.
-    pub name: PlainBytes<0x20>,
+    pub name: PlainBuffer<{ TimeEntry::NAME_LEN }>,
     /// 1 for a player's time.
     pub is_player: PlainDword,
     /// A figure.
@@ -87,6 +85,11 @@ pub struct TimeEntry {
 }
 
 impl TimeEntry {
+    /// The bytes of the name field.
+    pub const NAME_LEN: usize = 0x20;
+    /// The entry's length in the files and tables: 39 dwords.
+    pub const FILE_LEN: usize = 0x9C;
+
     /// A made-up time (`saves::defaults`), field by field: the time at `time_at` (`stage_time` or
     /// `rally_time`), the driver's first field as the group, the second as the
     /// nationality, 0xB in `unread_50`, the guessed checkpoints when it has them, the car, the name's
@@ -105,7 +108,7 @@ impl TimeEntry {
                 ));
             }
         };
-        if e.driver.name.len() > core::mem::size_of_val(&self.name) {
+        if e.driver.name.len() > Self::NAME_LEN {
             return Err(crate::errors::BadInput(
                 "a made-up name longer than the name field",
             ));
@@ -128,7 +131,7 @@ impl TimeEntry {
     }
 
     /// From the dwords but the name's (31 of them, in order) and the name's bytes.
-    const fn new(w: [u32; 31], name: [u8; 0x20]) -> Self {
+    const fn new(w: [u32; 31], name: [u8; Self::NAME_LEN]) -> Self {
         let mut checkpoints = [const { PlainDword::new(0) }; 16];
         let mut k = 0;
         while k < 16 {
@@ -144,7 +147,7 @@ impl TimeEntry {
             stage_time: PlainDword::new(w[5]),
             rally_time: PlainDword::new(w[6]),
             group: PlainDword::new(w[7]),
-            name: PlainBytes::new(name),
+            name: PlainBuffer::new(name),
             is_player: PlainDword::new(w[8]),
             figure: PlainDword::new(w[9]),
             unread_48: [PlainDword::new(w[10]), PlainDword::new(w[11])],
@@ -155,13 +158,10 @@ impl TimeEntry {
     }
 }
 
-const _: () = assert!(core::mem::size_of::<TimeEntry>() == 0x9C);
-
 /// The six rallies' best times: `RallyTimes.tables[0]`, the six tables' names (addresses of
 /// the old layout; `RallyTimes::table_named` makes one real, for
 /// `screens::draw_section_best_times` and `saves::default_championship_times`), then the
 /// tables, twenty entries each.
-#[derive(rc2k_derive::Cells)]
 pub struct RallyTimes {
     pub tables: [PlainDword; 6],
     pub rallies: [[TimeEntry; 20]; 6],
@@ -189,7 +189,7 @@ impl RallyTimes {
         let mut n = 0;
         while n < 6 {
             tables[n] =
-                PlainDword::new((Self::FIRST_TABLE + n * size_of::<[TimeEntry; 20]>()) as u32);
+                PlainDword::new((Self::FIRST_TABLE + n * (20 * TimeEntry::FILE_LEN)) as u32);
             n += 1;
         }
         RallyTimes {
@@ -207,7 +207,7 @@ impl RallyTimes {
             "a rally past the six best-times tables",
         ))?;
         let name = name.get() as usize;
-        let table_len = size_of::<[TimeEntry; 20]>();
+        let table_len = 20 * TimeEntry::FILE_LEN;
         if !(Self::START..Self::END).contains(&name) || name < Self::FIRST_TABLE {
             return Err(crate::errors::BadInput(
                 "a best-times table off the rallies' tables",
@@ -242,6 +242,37 @@ impl RallyTimes {
     pub const START: usize = 0x742C98;
     /// The old address of its end.
     pub const END: usize = 0x7475D0;
+}
+
+#[cfg(test)]
+impl TimeEntry {
+    /// The entry's bytes in the files' order.
+    fn file_bytes(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(Self::FILE_LEN);
+        for field in [
+            &self.unread_0,
+            &self.player,
+            &self.nation,
+            self.name_id.file_dword(),
+            &self.car,
+            &self.stage_time,
+            &self.rally_time,
+            &self.group,
+        ] {
+            out.extend(field.get().to_le_bytes());
+        }
+        out.extend(self.name.read());
+        for field in [&self.is_player, &self.figure]
+            .into_iter()
+            .chain(&self.unread_48)
+            .chain([&self.unread_50])
+            .chain(&self.unread_54)
+            .chain(&self.checkpoints)
+        {
+            out.extend(field.get().to_le_bytes());
+        }
+        out
+    }
 }
 
 #[cfg(test)]
@@ -280,7 +311,6 @@ mod table_named_tests {
 #[cfg(test)]
 mod fill_made_up_tests {
     use super::*;
-    use crate::memory::cells::load_cells;
 
     /// A made-up time written by fields is the entry the core writes by byte position, in a stage's
     /// table (`stage_time`) and a rally's (`rally_time`); a name longer than the field and another place for
@@ -299,12 +329,10 @@ mod fill_made_up_tests {
         };
         for time_at in [0x14, 0x18] {
             let entry = TimeEntry::new([0; 31], [0; 0x20]);
-            let mut want = vec![0; 0x9C];
-            load_cells(&entry, 0, &mut want).unwrap();
+            let mut want = entry.file_bytes();
             made.write(&mut want, time_at);
             entry.fill_made_up(&made, time_at).unwrap();
-            let mut got = vec![0; 0x9C];
-            load_cells(&entry, 0, &mut got).unwrap();
+            let got = entry.file_bytes();
             assert!(got == want, "time at {time_at:#x}");
         }
         let entry = TimeEntry::new([0; 31], [0; 0x20]);
@@ -319,7 +347,6 @@ mod fill_made_up_tests {
 #[cfg(test)]
 mod image_bytes_tests {
     use super::*;
-    use crate::memory::cells::load_cells;
 
     fn dump(times: &RallyTimes, bt: &BestTimes) -> Vec<u8> {
         let mut out = Vec::new();
@@ -328,9 +355,7 @@ mod image_bytes_tests {
         }
         for rally in &times.rallies {
             for entry in rally {
-                let mut e = vec![0; 0x9C];
-                load_cells(entry, 0, &mut e).unwrap();
-                out.extend(e);
+                out.extend(entry.file_bytes());
             }
         }
         out.extend(bt.allocated.get().to_le_bytes());

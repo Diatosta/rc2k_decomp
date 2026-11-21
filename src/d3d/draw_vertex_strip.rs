@@ -23,7 +23,7 @@ fn vertices(
         .collect())
 }
 
-/// Draws the strip of `count` vertices at `at`.
+/// Draws the strip of `count` vertices at the start of `at`.
 pub fn draw_vertex_strip(
     part: &crate::scene::scratch_store::PartScratch,
     at: &[crate::d3d::vertices_store::Vertex],

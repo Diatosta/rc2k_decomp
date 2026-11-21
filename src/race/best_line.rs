@@ -405,14 +405,9 @@ fn surface_shares(race: &Race, faces: &[u32]) -> Result<[u32; 16], Refused> {
         let second = face_byte(0x21)?;
         // `surface_kinds` is indexed by the texture info's kind byte, 0 .. 3 in every record of
         // the shipped texture info files; a byte past them is refused.
-        let kind: u32 = race
-            .shared
-            .view
-            .get()
-            .surface_kinds
+        let kind: u32 = *crate::race::view_store::SURFACE_KINDS
             .get(info_byte(second, 0x2C)? as usize)
-            .ok_or(BadInput("a texture's surface kind past the four kinds"))?
-            .get();
+            .ok_or(BadInput("a texture's surface kind past the four kinds"))?;
         let second_weight = rc2k_core::race::best_line::second_weight(blend, second as u8, kind);
         let first_weight = rc2k_core::race::best_line::first_weight(second_weight);
         add_four(face_byte(1)?, first_weight)?;

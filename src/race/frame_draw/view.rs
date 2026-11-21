@@ -489,7 +489,7 @@ pub fn camera_view(
     view.vars.view_place_f[0].set(from_int(place[0] as i32));
     view.vars.view_place_f[1].set(from_int(place[1] as i32));
     view.vars.view_place_f[2].set(from_int(place[2] as i32));
-    if reads.view.players.get() > 2 {
+    if reads.view.players() > 2 {
         // A part of a larger split screen: the projection's scale follows the part's own shape
         // (as where the part's window is first set, `race::draw_race_scene`), not the screen's.
         let size = view.polygon.window.borrow().view_size;

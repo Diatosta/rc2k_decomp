@@ -93,11 +93,11 @@ pub fn panel_players(race: &Race) -> Result<(), BadInput> {
 pub fn lamps_wanted(
     frame_cars: &crate::race::frame_view::FrameCars,
     work: &crate::race::work_store::RaceWork,
-    race_view: &crate::race::view_store::RaceView,
+    race_view: crate::race::view_store::DrawnViewRef<'_>,
     lamps: &crate::race::lamp_work::LampWork,
 ) -> Result<(), Refused> {
     use rc2k_core::race::frame::{car_lit, lamps_wanted};
-    let cars: u32 = race_view.race_cars.get();
+    let cars: u32 = race_view.race_cars();
     if cars > 8 {
         return Err(BadInput("more than eight race cars").into());
     }
@@ -115,7 +115,7 @@ pub fn lamps_wanted(
 /// `ViewScratch::drawn_view` is read); refused: an index past the four
 /// and a view without its block.
 pub(super) fn drawn_view(
-    race_view: &crate::race::view_store::RaceView,
+    race_view: crate::race::view_store::DrawnViewRef<'_>,
     n: u32,
 ) -> Result<usize, Refused> {
     if n > 3 {
@@ -128,7 +128,7 @@ pub(super) fn drawn_view(
 /// The block and the value are worked out at the scene's end and stored by the game's thread in the
 /// views' order (`ViewOutput::store_view_value`).
 pub fn view_value(
-    race_view: &crate::race::view_store::RaceView,
+    race_view: crate::race::view_store::DrawnViewRef<'_>,
     sun: &crate::scene::polygon_work_store::ViewSun,
     view: u32,
 ) -> Result<(usize, u32), Refused> {
@@ -145,7 +145,7 @@ pub fn store_view_value(race: &Race, block: usize, value: u32) -> Result<(), Ref
 /// `eased_value`.
 pub fn fetch_view_value(
     cars: &crate::race::frame_view::FrameCars,
-    race_view: &crate::race::view_store::RaceView,
+    race_view: crate::race::view_store::DrawnViewRef<'_>,
     sun: &crate::scene::polygon_work_store::ViewSun,
     view: u32,
 ) -> Result<(), Refused> {

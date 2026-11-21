@@ -34,7 +34,7 @@ pub struct RaceShared {
     /// One copy: no drawing part writes it.
     pub vars: crate::memory::session::GameThread<RaceVars>,
     /// One copy: no drawing part writes it.
-    pub view: DrawShared<RaceView>,
+    pub view: GameThread<RaceView>,
     /// One copy: no drawing part writes it.
     pub switches: DrawPlain<FrameSwitches>,
     /// One copy: the drawing only reads it.
@@ -82,7 +82,7 @@ impl RaceShared {
             buffers: Buffers::new(),
             checkpoints: DrawArc::new(Checkpoints::new),
             vars: crate::memory::session::GameThread::new(RaceVars::new()),
-            view: DrawShared::new(RaceView::new()),
+            view: GameThread::new(RaceView::new()),
             switches: DrawPlain::new(FrameSwitches::new()),
             physics_tables: DrawShared::new(PhysicsTables::new()),
             car: GameThread::new(Car::new()),

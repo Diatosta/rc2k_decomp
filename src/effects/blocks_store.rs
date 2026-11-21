@@ -157,8 +157,6 @@ impl CornerSlopes {
 
 /// A corner record (0x80 bytes of 16-bit words: four (u, v) pairs of a cell's texture
 /// places, and what `effects::scale_corners` scales).
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct Corner {
     pub words: [PlainWord; 0x40],
 }
@@ -172,8 +170,6 @@ impl Corner {
 }
 
 /// The marks' corner table (0x100 records of 0x80 bytes).
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct MarkCorners {
     /// The corner records (the course's 0x8000 bytes of `markinfo` are copied here).
     pub corners: [Corner; 0x100],

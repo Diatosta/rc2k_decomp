@@ -432,13 +432,13 @@ mod tests {
         ("inetport", "owners.net.main.setup.port", ""),
         (
             "noreplay",
-            "owners.race.shared.replay_file",
-            ".no_replay_switch",
+            "owners.race.shared.replay_file.no_replay_switch",
+            "",
         ),
         (
             "replaykeys",
-            "owners.race.shared.replay_file",
-            ".viewer_editing",
+            "owners.race.shared.replay_file.viewer_editing",
+            "",
         ),
         ("logfile", "logfile.write_line.state.LEVEL", ""),
         ("nofmv", "owners.system.machine", ".no_fmv"),
@@ -454,8 +454,8 @@ mod tests {
         ),
         (
             "seasoncode",
-            "owners.race.shared.replay_file",
-            ".season_code",
+            "owners.race.shared.replay_file.season_code",
+            "",
         ),
         (
             "noautoneutral",

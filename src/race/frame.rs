@@ -45,7 +45,7 @@ fn set_both_counters(race: &Race, value: u32) {
     }
 }
 
-/// The view car `n`'s number: `view_cars`, `RaceView.view_cars[1]`, `local_car`.
+/// The view car `n`'s number: `view_cars`, `RaceView::view_cars[1]`, `local_car`.
 pub fn view_car(
     view: &crate::race::view_store::RaceView,
     n: usize,
@@ -63,7 +63,7 @@ pub fn view_car(
 pub(super) fn load_view_car(
     work: &crate::race::work_store::RaceWork,
     blocks: &crate::race::blocks_store::CarBlocks,
-    race_view: &crate::race::view_store::RaceView,
+    race_view: crate::race::view_store::DrawnViewRef<'_>,
     n: usize,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {

@@ -29,7 +29,11 @@ pub struct BufferReads {
 impl BufferReads {
     /// The bytes, zero as in the image.
     pub const fn new() -> Self {
-        crate::memory::cells::zeroed_cells()
+        BufferReads {
+            polygon_tables: PolygonTables::new(),
+            faces: crate::memory::cells::zeroed_cells(),
+            engine_tables: crate::memory::cells::zeroed_cells(),
+        }
     }
 }
 

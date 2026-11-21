@@ -5,8 +5,6 @@
 use crate::memory::session::PlainDword;
 use rc2k_core::saves::name_id::NameId;
 
-#[repr(transparent)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView, rc2k_derive::ZeroCells)]
 pub struct NameIdCell(PlainDword);
 
 impl NameIdCell {

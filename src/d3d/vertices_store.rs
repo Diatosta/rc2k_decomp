@@ -5,8 +5,6 @@
 use crate::memory::session::{CellKind, PlainCells};
 
 /// One vertex: a Direct3D transformed and lit vertex.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct Vertex<K: CellKind = PlainCells> {
     /// The screen x.
     pub x: K::Float,
@@ -41,12 +39,25 @@ impl Vertex {
             self.v.bits(),
         ]
     }
+
+    /// A vertex of zeros.
+    pub const fn new() -> Self {
+        use crate::memory::session::{PlainDword, PlainFloat};
+        Self {
+            x: PlainFloat::new(0.0),
+            y: PlainFloat::new(0.0),
+            z: PlainFloat::new(0.0),
+            rhw: PlainFloat::new(0.0),
+            colour: PlainDword::new(0),
+            specular: PlainDword::new(0),
+            u: PlainFloat::new(0.0),
+            v: PlainFloat::new(0.0),
+        }
+    }
 }
 
 /// The vertices of the polygon being drawn: a drawing part's own (`scene::scratch_store::PartScratch`), on
 /// plain cells, reached by the one thread that draws the part.
-#[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells)]
 pub struct PolygonVertices {
     /// The 64 vertices (`d3d::draw_fan_unclipped`, `scene::draw_polygon`, `effects::`, `hud::`,
     /// `drive::tyre_parts`).
@@ -56,7 +67,9 @@ pub struct PolygonVertices {
 impl PolygonVertices {
     /// The buffer, zeroed as in the image.
     pub const fn new() -> Self {
-        crate::memory::cells::zeroed_cells()
+        Self {
+            vertices: [const { Vertex::new() }; 64],
+        }
     }
 }
 

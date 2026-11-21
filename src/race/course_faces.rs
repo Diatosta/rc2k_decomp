@@ -6,7 +6,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
 use crate::memory::session::PlainFloat;
-use crate::memory::session::byte_of;
 use crate::race::face_work::FaceWork;
 use crate::race::owner_course::CourseReads;
 use crate::race::trap::Trap;
@@ -321,10 +320,10 @@ fn face_out_of_view(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
     // The in-sight test is exact in `f64` (`rc2k_core::race::face_drawing::corner_in_sight`).
     use rc2k_core::race::face_drawing::{InSight, corner_in_sight};
     crate::race::frame_draw::points_there(ctx)?;
-    let near = ctx.reads.view.near.get();
+    let near = crate::race::view_store::NEAR.get();
     // The cone to the sides is as much wider as the view is wider than 4:3.
-    let slope =
-        ctx.reads.view.slope.get() / crate::race::frame_draw::side_widening(ctx.reads, ctx.view);
+    let slope = crate::race::view_store::SLOPE.get()
+        / crate::race::frame_draw::side_widening(ctx.reads, ctx.view);
     for k in 0..4 {
         let n: u32 = ctx.view.face.borrow().corners[k];
         if k == 3 && n == u32::MAX {
@@ -473,7 +472,6 @@ pub(super) fn face_texture_coordinates(
     course: CourseReads<'_>,
     points: &crate::race::scene_points::OwnPoints,
     buffers: &crate::race::buffers_store::BufferReads,
-    race_view: &crate::race::view_store::RaceView,
     work: &FaceWork,
     poly: &crate::scene::polygon_work_store::PolygonWork,
     set: TextureSet,
@@ -489,7 +487,7 @@ pub(super) fn face_texture_coordinates(
     };
     let mut pairs = [(0u16, 0u16); 4];
     for (k, pair_out) in pairs.iter_mut().enumerate() {
-        let table = race_view.corner_uv_offsets[(order << 2) as usize + k].get();
+        let table = crate::race::view_store::CORNER_UV_OFFSETS[(order << 2) as usize + k];
         *pair_out = (
             u16::from_le_bytes(info_bytes(&buffers.polygon_tables, texture, table)?),
             u16::from_le_bytes(info_bytes(
@@ -711,8 +709,8 @@ fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             second,
             0x2C,
         ))[0] as usize;
-        match ctx.reads.view.surface_kinds.get(pick) {
-            Some(kind) => kind.get(),
+        match crate::race::view_store::SURFACE_KINDS.get(pick) {
+            Some(kind) => *kind,
             None => {
                 trap.keep(BadInput("a texture's surface kind past the four kinds"));
                 0
@@ -737,7 +735,6 @@ fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             ctx.reads.course(),
             &ctx.part.points,
             ctx.reads.buffers,
-            ctx.reads.view,
             &ctx.view.face,
             &ctx.view.polygon,
             first_set(),
@@ -751,7 +748,6 @@ fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             ctx.reads.course(),
             &ctx.part.points,
             ctx.reads.buffers,
-            ctx.reads.view,
             &ctx.view.face,
             &ctx.view.polygon,
             second_set(),
@@ -1000,7 +996,7 @@ fn turn_over(ctx: &DrawCtx<'_>) -> Result<(), BadInput> {
     let trap = Trap::new();
     let turned = turned_order(order, |n| {
         // `turned_order` asks 0 ..= 7.
-        byte_of(&ctx.reads.view.turned_corner_order, n as usize).unwrap_or_else(|| {
+        crate::race::view_store::turned_corner_order_byte(n as usize).unwrap_or_else(|| {
             trap.keep(BadInput("past the turned corner order"));
             0
         })
@@ -1274,7 +1270,7 @@ mod vector_tests {
                     ..course.numbers
                 };
                 let entry = |r: &mut Rng| {
-                    let e = crate::memory::cells::zeroed_cells::<PolygonEntry>();
+                    let e = PolygonEntry::new();
                     for k in 0..10 {
                         e.set_word(
                             4 * k,
@@ -1288,7 +1284,7 @@ mod vector_tests {
                     e
                 };
                 let (f, s) = (entry(&mut r), entry(&mut r));
-                let to = crate::memory::cells::zeroed_cells::<PolygonEntry>();
+                let to = PolygonEntry::new();
                 for k in 0..10 {
                     to.set_word(4 * k, 0xAAAA_AAAA);
                 }
