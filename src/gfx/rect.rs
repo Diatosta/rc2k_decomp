@@ -7,7 +7,7 @@ use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
 use crate::gfx::surface::{clip, surface};
 
-fn set(a: &crate::memory::session::PlainDword, v: i32) {
+fn set(a: &std::cell::Cell<u32>, v: i32) {
     a.set(v as u32);
 }
 

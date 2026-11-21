@@ -16,15 +16,14 @@
 use crate::d3d::with_locked_texture::{CopyWhen, with_locked_texture};
 use crate::errors::{BadInput, Refused};
 use crate::input::types::InputDevice;
-use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 
-fn clip(edge: &PlainDword) -> u32 {
+fn clip(edge: &std::cell::Cell<u32>) -> u32 {
     edge.get()
 }
 
-fn set_clip(edge: &PlainDword, v: u32) {
+fn set_clip(edge: &std::cell::Cell<u32>, v: u32) {
     edge.set(v);
 }
 

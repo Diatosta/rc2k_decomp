@@ -769,6 +769,16 @@ impl Cell32 for PlainDword {
     }
 }
 
+/// A plain dword cell as a game variable's cell (what the Rust codes' `Cells` take).
+impl Cell32 for Cell<u32> {
+    fn bits(&self) -> u32 {
+        self.get()
+    }
+    fn set_bits(&self, bits: u32) {
+        self.set(bits);
+    }
+}
+
 impl Cell32 for Int {
     fn bits(&self) -> u32 {
         self.0.load(Relaxed)

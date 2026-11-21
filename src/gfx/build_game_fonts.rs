@@ -18,13 +18,13 @@ use crate::gfx::glyph_tables::{
 };
 use crate::memory::MemoryList;
 use crate::memory::take_from_list::rewind_list;
+use std::cell::Cell;
 
 /// The game fonts' memory.
-#[derive(rc2k_derive::Cells)]
 pub struct GameFontsMemory {
     /// The memory's size in units of 0x400 bytes times `Screen.bytes` (`gamegfxheapsize`, a
     /// `var\ral.cfg` setting).
-    pub units: crate::memory::session::PlainDword,
+    pub units: Cell<u32>,
     /// `GameFontsMemory.memory.head`: the list the fonts' tables lie on (16 bytes).
     pub memory: crate::memory::ListCells,
 }
@@ -33,7 +33,7 @@ impl GameFontsMemory {
     /// The game fonts' memory.
     pub const fn new() -> Self {
         GameFontsMemory {
-            units: crate::memory::session::PlainDword::new(0x20),
+            units: Cell::new(0x20),
             memory: crate::memory::ListCells::new(MemoryList {
                 head: 0,
                 total: 0,

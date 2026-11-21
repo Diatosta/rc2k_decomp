@@ -162,7 +162,7 @@ const ENTRIES: [(&[u8], Target); 77] = [
     (b"wavheapsize", dword!(o => o.audio.state.sample_buffer_kb)),
     (
         b"bundleheapsize",
-        dword!(o => o.gfx.fonts.glyph_tables.units),
+        plain_cell!(o => o.gfx.fonts.glyph_tables.units),
     ),
     (
         b"imageheapsize",
@@ -170,7 +170,7 @@ const ENTRIES: [(&[u8], Target); 77] = [
     ),
     (
         b"gamegfxheapsize",
-        dword!(o => o.gfx.fonts.game_fonts_memory.units),
+        plain_cell!(o => o.gfx.fonts.game_fonts_memory.units),
     ),
     (b"forcedx5", dword!(o => o.gfx.d3d.cards.get().force_dx5)),
     (b"forceno3dcard", Target::Ignored),
@@ -388,7 +388,7 @@ mod tests {
 
     /// Where each setting's variable is: its store (a registry name) and the field in it, by
     /// path. The game's table holds the variables' addresses; these are the places of them.
-    const PLACES: [(&str, &str, &str); 58] = [
+    const PLACES: [(&str, &str, &str); 56] = [
         (
             "notaskswitch",
             "owners.system.window_loop",
@@ -403,16 +403,10 @@ mod tests {
         ("ignoreeax", "owners.audio.state", ".ignore_eax_setting"),
         ("ignorea3d", "owners.audio.state", ".ignore_a3d_setting"),
         ("wavheapsize", "owners.audio.state", ".sample_buffer_kb"),
-        ("bundleheapsize", "owners.gfx.fonts.glyph_tables", ".units"),
         (
             "imageheapsize",
             "owners.strings.lexicon.memory",
             ".kilobytes",
-        ),
-        (
-            "gamegfxheapsize",
-            "owners.gfx.fonts.game_fonts_memory",
-            ".units",
         ),
         ("forcedx5", "owners.gfx.d3d.cards", ".force_dx5"),
         ("agpmode", "owners.gfx.d3d.cards", ".agp_mode"),

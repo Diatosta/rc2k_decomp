@@ -5,13 +5,14 @@
 
 use crate::errors::BadInput;
 use crate::gfx::plain_dwords;
-use crate::memory::session::{PlainDword, Run};
+use crate::memory::session::PlainDword;
+use crate::memory::session::Run;
+use std::cell::Cell;
 
 /// The modes the table holds (32 of 8 bytes).
 pub const TABLE_ROOM: usize = 0x20;
 
 /// The screen mode tables.
-#[derive(rc2k_derive::Cells)]
 pub struct Modes {
     /// The two pixel kinds' bits (the mode flags' 0x1000, 0x2000: the card).
     pub kind_bits: [PlainDword; 2],
@@ -26,7 +27,7 @@ pub struct Modes {
     /// More (key, figure) tables of pairs; nothing ported reads or writes them.
     pub other_tables: [PlainDword; 36],
     /// The modes in the table.
-    pub count: PlainDword,
+    pub count: Cell<u32>,
     /// The modes, 8 bytes each (the mode, then its flags), room for 32.
     pub table: [PlainDword; 2 * TABLE_ROOM],
 }
@@ -48,7 +49,7 @@ impl Modes {
                 0x18, 0x200, 0x10, 0x100, 0x8, 0x0, 0x0, 0x400, 0x10, 0x200, 0x18, 0x100, 0x20,
                 0x800, 0x8, 0x4000, 0x1, 0x2000, 0x2, 0x1000, 0x4, 0x0, 0x0,
             ]),
-            count: PlainDword::new(0),
+            count: Cell::new(0),
             table: [const { PlainDword::new(0) }; 2 * TABLE_ROOM],
         }
     }

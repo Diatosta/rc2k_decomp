@@ -130,7 +130,7 @@ pub fn with_picture<R>(pictures: &Pictures, f: impl FnOnce(&mut [u8]) -> R) -> R
 
 /// Whether a picture buffer is set (`PICTURE.buffer` not 0).
 pub(super) fn has_picture(pictures: &Pictures) -> bool {
-    pictures.picture.buffer.is_set()
+    pictures.picture.buffer.get() != 0
 }
 
 /// `len` bytes of buffer `handle` from byte `at`; refused past its end.

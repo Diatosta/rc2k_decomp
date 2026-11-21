@@ -375,7 +375,7 @@ fn font_of(f: impl GameFont) -> FontRef {
 fn clip_edge_cell(
     gfx: &'static Gfx,
     edge: rc2k_core::screens::screen::Edge,
-) -> &'static crate::memory::session::PlainDword {
+) -> &'static std::cell::Cell<u32> {
     let drawing = &gfx.drawing;
     use rc2k_core::screens::screen::Edge;
     match edge {

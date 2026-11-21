@@ -19,10 +19,10 @@ use crate::gfx::glyph_tables::{
 };
 use crate::gfx::owner::Gfx;
 use crate::memory::cells::Store;
-use crate::memory::session::PlainDword;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
 use crate::strings::owner::Strings;
 use crate::system::owner::System;
+use std::cell::Cell;
 
 /// The variables a store of `HUNG` reads: `FONTS.palettes` (FontBlock.palettes: 256 pixels, the
 /// fonts' palettes; 0 = the fonts are not built) and the four glyph tables' places.
@@ -36,7 +36,7 @@ enum Source {
 }
 
 impl Source {
-    fn cell(self, gfx: &Gfx) -> &PlainDword {
+    fn cell(self, gfx: &Gfx) -> &Cell<u32> {
         let fonts = &gfx.fonts;
         match self {
             Source::Palettes => &fonts.font_block.palettes,
@@ -49,7 +49,7 @@ impl Source {
 }
 const PALETTE_BYTES: usize = 0x400;
 /// The four font sheets and where each one's table is kept.
-fn font_sheets(gfx: &Gfx) -> [(&'static [u8], &PlainDword); 4] {
+fn font_sheets(gfx: &Gfx) -> [(&'static [u8], &Cell<u32>); 4] {
     let fonts = &gfx.fonts;
     use crate::gfx::texts::{FNT13, FNT21, FNT23, FNT27};
     [
@@ -257,7 +257,7 @@ fn hung_value(gfx: &Gfx, variable: Source, plus: u32) -> u32 {
 
 /// Builds the fonts the caller's owners hold.
 pub fn build_fonts_in(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> {
-    if gfx.fonts.font_block.palettes.is_set() {
+    if gfx.fonts.font_block.palettes.get() != 0 {
         return Err(FatalError {
             code: 0x80A4_8020,
             message: "",

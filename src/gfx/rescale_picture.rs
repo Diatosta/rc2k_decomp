@@ -16,29 +16,29 @@ use crate::gfx::fill_row_table::ROW_TABLE_ROOM;
 use crate::gfx::picture::{has_picture, read_bytes, with_picture};
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
-use crate::memory::session::{PlainBytes, PlainDword};
+use crate::memory::session::PlainBytes;
+use std::cell::Cell;
 
 /// The rescaler's variables (`gfx::rescale_picture`, `gfx::rescale_to_surface`).
-#[derive(rc2k_derive::Cells)]
 pub struct Rescaler {
     /// `Rescaler.copy_memory.head`: the list the copy's memory is on (16 bytes).
     pub copy_memory: crate::memory::ListCells,
     /// Whole pixels a step across.
-    pub step_x: PlainDword,
+    pub step_x: Cell<u32>,
     /// The step's fraction.
-    pub step_x_fraction: PlainDword,
+    pub step_x_fraction: Cell<u32>,
     /// Whole rows a step down.
-    pub step_y: PlainDword,
+    pub step_y: Cell<u32>,
     /// The step's fraction.
-    pub step_y_fraction: PlainDword,
+    pub step_y_fraction: Cell<u32>,
     /// The weight across.
-    pub weight_x: PlainDword,
+    pub weight_x: Cell<u32>,
     /// The weight down.
-    pub weight_y: PlainDword,
+    pub weight_y: Cell<u32>,
     /// The columns left (left at 0).
-    pub columns_left: PlainDword,
+    pub columns_left: Cell<u32>,
     /// The rows left (left at 0).
-    pub rows_left: PlainDword,
+    pub rows_left: Cell<u32>,
     /// The pixel's three parts (`rescale_to_surface`), the fourth byte left as it was.
     pub components: PlainBytes<4>,
 }
@@ -52,14 +52,14 @@ impl Rescaler {
                 cursor: 0,
                 remaining: 0,
             }),
-            step_x: PlainDword::new(0),
-            step_x_fraction: PlainDword::new(0),
-            step_y: PlainDword::new(0),
-            step_y_fraction: PlainDword::new(0),
-            weight_x: PlainDword::new(0),
-            weight_y: PlainDword::new(0),
-            columns_left: PlainDword::new(0),
-            rows_left: PlainDword::new(0),
+            step_x: Cell::new(0),
+            step_x_fraction: Cell::new(0),
+            step_y: Cell::new(0),
+            step_y_fraction: Cell::new(0),
+            weight_x: Cell::new(0),
+            weight_y: Cell::new(0),
+            columns_left: Cell::new(0),
+            rows_left: Cell::new(0),
             components: PlainBytes::new([0; 4]),
         }
     }

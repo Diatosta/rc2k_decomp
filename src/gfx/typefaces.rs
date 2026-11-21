@@ -5,8 +5,8 @@
 //! at x as given, 2 centred, 3 right-aligned or fixed pitch, 4 measuring), its `line_height` the
 //! size of the sheet it was built from (10, 21, 23, 27, 13).
 
-use crate::memory::session::{PlainByte, PlainDword};
 use rc2k_core::strings::text::Font;
+use std::cell::Cell;
 
 #[cfg(test)]
 pub const START: usize = 0x51E3A4;
@@ -14,63 +14,62 @@ pub const START: usize = 0x51E3A4;
 pub const COUNT: usize = 63;
 
 /// A font object (0x20 bytes, `rc2k_core::strings::text::Font`), its fields as cells.
-#[derive(rc2k_derive::Cells)]
 pub struct FontObject {
     /// The character drawn with glyph 0.
-    pub first_char: PlainByte,
+    pub first_char: Cell<u8>,
     /// The last character with a glyph.
-    pub last_char: PlainByte,
+    pub last_char: Cell<u8>,
     /// How it draws (`rc2k_core::strings::text::MODE_*`).
-    pub mode: PlainByte,
+    pub mode: Cell<u8>,
     /// `FLAG_*` bits.
-    pub flags: PlainByte,
+    pub flags: Cell<u8>,
     /// Pixels added after every normal glyph.
-    pub spacing: PlainDword,
+    pub spacing: Cell<u32>,
     /// Pixels from one line to the next.
-    pub line_height: PlainDword,
+    pub line_height: Cell<u32>,
     /// Added to y once.
-    pub y_offset: PlainDword,
+    pub y_offset: Cell<u32>,
     /// Pixels added after every extended glyph.
-    pub extended_spacing: PlainDword,
+    pub extended_spacing: Cell<u32>,
     /// The palette (a counter in the measuring mode).
-    pub palette: PlainDword,
+    pub palette: Cell<u32>,
     /// The glyph table.
-    pub glyph_table: PlainDword,
+    pub glyph_table: Cell<u32>,
     /// The box width lines are aligned in (the widest line's width, measuring).
-    pub box_width: PlainDword,
+    pub box_width: Cell<u32>,
 }
 
 impl FontObject {
     const fn new(mode: u8, line_height: u32, palette: u32) -> Self {
         Self {
-            first_char: PlainByte::new(32),
-            last_char: PlainByte::new(255),
-            mode: PlainByte::new(mode),
-            flags: PlainByte::new(4),
-            spacing: PlainDword::new(1),
-            line_height: PlainDword::new(line_height),
-            y_offset: PlainDword::new(0),
-            extended_spacing: PlainDword::new(6),
-            palette: PlainDword::new(palette),
-            glyph_table: PlainDword::new(0),
-            box_width: PlainDword::new(0),
+            first_char: Cell::new(32),
+            last_char: Cell::new(255),
+            mode: Cell::new(mode),
+            flags: Cell::new(4),
+            spacing: Cell::new(1),
+            line_height: Cell::new(line_height),
+            y_offset: Cell::new(0),
+            extended_spacing: Cell::new(6),
+            palette: Cell::new(palette),
+            glyph_table: Cell::new(0),
+            box_width: Cell::new(0),
         }
     }
 
     /// The object made from a font record.
     pub const fn from_font(font: Font) -> Self {
         Self {
-            first_char: PlainByte::new(font.first_char),
-            last_char: PlainByte::new(font.last_char),
-            mode: PlainByte::new(font.mode),
-            flags: PlainByte::new(font.flags),
-            spacing: PlainDword::new(font.spacing as u32),
-            line_height: PlainDword::new(font.line_height as u32),
-            y_offset: PlainDword::new(font.y_offset as u32),
-            extended_spacing: PlainDword::new(font.extended_spacing as u32),
-            palette: PlainDword::new(font.palette),
-            glyph_table: PlainDword::new(font.glyph_table),
-            box_width: PlainDword::new(font.box_width),
+            first_char: Cell::new(font.first_char),
+            last_char: Cell::new(font.last_char),
+            mode: Cell::new(font.mode),
+            flags: Cell::new(font.flags),
+            spacing: Cell::new(font.spacing as u32),
+            line_height: Cell::new(font.line_height as u32),
+            y_offset: Cell::new(font.y_offset as u32),
+            extended_spacing: Cell::new(font.extended_spacing as u32),
+            palette: Cell::new(font.palette),
+            glyph_table: Cell::new(font.glyph_table),
+            box_width: Cell::new(font.box_width),
         }
     }
 
@@ -113,7 +112,6 @@ impl FontObject {
 }
 
 /// The font objects.
-#[derive(rc2k_derive::Cells)]
 pub struct FontObjects {
     pub objects: [FontObject; COUNT],
     /// The font a highlighted menu item is drawn with (`text::blend_font`).

@@ -7,15 +7,15 @@ use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::glyph_builder::DIRECT_COLOUR;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
-use crate::memory::session::PlainDword;
+use std::cell::Cell;
+
 use crate::memory::take_from_list::take_from_list;
 
 /// The fonts' and the sprites' tables.
-#[derive(rc2k_derive::Cells)]
 pub struct GlyphTables {
     /// The tables' size in units of 0x400 bytes times `Screen.bytes` (`bundleheapsize`, a
     /// `var\ral.cfg` setting).
-    pub units: PlainDword,
+    pub units: Cell<u32>,
     /// `GlyphTables.memory.head`: the list the fonts' and the sprites' tables lie on (16 bytes).
     pub memory: crate::memory::ListCells,
 }
@@ -23,7 +23,7 @@ pub struct GlyphTables {
 impl GlyphTables {
     pub const fn new() -> Self {
         GlyphTables {
-            units: PlainDword::new(0x15E),
+            units: Cell::new(0x15E),
             memory: crate::memory::ListCells::new(MemoryList {
                 head: 0,
                 total: 0,

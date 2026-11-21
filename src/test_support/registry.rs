@@ -290,37 +290,28 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("files.state.MEDIA_MODE", &crate::files::state::MEDIA_MODE),
         listed!("files.state.DIRECTORIES", &crate::files::state::DIRECTORIES),
         listed!(
-            "owners.gfx.pictures.decoder",
-            on_game(&o.gfx.pictures.decoder),
-        ),
-        listed!(
             "owners.strings.lexicon.memory",
             on_game(&o.strings.lexicon.memory),
         ),
-        listed!("owners.gfx.sheet", on_game(&o.gfx.sheet),),
-        listed!("owners.gfx.pictures.pcx", on_game(&o.gfx.pictures.pcx),),
         listed!("owners.gfx.png.setting", on_game(&o.gfx.png.setting),),
-        listed!(
-            "owners.gfx.fonts.glyph_tables",
-            on_game(&o.gfx.fonts.glyph_tables),
-        ),
         listed!(
             "owners.gfx.pictures.showing",
             on_game(&o.gfx.pictures.showing),
         ),
-        listed!("owners.gfx.drawing.blit", on_game(&o.gfx.drawing.blit),),
-        listed!("owners.gfx.rescale", on_game(&o.gfx.rescale),),
         listed!(
             "owners.gfx.drawing.row_table",
             on_game(&o.gfx.drawing.row_table),
         ),
         listed!("owners.gfx.drawing.thirds", on_game(&o.gfx.drawing.thirds),),
-        listed!("owners.gfx.display.modes", on_game(&o.gfx.display.modes),),
+        listed!(
+            "owners.gfx.pictures.decoder",
+            on_game(&o.gfx.pictures.decoder),
+        ),
+        listed!("owners.gfx.pictures.pcx", on_game(&o.gfx.pictures.pcx),),
         listed!(
             "owners.gfx.pictures.picture",
             on_game(&o.gfx.pictures.picture),
         ),
-        listed!("owners.gfx.grading", on_game(&o.gfx.grading),),
         listed!("owners.gfx.png.file", on_game(&o.gfx.png.file),),
         listed!("owners.gfx.png.header", on_game(&o.gfx.png.header),),
         listed!(
@@ -355,10 +346,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("owners.net.main.joined", on_game(&o.net.main.get().joined),),
         listed!("owners.net.main.lobby", on_game(&o.net.main.get().lobby),),
         listed!("owners.net.button", on_game(o.net.button.get()),),
-        listed!(
-            "owners.gfx.fonts.typefaces",
-            on_game(&o.gfx.fonts.typefaces),
-        ),
         listed!("owners.saves.save_games", on_game(&o.saves.save_games),),
         listed!(
             "owners.menus.service.set_ups",
@@ -387,14 +374,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!("owners.menus.panels.films", on_game(&o.menus.panels.films),),
         listed!("owners.gfx.card.texture_tables", &o.gfx.card.texture_tables,),
-        listed!(
-            "owners.gfx.fonts.game_fonts_memory",
-            on_game(&o.gfx.fonts.game_fonts_memory),
-        ),
-        listed!(
-            "owners.gfx.card.windscreen_drop_batch",
-            on_game(&o.gfx.card.windscreen_drop_batch),
-        ),
         listed!(
             "owners.system.session.screen",
             on_game(o.system.session.screen.get()),
@@ -467,16 +446,7 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.gfx.drawing.draw_surface),
         ),
         listed!("owners.gfx.d3d.cards", on_game(o.gfx.d3d.cards.get()),),
-        listed!(
-            "owners.gfx.fonts.font_block",
-            on_game(&o.gfx.fonts.font_block),
-        ),
         listed!("owners.audio.sample_names", &o.audio.sample_names,),
-        listed!(
-            "owners.gfx.display.choices",
-            on_game(&o.gfx.display.choices),
-        ),
-        listed!("owners.gfx.fonts.jade", on_game(&o.gfx.fonts.jade), 0x1419,),
         listed!(
             "workers.PARTS[0].vertices",
             on_game(&o.scene.scratch.game_scratch().vertices),
