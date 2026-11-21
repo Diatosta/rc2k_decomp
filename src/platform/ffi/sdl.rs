@@ -885,22 +885,28 @@ pub fn display_modes(window: Option<Window>) -> DisplayModes {
 }
 
 /// What a window is made with: on iOS every window fills the screen and is drawn in the
-/// screen's own pixels (two or three to a point); elsewhere nothing special.
+/// screen's own pixels (two or three to a point); in a browser the window is the whole page,
+/// and SDL sizes it to the browser's window and says when that changes, as a desktop window
+/// dragged to a new size; elsewhere nothing special.
 fn window_flags() -> SDL_WindowFlags {
     if cfg!(target_os = "ios") {
         SDL_WindowFlags(SDL_WINDOW_FULLSCREEN.0 | SDL_WINDOW_HIGH_PIXEL_DENSITY.0)
     } else if cfg!(target_os = "android") {
         SDL_WINDOW_FULLSCREEN
+    } else if cfg!(web) {
+        SDL_WINDOW_FILL_DOCUMENT
     } else {
         SDL_WindowFlags(0)
     }
 }
-/// Whether the player can drag the window to another size: on the desktop systems (the others'
-/// windows are the screen, or the page's canvas).
+/// Whether the window can change size while the game runs: on the desktop systems the player
+/// drags it, in a browser it follows the browser's window (the phones' and the handheld's
+/// windows are the screen).
 pub const RESIZABLE: bool = cfg!(any(
     target_os = "windows",
     target_os = "macos",
-    all(target_os = "linux", not(target_arch = "aarch64"))
+    all(target_os = "linux", not(target_arch = "aarch64")),
+    web
 ));
 
 /// The least size of a window the player resizes (the least race size the options keep).
