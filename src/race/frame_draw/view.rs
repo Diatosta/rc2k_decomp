@@ -296,7 +296,6 @@ fn view_place_tail(
 /// z` multiplied in. Views 1 and 2 then roll with the car (by its speed and steering, eased into
 /// `car.camera_roll`, turned about z). Then the place (see `view_place_tail`).
 pub fn view_matrices(
-    matrices: &crate::race::matrices_store::SceneMatrices,
     course: crate::race::owner_course::CourseReads<'_>,
     m: &ViewMatrices,
     view: &crate::race::view_scratch::ViewScratch,
@@ -304,7 +303,6 @@ pub fn view_matrices(
     // The matrices are handed on to what reads them outside the drawing, the listener and the car
     // sounds, on the game's thread in the views' order: `hand_on_view_matrices`.
     view_own_matrices(
-        matrices,
         course,
         m,
         *view.state.borrow(),
@@ -328,7 +326,6 @@ pub fn hand_on_view_matrices(race: &Race, m: &ViewMatrices) {
 
 /// `view_matrices` into the view's own matrices.
 fn view_own_matrices(
-    matrices: &crate::race::matrices_store::SceneMatrices,
     course: crate::race::owner_course::CourseReads<'_>,
     m: &ViewMatrices,
     state: ViewState,
@@ -352,7 +349,11 @@ fn view_own_matrices(
     if view <= 3 {
         invert_turn(course, &car.crash_matrix, view_turn);
     } else {
-        crate::math::cells::copy_cells(&matrices.identity_matrix, &view_turn, 16);
+        crate::math::cells::copy_cells(
+            &crate::race::matrices_store::identity_matrix(),
+            &view_turn,
+            16,
+        );
         for angles in [[0usize, 1, 2], [3, 4, 5]] {
             set_fine_turn(
                 course,
@@ -452,7 +453,7 @@ pub fn camera_view(
     view.vars.view_car_stage.set(view.car.camera_view.get());
     if reads.switches.scene_set_up.get() == 0 {
         place_view(&reads.buffers.engine_tables, reads.course(), view)?;
-        view_matrices(reads.matrices, reads.course(), m, view)?;
+        view_matrices(reads.course(), m, view)?;
         return Ok(());
     }
     let place: [u32; 3] = if view.polygon.view_mirrored.get() == 0 {
@@ -471,7 +472,7 @@ pub fn camera_view(
         crate::memory::session::read_bits(&view.car.camera_position)
     } else {
         crate::scene::matrix::multiply_matrices(
-            &reads.matrices.view_work,
+            &crate::race::matrices_store::mirror_work_matrix(),
             &view.car.crash_matrix,
             &m.turned_matrix,
         );
@@ -515,7 +516,7 @@ pub fn camera_view(
             &reads.vars.scale_factor,
         );
     }
-    view_matrices(reads.matrices, reads.course(), m, view)?;
+    view_matrices(reads.course(), m, view)?;
     Ok(())
 }
 
@@ -599,7 +600,7 @@ fn place_sun(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused
     let dir = sun_direction(
         angle as i32,
         ctx.reads.numbers.sixty_four,
-        &ctx.reads.frame_work.sun_depth,
+        crate::race::frame_store::SUN_DEPTH,
         ctx.reads.stage_prefs.sun_height.get() as i32,
         ctx.reads.numbers.k98304,
     );

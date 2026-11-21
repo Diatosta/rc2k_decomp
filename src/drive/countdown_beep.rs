@@ -20,14 +20,10 @@ pub fn countdown_beep(
         block.false_start_count.get(),
         block.driver_kind.get(),
         || {
-            block.run_ticks.get().wrapping_sub(
-                race.frame
-                    .panel_and_overlay
-                    .get()
-                    .overlay
-                    .countdown_start
-                    .get(),
-            )
+            block
+                .run_ticks
+                .get()
+                .wrapping_sub(crate::race::overlay_store::COUNTDOWN_START)
         },
     );
     let (second, cue) = match beep {
@@ -37,8 +33,7 @@ pub fn countdown_beep(
     to.set(second);
     if cue {
         // The cue is only for 0 .. SECONDS.
-        let sound =
-            race.frame.panel_and_overlay.get().overlay.countdown_sounds[second as usize].get();
+        let sound = crate::race::overlay_store::COUNTDOWN_SOUNDS[second as usize];
         crate::drive::countdown_cue::countdown_cue(race, sound, audio)?;
     }
     Ok(())

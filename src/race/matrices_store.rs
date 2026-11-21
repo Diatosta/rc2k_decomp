@@ -1,7 +1,7 @@
-//! The scene's matrices in the race block: the identity, the three turn matrices, the placed /
+//! The scene's matrices in the race block: the three turn matrices, the placed /
 //! turned / lit matrices, the view matrices, the object matrices and a scratch area. Most are 4x4
-//! float matrices (64 bytes) passed to the matrix functions in place. One item is 1092 bytes,
-//! taken whole; only its first 64 bytes are used. Plain cells: a drawing store
+//! float matrices (64 bytes) passed to the matrix functions in place. The identity and the mirror
+//! work matrix, which nothing writes, are functions. Plain cells: a drawing store
 //! (`session::DrawShared`), written on the game's thread between frames and read by the drawing
 //! parts through their `scene::workers::DrawReads`.
 //!
@@ -13,10 +13,6 @@ use crate::memory::session::{PlainDword, PlainFloat};
 pub struct SceneMatrices {
     /// The model last set up for drawing (`scene::load_object`, `race::car_draw`).
     pub known_object: PlainDword,
-    /// Two matrices of the frame draw, used in place as scratch (`race::frame_draw`).
-    pub view_work: [PlainFloat; 32],
-    /// The 4x4 identity (`scene::view_matrix`, `race::frame_draw`).
-    pub identity_matrix: [PlainFloat; 16],
     /// Rotation about x (`scene::matrix`, `physics::object_turn_matrix`).
     pub turn_x_matrix: [PlainFloat; 16],
     /// Rotation about y (`scene::matrix`, `race::car_parts`).
@@ -34,9 +30,6 @@ pub struct SceneMatrices {
     pub turned_matrix: [PlainFloat; 16],
     /// The lit matrix (`race::frame_draw`, `race::car_parts`).
     pub lit_matrix: [PlainFloat; 16],
-    /// The inverted view turn (`race::frame_draw`); now each view's
-    /// (`scene::view_matrices::ViewMatrices::view_turn_copy`); unused.
-    pub view_turn_copy: [PlainFloat; 16],
     /// The view's place matrix: the copy of `placed_matrix` (the view's place negated) made in
     /// `race::frame_draw::view_place_tail`.
     pub view_place_matrix: [PlainFloat; 16],
@@ -49,51 +42,40 @@ pub struct SceneMatrices {
     pub view_matrix: [PlainFloat; 16],
     /// The matrix made for an object (`scene::matrix`, `race::frame_draw`).
     pub made_object_matrix: [PlainFloat; 16],
-    /// A block whose first 0x40 bytes receive a copy of the made object matrix
-    /// (`race::frame_draw`); now each view's (`scene::view_matrices`); unused.
-    pub object_matrix_slots: [PlainDword; 32],
     /// The view's matrix, place (the last row of its 4 x 4 floats) (`effects::view_motion`, `race::frame_views`).
     pub view_place: [PlainFloat; 16],
-    /// The vector reflected (`scene::reflect_vector`); now each view's
-    /// (`scene::view_matrices`); unused.
-    pub reflect_vector: [PlainFloat; 3],
-    /// The normal (`scene::reflect_vector`); now each view's (`scene::view_matrices`); unused.
-    pub reflect_normal: [PlainFloat; 3],
     /// The object's turn matrix (`physics::object_turn_matrix`, `physics::object_hits_car`,
     /// `race::frame_draw`).
     pub object_turn_matrix: [PlainFloat; 16],
-    /// 1092-byte item, only the first 0x40 used as a matrix in place (`race::frame_draw`); now each
-    /// view's (`scene::view_matrices`); unused.
-    pub matrix_scratch: [PlainFloat; 273],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
+/// The 4x4 identity.
+pub fn identity_matrix() -> [PlainFloat; 16] {
+    let mut a: [PlainFloat; 16] = ZeroCells::ZERO;
+    a[0] = PlainFloat::new(1.0);
+    a[5] = PlainFloat::new(1.0);
+    a[10] = PlainFloat::new(1.0);
+    a[15] = PlainFloat::new(1.0);
+    a
+}
+
+/// The constant matrix the frame draw turns a mirrored view's car by: the diagonal (-1, 1, -1, 1).
+pub fn mirror_work_matrix() -> [PlainFloat; 16] {
+    let mut a: [PlainFloat; 16] = ZeroCells::ZERO;
+    a[0] = PlainFloat::new(-1.0);
+    a[5] = PlainFloat::new(1.0);
+    a[10] = PlainFloat::new(-1.0);
+    a[15] = PlainFloat::new(1.0);
+    a
+}
+
 /// The piece, with its first values.
 impl SceneMatrices {
     pub const fn new() -> Self {
         Self {
-            view_work: {
-                let mut a: [PlainFloat; 32] = ZeroCells::ZERO;
-                a[0] = PlainFloat::new(-1.0);
-                a[5] = PlainFloat::new(1.0);
-                a[10] = PlainFloat::new(-1.0);
-                a[15] = PlainFloat::new(1.0);
-                a[16] = PlainFloat::new(-1.0);
-                a[21] = PlainFloat::new(1.0);
-                a[26] = PlainFloat::new(1.0);
-                a[31] = PlainFloat::new(1.0);
-                a
-            },
-            identity_matrix: {
-                let mut a: [PlainFloat; 16] = ZeroCells::ZERO;
-                a[0] = PlainFloat::new(1.0);
-                a[5] = PlainFloat::new(1.0);
-                a[10] = PlainFloat::new(1.0);
-                a[15] = PlainFloat::new(1.0);
-                a
-            },
             turn_x_matrix: {
                 let mut a: [PlainFloat; 16] = ZeroCells::ZERO;
                 a[0] = PlainFloat::new(1.0);

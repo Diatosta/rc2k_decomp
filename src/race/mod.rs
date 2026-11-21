@@ -79,7 +79,7 @@ mod name_plates;
 pub(crate) mod norms;
 pub(crate) mod numbers_store;
 mod objects;
-mod overlay_store;
+pub(crate) mod overlay_store;
 pub(crate) mod overview_map;
 pub(crate) mod owner;
 pub(crate) mod owner_course;

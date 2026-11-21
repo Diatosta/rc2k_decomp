@@ -745,7 +745,7 @@ pub fn countdown_lights(
                 .car(block)?
                 .run_ticks
                 .get()
-                .wrapping_sub(frame.panel_and_overlay.get().overlay.countdown_start.get()),
+                .wrapping_sub(crate::race::overlay_store::COUNTDOWN_START),
         ) else {
             return Ok(());
         };

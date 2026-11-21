@@ -80,7 +80,7 @@ pub fn car_number_textures(
     marks: &crate::scene::car_marks::CarMarks,
 ) -> Result<(), BadInput> {
     let cars = reads.frame_cars;
-    let (blocks, frame_work, numbers) = (reads.car_blocks, reads.frame_work, reads.numbers);
+    let (blocks, numbers) = (reads.car_blocks, reads.numbers);
     let (vars, work) = (reads.vars, reads.work);
     // `shown_engine_speed` is rounded as the x87 does, under the game's control word.
     use rc2k_core::race::car_marks::{
@@ -89,7 +89,7 @@ pub fn car_number_textures(
     let block = cars.car(car)?;
     let float = |c: &crate::memory::session::Float| c.get();
     {
-        let limit = frame_work.decal_limit.get();
+        let limit = crate::race::frame_store::DECAL_LIMIT.get();
         let side = lamp_side(float(&block.drive_speed_a), limit);
         marks.mark(1).set(side);
         marks.mark(4).set(side);
@@ -112,7 +112,7 @@ pub fn car_number_textures(
         if decals_shown(float(&block.electrics_damage), numbers.hundred.get()) {
             for k in 0..0x11u32 {
                 let byte = blocks.cars[car].part_switches.get(k as usize) as u32;
-                let to = frame_work.car_decal_places[k as usize].get() as usize;
+                let to = crate::race::frame_store::CAR_DECAL_PLACES[k as usize] as usize;
                 if to >= crate::scene::car_marks::MARKS {
                     return Err(BadInput("a decal place past the car's marks"));
                 }

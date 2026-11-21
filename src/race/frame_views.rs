@@ -64,17 +64,14 @@ pub fn mirror_view_window(
     // mirror_places: 12 entries of two dwords. The entry is the split (0 for one player, 1 or 2 for
     // two: `race_shell::set_start_states` holds it there and the split key turns 1 and 2 round)
     // plus 3 for the second view (0 or 1) plus 6 for the second set: at most 11.
-    let places = &reads.frame_work.mirror_places;
+    let places = &crate::race::frame_store::MIRROR_PLACES;
     let trap = Trap::new();
     let at = |word: usize| {
         let k = (n as usize).wrapping_mul(2).wrapping_add(word);
-        places.get(k).map_or_else(
-            || {
-                trap.keep(BadInput("a mirror place past the twelve"));
-                0
-            },
-            crate::memory::session::PlainDword::get,
-        )
+        places.get(k).copied().unwrap_or_else(|| {
+            trap.keep(BadInput("a mirror place past the twelve"));
+            0
+        })
     };
     // The mirror keeps to the part of the screen clear of a phone's notch and home indicator.
     let [inset_x, inset_y, inset_width, inset_height] =
@@ -593,13 +590,10 @@ pub fn run_view_marks(
     race.effects_settings().own_marks_shown.set(own);
     let layout_at = layout_index(view, ctx.reads.vars.split.get());
     // The marks' layout number: the two-player layouts' table has none for a larger split's views.
-    let layout = race
-        .frame
-        .frame_work
-        .get()
-        .view_layouts
+    let layout = crate::race::frame_store::VIEW_LAYOUTS
         .get(layout_at as usize)
-        .map_or(0, crate::memory::session::PlainDword::get);
+        .copied()
+        .unwrap_or(0);
     race.effects_settings().marks_layout.set(layout);
     crate::math::cells::copy_cells(
         &ctx.reads.car_blocks.cars[ctx.reads.view.view_number(view as usize)?].whole_matrix,
@@ -641,16 +635,16 @@ pub fn run_view_marks(
         }
         crate::effects::clip_quad::cut_to_part(effects, true);
     } else {
-        let n = race.frame.frame_work.get().view_layouts[layout_at as usize].get() as usize;
+        let n = crate::race::frame_store::VIEW_LAYOUTS[layout_at as usize] as usize;
         ctx.view.polygon.window.view_centre[0].set(int_over_times(
             session.screen.get().width.get(),
             ctx.reads.numbers.k800.get(),
-            race.frame.frame_work.get().view_scale_x[n].get(),
+            crate::race::frame_store::VIEW_SCALE_X[n],
         ));
         ctx.view.polygon.window.view_centre[1].set(int_over_times(
             session.screen.get().height.get(),
             ctx.reads.numbers.k600.get(),
-            race.frame.frame_work.get().view_scale_y[n].get(),
+            crate::race::frame_store::VIEW_SCALE_Y[n],
         ));
     }
     // No register is read or left.

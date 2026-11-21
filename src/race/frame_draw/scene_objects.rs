@@ -569,7 +569,11 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             crate::math::cells::copy_cells(&ctx.view.matrices.view_back_matrix, &object, 16);
         }
         5 => {
-            crate::math::cells::copy_cells(&ctx.reads.matrices.identity_matrix, &object, 16);
+            crate::math::cells::copy_cells(
+                &crate::race::matrices_store::identity_matrix(),
+                &object,
+                16,
+            );
             set_fine_turn(
                 ctx.reads.course(),
                 &ctx.view.matrices,

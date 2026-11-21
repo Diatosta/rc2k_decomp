@@ -151,7 +151,7 @@ pub fn set_view_matrices(
 ) {
     crate::memory::session::write_bits(
         &frame.matrices.get().view_turn_matrix,
-        crate::memory::session::read_bits(&frame.matrices.get().identity_matrix),
+        crate::memory::session::read_bits(&crate::race::matrices_store::identity_matrix()),
     );
     let angles: [u32; 3] =
         crate::memory::session::read_first(&frame.view_and_records.get().view_vars.view_angles);

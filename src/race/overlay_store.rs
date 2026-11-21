@@ -2,8 +2,14 @@
 //! tables), the start lights, the countdown sounds and the position labels with their kept copies.
 
 use crate::memory::cells::ZeroCells;
-use crate::memory::first_cells::{plain_dwords, plain_dwords_of_text};
+use crate::memory::first_cells::plain_dwords_of_text;
 use crate::memory::session::{PlainDword, PlainFloat};
+
+/// The countdown's start, in the car's run ticks (`race::frame_draw`, `drive::countdown_beep`).
+pub const COUNTDOWN_START: u32 = 0x12C;
+
+/// The sound of each countdown second (`drive::countdown_beep`).
+pub const COUNTDOWN_SOUNDS: [u32; 6] = [0xF5, 0xF3, 0xF1, 0xEF, 0xED, 0xF7];
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct OverlayBlock {
@@ -18,10 +24,6 @@ pub struct OverlayBlock {
     pub w_factor: PlainFloat,
     /// The lights lit, 0 .. 5 (`race::frame_draw`, `race::stage_loading`).
     pub start_lights_lit: PlainDword,
-    /// The countdown's start (`race::frame_draw`, `drive::countdown_beep`).
-    pub countdown_start: PlainDword,
-    /// The sound of each countdown second (`drive::countdown_beep`).
-    pub countdown_sounds: [PlainDword; 6],
     /// View 0 forget flag (`race::frame_views`, `race::frame_draw`).
     pub forget_flag_0: PlainDword,
     /// View 1 forget flag (`race::frame_views`, `race::frame_draw`).
@@ -47,8 +49,6 @@ impl OverlayBlock {
     pub const fn new() -> Self {
         OverlayBlock {
             w_factor: PlainFloat::new(0.01),
-            countdown_start: PlainDword::new(0x12C),
-            countdown_sounds: plain_dwords([0xF5, 0xF3, 0xF1, 0xEF, 0xED, 0xF7]),
             label_behind: plain_dwords_of_text::<2>(b"car 64  "),
             label_ahead: plain_dwords_of_text::<2>(b"car 32  "),
             kept_behind: plain_dwords_of_text::<2>(b"car 64  "),
