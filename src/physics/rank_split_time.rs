@@ -1,4 +1,5 @@
-//! Race mode 1: the car's place among the 90 rivals at this split. `physics::fill_rival_table`; the
+//! Race mode 1: the car's place among the 90 rivals at this split (`physics::fill_rival_table`; a
+//! replay's own when it has them); the
 //! place figures are -1 and the two name fields (`label_behind`, `label_ahead`) blanks; each
 //! rival's time is scaled to the split: `rival_times[c]` x (`SplitTables.checkpoints[1][split]` x
 //! 1000 / `checkpoints[split_colour_count]`) / 1000 into `rival_scaled[c]`; the place is one past
@@ -10,11 +11,12 @@
 //! Refuses a split or a split count past 0x40, a divisor of 0 or a quotient past a dword; what was
 //! written is put back.
 use crate::errors::{BadInput, Refused};
-use crate::physics::fill_rival_table::fill_rival_table;
+use crate::physics::fill_rival_table::{fill_rival_table, race_rivals};
 use crate::physics::split_tables_store::SplitTables;
 use crate::race::overlay_store::OverlayBlock;
 use crate::race::owner_shared::RaceShared;
 use crate::strings::append_string_by_id::append_string_by_id;
+use rc2k_core::drive::replay_frames::plays_inputs;
 use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
 use rc2k_core::saves::name_id::NameId;
 
@@ -59,7 +61,16 @@ pub fn rank_split_time(
     if split > 0x40 || count > 0x40 {
         return Err(BadInput("a split or a split count past 0x40").into());
     }
-    fill_rival_table(split_tables, shared.vars.get(), &o.saves.best_tables)?;
+    // A replay ranks against the rivals its race had; one written before they were kept, against
+    // the race's own (the defaults unless a standings summary is there).
+    let replayed = plays_inputs(o.race.course.replay_mode())
+        .then(|| o.race.replay.v2().lock().ext.as_ref()?.rivals.clone())
+        .flatten();
+    let rivals = match replayed {
+        Some(rivals) => rivals,
+        None => race_rivals(shared.vars.get(), &o.saves.best_tables)?,
+    };
+    fill_rival_table(split_tables, &rivals);
     for k in 0..5 {
         shared.car().split_gaps[k].set(u32::MAX);
     }

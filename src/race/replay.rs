@@ -385,7 +385,7 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
     race.viewer_buffers().extra_tape.set(true);
     race.viewer_buffers().v2.set(true);
     replay.staging_mut().clear_extra_tape();
-    let extension = crate::race::replay_v2_cars::cars_of_race(race, o.net, o.menus);
+    let extension = crate::race::replay_v2_cars::cars_of_race(race, o.net, o.menus, o.saves);
     {
         let mut v2 = replay.v2().lock();
         v2.tail = rc2k_core::race::replay_v2::Tail::new();

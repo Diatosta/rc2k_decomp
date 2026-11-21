@@ -3,7 +3,7 @@
 //! or the computer drives it, and how it is recorded. In a network race the cars of the other
 //! machines (their players and the computer drivers) are recorded by their motion at each step,
 //! as this machine showed them; every car this machine drives keeps its inputs and its state at
-//! each second.
+//! each second. With them, the two tables the race ranks split times against.
 
 use crate::net::owner::Net;
 use crate::race::owner::Race;
@@ -17,7 +17,12 @@ fn held(name: &[u8]) -> Vec<u8> {
 
 /// The race's cars: the players' (local ones named by the front end, the network's by their
 /// records), then the computer's.
-pub(super) fn cars_of_race(race: &Race, net: &Net, menus: &crate::menu::owner::Menus) -> Extension {
+pub(super) fn cars_of_race(
+    race: &Race,
+    net: &Net,
+    menus: &crate::menu::owner::Menus,
+    saves: &crate::saves::owner::Saves,
+) -> Extension {
     let view = race.shared.view.get();
     let cars = (view.race_cars.get() as usize).clamp(1, MAX_CARS);
     let network = net.race_slot.is_on();
@@ -57,5 +62,21 @@ pub(super) fn cars_of_race(race: &Race, net: &Net, menus: &crate::menu::owner::M
         };
         entries.push(CarEntry { kind, flags, name });
     }
-    Extension { cars: entries }
+    // The rivals the race ranks split times against, for a replay played back later.
+    let rivals =
+        crate::physics::fill_rival_table::race_rivals(race.shared.vars.get(), &saves.best_tables)
+            .ok();
+    // The league table the race compares split times against (a time trial's, a championship's).
+    let league = {
+        let league = race.course.league();
+        rc2k_core::race::replay_v2::LeagueTable {
+            names: league.names,
+            rows: league.rows,
+        }
+    };
+    Extension {
+        cars: entries,
+        rivals,
+        league: Some(league),
+    }
 }

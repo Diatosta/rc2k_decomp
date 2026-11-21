@@ -31,6 +31,8 @@ pub struct Render {
     /// The part, in hundredths of a second from the replay's start.
     pub from: Option<u32>,
     pub to: Option<u32>,
+    /// The first two cars' HUD pieces as the viewer shows them.
+    pub hud_bits: [u32; 2],
 }
 
 impl Render {
@@ -56,6 +58,10 @@ impl Render {
         if !self.sound {
             args.push("--no-sound".into());
         }
+        args.extend([
+            "--hud".into(),
+            format!("{},{}", self.hud_bits[0], self.hud_bits[1]),
+        ]);
         for (switch, value) in [("--from", self.from), ("--to", self.to)] {
             if let Some(cs) = value {
                 args.extend([switch.into(), format!("{}.{:02}", cs / 100, cs % 100)]);
@@ -217,6 +223,15 @@ fn start(render: &Render) -> Result<Child, String> {
 fn read_progress(render: &Render) -> Option<(f64, u64)> {
     let text = std::fs::read_to_string(render.progress_file()).ok()?;
     parse_progress(&text)
+}
+
+/// Whether the child's progress file says every frame is written and the video is being finished.
+fn finishing(render: &Render) -> bool {
+    std::fs::read_to_string(render.progress_file()).is_ok_and(|text| says_finishing(&text))
+}
+
+fn says_finishing(text: &str) -> bool {
+    text.split_whitespace().nth(2) == Some(crate::video::FINISHING)
 }
 
 fn parse_progress(text: &str) -> Option<(f64, u64)> {
@@ -438,7 +453,9 @@ fn draw(
         BAR_DONE,
     );
     y += row_h;
+    let finishing = finishing(render);
     let status = match progress {
+        _ if finishing => own(id::RENDER_FINISHING),
         Some((p, frames)) => format!(
             "{}   {}",
             own(id::RENDER_PERCENT).replace("{}", &(p.clamp(0.0, 100.0) as u32).to_string()),
@@ -454,7 +471,7 @@ fn draw(
     );
     y += line_h;
     // The speed and the time left, once the render has gone on long enough to tell.
-    if let (Some(rate), Some((p, frames))) = (pace.per_second(), progress) {
+    if let (false, Some(rate), Some((p, frames))) = (finishing, pace.per_second(), progress) {
         let mut speed = own(id::RENDER_SPEED).replace("{}", &format!("{rate:.1}"));
         if let Some(left) = seconds_left(p, frames, rate) {
             speed.push_str("   ");
@@ -506,7 +523,18 @@ mod tests {
             sound: false,
             from: Some(1250),
             to: None,
+            hud_bits: [31, 0],
         }
+    }
+
+    #[test]
+    fn the_finishing_step_is_read() {
+        assert!(says_finishing("100.0 36061 finishing\n"));
+        assert!(!says_finishing("99.8 36000\n"));
+        assert_eq!(
+            parse_progress("100.0 36061 finishing\n"),
+            Some((100.0, 36061))
+        );
     }
 
     #[test]
@@ -524,6 +552,7 @@ mod tests {
         assert!(args.contains(&"--no-sound".to_string()));
         assert!(args.contains(&"--allow-another".to_string()));
         assert!(!args.contains(&"--to".to_string()));
+        assert_eq!(after("--hud"), "31,0");
         // `Switches` reads what is given, whatever the game does with it.
         let parsed = rc2k_core::system::program_switches::Switches::from_args(&args).unwrap();
         assert_eq!(parsed.from_cs, Some(1250));

@@ -107,7 +107,7 @@ impl Quality {
             Self::Low => 28,
             Self::Medium => 23,
             Self::High => 18,
-            Self::Best => 12,
+            Self::Best => 16,
         }
     }
 

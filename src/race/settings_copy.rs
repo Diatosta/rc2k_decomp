@@ -424,16 +424,8 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     logged_int(fx, "[onerace.car2overbits]", hud_bits[1].get());
     // The head-up display's option bits: the results' word, unless it is -1 (all ones);
     // then the bits are made from the player's own on/off settings.
-    for (car, _, player) in players(race) {
-        let mut bits = shared.state.hud_bits(car).get();
-        if bits == 0xFFFF_FFFF {
-            bits = 0;
-            for (setting, bit) in OPTION_BITS {
-                if setting(player).get() != 0 {
-                    bits |= bit;
-                }
-            }
-        }
+    for (car, _, _) in players(race) {
+        let bits = hud_bits_of(race, car);
         race.car_blocks().cars[car].option_bits.set(bits);
         if let Some(options) = view.player_options.get(car) {
             options.set(bits);
@@ -645,6 +637,43 @@ const SETTING_BRAKES: [(CarWord, SettingWord); 4] = [
     (|c| &c.suspension_stiffness, |r| &r.suspension_stiffness),
 ];
 
+/// Car `car`'s HUD pieces as a race takes them in: the results' word, unless it is -1 (all ones);
+/// then the bits are made from the player's own on/off settings.
+fn hud_bits_of(race: &Race, car: usize) -> u32 {
+    let shared = &race.shared;
+    let bits = shared.state.hud_bits(car).get();
+    if bits != 0xFFFF_FFFF {
+        return bits;
+    }
+    let player = shared.state.car(car);
+    OPTION_BITS
+        .iter()
+        .filter(|(setting, _)| setting(player).get() != 0)
+        .fold(0, |bits, (_, bit)| bits | bit)
+}
+
+/// A player record's HUD pieces, by the same rule as `hud_bits_of`: its own word unless it is -1,
+/// then its on/off settings (the visual preferences page's).
+pub fn player_hud_bits(p: &crate::menu::player::Player) -> u32 {
+    if p.hud_bits != -1 {
+        return p.hud_bits as u32;
+    }
+    [
+        (p.map_area, 0x10),
+        (p.rear_mirror, 0x8),
+        (p.rev_counter, 0x1),
+        (p.message_display, 0x4),
+        (p.driver_info, 0x2),
+        (p.metric_units, 0x100),
+        (p.progress_bar, 0x40),
+        (p.car_info, 0x20),
+        (p.pace_notes, 0x80),
+    ]
+    .into_iter()
+    .filter(|&(setting, _)| setting != 0)
+    .fold(0, |bits, (_, bit)| bits | bit)
+}
+
 /// The head-up display's option bits: the settings word and the bit it sets.
 const OPTION_BITS: [(SettingWord, u32); 9] = [
     (|r| &r.map_area, 0x10),
@@ -663,6 +692,22 @@ mod tests {
     use super::old_machine::{self, Step};
     use super::*;
     use crate::test_support::own::race;
+
+    /// A player record and the race's copy of it give the same HUD pieces, each setting its bit.
+    #[test]
+    fn a_players_hud_bits_follow_the_races_rule() {
+        let mut p = crate::menu::player::Player::from_file_bytes([0; 0x28c]);
+        p.hud_bits = -1;
+        assert_eq!(player_hud_bits(&p), 0);
+        p.rev_counter = 1;
+        p.map_area = 1;
+        p.pace_notes = 1;
+        assert_eq!(player_hud_bits(&p), 0x1 | 0x10 | 0x80);
+        p.hud_bits = 0x40;
+        assert_eq!(player_hud_bits(&p), 0x40);
+        let bits: Vec<u32> = OPTION_BITS.iter().map(|&(_, bit)| bit).collect();
+        assert_eq!(bits, [0x10, 0x8, 0x1, 0x4, 0x2, 0x100, 0x40, 0x20, 0x80]);
+    }
 
     /// A log and routine calls captured as text (floats by their bits).
     #[derive(Default, PartialEq, Debug)]

@@ -226,10 +226,11 @@ rc2k --render-replay savedata/replay/replay00 --out run.mp4 --size 1920x1080 --f
 | `--render-replay` | A replay's slot or file, as `--replay` takes it. The program ends when the replay has played. No race switch and no `--replay` goes with it. |
 | `--out` | The video file. Needed. |
 | `--size` | The size of the video's frames, `WIDTHxHEIGHT` (each side 160 .. 16384): the race screen is made this size for the render, whatever the options hold. Without it, the race size of the options. |
-| `--quality` | `low`, `medium`, `high` (the default) or `best`: how well the encoder keeps the picture (software encoder: constant rate factor 28, 23, 18, 12, with the presets `veryfast`, `veryfast`, `faster`, `fast`; a graphics card's encoder: quantiser 32, 27, 22, 17). |
+| `--quality` | `low`, `medium`, `high` (the default) or `best`: how well the encoder keeps the picture (software encoder: constant rate factor 28, 23, 18, 16, with the presets `veryfast`, `veryfast`, `faster`, `fast`; a graphics card's encoder: quantiser 32, 27, 22, 20). |
 | `--encoder` | `automatic` (the default) or `software`: see below. |
 | `--no-sound` | The video has no sound. |
 | `--from`, `--to` | The part of the replay to render, in seconds from its start (`12.5`; two decimals). `--from` is exact to a hundredth of a second; the part ends at the whole second after `--to`. Without them, the whole replay. |
+| `--hud` | `FIRST,SECOND`: the HUD pieces of the first two cars, as bits (the replay viewer passes the ones it shows). Without it, as in the viewer: the pieces the last race took in, else players 1 and 2's own HUD settings (the visual preferences page's). A car's HUD shows only where the replay has it switched on (the viewer's HUD buttons). |
 | `--fps` | The frames a second, 1 .. 480 (60 if not given). The simulation ticks a hundred times a second; a frame between two ticks shows the blend of them (the options' "smooth frames", forced on here), so 60, 120 or 144 are all smooth. |
 
 The frames are piped as raw pixels to an `ffmpeg` found on the path (as NV12, converted on the card, when the GPU renderer runs on Vulkan and an `ffmpeg` is there; 32-bit pixels, converted by the encoder side, otherwise): H.264 (`libx264`, 4:2:0, an
@@ -252,7 +253,7 @@ the encoder's buffer, so the read-back and the copy no longer stop the game's th
 of the card's work (the pictures and their order are the same; the other renderers bring the
 frame back at once). The
 conversion to 4:2:0 NV12 (BT.601 studio range, as `ffmpeg`'s own default for RGB) is done by two small passes on the card, so only 1.5 bytes a pixel come back instead of 4 and no encoder converts anything: it works for every encoder (NVENC, AMF, Quick Sync, VAAPI, VideoToolbox on macOS, x264). The colours are the same with every encoder; they differ from the earlier processor conversion by under 1 level on average (rounding and chroma siting). A frame that cannot stay on the card (menus on the other renderers) is converted on the processor with the same numbers. On macOS the card's H.264 encoder is VideoToolbox (constant quality; not run on a Mac yet). At 5120 x 1440 on the Radeon RX 9070 XT this renders about 94 frames a second where 55 were reached before, and the encoder is the limit. When the hardware encoder made a picture that does not decode cleanly (checked at the
-end, a few seconds for a minute of video) the render goes again with the software encoder, from
+end, while the sound is joined to it: the viewer's panel says "finishing the video" for that time) the render goes again with the software encoder, from
 the viewer automatically, from the command line by ending with exit code 4 and removing the
 video. `--encoder software` never uses the card's. On a Radeon RX 9070 XT a 1920 x 1080 render
 at 60 frames a second took about a quarter of the time with the card's encoder (and a fifth of

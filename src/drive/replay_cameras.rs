@@ -9,6 +9,7 @@ use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::replay_work_store::ReplayWork;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
 
 /// Byte `k` of the frame's head (the first car block's start). Asked only for bytes 0 .. 7
 /// (the cars' and the four switches', and the extra cars'), inside the head's 8.
@@ -90,14 +91,15 @@ fn steps(race: &Race) -> Result<(), Refused> {
     }
     // The split-screen layout shows every player's HUD as the race did, the recording's own bits
     // (the viewer's other layouts show the first two cars' as the viewer's switches say).
+    // A render takes the viewer's pieces it was given.
     let split = head_byte(race, 5) == rc2k_core::race::replay_v2::SPLIT_LAYOUT;
     if !split {
-        race.car_blocks().cars[0]
-            .option_bits
-            .set(shared.view.get().player_options[0].get());
-        race.car_blocks().cars[1]
-            .option_bits
-            .set(shared.view.get().player_options[1].get());
+        let options = shown_hud().unwrap_or([
+            shared.view.get().player_options[0].get(),
+            shared.view.get().player_options[1].get(),
+        ]);
+        race.car_blocks().cars[0].option_bits.set(options[0]);
+        race.car_blocks().cars[1].option_bits.set(options[1]);
     }
     // The head's bytes 2 .. 5 into the view switches.
     for (k, to) in [
@@ -117,6 +119,27 @@ fn steps(race: &Race) -> Result<(), Refused> {
         shared.view.get().view_on[1].set(1);
     }
     Ok(())
+}
+
+/// The HUD pieces of the first two cars while the viewer is open (`set_shown_hud`), shown when
+/// their HUD is switched on.
+static SHOWN_HUD: [AtomicU32; 2] = [const { AtomicU32::new(0) }; 2];
+static SHOWN_HUD_SET: AtomicBool = AtomicBool::new(false);
+
+/// The HUD pieces the viewer shows, from its opening to its end (none: the race's own).
+pub fn set_shown_hud(bits: Option<[u32; 2]>) {
+    if let Some(bits) = bits {
+        for (to, bit) in SHOWN_HUD.iter().zip(bits) {
+            to.store(bit, Relaxed);
+        }
+    }
+    SHOWN_HUD_SET.store(bits.is_some(), Relaxed);
+}
+
+pub fn shown_hud() -> Option<[u32; 2]> {
+    SHOWN_HUD_SET
+        .load(Relaxed)
+        .then(|| [SHOWN_HUD[0].load(Relaxed), SHOWN_HUD[1].load(Relaxed)])
 }
 
 pub fn replay_cameras(race: &Race) -> Result<(), Refused> {

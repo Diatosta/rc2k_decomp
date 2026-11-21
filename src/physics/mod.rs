@@ -106,7 +106,7 @@ mod false_start;
 mod feel_ground;
 pub(crate) mod figures;
 mod fill_race_slot;
-mod fill_rival_table;
+pub(crate) mod fill_rival_table;
 mod fill_slot_on_bit;
 mod find_car_checkpoint;
 mod find_clear_place;
