@@ -11,7 +11,7 @@ mod choose_language;
 mod end_text_line;
 pub(crate) mod find_clio;
 #[cfg(unix)]
-mod mac_bundle;
+pub(crate) mod mac_bundle;
 mod normalise_path;
 pub(crate) mod outside;
 pub(crate) mod owner;
