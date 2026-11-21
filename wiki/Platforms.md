@@ -54,9 +54,8 @@ otherwise by the program's own software rasteriser, which needs no GPU at all.
 **Windows, 32 bits.** No [debug window](The-debug-window). Everything else is the same as the
 64-bit build.
 
-**Windows in general.** The builds have been run under Wine and Proton. The script that builds
-on Windows itself has not yet been tried on a real Windows machine
-([Building from source](Building-from-source)).
+**Windows in general.** The builds have been run under Wine and Proton, and built and run on
+Windows itself ([Building from source](Building-from-source)).
 
 **Linux.** The installer puts the game in `~/.local/share/rally-championship` and its menu
 entries in `~/.local/share/applications`. The game's files are named the Windows way (mixed

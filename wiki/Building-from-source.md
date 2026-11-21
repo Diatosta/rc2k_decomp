@@ -138,8 +138,6 @@ and a 64-bit build at the same moment from one cache: give one of them its own w
 
 ## Windows, built on Windows
 
-**This script has not yet been tried on a real Windows machine.**
-
 You need:
 
 - `rustup`;

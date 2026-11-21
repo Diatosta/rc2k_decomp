@@ -51,10 +51,9 @@ What a free Apple ID means:
 - At most three sideloaded apps on a device at a time, AltStore itself being one.
 - A paid developer account's signing lasts a year.
 
-The project's own test installs were made from Linux with xtool
-([below](#building-and-installing-from-linux)), which signs the same way. The AltStore steps
-above follow AltStore's documentation; if a step differs on your version, its guide is the
-one to trust. SideStore, a variant of AltStore that refreshes without a computer, takes the
+The game has been installed and played through AltStore, and also from Linux with xtool
+([below](#building-and-installing-from-linux)), which signs the same way. If a step above
+differs on your version of AltStore, its guide is the one to trust. SideStore, a variant of AltStore that refreshes without a computer, takes the
 same `.ipa`; it has not been tried here either.
 
 ## What it is

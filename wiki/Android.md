@@ -43,11 +43,10 @@ two ways in.
 device. Started with no game data, the app shows a page with two buttons; tap "Pick a zip
 file" and choose the zip in Android's file picker. The app copies it into its storage, unpacks
 it there and goes on into the game. (Folders cannot be picked on Android, and the page says
-so.) A zip larger than 4 GB, or an encrypted one, is not read. **This page's file picker is in
-the program but has not been checked on a device yet**; if it fails, the second way is the
-one to fall back on.
+so.) A zip larger than 4 GB, or an encrypted one, is not read. If it fails, the second way is the one to fall
+back on.
 
-**From a computer, with `adb`.** This is the way the project's tests use. It needs a package
+**From a computer, with `adb`.** This is the way the project's automated tests use. It needs a package
 made debuggable, which the released one is not (so that no other app with `adb` rights can read
 its storage): build one with `tools/android/build.sh arm64 --debuggable` ([Building](#building)),
 install it, and with the device on `adb`:
@@ -171,6 +170,6 @@ does not fill.
 ## Not done yet
 
 - a run on Android 9 and older (the screenshots' album takes another way there);
-- the first-run page's zip picker checked on a device, and a package in an app store;
+- a package in an app store;
 - the options pages that make no sense on a phone (window mode, the keyboard's keys);
 - the DualSense/Xbox pad's extras, Steam, and the debug window are left out of this build.

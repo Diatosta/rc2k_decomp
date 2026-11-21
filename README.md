@@ -189,9 +189,8 @@ The game then appears under Ports as "Rally"; MENU + START leaves it. More:
 Install `rc2k-arm64.apk` from the zip (the phone asks to allow installing from that
 source). The app holds no game data and has no installer: at its first start it shows a
 page with a "Pick a zip file" button; pick a zip of the game's folder and the app unpacks
-it into its own storage. That page's file picker has not been tried on a phone yet; the
-way that has been tested needs a computer with `adb` and a build you make yourself.
-Both ways: [wiki: Android](wiki/Android.md#installing).
+it into its own storage. A computer with `adb` and a build you make yourself is the other
+way. Both: [wiki: Android](wiki/Android.md#installing).
 
 ### iPhone and iPad
 
@@ -282,7 +281,7 @@ What each target needs:
   (`.\build` in PowerShell.) `build` builds 64 bits (`build windows`: 32 bits). `-GameDir` (or `-Deploy` with a
   `DEPLOY_WINDOWS_X64` line in `deploy.local`) also copies the
   result into the game's folder. `build` is `build.cmd`, which runs
-  `tools\windows\build.ps1`. Not yet tried on a real Windows machine.
+  `tools\windows\build.ps1`.
 - **macOS**: the Command Line Tools, rustup's two `apple-darwin` targets, and cmake.
   Both processors' programs are joined with `lipo` into one bundle, signed ad hoc
   (not notarised); `--arch x64` or `--arch a64` builds one alone. From Linux,
