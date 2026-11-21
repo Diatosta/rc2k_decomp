@@ -138,7 +138,7 @@ pub fn move_slot(c: &SlotInputs<'_>, s: &RaceSlot, number: usize) -> Result<(), 
     for cell in &s.spin {
         cell.set(negated(mul(cell, half)));
     }
-    if abs_compare(&s.motion[1], &c.numbers.one) & 0x100 != 0 {
+    if abs_compare(&s.motion[1], c.numbers.one) & 0x100 != 0 {
         copy_held_matrix(&c.work.part_matrix_flat[..12], &s.matrix);
         let n = s.part.get() % 20;
         if (n.wrapping_sub(5) as i32) >= 0 && (n.wrapping_sub(9) as i32) < 0 {

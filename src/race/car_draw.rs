@@ -225,7 +225,8 @@ fn shown_groups(masks: &[crate::memory::session::PlainDword; 18], switches: u32)
 pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Result<(), Refused> {
     let race = ctx.race;
     let n: u32 = ctx.view.state.borrow().drawn_car;
-    if ctx.reads.numbers.in_race.is_set() && n < 8 && !ctx.reads.work.has_car_block(n as usize) {
+    if ctx.reads.number_vars.in_race.is_set() && n < 8 && !ctx.reads.work.has_car_block(n as usize)
+    {
         return Err(BadInput("the drawn car without its block").into());
     }
     // The car's marks, its own while it is drawn.
@@ -527,15 +528,16 @@ mod vector_tests {
     thread_local! {
         /// The shine the blocks start from and leave (a view's own in the game).
         static SHINE: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+        /// The bits of the constants `zero` and `one` the blocks read (the test's own).
+        static ZERO_AND_ONE: std::cell::Cell<[u32; 2]> = const { std::cell::Cell::new([0; 2]) };
     }
 
     /// The stores the test writes.
-    const STORES: [&str; 5] = [
+    const STORES: [&str; 4] = [
         "owners.scene.drawing.scene",
         "owners.scene.draw_work",
         "owners.race.frame.frame_work",
         "owners.race.shared.work",
-        "owners.race.course.numbers",
     ];
 
     /// The values the blocks read and write, without `scratch` (the assembly's spill dword) and
@@ -547,8 +549,8 @@ mod vector_tests {
             race.frame.frame_work.get().car_depth.get(),
             race.shared.work.get().car_nearness.get().to_bits(),
             SHINE.get(),
-            race.course.numbers.get().zero.get().to_bits(),
-            race.course.numbers.get().one.get().to_bits(),
+            ZERO_AND_ONE.get()[0],
+            ZERO_AND_ONE.get()[1],
         ]
     }
 
@@ -567,16 +569,17 @@ mod vector_tests {
             .car_nearness
             .set(f32::from_bits(r.float()));
         SHINE.set(r.int() as u32);
-        race.course.numbers.get().zero.set(if r.below(4) == 0 {
+        let zero = if r.below(4) == 0 {
             f32::from_bits(r.float())
         } else {
             0.0
-        });
-        race.course.numbers.get().one.set(if r.below(4) == 0 {
+        };
+        let one = if r.below(4) == 0 {
             f32::from_bits(r.float())
         } else {
             1.0
-        });
+        };
+        ZERO_AND_ONE.set([zero.to_bits(), one.to_bits()]);
     }
 
     /// The state after the nearness, then the size.
@@ -587,7 +590,13 @@ mod vector_tests {
             .set(race.frame.frame_work.get().car_depth.get());
         let mine = crate::race::view_course::ViewCourse::new();
         mine.shine.set(SHINE.get());
-        nearness(race.course.numbers.get(), &cars, &mine);
+        let [zero, one] = ZERO_AND_ONE.get();
+        let numbers = crate::race::numbers_store::Numbers {
+            zero: crate::memory::session::ConstFloat::from_bits(zero),
+            one: crate::memory::session::ConstFloat::from_bits(one),
+            ..race.course.numbers
+        };
+        nearness(&numbers, &cars, &mine);
         SHINE.set(mine.shine.get());
         race.shared
             .work

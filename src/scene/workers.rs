@@ -135,7 +135,8 @@ pub struct Lent<'s> {
     course_work: crate::memory::session::PlainRead<crate::race::course_store::CourseWork>,
     stage: &'s crate::race::stage_data_store::StageData,
     kind_records: crate::memory::session::PlainRead<crate::race::kind_records_store::KindRecords>,
-    numbers: crate::memory::session::PhaseRead<'s, crate::race::numbers_store::Numbers>,
+    numbers: &'s crate::race::numbers_store::Numbers,
+    number_vars: crate::memory::session::PhaseRead<'s, crate::race::numbers_store::NumberVars>,
     switches: crate::memory::session::PhaseRead<'s, crate::race::switches_store::FrameSwitches>,
     vars: crate::memory::session::PhaseRead<'s, crate::race::vars_store::RaceVars>,
     view: crate::memory::session::PhaseRead<'s, crate::race::view_store::RaceView>,
@@ -198,7 +199,8 @@ impl<'s> Lent<'s> {
                 race.course.kind_records(),
                 scope,
             ),
-            numbers: PhaseRead::lend(&race.course.numbers, scope),
+            numbers: &race.course.numbers,
+            number_vars: PhaseRead::lend(&race.course.number_vars, scope),
             switches: PhaseRead::lend(&race.shared.switches, scope),
             vars: PhaseRead::lend(&race.shared.vars, scope),
             view: PhaseRead::lend(&race.shared.view, scope),
@@ -247,7 +249,8 @@ impl<'s> Lent<'s> {
             course_work: (&self.course_work).into(),
             stage: self.stage,
             kind_records: (&self.kind_records).into(),
-            numbers: &self.numbers,
+            numbers: self.numbers,
+            number_vars: &self.number_vars,
             switches: &self.switches,
             vars: &self.vars,
             view: &self.view,
@@ -334,6 +337,8 @@ pub struct DrawReads<'a> {
     /// The game's numbers: its float constants, the replay's mode, `in_race`, the grip change
     /// (`race::owner_course::Course::numbers`).
     pub numbers: &'a crate::race::numbers_store::Numbers,
+    /// The replay's mode, `in_race` and the grip change (`race::owner_course::Course::number_vars`).
+    pub number_vars: &'a crate::race::numbers_store::NumberVars,
     /// The frame switches (`race::owner_shared::RaceShared::switches`): the scene set-up flag,
     /// the mask kind, the marker object.
     pub switches: &'a crate::race::switches_store::FrameSwitches,
@@ -370,6 +375,7 @@ impl<'a> DrawReads<'a> {
             lists: self.course_lists,
             stage_prefs: self.stage_prefs,
             numbers: self.numbers,
+            number_vars: self.number_vars,
             kind_records: self.kind_records,
             stage: self.stage,
         }
@@ -429,7 +435,8 @@ impl<'a> DrawReads<'a> {
             kind_records: crate::race::kind_records_store::KindRecordsRef::Store(
                 race.course.kind_records(),
             ),
-            numbers: race.course.numbers.get(),
+            numbers: &race.course.numbers,
+            number_vars: race.course.number_vars.get(),
             switches: race.shared.switches.get(),
             vars: race.shared.vars.get(),
             view: race.shared.view.get(),
@@ -652,7 +659,7 @@ fn draw_parts(
     begin_list();
     let control = crate::math::x87::control_word();
     // Whether a race is on, as the parts' noted drawing reads it inside the scope (`in_race`).
-    let racing = owners.race.course.numbers.get().in_race.is_set();
+    let racing = owners.race.course.number_vars.get().in_race.is_set();
     let screen = owners.system.session.screen.get();
     let screen_size = [screen.width.get(), screen.height.get(), screen.bits.get()];
     for scratch in scratch_owner.all_parts_on_game_thread() {

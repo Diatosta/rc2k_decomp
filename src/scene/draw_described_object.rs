@@ -15,7 +15,7 @@ use crate::errors::{BadInput, Refused};
 /// What `scene::draw_scene_object` would refuse for `object`: in a race (`in_race`) a car
 /// (0x50 ..) without its block.
 fn check_object(
-    numbers: &crate::race::numbers_store::Numbers,
+    numbers: &crate::race::numbers_store::NumberVars,
     work: &crate::race::work_store::RaceWork,
     object: u32,
 ) -> Result<(), Refused> {
@@ -128,7 +128,7 @@ fn draw_description(
         && place < ctx.reads.course_work.get().scene_point_count
         && !(ctx.reads.switches.scene_set_up.get() != 0 && object == 0x3F);
     if shown {
-        check_object(ctx.reads.numbers, ctx.reads.work, object)?;
+        check_object(ctx.reads.number_vars, ctx.reads.work, object)?;
     }
     ctx.view.cars.object_number.set(object);
     let end = || {

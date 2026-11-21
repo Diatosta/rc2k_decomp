@@ -165,7 +165,7 @@ fn act(o: &Owners<'static>, window: sdl::Window, gestures: Vec<Gesture>, now: u6
                 press(o, MenuAction::Back);
                 // A replay being shown reads Escape's state, not the key taken: the double tap
                 // also holds the key down a moment, as a keyboard's Escape does.
-                if o.race.course.numbers.get().in_race.is_set() {
+                if o.race.course.number_vars.get().in_race.is_set() {
                     o.input.devices.set_key_state(ESCAPE_KEY, 0xFF);
                     ESCAPE_UNTIL.store(now + ESCAPE_HOLD_MS, Relaxed);
                 }

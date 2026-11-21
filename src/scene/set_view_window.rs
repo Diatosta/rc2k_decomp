@@ -65,7 +65,7 @@ pub fn set_view_window_reaching(
     crate::memory::session::write_bits(&window.view_middle, middle);
     let offsets: [u32; 2] = crate::memory::session::read_bits(&window.view_offset);
     // top, bottom, left, right
-    let edges = if course.numbers.in_race.is_set() {
+    let edges = if course.number_vars.in_race.is_set() {
         [0, height, 0, width]
     } else {
         [
@@ -92,7 +92,7 @@ pub fn set_view_window_reaching(
     if (nearer.wrapping_sub(0x64) as i32) >= 0 {
         nearer = 0x64;
     }
-    let divisor = x87::int_times(nearer as i32, &course.numbers.hundredth_a);
+    let divisor = x87::int_times(nearer as i32, course.numbers.hundredth_a);
     let product = depth as u64 * 0x1_0000;
     let low = product as u32;
     let farthest = x87::int_over(low as i32, divisor);
@@ -132,7 +132,7 @@ pub fn set_view_window_plain(
         reach: course.stage_prefs.grid_reach.get(),
         size: crate::memory::session::read_bits(&window.view_size),
         offsets: crate::memory::session::read_bits(&window.view_offset),
-        in_race: course.numbers.in_race.is_set(),
+        in_race: course.number_vars.in_race.is_set(),
         screen_width: rc2k_core::scene::view_window::design_width(design.0, design.1),
         scale: (
             vars.view_scale.get(),

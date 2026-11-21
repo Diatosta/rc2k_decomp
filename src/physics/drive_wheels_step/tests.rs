@@ -24,7 +24,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 one_less_abs(
-                    &crate::test_support::own::race().course,
+                    &crate::test_support::race_places::numbers(),
                     view::<PlainFloat>(a[0], 0),
                     view::<PlainFloat>(a[2], 0),
                 );
@@ -104,7 +104,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 apply_slip_to_drive(
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     view::<PlainFloat>(a[0], 0),
                     view::<PlainFloat>(a[2], 0).bits(),
                     view::<PlainFloat>(a[3], 0),
@@ -148,7 +148,7 @@ fn blocks() -> Vec<Block> {
             plain: |_| {
                 signed_share(
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                 );
             },
         },
@@ -267,7 +267,7 @@ fn blocks() -> Vec<Block> {
                 throttle_drive_limit(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     &crate::test_support::own::scene().scratch_cell(),
                 );
             },
@@ -290,7 +290,7 @@ fn blocks() -> Vec<Block> {
                 push_both_drive_speeds(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                 );
             },
         },
@@ -329,7 +329,7 @@ fn blocks() -> Vec<Block> {
                 brake_step_for_a(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                 );
             },
         },
@@ -352,7 +352,7 @@ fn blocks() -> Vec<Block> {
                 brake_step_for_b(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                 );
             },
         },
@@ -374,7 +374,7 @@ fn blocks() -> Vec<Block> {
                 handbrake_step_for_b(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                 );
             },
         },
@@ -448,7 +448,7 @@ fn blocks() -> Vec<Block> {
                     race().shared.car(),
                     race().shared.physics_tables.get(),
                     race().physics.wheel_work(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     &crate::test_support::own::scene().scratch_cell(),
                 );
             },
@@ -549,7 +549,7 @@ fn blocks() -> Vec<Block> {
             plain: |_| {
                 share_wheel_forces(
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                 );
             },
         },

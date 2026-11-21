@@ -460,11 +460,11 @@ mod tests {
     #[test]
     fn hashing_scheme_is_frozen() {
         let _lock = crate::test_support::test_lock();
-        let numbers = crate::race::numbers_store::Numbers::new();
+        let numbers = crate::race::numbers_store::NumberVars::new();
         let zero = record_hash(&numbers);
         assert_eq!(
             zero,
-            record_hash(&crate::race::numbers_store::Numbers::new())
+            record_hash(&crate::race::numbers_store::NumberVars::new())
         );
         assert_eq!(bytes_hash(&[]), 0xa8c7_f832_281a_39c5);
         assert_eq!(bytes_hash(&[1, 2, 3]), bytes_hash(&[1, 2, 3]));

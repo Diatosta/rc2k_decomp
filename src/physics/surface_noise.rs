@@ -46,11 +46,10 @@ pub fn surface_noise(
         );
         shared.car().surface_noise_second.set(second);
         let floor = rough_floor(second, stage_prefs.surface_floor.get());
-        shared.car().surface_blend.set(ext_div2(
-            int_80(floor as i32, false),
-            &numbers.k256,
-            1.0f32,
-        ));
+        shared
+            .car()
+            .surface_blend
+            .set(ext_div2(int_80(floor as i32, false), numbers.k256, 1.0f32));
         if stage_prefs.noise_pick.get() != 0 {
             shared.car().surface_noise_a.set(0);
         } else {

@@ -48,7 +48,11 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 with_object(a[1], |so| {
-                    x87_2(race().course.numbers.get(), race().shared.car(), so);
+                    x87_2(
+                        &crate::test_support::race_places::numbers(),
+                        race().shared.car(),
+                        so,
+                    );
                 });
             },
         },

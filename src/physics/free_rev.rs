@@ -31,7 +31,7 @@ pub fn free_rev(
 ) {
     engine_torque(course, shared, scene);
     let drag = run(
-        course.numbers.get(),
+        &course.numbers,
         shared.physics_tables.get(),
         shared.car(),
         gear,
@@ -115,7 +115,7 @@ mod reference_vectors {
             ulps: 0,
             plain: |_| {
                 let drag = x87_1(
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     race().shared.physics_tables.get(),
                     race().shared.car(),
                     race().gear(),

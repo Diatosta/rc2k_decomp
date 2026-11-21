@@ -52,8 +52,7 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race, scene: &Scene) {
     let tables = race.engine_tables();
     // The root tables.
     for n in 0..0x100usize {
-        let root =
-            bh::stf((bh::int(n as i32 + 0x100) / bh::ld(course.numbers.get().k256.get())).sqrt());
+        let root = bh::stf((bh::int(n as i32 + 0x100) / bh::ld(course.numbers.k256.get())).sqrt());
         course.lists.get().root_table[n].set(root);
     }
     for n in 0..0x100usize {

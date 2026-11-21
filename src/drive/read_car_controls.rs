@@ -109,7 +109,7 @@ pub fn read_car_controls(
                 .set(flipped(race_owner.shared.car().lights_on.get()));
         }
         // A replay's recorded change-view presses stay unplayed: the camera is the viewer's.
-        let replay_plays = plays_inputs(race_owner.course.numbers.get().replay_mode.get());
+        let replay_plays = plays_inputs(race_owner.course.number_vars.get().replay_mode.get());
         if pressed & VIEW_BIT != 0 && !replay_plays {
             next_view_at(
                 race_owner.kind_tables(),

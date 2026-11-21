@@ -86,7 +86,7 @@ fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Result
             [f.dword_at(0x30), f.dword_at(0x34), f.dword_at(0x38)],
         );
         let t = { crate::scene::rotate_point::rotate_point(&view.view_matrix, place.map(int_80)) };
-        let k = race.course.numbers.get().one_over_65536.get();
+        let k = race.course.numbers.one_over_65536.get();
         let [x, y, z] = t.map(|v| scaled(v, k));
         // The count is below the table's size (checked above).
         race.frame

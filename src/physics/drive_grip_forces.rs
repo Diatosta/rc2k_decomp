@@ -53,6 +53,7 @@ pub fn drive_grip_forces(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
+    grip_change: &crate::memory::session::PlainFloat,
     engine_tables: &EngineTables,
     scene: &crate::scene::owner::Scene,
 ) {
@@ -178,9 +179,9 @@ pub fn drive_grip_forces(
     }
     car.eased_yaw_spin.set(x87::loaded(&car.spin[1]));
     let old = car.eased_yaw_spin.bits();
-    numbers.grip_change.set(x87::sub(old, &car.grip_force_sum));
-    ease_zero(&numbers.grip_change, GRIP_EASE_STEP);
-    ease_yaw_twist(car, tables, numbers, old, &scratch);
+    grip_change.set(x87::sub(old, &car.grip_force_sum));
+    ease_zero(grip_change, GRIP_EASE_STEP);
+    ease_yaw_twist(car, tables, numbers, grip_change, old, &scratch);
 }
 
 // ---- the x87 arithmetic ----
@@ -399,10 +400,11 @@ fn ease_yaw_twist(
     car: &Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
+    grip_change: &crate::memory::session::PlainFloat,
     o: u32,
     scratch: &crate::memory::session::PlainDword,
 ) {
-    let t0 = numbers.grip_change.ld();
+    let t0 = grip_change.ld();
     let t1 = car.grip_force_sum.ld();
     let t2 = t0 + t1;
     car.eased_yaw_spin.st(t2);

@@ -35,7 +35,7 @@ pub fn hit_tests(
     );
     if let Hit::Act(k) = hit {
         act(tests[k].1)?;
-        timers[k].set(x87::loaded(&numbers.k256));
+        timers[k].set(x87::loaded(numbers.k256));
     }
     Ok(())
 }

@@ -41,7 +41,7 @@ pub(super) fn find_car_checkpoint(
         .nearest_checkpoint_distance
         .set(ext_div2(
             int_80(near.distance as i32, false),
-            &course.numbers.get().k65536,
+            course.numbers.k65536,
             0x3F80_0000,
         ));
     if progress::search_all(near.distance) {

@@ -65,6 +65,23 @@ impl<T: FloatView + ?Sized> FloatView for &T {
     }
 }
 
+/// A float read as the value it holds: a cell, or a constant (a limit a value is held to).
+pub trait FloatRead {
+    fn read_float(&self) -> f32;
+}
+
+impl<T: FloatView + ?Sized> FloatRead for T {
+    fn read_float(&self) -> f32 {
+        self.float()
+    }
+}
+
+impl FloatRead for crate::memory::session::ConstFloat {
+    fn read_float(&self) -> f32 {
+        self.get()
+    }
+}
+
 /// The game's dword in the cell `x`.
 pub fn g(x: &impl crate::memory::session::Cell32) -> u32 {
     x.bits()
@@ -93,8 +110,8 @@ pub fn abs_below_or_unordered(a: impl x87::Flt, b: impl x87::Flt) -> bool {
 }
 
 /// `v` raised to `lim` when below it (or unordered).
-pub fn hold_low(v: &impl FloatView, lim: &impl FloatView) {
-    hold_low_to(v, lim.float());
+pub fn hold_low(v: &impl FloatView, lim: &impl FloatRead) {
+    hold_low_to(v, lim.read_float());
 }
 
 /// `hold_low` against a limit given as a value.
@@ -110,8 +127,8 @@ pub(super) fn hold_low_bits(v: &impl FloatView, lim: u32) {
 }
 
 /// `v` lowered to `lim` unless below it (or unordered).
-pub fn hold_high(v: &impl FloatView, lim: &impl FloatView) {
-    hold_high_to(v, lim.float());
+pub fn hold_high(v: &impl FloatView, lim: &impl FloatRead) {
+    hold_high_to(v, lim.read_float());
 }
 
 /// `hold_high` against a limit given as a value.

@@ -36,6 +36,6 @@ pub(super) fn lowest_body_point(
             }
         }
     }
-    work.wheel_share = x87::int_over(work.lowest_depth as i32, &numbers.k65536).to_bits();
+    work.wheel_share = x87::int_over(work.lowest_depth as i32, numbers.k65536).to_bits();
     Ok(())
 }

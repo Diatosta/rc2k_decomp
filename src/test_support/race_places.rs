@@ -37,7 +37,7 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x1C5E2C, "owners.race.course.numbers", ".k256"),
     (0x1C5E34, "owners.race.course.numbers", ".k10000"),
     (0x1C5E40, "owners.race.course.numbers", ".half"),
-    (0x1C5E48, "owners.race.course.numbers", ".grip_change"),
+    (0x1C5E48, "owners.race.course.number_vars", ".grip_change"),
     (0x1CB958, "owners.race.frame.lights_and_gear", ".gear.shift_up_point"),
     (0x1CB95C, "owners.race.frame.lights_and_gear", ".gear.shift_down_point"),
     (0x1CB960, "owners.race.frame.lights_and_gear", ".gear.shift_down_clutch_point"),
@@ -664,11 +664,81 @@ fn wheel_word<'a>(work: &'a mut WheelWork, path: &str) -> Option<&'a mut u32> {
     array.get_mut(index.parse::<usize>().ok()?)
 }
 
+/// The registry name the game's float constants are read under.
+const NUMBERS: &str = "owners.race.course.numbers";
+
+thread_local! {
+    /// The values a test put into the constants' places (the constants themselves are fixed): the
+    /// code under test is handed them (`number_constant`).
+    static NUMBER_OVERRIDES: std::cell::RefCell<std::collections::HashMap<String, u32>> =
+        std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+/// The constant at `path` as a test last put it, else as the game holds it.
+pub fn number_constant(path: &str) -> crate::memory::session::ConstFloat {
+    crate::memory::session::ConstFloat::from_bits(number_bits(path).expect("a constant's path"))
+}
+
+/// The field of the constants at `path`.
+fn number_field<'a>(
+    n: &'a mut crate::race::numbers_store::Numbers,
+    path: &str,
+) -> Option<&'a mut crate::memory::session::ConstFloat> {
+    Some(match path {
+        ".hundredth_a" => &mut n.hundredth_a,
+        ".two_and_a_quarter" => &mut n.two_and_a_quarter,
+        ".hundred" => &mut n.hundred,
+        ".thousand" => &mut n.thousand,
+        ".one" => &mut n.one,
+        ".two" => &mut n.two,
+        ".three" => &mut n.three,
+        ".five" => &mut n.five,
+        ".sixty_four" => &mut n.sixty_four,
+        ".k65536" => &mut n.k65536,
+        ".one_over_65536" => &mut n.one_over_65536,
+        ".quarter" => &mut n.quarter,
+        ".one_and_a_half" => &mut n.one_and_a_half,
+        ".one_over_two_pi" => &mut n.one_over_two_pi,
+        ".tenths[0]" => &mut n.tenths[0],
+        ".kilometres_in_mile" => &mut n.kilometres_in_mile,
+        ".k4096" => &mut n.k4096,
+        ".k256" => &mut n.k256,
+        ".k10000" => &mut n.k10000,
+        ".half" => &mut n.half,
+        _ => return None,
+    })
+}
+
+/// The bits of the constant at `path` (the constants are fixed: a test's value is kept aside).
+fn number_bits(path: &str) -> Option<u32> {
+    if let Some(bits) = NUMBER_OVERRIDES.with(|o| o.borrow().get(path).copied()) {
+        return Some(bits);
+    }
+    let mut n = super::own::race().course.numbers;
+    number_field(&mut n, path).map(|c| c.bits())
+}
+
+/// The game's constants with the values a test put into their places.
+pub fn numbers() -> crate::race::numbers_store::Numbers {
+    let mut n = super::own::race().course.numbers;
+    NUMBER_OVERRIDES.with(|o| {
+        for (path, bits) in o.borrow().iter() {
+            if let Some(c) = number_field(&mut n, path) {
+                *c = crate::memory::session::ConstFloat::from_bits(*bits);
+            }
+        }
+    });
+    n
+}
+
 /// The bytes of the field at `path` in the store `name` (the registry's, or a plain one).
 fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
     if name == CONTACT {
         let mut work = super::own::race().physics.contact().borrow().clone();
         return Some(contact_word(&mut work, path)?.to_le_bytes().to_vec());
+    }
+    if name == NUMBERS {
+        return Some(number_bits(path)?.to_le_bytes().to_vec());
     }
     if name == COURSE_WORK {
         let mut work = *super::own::race().course.course.borrow();
@@ -736,6 +806,20 @@ fn set_store_bytes(name: &str, path: &str, bytes: &[u8]) -> bool {
             return false;
         };
         *slot = u32::from_le_bytes(word);
+        return true;
+    }
+    if name == NUMBERS {
+        // The constants are fixed: a test's value is kept aside for the code under test.
+        let Ok(word) = <[u8; 4]>::try_from(bytes) else {
+            return false;
+        };
+        if number_bits(path).is_none() {
+            return false;
+        }
+        NUMBER_OVERRIDES.with(|o| {
+            o.borrow_mut()
+                .insert(path.to_string(), u32::from_le_bytes(word))
+        });
         return true;
     }
     if name == COURSE_WORK {

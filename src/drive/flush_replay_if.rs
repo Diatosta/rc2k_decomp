@@ -14,7 +14,7 @@ pub(super) fn flush_replay_if(
     net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
     if flush_due(
-        race.course.numbers.get().replay_mode.get(),
+        race.course.number_vars.get().replay_mode.get(),
         race.replay.replay_frames().tenth,
     ) {
         return crate::drive::flush_replay::flush_replay(race, system, net);

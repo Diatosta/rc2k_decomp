@@ -51,8 +51,8 @@ pub(super) fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> R
                     .overlay_miles
                     .set(0);
                 let (scale, mile) = (
-                    race.course.numbers.get().k65536.get(),
-                    race.course.numbers.get().metres_in_mile.get(),
+                    race.course.numbers.k65536.get(),
+                    race.course.numbers.metres_in_mile.get(),
                 );
                 // The list's entries 0 .. count (at most 0x40) were written by
                 // `race::init_checkpoints` (`split_colour_count` is their count - 1), each a

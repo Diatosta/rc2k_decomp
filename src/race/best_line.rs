@@ -122,7 +122,7 @@ fn checkpoint_angles(
     faces: &[u32],
     left: &RefCell<Leftovers>,
 ) -> Result<Vec<(u32, u32)>, Refused> {
-    let numbers = race.course.numbers.get();
+    let numbers = race.course.numbers;
     let (half, scale) = (numbers.half.get(), numbers.k65536.get());
     let trap = Trap::new();
     let (writes, _) = rc2k_core::race::best_line::link_angles(
@@ -206,7 +206,7 @@ fn map_segment(
         ground[0] as i32,
         ground[1] as i32,
     );
-    let numbers = race.course.numbers.get();
+    let numbers = race.course.numbers;
     let (half, unit) = (numbers.half.get(), numbers.k65536.get());
     let map_angle =
         (x87::angle_scaled5_to_int(on_map[0] as i32, on_map[1] as i32, half, unit) as u32) << 2;
@@ -353,7 +353,7 @@ fn add_surface_share(
     if weight == 0 {
         return;
     }
-    let numbers = race.course.numbers.get();
+    let numbers = race.course.numbers;
     let [a, b, c] = [
         numbers.k256.get(),
         numbers.quarter.get(),

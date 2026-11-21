@@ -81,11 +81,7 @@ pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
         probes.probe_turned_y[k].to_bits(),
         probes.probe_turned_z[k].to_bits(),
     ];
-    let point = [
-        point[0],
-        mul(point[1], &c.numbers.tenth).to_bits(),
-        point[2],
-    ];
+    let point = [point[0], mul(point[1], c.numbers.tenth).to_bits(), point[2]];
     {
         let mut work = c.contact.borrow_mut();
         work.contact_car_speed = bits_of(&c.car.velocity);

@@ -391,11 +391,11 @@ fn rolled_angle(
     car: &crate::physics::car_store::ViewCar,
 ) -> u32 {
     use crate::math::x87::{below_or_unordered, eased_roll};
-    let mut v = crate::math::x87::div(&car.local_velocity[2], &numbers.ten);
-    if below_or_unordered(v, &numbers.zero) {
+    let mut v = crate::math::x87::div(&car.local_velocity[2], numbers.ten);
+    if below_or_unordered(v, numbers.zero) {
         v = numbers.zero.get();
     }
-    if !below_or_unordered(v, &numbers.one) {
+    if !below_or_unordered(v, numbers.one) {
         v = numbers.one.get();
     }
     let roll = eased_roll(
@@ -598,10 +598,10 @@ fn place_sun(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused
         & 0xFF;
     let dir = sun_direction(
         angle as i32,
-        &ctx.reads.numbers.sixty_four,
+        ctx.reads.numbers.sixty_four,
         &ctx.reads.frame_work.sun_depth,
         ctx.reads.stage_prefs.sun_height.get() as i32,
-        &ctx.reads.numbers.k98304,
+        ctx.reads.numbers.k98304,
     );
     // The direction and the turned point are locals: nothing reads `FrameWork.sun_floats` or
     // `sun_points`.
@@ -611,7 +611,7 @@ fn place_sun(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused
     );
     let place = turned.map(tbyte_to_int);
     let z = crate::math::x87::from_int(place[2] as i32);
-    if crate::math::x87::below_or_unordered(z, &ctx.reads.numbers.k4096_a) {
+    if crate::math::x87::below_or_unordered(z, ctx.reads.numbers.k4096_a) {
         return Ok(());
     }
     let flat = ctx.reads.stage_prefs.flat_depth.get() != 0;

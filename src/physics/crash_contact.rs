@@ -209,7 +209,7 @@ mod reference_vectors {
                     let limit = x87_1(
                         crate::math::x87_mem::view::<PlainFloat>(a[1], 0),
                         crate::test_support::own::race().shared.physics_tables.get(),
-                        crate::test_support::own::race().course.numbers.get(),
+                        &crate::test_support::race_places::numbers(),
                     );
                     crate::test_support::own::race()
                         .physics
@@ -235,7 +235,7 @@ mod reference_vectors {
                     x87_2(
                         crate::math::x87_mem::view::<PlainFloat>(a[1], 0),
                         crate::test_support::own::race().shared.car(),
-                        crate::test_support::own::race().course.numbers.get(),
+                        &crate::test_support::race_places::numbers(),
                     );
                 },
             },

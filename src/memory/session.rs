@@ -617,6 +617,36 @@ impl PlainDword {
     }
 }
 
+/// A float constant: its bits, fixed when the program is built and never written (a plain value,
+/// so a store of constants is `Copy` and needs no lending to the drawing parts). Read the way a
+/// float cell is: `get`, `bits`, `ld`, and as an operand of the float helpers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct ConstFloat(u32);
+
+impl ConstFloat {
+    pub const fn new(value: f32) -> Self {
+        Self(value.to_bits())
+    }
+
+    pub const fn from_bits(bits: u32) -> Self {
+        Self(bits)
+    }
+
+    pub fn get(&self) -> f32 {
+        f32::from_bits(self.0)
+    }
+
+    pub fn bits(&self) -> u32 {
+        self.0
+    }
+
+    /// Loaded as the x87 loads a dword float.
+    pub(crate) fn ld(&self) -> crate::math::x87_float::X {
+        crate::math::x87_float::ld(self.0)
+    }
+}
+
 /// A `Float` only the game's thread reaches, holding its bits.
 #[repr(transparent)]
 pub struct PlainFloat(Cell<u32>);

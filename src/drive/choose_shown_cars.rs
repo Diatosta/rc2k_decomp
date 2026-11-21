@@ -74,7 +74,7 @@ fn game<'a>(race: &'a Race, network: &'a PlainDword) -> Vec<&'a dyn DwordLike> {
         &shared.view.get().view_cars[1],
         &shared.view.get().players,
         &shared.view.get().views,
-        &race.course.numbers.get().replay_mode,
+        &race.course.number_vars.get().replay_mode,
         &shared.view.get().view_switch,
         &shared.vars.get().split,
         network,

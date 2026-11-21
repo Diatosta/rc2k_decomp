@@ -154,7 +154,7 @@ fn test_course(o: Owners<'static>) -> Result<(), Refused> {
     use crate::race::{race_end, race_shell, replay, stage_loading};
     let race = o.race;
     round_a_race(o, || {
-        race.course.numbers.get().replay_mode.set(1);
+        race.course.number_vars.get().replay_mode.set(1);
         race.shared.tables().noise_seed.set(0x1234_5678);
         race.physics.split_tables_mut().arcade_kind = 2;
         race.shared.switches.get().editor_mode.set(0);
@@ -185,7 +185,7 @@ fn finish_sequence(o: Owners<'static>) -> Result<(), Refused> {
     round_a_race(o, || {
         let s = &SETTINGS;
         let car = s.car.load(Relaxed);
-        race.course.numbers.get().replay_mode.set(1);
+        race.course.number_vars.get().replay_mode.set(1);
         let results = &race.shared.state.results;
         race.replay.finish_mut().no_place = 1;
         results
@@ -215,7 +215,7 @@ fn last_replay(o: Owners<'static>) -> Result<(), Refused> {
     let shared = &race.shared;
     let course = &race.course;
     round_a_race(o, || {
-        course.numbers.get().replay_mode.set(2);
+        course.number_vars.get().replay_mode.set(2);
         shared.view.get().player_options[0].set(u32::MAX);
         shared.view.get().player_options[1].set(u32::MAX);
         let result = crate::menu::replay_viewer::replay_mode::replay_mode(
@@ -224,7 +224,7 @@ fn last_replay(o: Owners<'static>) -> Result<(), Refused> {
             crate::menu::replay_viewer::Mode::LastRace,
         )
         .map(|_| ());
-        course.numbers.get().replay_mode.set(0);
+        course.number_vars.get().replay_mode.set(0);
         result
     })
 }

@@ -39,7 +39,7 @@ pub static GROUPS: &[Group] = &[
                 "Replay mode",
                 "rep mode",
                 Shown::Whole,
-                store_cell!(|o| o.race.course.numbers.get(), replay_mode),
+                store_cell!(|o| o.race.course.number_vars.get(), replay_mode),
                 false,
                 (0, 0),
             ),

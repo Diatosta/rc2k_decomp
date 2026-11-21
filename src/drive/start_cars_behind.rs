@@ -164,7 +164,7 @@ pub fn start_cars_behind(race: &Race, scene: &crate::scene::owner::Scene) -> Res
                     &lead.pace_cars[1],
                     &lead.pace_starts[1],
                     race.shared.tables().pace_back_gap.get().wrapping_neg(),
-                    course.numbers.get().twenty.get(),
+                    course.numbers.twenty.get(),
                     scene,
                 )?;
                 lead.mode2_behind
@@ -216,7 +216,7 @@ pub fn start_cars_behind(race: &Race, scene: &crate::scene::owner::Scene) -> Res
             &lead.pace_cars[0],
             &lead.pace_starts[0],
             race.shared.tables().pace_back_gap.get(),
-            course.numbers.get().twenty.get(),
+            course.numbers.twenty.get(),
             scene,
         )?;
         lead.mode2_behind

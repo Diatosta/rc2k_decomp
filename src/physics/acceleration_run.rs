@@ -35,7 +35,7 @@ fn step(
 ) -> Result<(), Refused> {
     shared.car().local_velocity[2].set(crate::math::x87::loaded(&shared.car().drive_speed_a));
     crate::physics::count_down_timers::count_down_timers(shared.car(), shared.vars.get());
-    crate::physics::gearbox_step::gearbox_step(course.numbers.get(), shared, figures)?;
+    crate::physics::gearbox_step::gearbox_step(&course.numbers, shared, figures)?;
     crate::physics::engine_torque::engine_torque(course, shared, scene);
     let gear = shared.car().gear.get();
     if !(-1..=7).contains(&gear) {
@@ -44,25 +44,21 @@ fn step(
     x87_1(
         shared.physics_tables.get(),
         figures,
-        course.numbers.get(),
+        &course.numbers,
         &shared.physics_tables.get().gear_ratios[gear.wrapping_add(1) as usize],
     );
     crate::physics::drive_torque_share::drive_torque_share(
         shared.car(),
         shared.physics_tables.get(),
-        course.numbers.get(),
+        &course.numbers,
         scene,
     );
-    x87_2(
-        shared.car(),
-        shared.physics_tables.get(),
-        course.numbers.get(),
-    );
+    x87_2(shared.car(), shared.physics_tables.get(), &course.numbers);
     {
         crate::physics::revs_from_wheels::revs_from_wheels(
             shared.car(),
             shared.physics_tables.get(),
-            course.numbers.get(),
+            &course.numbers,
         )
     }?;
     Ok(())
@@ -98,12 +94,12 @@ fn steps(
             let slot = (n / 20) as usize;
             figures.test_speeds[slot].set(crate::math::x87::mul(
                 &shared.car().drive_speed_a,
-                &course.numbers.get().two_and_a_quarter,
+                course.numbers.two_and_a_quarter,
             ));
             figures.test_gears[slot].set(shared.car().gear.get());
         }
     }
-    x87_3(shared.car(), figures, course.numbers.get());
+    x87_3(shared.car(), figures, &course.numbers);
     Ok(())
 }
 

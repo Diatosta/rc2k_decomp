@@ -111,7 +111,7 @@ mod reference_vectors {
                 plain: |_| {
                     let scene = crate::test_support::own::scene();
                     x87_2(
-                        crate::test_support::own::race().course.numbers.get(),
+                        &crate::test_support::race_places::numbers(),
                         scene.draw_work().scratch,
                         scene,
                     );

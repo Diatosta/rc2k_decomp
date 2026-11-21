@@ -53,7 +53,7 @@ pub fn start_car_on_line(
     let share = start_places::start_share(
         start as i32,
         race.shared.tables().arcade_cars.get() as i32,
-        race.course.numbers.get().one.get(),
+        race.course.numbers.one.get(),
         race.shared.tables().start_share_first.get(),
         race.shared.tables().start_share_last.get(),
     );

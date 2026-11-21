@@ -30,7 +30,7 @@ fn distance_and_angle_match_the_assembly() {
             plain: |a| {
                 distance(
                     crate::test_support::own::race().shared.physics_tables.get(),
-                    crate::test_support::own::race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     &crate::test_support::own::race()
                         .physics
                         .ground_search()
@@ -67,7 +67,7 @@ fn distance_and_angle_match_the_assembly() {
             ulps: 0,
             plain: |a| {
                 let turns = angle(
-                    crate::test_support::own::race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     &crate::test_support::own::race()
                         .physics
                         .ground_search()

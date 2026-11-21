@@ -25,7 +25,7 @@ pub(super) fn lever_push(
         turned = scale(turned, extended(factor));
     }
     for (from, position) in [(turned[0], &car.position[0]), (turned[2], &car.position[2])] {
-        let push = mul2_to_int(from, &numbers.k65536, tables.step_time.get()) as u32;
+        let push = mul2_to_int(from, numbers.k65536, tables.step_time.get()) as u32;
         position.set(position.get().wrapping_add(push));
     }
 }

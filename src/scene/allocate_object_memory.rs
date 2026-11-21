@@ -17,7 +17,7 @@ use rc2k_core::scene::objects::object_rooms as rooms;
 pub fn allocate_object_memory_in_game(
     course: &crate::race::owner_course::Course,
 ) -> Result<(), Refused> {
-    let (points, faces) = rooms(course.numbers.get().in_race.is_set());
+    let (points, faces) = rooms(course.number_vars.get().in_race.is_set());
     let list = &course.lists.get().object_points_list;
     course.lists.get().course_bytes_total.set(
         course

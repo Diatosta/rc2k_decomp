@@ -87,7 +87,7 @@ fn blocks() -> Vec<Block> {
                 lever_share_from_timer(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     &crate::test_support::own::scene().scratch_cell(),
                 );
             },
@@ -188,7 +188,7 @@ fn blocks() -> Vec<Block> {
                 lean_force(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     race().engine_tables(),
                     a[2],
                     &crate::test_support::own::scene().scratch_cell(),
@@ -221,7 +221,7 @@ fn blocks() -> Vec<Block> {
                 lean_force(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     race().engine_tables(),
                     a[2],
                     &crate::test_support::own::scene().scratch_cell(),
@@ -254,7 +254,7 @@ fn blocks() -> Vec<Block> {
                 lean_force(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     race().engine_tables(),
                     a[2],
                     &crate::test_support::own::scene().scratch_cell(),
@@ -272,7 +272,7 @@ fn blocks() -> Vec<Block> {
                 braking_count_geared(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     &crate::test_support::own::scene().scratch_cell(),
                 );
             },
@@ -309,7 +309,7 @@ fn blocks() -> Vec<Block> {
                 engine_braking_force(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                 );
             },
         },
@@ -384,7 +384,7 @@ fn blocks() -> Vec<Block> {
                 yaw_force(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     race().engine_tables(),
                     a[1],
                     crate::test_support::own::scene(),
@@ -417,7 +417,7 @@ fn blocks() -> Vec<Block> {
                 yaw_force(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     race().engine_tables(),
                     a[1],
                     crate::test_support::own::scene(),
@@ -450,7 +450,7 @@ fn blocks() -> Vec<Block> {
                 yaw_force(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     race().engine_tables(),
                     a[1],
                     crate::test_support::own::scene(),
@@ -510,7 +510,8 @@ fn blocks() -> Vec<Block> {
                 ease_yaw_twist(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
+                    &race().course.number_vars.get().grip_change,
                     HostCell(a[1]).bits(),
                     &crate::test_support::own::scene().scratch_cell(),
                 );

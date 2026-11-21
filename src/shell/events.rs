@@ -238,7 +238,8 @@ fn sync_text_input() {
 /// Whether a race is being driven: the pad and the wheel are then the player's controls. In the
 /// replay viewer a race is loaded, but its list is a menu: the pad works it as it works the menus.
 pub(crate) fn driving(race: &crate::race::owner::Race) -> bool {
-    race.course.numbers.get().in_race.is_set() && race.shared.replay_file().hold_car_revs.get() == 0
+    race.course.number_vars.get().in_race.is_set()
+        && race.shared.replay_file().hold_car_revs.get() == 0
 }
 
 /// Whether the race's own touch controls are live: a race is driven by a player (not the
@@ -251,7 +252,7 @@ pub(crate) fn touch_controls_live(race: &crate::race::owner::Race) -> bool {
     driving(race)
         && !race.shared.work.get().in_credits.is_set()
         && !rc2k_core::drive::replay_frames::plays_inputs(
-            race.course.numbers.get().replay_mode.get(),
+            race.course.number_vars.get().replay_mode.get(),
         )
         && race.shared.vars.get().scene_switch.get() == 0
 }
@@ -778,7 +779,7 @@ fn touch_finger(
 fn set_viewer_sideways(race: &crate::race::owner::Race) {
     use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
     static IN_VIEWER: AtomicBool = AtomicBool::new(false);
-    let viewing = race.course.numbers.get().in_race.is_set()
+    let viewing = race.course.number_vars.get().in_race.is_set()
         && race.shared.replay_file().hold_car_revs.get() != 0;
     if IN_VIEWER.swap(viewing, Relaxed) != viewing {
         crate::shell::touch_menu::set_direct_sideways(viewing);

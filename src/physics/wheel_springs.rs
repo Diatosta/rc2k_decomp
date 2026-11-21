@@ -48,14 +48,14 @@ pub fn wheel_springs(
         let squeeze_distance = probes.probe_height[k].wrapping_neg();
         q.set(ext_div2(
             int_80(squeeze_distance as i32, false),
-            &numbers.k65536,
+            numbers.k65536,
             &ph.handling[3],
         ));
         if below(q.get(), 0.0) {
             q.set(x87::loaded(ZERO));
         }
         if !below(q.get(), numbers.one.get()) {
-            q.set(x87::loaded(&numbers.one));
+            q.set(x87::loaded(numbers.one));
         }
         let mut force = negated(mul2(q, SPRING_FORCE_SCALE, &ph.forces[0].force[1]));
         let mut damping = x87::sub_mul(q, scene.draw_work().work_dword, &ph.handling[5]);

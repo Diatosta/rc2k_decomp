@@ -75,10 +75,7 @@ fn car_part_matrices(
     c.mode_on.set(s.mode_on);
     c.part_switches
         .write_at(0, &s.bytes, "a car block's switches")?;
-    let slow = below_or_unordered(
-        p.electrics_damage.get(),
-        race.course.numbers.get().hundred.get(),
-    );
+    let slow = below_or_unordered(p.electrics_damage.get(), race.course.numbers.hundred.get());
     c.marks_count.set(marks_bytes(s.count, slow, on));
     c.shown_steering.set(steering(p.steer_angle_visual.get()));
     let [front, rear_lift, height, front_z, _] = ax;

@@ -1181,7 +1181,6 @@ mod vector_tests {
             "owners.scene.drawing.scene",
             "owners.scene.draw_work",
             "owners.race.course.stage_prefs",
-            "owners.race.course.numbers",
         ]);
         let mut vectors = Vectors::open("race.course_faces.halfway_vertex", Kind::Exact, 8);
         let mut r = Rng(13);
@@ -1194,21 +1193,35 @@ mod vector_tests {
                 for own in [&win.view_scale, &win.view_centre[1], &win.view_centre[0]] {
                     own.set(f32::from_bits(r.float()));
                 }
-                course.numbers.get().half.set(if r.below(2) == 0 {
+                let half = if r.below(2) == 0 {
                     0.5
                 } else {
                     f32::from_bits(r.float())
-                });
+                };
                 // mostly a depth the projection takes
-                course.numbers.get().k4096_a.set(if r.below(4) == 0 {
+                let k4096_a = if r.below(4) == 0 {
                     f32::from_bits(r.float())
                 } else {
                     4096.0
-                });
+                };
+                let numbers = crate::race::numbers_store::Numbers {
+                    half: crate::memory::session::ConstFloat::new(half),
+                    k4096_a: crate::memory::session::ConstFloat::new(k4096_a),
+                    ..course.numbers
+                };
                 let (a, b) = (vertex(&mut r), vertex(&mut r));
                 let from = vertex(&mut r);
                 let mut got = from;
-                halfway_record(course.reads(), &a, &b, &mut got, &win);
+                halfway_record(
+                    CourseReads {
+                        numbers: &numbers,
+                        ..course.reads()
+                    },
+                    &a,
+                    &b,
+                    &mut got,
+                    &win,
+                );
                 // The depth's store to the scene's scratch is not kept.
                 vectors.check(&got, same, || format!("{a:x?} {b:x?} {from:x?}"));
             }
@@ -1221,16 +1234,18 @@ mod vector_tests {
     #[test]
     fn halfway_entry_is_the_originals() {
         let course = &race().course;
-        let kept = Snapshot::of(&["owners.race.course.numbers"]);
         let mut vectors = Vectors::open("race.course_faces.halfway_entry", Kind::Exact, 10);
         let mut r = Rng(14);
         at_each_control_word(|| {
             for _ in 0..20000 {
-                course.numbers.get().half.set(if r.below(2) == 0 {
-                    0.5
-                } else {
-                    f32::from_bits(r.float())
-                });
+                let numbers = crate::race::numbers_store::Numbers {
+                    half: crate::memory::session::ConstFloat::new(if r.below(2) == 0 {
+                        0.5
+                    } else {
+                        f32::from_bits(r.float())
+                    }),
+                    ..course.numbers
+                };
                 let entry = |r: &mut Rng| {
                     let e = crate::memory::cells::zeroed_cells::<PolygonEntry>();
                     for k in 0..10 {
@@ -1250,13 +1265,20 @@ mod vector_tests {
                 for k in 0..10 {
                     to.set_word(4 * k, 0xAAAA_AAAA);
                 }
-                halfway_entry(course.reads(), &f, &s, &to);
+                halfway_entry(
+                    CourseReads {
+                        numbers: &numbers,
+                        ..course.reads()
+                    },
+                    &f,
+                    &s,
+                    &to,
+                );
                 let got: [u32; 10] = std::array::from_fn(|k| to.word(4 * k));
                 // The floats (words 2 .. 6) compare as floats, the bytes as they are.
                 vectors.check(&got, same, String::new);
             }
         });
-        kept.restore();
         vectors.finish();
     }
 }

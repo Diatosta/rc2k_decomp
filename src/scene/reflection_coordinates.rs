@@ -78,7 +78,7 @@ pub fn reflection_coordinates(
         &m.work_vector,
         &[
             x87::loaded(mirrored[0]).to_bits(),
-            x87::add(mirrored[1], &reads.numbers.one).to_bits(),
+            x87::add(mirrored[1], reads.numbers.one).to_bits(),
             x87::loaded(mirrored[2]).to_bits(),
         ],
     );

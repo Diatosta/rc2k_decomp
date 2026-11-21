@@ -77,7 +77,7 @@ mod reference_vectors {
             ulps: 0,
             plain: |a| {
                 x87_1(
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     race().shared.tables(),
                     crate::math::x87_mem::Base::dword(a[0], 0),
                     &crate::test_support::own::scene().scratch_cell(),

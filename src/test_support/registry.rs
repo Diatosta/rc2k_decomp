@@ -526,8 +526,8 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.replay.replay_view()),
         ),
         listed!(
-            "owners.race.course.numbers",
-            on_game(o.race.course.numbers.get()),
+            "owners.race.course.number_vars",
+            on_game(o.race.course.number_vars.get()),
         ),
         listed!(
             "owners.race.course.lists",

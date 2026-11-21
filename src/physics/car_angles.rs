@@ -17,9 +17,9 @@ pub fn car_angles(course: &Course, car: &Car) {
     let scale = |a: u32| {
         mul3_to_int(
             a,
-            &course.numbers.get().k65536,
-            &course.numbers.get().k4096,
-            &course.numbers.get().one_over_two_pi,
+            course.numbers.k65536,
+            course.numbers.k4096,
+            course.numbers.one_over_two_pi,
         )
         .wrapping_shl(4)
     };

@@ -4,7 +4,6 @@
 //! (`race::read_stage_car_numbers`: per stage, three-digit numbers into `stage_numbers`).
 
 use crate::errors::{BadInput, Refused};
-use crate::math::cell_x87::CellX87;
 use crate::math::x87_float as bh;
 use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::car_store::Car;
@@ -270,7 +269,7 @@ fn brake_value(race: &Race, n: usize) -> u32 {
     // Logic in `rc2k_core::race::cars::held_brake` (the product the x87's).
     rc2k_core::race::cars::held_brake(
         race.shared.state.car(n).steering_sensitivity.get() as i32,
-        |v| crate::math::x87::int_times_to_int(v, &course.numbers.get().brake_scale) as u32,
+        |v| crate::math::x87::int_times_to_int(v, course.numbers.brake_scale) as u32,
     )
 }
 
@@ -443,7 +442,7 @@ pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
         scene.draw_work_mut().scratch = percentage;
         let total: i32 = race.physics.split_tables().stage_car_total as i32;
         let extra = bh::to_int(
-            bh::int(percentage as i32) * bh::int(total) / race.course.numbers.get().hundred.ld(),
+            bh::int(percentage as i32) * bh::int(total) / race.course.numbers.hundred.ld(),
         );
         race.physics.split_tables_mut().extra_time = extra as u32;
         text(w(3), false);

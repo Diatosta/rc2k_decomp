@@ -30,7 +30,7 @@ pub(super) fn pick_start_gear(
     tables.start_gear_figures[2].set(car.engine_speed.get());
     revs_speed(car, tables)?;
     tables.start_gear_figures[1].set(0.0);
-    tables.start_gear_figures[0].set(x87::loaded(&numbers.hundred));
+    tables.start_gear_figures[0].set(x87::loaded(numbers.hundred));
     let taken = shifts::pick_start(|gear| {
         if bit(car, gear)? {
             return Ok::<_, Refused>(false);

@@ -41,7 +41,7 @@ fn subtract_units(a: &PlainFloat, u: &PlainDword) {
 /// and set to 0 when negative. Returns it.
 fn whole_units(course: &Course, from: &PlainFloat, to: &PlainDword) -> i32 {
     round_units(from, to);
-    let zero = course.numbers.get().zero.get();
+    let zero = course.numbers.zero.get();
     if c0(to.get(), zero) {
         to.set(zero.to_bits());
     }

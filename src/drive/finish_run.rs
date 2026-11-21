@@ -17,16 +17,16 @@ use crate::physics::flow::c0;
 use crate::race::owner::Race;
 
 /// The car's lift: `CarBlocks.cars[0].position[1]` += `car_lift` x `k65536`.
-fn lift_car(race: &Race) {
+fn lift_car(race: &Race, k65536: crate::memory::session::ConstFloat) {
     race.car_blocks().cars[0].position[1].set(to_int(
-        ld(race.replay.finish().car_lift) * ld(race.course.numbers.get().k65536.get())
+        ld(race.replay.finish().car_lift) * ld(k65536.get())
             + int(race.car_blocks().cars[0].position[1].get() as i32),
     ) as u32);
 }
 
 pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (scene, sound, input) = (o.scene, o.sound, o.input);
-    lift_car(race);
+    lift_car(race, race.course.numbers.k65536);
     restart_clock(race, &o.system.session.picture_clock);
     race.frame.clock_ticks_mut().sound_tick_last = race.shared.run().scene_clock;
     race.replay.replay_view().play_end.set(u32::MAX);
@@ -79,7 +79,12 @@ mod reference_vectors {
                 writes: &[(0x30F524, Out::I)],
             }],
             ulps: 0,
-            plain: |_| lift_car(race()),
+            plain: |_| {
+                lift_car(
+                    race(),
+                    crate::test_support::race_places::number_constant(".k65536"),
+                );
+            },
         }];
         sparse("drive.finish_run", &blocks, 4000, 204);
     }

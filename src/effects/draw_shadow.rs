@@ -198,7 +198,7 @@ pub(super) fn draw_shadow_with(
     }
     let q = sh.quad.borrow();
     for item in q.corners.iter().take(4) {
-        if x87::bits_at_or_below(item[2], race.course.numbers.get().k4096_a.get()) {
+        if x87::bits_at_or_below(item[2], race.course.numbers.k4096_a.get()) {
             return Ok(());
         }
     }

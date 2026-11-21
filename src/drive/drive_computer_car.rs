@@ -76,7 +76,7 @@ fn normalised(
     for k in 0..3 {
         scratch.work_vector[k] = from[k].get().to_bits();
     }
-    normalise_work_vector(race.course.numbers.get(), &mut scratch, scene);
+    normalise_work_vector(&race.course.numbers, &mut scratch, scene);
     for k in 0..3 {
         to[k].set(f32::from_bits(scratch.work_vector[k]));
     }
@@ -317,7 +317,7 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     );
     let (k1, k2) = (
         race.shared.work.get().driver_speed_scale.get(),
-        course.numbers.get().k65536.get(),
+        course.numbers.k65536.get(),
     );
     race.shared.work.get().driver_step_x.set(mul2_to_int(
         race.shared.work.get().driver_ahead[0].get(),
@@ -364,8 +364,8 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     );
     let (i, status) = times_fist_compare(
         race.shared.work.get().driver_work[1].get(),
-        course.numbers.get().k256.get(),
-        course.numbers.get().zero.get(),
+        course.numbers.k256.get(),
+        course.numbers.zero.get(),
     );
     race.shared.work.get().driver_bend_index.set(i as u32);
     let steer = driver::steering(

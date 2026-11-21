@@ -44,7 +44,7 @@ fn share_from(finish: &mut Finish) {
 /// The core from the clock's reading `now` (already in the scene clock).
 fn timing_from(race: &Race, now: u32, scene: &crate::scene::owner::Scene) {
     let (thousand, half) = {
-        let numbers = race.course.numbers.get();
+        let numbers = race.course.numbers;
         (numbers.thousand.get(), numbers.half.get())
     };
     let finished = race.shared.state.results.finished.get() != 0;
@@ -96,19 +96,19 @@ mod reference_vectors {
     /// `time` = the clock less the start (`scratch`) over `thousand`.
     fn time(race: &Race, scene: &crate::scene::owner::Scene) {
         let since = scene.draw_work().scratch;
-        let thousand = race.course.numbers.get().thousand.get();
+        let thousand = crate::test_support::race_places::number_constant(".thousand").get();
         time_from(&mut race.replay.finish_mut(), since, thousand);
     }
 
     /// The eased time between the two limits: t less ((t - a) / (b - a))^2 x ((b - a) x half).
     fn eased_middle(race: &Race) {
-        let half = race.course.numbers.get().half.get();
+        let half = crate::test_support::race_places::number_constant(".half").get();
         eased_middle_from(&mut race.replay.finish_mut(), half);
     }
 
     /// The eased time past the second limit: a + (b - a) x half.
     fn eased_end(race: &Race) {
-        let half = race.course.numbers.get().half.get();
+        let half = crate::test_support::race_places::number_constant(".half").get();
         eased_end_from(&mut race.replay.finish_mut(), half);
     }
 

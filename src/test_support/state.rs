@@ -30,6 +30,8 @@ impl Snapshot {
 /// to be put back; `None` for any other name.
 fn kept_plain(name: &str) -> Option<Box<dyn Fn() + 'static>> {
     match name {
+        // The game's float constants: fixed, nothing to keep.
+        "owners.race.course.numbers" => Some(Box::new(|| {})),
         "owners.scene.draw_work" => {
             let copy = super::own::scene().draw_work().clone();
             Some(Box::new(move || {

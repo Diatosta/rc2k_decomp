@@ -381,7 +381,7 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
 
     // The car blocks' settings. The brake-like settings are percentages: below 0 is 0,
     // 100 or more is 0x100 (full), else the setting x 2.56 (the x87's product, rounded).
-    let brake_scale = race.course.numbers.get().brake_scale.get();
+    let brake_scale = race.course.numbers.brake_scale.get();
     for (c, s) in players(race).map(|(_, c, s)| (c, s)) {
         for (field, setting) in SETTING_BRAKES {
             let held = rc2k_core::race::cars::held_brake(setting(s).get() as i32, |v| {
@@ -746,9 +746,6 @@ mod tests {
         let _lock = crate::test_support::test_lock();
         let race = race();
         let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
-        let scale = &race.course.numbers.get().brake_scale;
-        let scale_kept = scale.get();
-        let scales = [scale_kept, 2.56, 1.0, 3.7];
         let in_steps = old_machine::graham_to_shaun();
         let out_steps = old_machine::shaun_to_graham();
         for (copy_in, steps) in [(true, &in_steps), (false, &out_steps)] {
@@ -759,7 +756,6 @@ mod tests {
                 for c in &cells {
                     c.set(rng.word());
                 }
-                scale.set(scales[round % scales.len()]);
                 let start = snapshot(&cells);
                 branches[0] += u32::from(race.shared.view.get().players.get() == 2);
                 branches[1] += u32::from(race.shared.replay_file().hold_car_revs.get() != 0);
@@ -789,6 +785,5 @@ mod tests {
             assert!(branches[1] > 30 || copy_in, "a replay shown");
             restore(&cells, &kept);
         }
-        scale.set(scale_kept);
     }
 }

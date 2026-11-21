@@ -310,7 +310,7 @@ pub fn nearest_checkpoint(
         scene.draw_work_mut().scratch = near.distance;
         let units = rc2k_core::race::checkpoints::distance_units(
             near.distance,
-            course.numbers.get().k65536.get(),
+            course.numbers.k65536.get(),
         );
         shared
             .physics_tables

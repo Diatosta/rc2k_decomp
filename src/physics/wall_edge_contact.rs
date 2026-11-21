@@ -12,7 +12,6 @@
 //! (what was written is put back).
 
 use crate::errors::Refused;
-use crate::math::cell_x87::CellX87;
 use crate::math::rotate_float_point_about_y::rotate_float_point_about_y;
 use crate::math::x87::mul;
 use crate::math::x87_float::int;
@@ -57,15 +56,10 @@ pub(super) fn edge_normal(
     let dx = second_x.wrapping_sub(first_x);
     let dz = second_z.wrapping_sub(first_z);
     let d = [dx, dz];
-    let turns = x87_1(course.numbers.get(), d) & 0xFFFF;
+    let turns = x87_1(&course.numbers, d) & 0xFFFF;
     let heading = (turns << 16).wrapping_add(0x4000_0000);
-    let (out, _) = rotate_float_point_about_y(
-        engine_tables,
-        0.0,
-        0.0,
-        course.numbers.get().one.get(),
-        heading,
-    );
+    let (out, _) =
+        rotate_float_point_about_y(engine_tables, 0.0, 0.0, course.numbers.one.get(), heading);
     contact.borrow_mut().contact_normal = out.map(f32::to_bits);
     Ok(())
 }
@@ -109,7 +103,7 @@ pub fn steps(
         probes.probe_turned_z[n].to_bits(),
     ];
     drop(probes);
-    point[1] = mul(point[1], &c.numbers.tenth).to_bits();
+    point[1] = mul(point[1], c.numbers.tenth).to_bits();
     {
         let mut work = c.contact.borrow_mut();
         work.contact_car_speed = bits_of(&c.car.velocity);
@@ -142,7 +136,6 @@ fn x87_1(numbers: &Numbers, d: [u32; 2]) -> u32 {
 mod reference_vectors {
     use super::*;
     use crate::math::x87_mem::view;
-    use crate::test_support::own::race;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
     fn blocks() -> Vec<Block> {
@@ -160,7 +153,7 @@ mod reference_vectors {
             ],
             ulps: 0,
             plain: |a| {
-                let turns = x87_1(race().course.numbers.get(), *view(a[0], 0));
+                let turns = x87_1(&crate::test_support::race_places::numbers(), *view(a[0], 0));
                 crate::test_support::own::scene().draw_work_mut().scratch = turns;
             },
         }]

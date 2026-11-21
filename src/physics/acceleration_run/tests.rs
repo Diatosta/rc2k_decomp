@@ -22,7 +22,7 @@ fn blocks() -> Vec<Block> {
                 x87_1(
                     race().shared.physics_tables.get(),
                     race().gear(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     view(a[1], 0),
                 );
             },
@@ -45,7 +45,7 @@ fn blocks() -> Vec<Block> {
                 let drag = x87_2(
                     race().shared.car(),
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                 );
                 // The original keeps the drag, stored as a float, in the shared work dword.
                 crate::test_support::own::scene().draw_work_mut().scratch =
@@ -69,7 +69,7 @@ fn blocks() -> Vec<Block> {
                 x87_3(
                     race().shared.car(),
                     race().gear(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                 );
             },
         },

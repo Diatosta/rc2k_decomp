@@ -13,7 +13,7 @@ use crate::race::scratch_store::FrameScratch;
 /// of 0 makes it 0; -0.0 parts become 0. Gives the vector's bits and the length's bits.
 pub fn normalised(numbers: &Numbers, v: [u32; 3]) -> ([u32; 3], u32) {
     let mut v = v;
-    let (length, zero) = x87::normalise_in_place(&mut v, &numbers.zero);
+    let (length, zero) = x87::normalise_in_place(&mut v, numbers.zero);
     for part in &mut v {
         if zero || *part == 0x8000_0000 {
             *part = 0;
@@ -74,7 +74,7 @@ fn triangle_normal(race: &Race, [a, b, c]: [u32; 3]) -> Result<TriangleNormal, B
         x87::int_product_difference(d[3], d[0], d[1], d[2]),
     ]
     .map(f32::to_bits);
-    let (normal, length) = normalised(race.course.numbers.get(), cross);
+    let (normal, length) = normalised(&race.course.numbers, cross);
     Ok(TriangleNormal {
         plane_work: work.map(|v| v as u32),
         normal,

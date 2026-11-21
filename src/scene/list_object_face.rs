@@ -54,7 +54,7 @@ struct GameFace<'a>(
 
 impl FaceWorld for GameFace<'_> {
     fn in_race(&self) -> bool {
-        self.7.numbers.in_race.is_set()
+        self.7.number_vars.in_race.is_set()
     }
     fn object(&self) -> u32 {
         self.4.object_number.get()

@@ -52,8 +52,8 @@ fn info_byte(
 }
 
 /// `v[c]` x 65536 rounded to a whole number (`v` one of the probe shares).
-fn share_bit(course: &Course, v: &[f32; 64], c: u32) -> u32 {
-    x87_1(course, v, c as usize)
+fn share_bit(numbers: &Numbers, v: &[f32; 64], c: u32) -> u32 {
+    x87_1(numbers, v, c as usize)
 }
 
 /// Everything the function reads that the checks need, refused as said.
@@ -83,8 +83,8 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
         };
         let t1 = face_byte(1)?;
         let probes = c.probes.borrow();
-        let mut share_v = share_bit(c.course, &probes.probe_share_v, point);
-        let mut share_u = share_bit(c.course, &probes.probe_share_u, point);
+        let mut share_v = share_bit(&c.course.numbers, &probes.probe_share_v, point);
+        let mut share_u = share_bit(&c.course.numbers, &probes.probe_share_u, point);
         share_v = (share_v >> 15) & 1;
         share_u = (share_u >> 15) & 1;
         if probes.probe_face_flip[cc] == 1 {
@@ -235,9 +235,9 @@ pub fn wheel_surfaces(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [result] = [t + c * 4] * [k65536]`
-fn x87_1(course: &Course, t: &[f32; 64], c: usize) -> u32 {
+fn x87_1(numbers: &Numbers, t: &[f32; 64], c: usize) -> u32 {
     let t0 = ld(t[c]);
-    let t1 = course.numbers.get().k65536.ld();
+    let t1 = numbers.k65536.ld();
     let t2 = t0 * t1;
     to_int(t2) as u32
 }

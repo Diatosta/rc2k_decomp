@@ -209,7 +209,7 @@ mod reference_vectors {
                     0,
                     view_turn_part(
                         view::<crate::memory::session::Dword>(a[0], 0).get() as i32,
-                        crate::test_support::own::race().course.numbers.get(),
+                        &crate::test_support::race_places::numbers(),
                     ),
                 );
             },

@@ -104,7 +104,7 @@ fn turn_skid_point(
         // Only words 3 .. 8 are written; the projection reads words 4 .. 6.
         let mut made = [0u32; 8];
         made[4..7].copy_from_slice(&turned);
-        if !crate::math::x87::below_or_unordered(made[6], &ctx.reads.numbers.k4096_a) {
+        if !crate::math::x87::below_or_unordered(made[6], ctx.reads.numbers.k4096_a) {
             project_record(
                 ctx.reads.stage_prefs,
                 ctx.reads.course_work.get().flat_depth,

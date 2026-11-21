@@ -163,7 +163,7 @@ pub fn draw_plane(
         item.colour.set(light);
     }
     for item in effects.kinds.plane_quad.borrow().corners.iter().take(4) {
-        if x87::bits_at_or_below(item[2], race.course.numbers.get().k4096_a.get()) {
+        if x87::bits_at_or_below(item[2], race.course.numbers.k4096_a.get()) {
             return Ok(());
         }
     }

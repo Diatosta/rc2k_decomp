@@ -53,7 +53,7 @@ pub fn pace_notes_step(
     let ahead = crate::math::x87::mul_div_div_to_int(
         &car.local_velocity[2],
         PACE_SCALE,
-        &numbers.eight,
+        numbers.eight,
         ONE_F32,
     );
     let target = call_target(

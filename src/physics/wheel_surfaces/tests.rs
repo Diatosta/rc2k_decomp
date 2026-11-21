@@ -33,7 +33,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 let whole = x87_1(
-                    &crate::test_support::own::race().course,
+                    &crate::test_support::race_places::numbers(),
                     view(a[0], 0),
                     a[1],
                 );
@@ -56,7 +56,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 let whole = x87_1(
-                    &crate::test_support::own::race().course,
+                    &crate::test_support::race_places::numbers(),
                     view(a[0], 0),
                     a[1],
                 );
@@ -79,7 +79,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 let whole = x87_1(
-                    &crate::test_support::own::race().course,
+                    &crate::test_support::race_places::numbers(),
                     view(a[0], 0),
                     a[1],
                 );
@@ -106,7 +106,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 x87_2(
                     &crate::test_support::own::race().physics.probes().borrow(),
-                    crate::test_support::own::race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     crate::test_support::own::race().shared.car(),
                     a[1],
                     crate::test_support::own::scene(),
@@ -133,7 +133,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 x87_2(
                     &crate::test_support::own::race().physics.probes().borrow(),
-                    crate::test_support::own::race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     crate::test_support::own::race().shared.car(),
                     a[1],
                     crate::test_support::own::scene(),
@@ -160,7 +160,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 x87_2(
                     &crate::test_support::own::race().physics.probes().borrow(),
-                    crate::test_support::own::race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     crate::test_support::own::race().shared.car(),
                     a[1],
                     crate::test_support::own::scene(),
@@ -248,7 +248,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 x87_4(
                     &race().shared,
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     table(a[0], a[3]),
                     table(a[2], a[3]),
                     a[3],
@@ -276,7 +276,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 x87_4(
                     &race().shared,
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     table(a[0], a[3]),
                     table(a[2], a[3]),
                     a[3],
@@ -304,7 +304,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 x87_4(
                     &race().shared,
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     table(a[0], a[3]),
                     table(a[2], a[3]),
                     a[3],
@@ -512,8 +512,13 @@ fn blocks() -> Vec<Block> {
             }],
             ulps: 0,
             plain: |_| {
+                let numbers = crate::test_support::race_places::numbers();
+                let inputs = crate::physics::step_inputs::StepInputs::of(race()).wheels();
                 x87_7(
-                    &crate::physics::step_inputs::StepInputs::of(race()).wheels(),
+                    &WheelInputs {
+                        numbers: &numbers,
+                        ..inputs
+                    },
                     crate::test_support::own::scene(),
                 );
             },

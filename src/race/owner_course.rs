@@ -9,7 +9,7 @@ use crate::race::kind_records_store::{KindRecords, KindRecordsRef};
 use crate::race::league_store::League;
 use crate::race::level_paths_store::LevelPaths;
 use crate::race::lights_store::{LightsData, LightsTable};
-use crate::race::numbers_store::Numbers;
+use crate::race::numbers_store::{NumberVars, Numbers};
 use crate::race::prefs_store::StagePrefs;
 use crate::race::stage_data_store::StageData;
 use std::cell::{Ref, RefCell, RefMut};
@@ -24,8 +24,11 @@ pub struct Course {
     /// settings the draw distance picks are set once a frame before the views,
     /// `race::draw_distance_settings`).
     pub stage_prefs: DrawShared<StagePrefs>,
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it.
-    pub numbers: DrawShared<Numbers>,
+    /// The game's float constants (a plain value, read by reference everywhere).
+    pub numbers: Numbers,
+    /// The replay's mode, `in_race` and the grip change: one copy, lent to the drawing parts
+    /// (`scene::workers::DrawReads`); no part writes it.
+    pub number_vars: DrawShared<NumberVars>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): the ground search under a
     /// car's shadow reads it; no part writes it.
     kind_records: DrawPlain<KindRecords>,
@@ -44,6 +47,7 @@ pub struct CourseReads<'a> {
     pub lists: &'a CourseLists,
     pub stage_prefs: &'a StagePrefs,
     pub numbers: &'a Numbers,
+    pub number_vars: &'a NumberVars,
     pub kind_records: KindRecordsRef<'a>,
     pub stage: &'a StageData,
 }
@@ -62,7 +66,8 @@ impl Course {
             course: DrawPlain::new(CourseWork::new()),
             lists: DrawShared::new(CourseLists::new()),
             stage_prefs: DrawShared::new(StagePrefs::new()),
-            numbers: DrawShared::new(Numbers::new()),
+            numbers: Numbers::new(),
+            number_vars: DrawShared::new(NumberVars::new()),
             kind_records: DrawPlain::new(KindRecords::new()),
             stage: StageData::new(),
             main: GameThread::new(CourseMain {
@@ -80,7 +85,8 @@ impl Course {
             course: CourseWorkRef::Store(&self.course),
             lists: self.lists.get(),
             stage_prefs: self.stage_prefs.get(),
-            numbers: self.numbers.get(),
+            numbers: &self.numbers,
+            number_vars: self.number_vars.get(),
             kind_records: KindRecordsRef::Store(&self.kind_records),
             stage: &self.stage,
         }

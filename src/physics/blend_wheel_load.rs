@@ -24,7 +24,7 @@ pub(super) fn blend_wheel_load(car: &Car, numbers: &Numbers) {
             slot += add;
         }
     }
-    let mut share = x87::div(depth.get(), &numbers.sixty_four);
+    let mut share = x87::div(depth.get(), numbers.sixty_four);
     if less(share, zero) {
         share = x87::loaded(zero);
     }

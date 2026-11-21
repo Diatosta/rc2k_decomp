@@ -45,7 +45,7 @@ pub fn lever_pushes(
         share_start = x87::loaded(0.0f32);
     }
     if !below(share_start, numbers.one.get()) {
-        share_start = x87::loaded(&numbers.one);
+        share_start = x87::loaded(numbers.one);
     }
     let share_left = x87::loaded(share_start);
     let rear = x87::loaded(&car.probe_point_z[3]).to_bits();

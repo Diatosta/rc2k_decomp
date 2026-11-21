@@ -21,7 +21,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 x87_1(
                     race().shared.car(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     *view(a[0], 0),
                 );
             },
@@ -41,7 +41,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 x87_2(
-                    crate::test_support::own::race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     crate::test_support::own::race()
                         .frame
                         .view_and_records
@@ -62,7 +62,7 @@ fn blocks() -> Vec<Block> {
                 // The block reads the zoom as a whole number (the 384 the step puts there).
                 x87_3(
                     car,
-                    crate::test_support::own::race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     crate::test_support::own::race()
                         .frame
                         .view_and_records
@@ -105,7 +105,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 x87_4(
                     race().shared.physics_tables.get(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     race().frame.view_and_records.get(),
                     &core::array::from_fn(|k| {
                         if k < 10 {
@@ -167,7 +167,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 let result = x87_7(
                     race().shared.car(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     view::<crate::memory::session::Float>(a[0], 0).get(),
                     view::<crate::memory::session::Float>(a[1], 0).get(),
                 );

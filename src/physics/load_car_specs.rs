@@ -69,35 +69,26 @@ pub fn load_car_specs(
     let spec = record(car_specs, car);
     let drive = check_drive(spec.drive_kind)?;
     car.drive_kind.set(drive);
-    load_figures_and_shift_points(
-        car,
-        physics_tables,
-        course.numbers.get(),
-        gear_figures,
-        spec,
-    );
-    if below(
-        car.engine_speed_limit.get(),
-        course.numbers.get().thousand.get(),
-    ) {
+    load_figures_and_shift_points(car, physics_tables, &course.numbers, gear_figures, spec);
+    if below(car.engine_speed_limit.get(), course.numbers.thousand.get()) {
         car.engine_speed_limit
-            .set(x87::loaded(&course.numbers.get().thousand));
+            .set(x87::loaded(course.numbers.thousand));
     }
     for figure in &gear_figures.figures {
-        if below(figure.get(), course.numbers.get().eight.get()) {
-            figure.set(x87::loaded(&course.numbers.get().eight));
+        if below(figure.get(), course.numbers.eight.get()) {
+            figure.set(x87::loaded(course.numbers.eight));
         }
     }
     words(physics_tables, spec);
-    scale_record_ratios(physics_tables, course.numbers.get(), spec);
+    scale_record_ratios(physics_tables, &course.numbers, spec);
     if kind < OWN_FIGURES_FROM {
-        scale_default_ratios(physics_tables, course.numbers.get());
+        scale_default_ratios(physics_tables, &course.numbers);
     }
     physics_tables.spec_grip.set(SPEC_DEFAULT_BA0);
     physics_tables.spec_wheel.set(SPEC_DEFAULT_BA8);
     scale_record_grips(physics_tables, spec);
     physics_tables.downforce_spec.set(spec.downforce);
-    set_rev_limits(physics_tables, course.numbers.get(), drive as usize);
+    set_rev_limits(physics_tables, &course.numbers, drive as usize);
     Ok(())
 }
 

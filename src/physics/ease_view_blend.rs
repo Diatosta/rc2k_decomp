@@ -97,12 +97,15 @@ mod reference_vectors {
                 }],
                 ulps: 0,
                 plain: |_| {
-                    x87_2(
-                        &crate::physics::step_inputs::StepInputs::of(
-                            crate::test_support::own::race(),
-                        )
-                        .camera(),
-                    );
+                    let numbers = crate::test_support::race_places::numbers();
+                    let inputs = crate::physics::step_inputs::StepInputs::of(
+                        crate::test_support::own::race(),
+                    )
+                    .camera();
+                    x87_2(&CameraInputs {
+                        numbers: &numbers,
+                        ..inputs
+                    });
                 },
             },
         ]

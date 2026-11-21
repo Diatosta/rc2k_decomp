@@ -63,7 +63,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |_| {
                 let normal_y = race().physics.contact().borrow().contact_normal[1];
-                let depth = x87_2(normal_y, race().course.numbers.get());
+                let depth = x87_2(normal_y, &crate::test_support::race_places::numbers());
                 crate::test_support::own::scene().draw_work_mut().scratch = depth;
             },
         },
@@ -83,7 +83,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 let (share, factor) = x87_3(
                     one(a[1], 0).ld(),
-                    race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     one(a[1], 4).bits(),
                     one(a[1], 8).bits(),
                 );

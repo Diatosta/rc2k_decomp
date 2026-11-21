@@ -20,7 +20,7 @@ pub(super) fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Res
     let sound = o.sound;
     let (physics, numbers, league) = (
         &race.physics,
-        race.course.numbers.get(),
+        &race.course.numbers,
         &mut race.course.league_mut(),
     );
     let (frame_work, panel_and_overlay) = (

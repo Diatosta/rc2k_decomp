@@ -121,22 +121,22 @@ fn steps(
     let scratch = crate::memory::session::PlainDword::new(0);
     let gear = car.gear.get();
     one_less_abs(
-        course,
+        &course.numbers,
         &car.crash_matrix[1],
         &physics_tables.drive_shares[0],
     );
-    hold_low(&physics_tables.drive_shares[0], &course.numbers.get().tenth);
-    hold_high(&physics_tables.drive_shares[0], &course.numbers.get().one);
+    hold_low(&physics_tables.drive_shares[0], &course.numbers.tenth);
+    hold_high(&physics_tables.drive_shares[0], &course.numbers.one);
     one_less_abs(
-        course,
+        &course.numbers,
         &car.crash_matrix[9],
         &physics_tables.drive_shares[1],
     );
-    hold_low(&physics_tables.drive_shares[1], &course.numbers.get().tenth);
-    hold_high(&physics_tables.drive_shares[1], &course.numbers.get().one);
-    signed_share(physics_tables, course.numbers.get());
+    hold_low(&physics_tables.drive_shares[1], &course.numbers.tenth);
+    hold_high(&physics_tables.drive_shares[1], &course.numbers.one);
+    signed_share(physics_tables, &course.numbers);
     hold_low_bits(&physics_tables.drive_shares[2], ZERO);
-    hold_high(&physics_tables.drive_shares[2], &course.numbers.get().one);
+    hold_high(&physics_tables.drive_shares[2], &course.numbers.one);
     if car.driven_wheels_off.get() == 0 {
         if gear == 0 {
             physics_tables.drive_torque.set(0.0);
@@ -149,7 +149,7 @@ fn steps(
         }
         drive_forces_from_grips(car, physics_tables, work, grips);
         scratch.set(car.throttle.get().wrapping_add(0x100));
-        throttle_drive_limit(car, physics_tables, course.numbers.get(), &scratch);
+        throttle_drive_limit(car, physics_tables, &course.numbers, &scratch);
         hold_high(&physics_tables.drive_limits[1], &scratch);
         let pick = if abs_below(
             &physics_tables.drive_limits[1],
@@ -162,39 +162,36 @@ fn steps(
         store_loaded(&physics_tables.drive_limits[2], pick);
         let kind = car.drive_kind.get();
         if gear != 0 && kind == 1 {
-            push_both_drive_speeds(car, physics_tables, course.numbers.get());
+            push_both_drive_speeds(car, physics_tables, &course.numbers);
         }
         if kind == 0 {
             push_drive_speed_a(car, physics_tables);
         }
-        revs(car, physics_tables, course.numbers.get())?;
+        revs(car, physics_tables, &course.numbers)?;
         // The wheels' drag on each drive speed.
-        brake_step_for_a(car, physics_tables, course.numbers.get());
+        brake_step_for_a(car, physics_tables, &course.numbers);
         ease_zero(&car.drive_speed_a, physics_tables.wheel_speed_step.get());
-        brake_step_for_b(car, physics_tables, course.numbers.get());
+        brake_step_for_b(car, physics_tables, &course.numbers);
         ease_zero(&car.drive_speed_b, physics_tables.wheel_speed_step.get());
-        handbrake_step_for_b(car, physics_tables, course.numbers.get());
+        handbrake_step_for_b(car, physics_tables, &course.numbers);
         ease_zero(&car.drive_speed_b, physics_tables.wheel_speed_step.get());
         if car.handbrake.get() != 0 {
-            let status = handbrake_stop_status(
-                &car.drive_speed_a,
-                &car.drive_speed_b,
-                &course.numbers.get().one,
-            );
+            let status =
+                handbrake_stop_status(&car.drive_speed_a, &car.drive_speed_b, course.numbers.one);
             if status_below(status) {
                 car.drive_speed_a.set(0.0);
                 car.drive_speed_b.set(0.0);
             }
         }
-        revs(car, physics_tables, course.numbers.get())?;
+        revs(car, physics_tables, &course.numbers)?;
         slip_gaps(car, work);
-        crate::physics::cap_reverse_inputs::cap_reverse_inputs(car, work, course.numbers.get());
+        crate::physics::cap_reverse_inputs::cap_reverse_inputs(car, work, &course.numbers);
         crate::physics::add_drive_forces::add_drive_forces(car, physics_tables, work);
         crate::physics::ease_low_speed_forces::ease_low_speed_forces(car, physics_tables, work);
 
         scale_axle_forces(physics_tables, work);
         if car.parts_state.get() != 0 {
-            let half = course.numbers.get().half.get();
+            let half = course.numbers.half.get();
             let mut work = work.borrow_mut();
             for force in &mut work.drive_forces {
                 *force = x87::mul(*force, half).to_bits();
@@ -218,7 +215,7 @@ fn steps(
             let slip = settle_slip(
                 car,
                 physics_tables,
-                course.numbers.get(),
+                &course.numbers,
                 &SlipCells {
                     drive,
                     ratio: &physics_tables.axle_slip_limits[axle],
@@ -232,7 +229,7 @@ fn steps(
         // The car-frame side speed eased by the side grip.
         scratch.set_float(car.local_velocity[0].get());
         ease_zero(&scratch, physics_tables.drive_limits[2].get());
-        side_slip_forces(car, physics_tables, work, course.numbers.get(), &scratch);
+        side_slip_forces(car, physics_tables, work, &course.numbers, &scratch);
         store_loaded(&physics_tables.slip_limit, &physics_tables.drive_limits[0]);
         store_loaded(
             &physics_tables.wheel_spin_push[0],
@@ -255,7 +252,7 @@ fn steps(
             car.drive_speed_a.set(0.0);
             car.drive_speed_b.set(0.0);
         }
-        share_wheel_forces(physics_tables, course.numbers.get());
+        share_wheel_forces(physics_tables, &course.numbers);
         physics_tables.forces[19].force[0].set(0.0);
         physics_tables.forces[20].force[0].set(0.0);
     }
@@ -306,10 +303,10 @@ pub fn drive_wheels_step(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[t + 0] = -(|[v + 0]| - [one])`
-fn one_less_abs(course: &Course, v: &impl FloatLike, t: &impl FloatLike) {
+fn one_less_abs(numbers: &Numbers, v: &impl FloatLike, t: &impl FloatLike) {
     let t0 = v.ld();
     let t1 = t0.abs();
-    let t2 = course.numbers.get().one.ld();
+    let t2 = numbers.one.ld();
     let t3 = t1 - t2;
     let t4 = -t3;
     t.st(t4);

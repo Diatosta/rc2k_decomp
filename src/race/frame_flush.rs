@@ -1,7 +1,6 @@
 //! The race frame's two device batches' render states and the view's backdrop under
 //! `race::draw_race_scene`: a quad over the view window.
 
-use crate::math::cell_x87::CellX87;
 use crate::race::owner_course::CourseReads;
 
 /// The render states both batches set: (value, state).
@@ -116,42 +115,33 @@ mod reference_vectors {
     use crate::test_support::own::race;
     use crate::test_support::vectors::{Recorder, word};
 
-    /// `numbers.one` as it was, put back when dropped.
-    struct KeptOne(f32);
-
-    impl Drop for KeptOne {
-        fn drop(&mut self) {
-            race().course.numbers.get().one.set(self.0);
-        }
-    }
-
     // The recorded blocks.
 
     #[test]
     fn int_blocks_match() {
         let course = &race().course;
-        let _kept = KeptOne(race().course.numbers.get().one.get());
         let mut r = Rng(5);
         let mut file = Recorder::replay("race.frame_flush.int_blocks");
         at_each_control_word(|| {
             for _ in 0..20000 {
-                race()
-                    .course
-                    .numbers
-                    .get()
-                    .one
-                    .set(f32::from_bits(r.float()));
+                let one = f32::from_bits(r.float());
+                let numbers = crate::race::numbers_store::Numbers {
+                    one: crate::memory::session::ConstFloat::new(one),
+                    ..race().course.numbers
+                };
                 let (i, a, b) = (r.int() as u32, r.float(), r.float());
                 for add in [false, true] {
-                    file.input(
-                        &[
-                            i.to_le_bytes(),
-                            race().course.numbers.get().one.get().to_le_bytes(),
-                        ]
-                        .concat(),
-                    );
+                    file.input(&[i.to_le_bytes(), one.to_le_bytes()].concat());
                     let want = word(&mut file);
-                    let got = int_and_one(course.reads(), i, add).to_bits();
+                    let got = int_and_one(
+                        CourseReads {
+                            numbers: &numbers,
+                            ..course.reads()
+                        },
+                        i,
+                        add,
+                    )
+                    .to_bits();
                     assert!(same(want, got), "{i} {add}: {want:#x} {got:#x}");
                 }
                 for w in [i, a, b] {

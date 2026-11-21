@@ -102,7 +102,12 @@ mod reference_vectors {
                 writes: &[(0x31AEE0, Out::F), (0x31AA88, Out::I), (0x31A26C, Out::F)],
             }],
             ulps: 0,
-            plain: |_| run_at(race().shared.car(), race().course.numbers.get()),
+            plain: |_| {
+                run_at(
+                    race().shared.car(),
+                    &crate::test_support::race_places::numbers(),
+                );
+            },
         }];
         sparse("physics.engine_sound", &blocks, 4000, 200);
     }

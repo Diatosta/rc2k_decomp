@@ -92,7 +92,7 @@ fn blocks() -> Vec<Block> {
                     crate::test_support::own::race().shared.car(),
                     view::<PlainFloat>(a[1], 0).ld(),
                     three(a[3], 0),
-                    crate::test_support::own::race().course.numbers.get(),
+                    &crate::test_support::race_places::numbers(),
                     view::<[crate::memory::session::Dword; 3]>(a[4], 0x134),
                 );
             },

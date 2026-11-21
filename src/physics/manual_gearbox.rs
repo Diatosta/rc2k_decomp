@@ -91,7 +91,7 @@ pub fn reverse(
     car.gear.set(-1);
     if quarter {
         car.engine_speed
-            .set(x87::mul(&car.engine_speed, &numbers.quarter));
+            .set(x87::mul(&car.engine_speed, numbers.quarter));
     }
     wheels(car, tables)?;
     settle(car);

@@ -134,7 +134,7 @@ pub fn set_up_car_points(
                     .write(y, &lifted.to_le_bytes())?;
             }
             // Logic in `rc2k_core::race::cars::{point_float, open_two_points}`.
-            let scale = race.course.numbers.get().k65536.get();
+            let scale = race.course.numbers.k65536.get();
             let car = race.shared.race_car(car_number)?;
             let lists = [&car.probe_point_x, &car.probe_point_y, &car.probe_point_z];
             for n in 0..count {

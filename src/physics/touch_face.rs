@@ -62,7 +62,7 @@ pub fn touch_face(
         c.lit_faces.faces[count as usize].set(number);
         match touch(kind) {
             Touch::MarkIfFast => {
-                if c0(&c.car.speed, &c.numbers.eight) {
+                if c0(&c.car.speed, c.numbers.eight) {
                     return Ok(());
                 }
                 mark(c.course, c.contact, face, 1, true)?;

@@ -13,7 +13,7 @@ pub fn after_step(race: &Race) -> Result<(), BadInput> {
     if !race.viewer_buffers().v2.is_set() {
         return Ok(());
     }
-    let mode = race.course.numbers.get().replay_mode.get();
+    let mode = race.course.number_vars.get().replay_mode.get();
     if mode != RECORDING && mode != PLAYING {
         return Ok(());
     }
