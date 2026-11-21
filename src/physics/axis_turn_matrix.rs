@@ -12,31 +12,31 @@ use crate::race::owner_course::Course;
 /// The matrix into `out` (16 cells).
 pub fn axis_turn_matrix(course: &Course, out: &(impl Cells + ?Sized)) {
     {
-        let (s, c) = sine_cosine_of(&course.lists.get().spin_angle);
-        course.lists.get().turn_cosine.set_bits(c);
-        course.lists.get().turn_sine.set_bits(s);
-        let t = one_less(&course.lists.get().turn_cosine);
-        course.lists.get().turn_one_less_cosine.set(t);
+        let (s, c) = sine_cosine_of(&course.turn_work().spin_angle);
+        course.turn_work().turn_cosine.set_bits(c);
+        course.turn_work().turn_sine.set_bits(s);
+        let t = one_less(&course.turn_work().turn_cosine);
+        course.turn_work().turn_one_less_cosine.set(t);
         let (x, y, z) = (
-            &course.lists.get().spin_axis[0],
-            &course.lists.get().spin_axis[1],
-            &course.lists.get().spin_axis[2],
+            &course.turn_work().spin_axis[0],
+            &course.turn_work().spin_axis[1],
+            &course.turn_work().spin_axis[2],
         );
-        course.lists.get().turn_product_xz.set(x87::mul2(t, x, z));
-        course.lists.get().turn_product_xy.set(x87::mul2(t, x, y));
-        course.lists.get().turn_product_yz.set(x87::mul2(t, y, z));
-        course.lists.get().turn_sine_x.set(x87::mul(x, s));
-        course.lists.get().turn_sine_y.set(x87::mul(y, s));
-        course.lists.get().turn_sine_z.set(x87::mul(z, s));
+        course.turn_work().turn_product_xz.set(x87::mul2(t, x, z));
+        course.turn_work().turn_product_xy.set(x87::mul2(t, x, y));
+        course.turn_work().turn_product_yz.set(x87::mul2(t, y, z));
+        course.turn_work().turn_sine_x.set(x87::mul(x, s));
+        course.turn_work().turn_sine_y.set(x87::mul(y, s));
+        course.turn_work().turn_sine_z.set(x87::mul(z, s));
         let (p1, p2, p3) = (
-            &course.lists.get().turn_product_xz,
-            &course.lists.get().turn_product_xy,
-            &course.lists.get().turn_product_yz,
+            &course.turn_work().turn_product_xz,
+            &course.turn_work().turn_product_xy,
+            &course.turn_work().turn_product_yz,
         );
         let (q1, q2, q3) = (
-            &course.lists.get().turn_sine_x,
-            &course.lists.get().turn_sine_y,
-            &course.lists.get().turn_sine_z,
+            &course.turn_work().turn_sine_x,
+            &course.turn_work().turn_sine_y,
+            &course.turn_work().turn_sine_z,
         );
         let put = |o: usize, v: u32| out.set_bits(o / 4, v);
         put(0x00, abs_sqrt_times_plus(x, t, c).to_bits());

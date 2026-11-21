@@ -6,11 +6,12 @@
 //! flags is set, else 32. The stride from one decoded row to the next comes from the picture row
 //! bytes setting: 0xFFFFFFFF = a screen's width of pixels (800), 0xFFFFFFFE = the buffer's width
 //! of pixels, 0xFFFFFFFD = the decoded row itself, anything else = that many bytes. The rows go
-//! to the picture buffer. Last, `palette_to_dwords` on the file's palette. All of it lands in the
+//! to the picture buffer. Last, `palette_bytes_to_dwords` on the file's palette. All of it lands in the
 //! variables listed in `gfx/pcx.rs`.
 
 use crate::errors::BadInput;
-use crate::gfx::palette_to_dwords::palette_to_dwords;
+use crate::gfx::palette_to_dwords::palette_bytes_to_dwords;
+use crate::gfx::pcx::FILE_PALETTE_LEN;
 
 /// Returns the layout it stored.
 pub(super) fn lay_out_pcx(
@@ -44,6 +45,11 @@ pub(super) fn lay_out_pcx(
     }
     pictures.decoder.pixels.set(pictures.picture.buffer.get());
     // Neither is null: both are the game's own tables.
-    palette_to_dwords(&pictures.pcx.file_palette, 0, &pictures.decoder.palette)?;
+    let palette = pictures
+        .pcx
+        .file_palette
+        .read_at(0, FILE_PALETTE_LEN, "the file's palette")?;
+    let palette: [u8; FILE_PALETTE_LEN] = palette.try_into().expect("a palette's length");
+    palette_bytes_to_dwords(&palette, &pictures.decoder.palette)?;
     Ok(l)
 }

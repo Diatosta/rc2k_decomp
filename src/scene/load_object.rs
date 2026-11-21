@@ -216,11 +216,11 @@ fn check(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    if scene.object_work().face_cursor > course.lists.get().face_memory_room.get() {
+    if scene.object_work().face_cursor > course.lists.borrow().face_memory_room {
         return Err(NO_FACE_MEMORY.into());
     }
     if scene.objects.tables.borrow().point_count.wrapping_mul(12)
-        > course.lists.get().object_points_room.get()
+        > course.lists.borrow().object_points_room
     {
         return Err(NO_POINT_MEMORY.into());
     }

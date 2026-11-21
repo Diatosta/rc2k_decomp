@@ -3,7 +3,8 @@
 
 use crate::drive::finish_store::Finish;
 use crate::drive::replay_frames_store::ReplayFrames;
-use crate::memory::session::{GameThread, PlainBytes, with_runs};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::{GameThread, with_runs};
 use crate::race::groups_store::ViewerAndKinds;
 use crate::race::replay_path::LAST_RACE_LEN;
 use crate::race::replay_staging_store::ReplayStaging;
@@ -37,7 +38,7 @@ struct ReplayMain {
     replay_work: RefCell<ReplayWork>,
     staging: RefCell<ReplayStaging>,
     replay_view: ReplayViewBlock,
-    snapshot: PlainBytes<26>,
+    snapshot: PlainBuffer<26>,
     /// The replay header's checksum, kept as the key the stage time is sealed with.
     seal_key: Cell<u32>,
     seal_work: RefCell<SealWork>,
@@ -58,7 +59,7 @@ impl Replay {
                 replay_work: RefCell::new(ReplayWork::new()),
                 staging: RefCell::new(ReplayStaging::new()),
                 replay_view: ReplayViewBlock::new(),
-                snapshot: PlainBytes::new(*b"savedata\\snapshot\\000.png\0"),
+                snapshot: PlainBuffer::new(*b"savedata\\snapshot\\000.png\0"),
                 seal_key: Cell::new(0),
                 seal_work: RefCell::new(SealWork::new()),
                 v2: ReplayV2::new(),
@@ -115,7 +116,7 @@ impl Replay {
         &self.main.get().replay_view
     }
 
-    pub fn snapshot(&self) -> &PlainBytes<26> {
+    pub fn snapshot(&self) -> &PlainBuffer<26> {
         &self.main.get().snapshot
     }
 

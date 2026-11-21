@@ -29,9 +29,9 @@ fn room(
     shape: &ObjectShape,
 ) -> Result<Room, BadInput> {
     let room = Room {
-        points: course.lists.get().object_points.get(),
+        points: course.lists.borrow().object_points,
         point_count: scene.objects.tables.borrow().point_count,
-        face_memory: course.lists.get().face_memory.get(),
+        face_memory: course.lists.borrow().face_memory,
         face_cursor: scene.object_work().face_cursor,
         face_count: scene.texture_levels().face_count,
     };
@@ -42,9 +42,9 @@ fn room(
     }
     let added = shape.added();
     let fits = (room.point_count as usize + added.points + added.normals) * 12
-        <= course.lists.get().object_points_room.get() as usize
+        <= course.lists.borrow().object_points_room as usize
         && room.face_cursor as usize + added.face_bytes
-            <= course.lists.get().face_memory_room.get() as usize
+            <= course.lists.borrow().face_memory_room as usize
         && room.face_count as usize + added.faces <= FACES as usize;
     if !fits {
         return Err(BadInput("a shape that does not fit the objects' memory"));

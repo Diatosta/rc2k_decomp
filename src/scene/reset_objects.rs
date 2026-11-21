@@ -13,8 +13,8 @@ pub fn reset_objects(
 ) -> Result<(), BadInput> {
     {
         let (memory, room): (u32, u32) = (
-            course.lists.get().object_points.get(),
-            course.lists.get().object_points_room.get(),
+            course.lists.borrow().object_points,
+            course.lists.borrow().object_points_room,
         );
         if memory == 0 && room >= 4 {
             return Err(BadInput("room for the objects' points without memory"));

@@ -95,7 +95,7 @@ pub fn set_up_car_points(
             let first = scene.objects.slots.borrow().first_point[slot];
             let points = first
                 .wrapping_mul(12)
-                .wrapping_add(race.course.lists.get().object_points.get());
+                .wrapping_add(race.course.lists.borrow().object_points);
             let held = (count as i32).clamp(0, MOST_SORTED as i32) as u32;
             race.physics.contact().borrow_mut().car_point_count = held;
             for n in 0..held {
@@ -192,7 +192,7 @@ fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
         scene.texture_levels_mut().slot_kinds[n as usize] = default;
     }
 
-    scene.texture_levels_mut().slot_kinds[64] = race.shared.switches.get().kept_kind.get();
+    scene.texture_levels_mut().slot_kinds[64] = race.shared.switches.borrow().kept_kind;
     let cars: u32 = race.shared.view.get().race_cars.get();
     if cars == 0 {
         return Ok(());

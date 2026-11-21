@@ -16,13 +16,12 @@ pub fn write_file_from(path: &[u8], data: &[u8]) -> Result<WriteResult, BadInput
     )?)
 }
 
-/// `write_file` from the first `count` bytes of a store's field.
-pub fn write_file_from_store(
+/// `write_file` from the first `count` bytes of a buffer.
+pub fn write_file_from_buffer<const N: usize>(
     path: &[u8],
-    from: &dyn crate::memory::cells::Store,
+    from: &crate::memory::plain_buffer::PlainBuffer<N>,
     count: u32,
 ) -> Result<WriteResult, BadInput> {
-    let mut data = vec![0u8; count as usize];
-    from.load(0, &mut data)?;
+    let data = from.read_at(0, count as usize, "a file's buffer")?;
     write_file_from(path, &data)
 }

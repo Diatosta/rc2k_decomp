@@ -63,7 +63,7 @@ pub fn draw_service_area(
 ) -> Result<bool, Refused> {
     let menus = o.menus;
     let screens = &menus.screens;
-    race.shared.switches.get().service_cleared.set(0);
+    race.shared.switches.borrow_mut().service_cleared = 0;
 
     // The logic is in `rc2k_core::screens::service` (`area_title`, `AREA_STEPS`).
     let fault = crate::errors::Fault::default();

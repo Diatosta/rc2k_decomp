@@ -7,7 +7,7 @@
 //! held decides. `saves::save_options` writes the same pieces the other way.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::files::read_file::read_file_to_store;
+use crate::files::read_file::read_file_to_buffer;
 use crate::memory::cells::Store;
 use crate::owners::Owners;
 use crate::saves::options_state;
@@ -18,7 +18,7 @@ use rc2k_core::options::Options;
 /// Where the function works: the game's own places, or a test's.
 pub struct Places<'a> {
     /// The buffer the file is read into.
-    pub file: &'a crate::memory::session::PlainBytes<65536>,
+    pub file: &'a crate::memory::plain_buffer::PlainBuffer<65536>,
     /// Sets the loaded flag.
     pub set_loaded: &'a dyn Fn(bool),
     /// Puts the options read into the game's state.
@@ -29,7 +29,7 @@ pub struct Places<'a> {
 pub fn load_options(path: &dyn Store, places: &mut Places) -> Result<bool, Refused> {
     (places.set_loaded)(false);
     let file = places.file;
-    let read = read_file_to_store(
+    let read = read_file_to_buffer(
         &crate::files::cstring(path, "the options file's path")?,
         file,
         TEXT_ROOM + 1,

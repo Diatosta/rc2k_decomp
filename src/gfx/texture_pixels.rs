@@ -16,7 +16,7 @@
 
 use crate::errors::BadInput;
 use crate::gfx::picture::{PictureBuffers, read_bytes, write_bytes};
-use crate::memory::session::PlainBytes;
+use crate::memory::plain_buffer::PlainBuffer;
 use std::cell::Cell;
 
 /// The texture pictures' grading (`gfx::texture_upload` grades a texture's colours when the
@@ -29,7 +29,7 @@ pub struct Grading {
     /// The saturation pictures are read at (0x100: none).
     pub saturation: Cell<u32>,
     /// The grades table the last graded texture used.
-    pub grades: PlainBytes<0x100>,
+    pub grades: PlainBuffer<0x100>,
 }
 
 impl Grading {
@@ -38,7 +38,7 @@ impl Grading {
             reading: Cell::new(1),
             scale: Cell::new(0x100),
             saturation: Cell::new(0x100),
-            grades: PlainBytes::new([0; 0x100]),
+            grades: PlainBuffer::new([0; 0x100]),
         }
     }
 }

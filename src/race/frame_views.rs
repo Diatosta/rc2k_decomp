@@ -477,7 +477,7 @@ pub fn draw_own_car(
     let (race, scene) = (ctx.race, ctx.scene);
     // Logic in `rc2k_core::race::view_steps::{car_number, seen_inside, clears_depth}`.
     use rc2k_core::race::view_steps::{car_number, clears_depth, seen_inside};
-    if ctx.reads.switches.scene_set_up.get() == 0 {
+    if ctx.reads.switches.scene_set_up() == 0 {
         return Ok(());
     }
     let number = ctx.reads.view.drawn_view_car(ctx.view.drawn_view(race))?;
@@ -552,7 +552,7 @@ pub fn run_view_marks(
     use rc2k_core::race::view_steps::{
         CAR_RECORDS, check_view_marks, first_word, layout_index, marks_shown,
     };
-    if ctx.reads.switches.view_marks_on.get() == 0 {
+    if ctx.reads.switches.view_marks_on() == 0 {
         return Ok(());
     }
     let view = ctx.view.drawn_view(race);

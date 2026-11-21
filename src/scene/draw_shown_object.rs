@@ -40,7 +40,7 @@ impl rc2k_core::scene::shown::RaceObject for Game<'_> {
         self.2.object_tables.object_kind(object)
     }
     fn other_way(&self) -> u32 {
-        self.2.switches.scene_set_up.get()
+        self.2.switches.scene_set_up()
     }
     fn shown(&self) -> u32 {
         self.2.stage_prefs.shown.get()

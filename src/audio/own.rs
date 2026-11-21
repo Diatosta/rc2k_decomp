@@ -14,7 +14,8 @@ use crate::audio::owner::Audio;
 use crate::audio::sample_data::SampleData;
 use crate::audio::samples::SampleFile;
 use crate::audio::store::{AudioShared, CHANNEL_IDLE};
-use crate::memory::session::{Plain, PlainBytes, PlainDword};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::{Plain, PlainDword};
 use crate::memory::{ListCells, MemoryList};
 use rc2k_core::audio::commands::SoundList;
 use rc2k_core::audio::voices::MixerChannel;
@@ -72,17 +73,17 @@ pub struct AudioOwn {
     /// The tune played when the music stops.
     pub next_tune: PlainDword,
     /// `;3files\music\00.wav`, the tune's two digits are put at byte 14.
-    pub music_path: PlainBytes<24>,
+    pub music_path: PlainBuffer<24>,
     /// The 0xC00 bytes a stream's file head is read into (an address; 0: not taken yet).
     pub stream_header: PlainDword,
     /// The header's memory (a `MemoryList`).
     pub stream_header_memory: ListCells,
     /// The 3D listener's interface id.
-    pub iid_listener: PlainBytes<16>,
+    pub iid_listener: PlainBuffer<16>,
     /// The 3D buffer's interface id.
-    pub iid_sound_3d_buffer: PlainBytes<16>,
+    pub iid_sound_3d_buffer: PlainBuffer<16>,
     /// The property set's interface id.
-    pub iid_property_set: PlainBytes<16>,
+    pub iid_property_set: PlainBuffer<16>,
     /// The IDirectSound object (an address; 0: none).
     pub direct_sound: PlainDword,
     /// The primary buffer.
@@ -92,7 +93,7 @@ pub struct AudioOwn {
     /// What `Lock` gives: two pointers and their sizes.
     pub locked_parts: [PlainDword; 4],
     /// The primary buffer's `DSBCAPS` (its size in bytes in the third dword).
-    pub primary_caps: PlainBytes<20>,
+    pub primary_caps: PlainBuffer<20>,
     /// The `DSBUFFERDESC` a buffer is made with.
     pub buffer_description: Plain<BufferDescription>,
     /// The `WAVEFORMATEX` a buffer is made with.
@@ -172,7 +173,7 @@ impl AudioOwn {
             unit_volume_factor: PlainDword::new(0x40),
             sound_list_loaded: Plain::new(None),
             next_tune: PlainDword::new(0),
-            music_path: PlainBytes::new([
+            music_path: PlainBuffer::new([
                 0x3b, 0x33, 0x66, 0x69, 0x6c, 0x65, 0x73, 0x5c, 0x6d, 0x75, 0x73, 0x69, 0x63, 0x5c,
                 0x30, 0x30, 0x2e, 0x77, 0x61, 0x76, 0, 0, 0, 0,
             ]),
@@ -183,15 +184,15 @@ impl AudioOwn {
                 cursor: 0x0,
                 remaining: 0x0,
             }),
-            iid_listener: PlainBytes::new([
+            iid_listener: PlainBuffer::new([
                 0x84, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
                 0xe5, 0x60,
             ]),
-            iid_sound_3d_buffer: PlainBytes::new([
+            iid_sound_3d_buffer: PlainBuffer::new([
                 0x86, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
                 0xe5, 0x60,
             ]),
-            iid_property_set: PlainBytes::new([
+            iid_property_set: PlainBuffer::new([
                 0x30, 0xac, 0xef, 0x31, 0x5c, 0x51, 0xd0, 0x11, 0xa9, 0xaa, 0, 0xaa, 0, 0x61, 0xbe,
                 0x93,
             ]),
@@ -199,7 +200,7 @@ impl AudioOwn {
             primary_buffer: PlainDword::new(0),
             sound_listener: PlainDword::new(0),
             locked_parts: [const { PlainDword::new(0) }; 4],
-            primary_caps: PlainBytes::new([0; 20]),
+            primary_caps: PlainBuffer::new([0; 20]),
             buffer_description: Plain::new(BufferDescription {
                 size: 0x0,
                 flags: 0x0,

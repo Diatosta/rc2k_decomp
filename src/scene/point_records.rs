@@ -106,7 +106,7 @@ pub fn take(
         part.records.iter().flatten().for_each(|cell| cell.set(0));
         part.records_taken.set(true);
     }
-    course.lists.get().point_records.set(HELD);
+    course.lists.borrow_mut().point_records = HELD;
     Ok(())
 }
 
@@ -148,8 +148,8 @@ pub fn first_records_everywhere<'a>(
 }
 
 /// Whether the records are taken.
-pub fn held(lists: &crate::race::course_lists_store::CourseLists) -> bool {
-    lists.point_records.get() != 0
+pub fn held(lists: crate::race::course_lists_store::CourseListsRef<'_>) -> bool {
+    lists.point_records() != 0
 }
 
 /// The record at byte `offset` of the block.
@@ -403,7 +403,7 @@ mod tests {
         let course = &crate::test_support::own::race().course;
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let kept = course.lists.get().point_records.get();
+        let kept = course.lists.borrow().point_records;
         let memory = crate::memory::ListCells::empty();
         take(&crate::owners::Owners::the().scene.scratch, course, &memory).unwrap();
         assert_eq!(memory.get().total, BYTES);
@@ -431,7 +431,7 @@ mod tests {
         set(part, of_pool(POOL - 1), kept_pool).unwrap();
         assert!(get(part, of_pool(POOL)).is_err() && get(part, 0x1_0000).is_err());
         give_back(&crate::owners::Owners::the().scene.scratch);
-        course.lists.get().point_records.set(kept);
+        course.lists.borrow_mut().point_records = kept;
         crate::memory::with_figures(|f| *f = figures);
     }
 }

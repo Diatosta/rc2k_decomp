@@ -50,7 +50,7 @@ fn held(value: i32, low: i32, high: i32) -> i32 {
 
 /// The normal's place in the view to the light's work variables, the colour set to 0.
 fn set_normal(
-    lists: &crate::race::course_lists_store::CourseLists,
+    lists: crate::race::course_lists_store::CourseListsRef<'_>,
     part: &crate::scene::scratch_store::PartScratch,
     number: u32,
     light: &crate::scene::object_light::ObjectLight,
@@ -155,7 +155,7 @@ pub fn vertex_light(
         // The lit colour added to nothing: it only makes the bytes the right ones.
         return Ok(plus(0, lit(reads, part, number, light, object)?));
     }
-    let lit_at_all = reads.switches.scene_set_up.get() != 0 || reads.stage_prefs.lit_b.get() != 0;
+    let lit_at_all = reads.switches.scene_set_up() != 0 || reads.stage_prefs.lit_b.get() != 0;
     if !lit_at_all || kind == 0 {
         return Ok(0x00FF_FFFF);
     }

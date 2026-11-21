@@ -20,9 +20,9 @@ fn turn_unit(m: &(impl Cells + ?Sized), turned: &[&PlainFloat; 3], unit: [f32; 3
     }
 }
 
-/// On the matrix `m`; the angles go into the course lists (`car_heading`, `car_pitch`, `car_roll`).
+/// On the matrix `m`; the angles go into the course's turn work (`car_heading`, `car_pitch`, `car_roll`).
 pub fn matrix_angles(course: &Course, m: &(impl Cells + ?Sized)) {
-    let l = course.lists.get();
+    let l = course.turn_work();
     let turned = [&l.turned_x, &l.turned_y, &l.turned_z];
     turn_unit(m, &turned, [0.0, 0.0, 1.0]);
     l.car_heading.set(patan(&l.turned_x, &l.turned_z));

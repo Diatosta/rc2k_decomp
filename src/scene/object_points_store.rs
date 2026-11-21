@@ -29,7 +29,7 @@ impl ObjectPoints {
     ) -> Result<(), Refused> {
         crate::memory::owned::count_on(list, bytes)?;
         self.0.set(&vec![0; bytes as usize])?;
-        course.lists.get().object_points.set(BASE);
+        course.lists.borrow_mut().object_points = BASE;
         Ok(())
     }
 
@@ -105,10 +105,10 @@ mod tests {
         let points = &course.stage.object_points;
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let kept = course.lists.get().object_points.get();
+        let kept = course.lists.borrow().object_points;
         let memory = crate::memory::ListCells::empty();
         points.take(course, &memory, 36).unwrap();
-        let p = course.lists.get().object_points.get() + 12;
+        let p = course.lists.borrow().object_points + 12;
         points.set_point(p, [1, 2, 3]).unwrap();
         assert_eq!(
             (points.point(p).unwrap(), points.word(p + 8).unwrap()),
@@ -118,7 +118,7 @@ mod tests {
         points.clear(36).unwrap();
         assert_eq!(points.point(p).unwrap(), [0; 3]);
         points.give_back();
-        course.lists.get().object_points.set(kept);
+        course.lists.borrow_mut().object_points = kept;
         crate::memory::with_figures(|f| *f = figures);
     }
 }

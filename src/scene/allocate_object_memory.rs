@@ -18,18 +18,14 @@ pub fn allocate_object_memory_in_game(
     course: &crate::race::owner_course::Course,
 ) -> Result<(), Refused> {
     let (points, faces) = rooms(course.number_vars.get().in_race.is_set());
-    let list = &course.lists.get().object_points_list;
-    course.lists.get().course_bytes_total.set(
-        course
-            .lists
-            .get()
-            .course_bytes_total
-            .get()
-            .wrapping_add(points + faces),
-    );
+    let list = &course.memory().object_points_list;
+    {
+        let mut lists = course.lists.borrow_mut();
+        lists.course_bytes_total = lists.course_bytes_total.wrapping_add(points + faces);
+    }
     course.stage.object_points.take(course, list, points)?;
     course.stage.object_faces.take(course, list, faces)?;
-    course.lists.get().object_points_room.set(points);
-    course.lists.get().face_memory_room.set(faces);
+    course.lists.borrow_mut().object_points_room = points;
+    course.lists.borrow_mut().face_memory_room = faces;
     Ok(())
 }

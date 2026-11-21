@@ -92,7 +92,7 @@ impl FaceWorld for GameFace<'_> {
         self.4.borrow().shown_groups
     }
     fn mask_kind(&self) -> u32 {
-        self.7.switches.mask_kind.get()
+        self.7.switches.mask_kind()
     }
     fn group_table(&self, group: u32) -> u32 {
         let draw_switches = &self.7.draw_switches;

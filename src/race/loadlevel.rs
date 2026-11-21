@@ -187,7 +187,7 @@ fn load_course_data(
     s.log(Word::AllocCourseMemory);
     s.indent(3);
     // CourseLists.course_memory_list[0]: the course's MemoryList.
-    level::allocate_course_memory(&race.course, &race.course.lists.get().course_memory_list)?;
+    level::allocate_course_memory(&race.course, &race.course.memory().course_memory_list)?;
     s.mark(2)?;
     s.mark(4)?;
     s.indent(-3);
@@ -405,10 +405,10 @@ fn finish_level(
     }
     use crate::scene::find_object_of_kind::find_object_of_kind;
     let mut marker = find_object_of_kind(0x7A, scene);
-    race.shared.switches.get().marker_object.set(marker);
+    race.shared.switches.borrow_mut().marker_object = marker;
     if marker == 0 {
         marker = find_object_of_kind(0x79, scene);
-        race.shared.switches.get().marker_object.set(marker);
+        race.shared.switches.borrow_mut().marker_object = marker;
     }
     // `camera_last_frame` cleared.
     {

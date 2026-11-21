@@ -115,7 +115,7 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     course.stage_prefs.get().fog_start.set(0u32);
     course.stage_prefs.get().fog_end.set(0u32);
     o.scene.scratch.front_end().fog.borrow_mut().clear();
-    shared.switches.get().scene_set_up.set(1u32);
+    shared.switches.borrow_mut().scene_set_up = 1u32;
     fill_light_tables(scene, race)?;
 
     scene.texture_levels_mut().slot_kinds[0] = 1;
@@ -163,7 +163,7 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     reload_slot_textures(frame, scene)?;
     crate::logfile::load_times::phase("front end scene: rest");
     colours(course, 0x7F);
-    shared.switches.get().scene_set_up.set(1u32);
+    shared.switches.borrow_mut().scene_set_up = 1u32;
     fill_light_tables(scene, race)?;
     shared.vars.get().settings_words[1].set(1u32);
     crate::logfile::load_times::end();

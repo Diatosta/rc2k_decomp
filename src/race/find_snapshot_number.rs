@@ -32,7 +32,8 @@ pub fn find_snapshot_number(replay: &Replay) -> Result<(), BadInput> {
         .write_at(DIGITS_AT, b"???.", "the snapshot name")?;
     let mut highest = 0u32;
     // The pattern: the snapshot name's text, read where it is named.
-    let found = match crate::files::cstring(replay.snapshot(), "a search pattern") {
+    let found = match crate::memory::session::TextPlace::text(replay.snapshot(), "a search pattern")
+    {
         Ok(pattern) => find_first(&pattern, DIRECTORY),
         Err(_) => {
             set_last_file_path(None);

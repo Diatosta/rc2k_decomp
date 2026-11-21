@@ -152,10 +152,10 @@ fn frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
             break 'frame;
         }
         begin_scene::begin_scene(race, d3d, o.scene.scratch.game_scratch());
-        let framed: u32 = shared.switches.get().editor_mode.get();
-        shared.switches.get().editor_mode.set(0u32);
+        let framed: u32 = shared.switches.borrow().editor_mode;
+        shared.switches.borrow_mut().editor_mode = 0u32;
         choose_view_window::choose_view_window(race, scene, system);
-        shared.switches.get().editor_mode.set(framed);
+        shared.switches.borrow_mut().editor_mode = framed;
         crate::race::loading_bar_quad::loading_bar_quad(race, system, scene, o.net, share)?;
         end_scene::end_scene(d3d);
         if lock_frame::lock_frame(gfx, system) < 1 {

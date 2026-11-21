@@ -23,7 +23,7 @@ pub fn car_angles(course: &Course, car: &Car) {
         )
         .wrapping_shl(4)
     };
-    let l = course.lists.get();
+    let l = course.turn_work();
     car.car_pitch.set(scale(l.car_pitch.bits()) as u32);
     car.car_heading.set(scale(l.car_heading.bits()) as u32);
     car.car_roll.set(scale(l.car_roll.bits()) as u32);

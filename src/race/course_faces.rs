@@ -77,7 +77,7 @@ fn face_turned_to_view(
     }
     turned_to_view(
         race.course.reads(),
-        race.shared.switches.get(),
+        crate::race::switches_store::FrameSwitchesRef::Store(&race.shared.switches),
         &crate::race::scene_points::no_own(),
         &Face(bytes),
         (half / 4) as usize,
@@ -95,14 +95,14 @@ fn face_turned_to_view(
 /// On a read face, its triangle 0 or 1. `place`: the view's place as floats (`ViewScratch::vars`).
 fn turned_to_view(
     course: CourseReads<'_>,
-    switches: &crate::race::switches_store::FrameSwitches,
+    switches: crate::race::switches_store::FrameSwitchesRef<'_>,
     points: &crate::race::scene_points::OwnPoints,
     f: &Face,
     triangle: usize,
     place: &[PlainFloat; 3],
 ) -> Result<u32, BadInput> {
     use crate::math::x87_float::{X, compare, int, ld};
-    if switches.scene_set_up.get() == 0 {
+    if switches.scene_set_up() == 0 {
         return Ok(0);
     }
     let p = f.point(1 + triangle);
@@ -179,7 +179,7 @@ pub(super) fn face_materials(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadIn
         }
         let n = frame_of(
             clock,
-            ctx.reads.course_lists.face_key_factors[speed as usize].get(),
+            ctx.reads.course_lists.face_key_factor(speed as usize),
             k1,
             k2,
         );
@@ -681,7 +681,7 @@ fn draw_face_triangles(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 /// In a race with both triangles facing the view (`face_turned` + `face_turned[1]` 0) draws the
 /// face as one quad, else as triangles (`draw_face_triangles`).
 fn draw_face_polygons(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
-    let in_race: u32 = ctx.reads.switches.scene_set_up.get();
+    let in_race: u32 = ctx.reads.switches.scene_set_up();
     if in_race != 0
         && rc2k_core::race::face_drawing::tries_quad(
             in_race,
@@ -1038,7 +1038,7 @@ fn draw_back_face(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
 /// the face drawn.
 fn draw_face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
     use rc2k_core::race::face_drawing::{flipped, has_objects, side_drawn, two_sided};
-    if ctx.reads.switches.scene_set_up.get() == 0 {
+    if ctx.reads.switches.scene_set_up() == 0 {
         face_materials(ctx, face)?;
         ctx.view.face.borrow_mut().turned[0] = 0u32;
         ctx.view.face.borrow_mut().turned[1] = 0u32;
@@ -1154,10 +1154,8 @@ mod vector_tests {
     fn face_turned_to_view_is_the_originals() {
         let race = race();
         let kept_course = *race.course.course.borrow();
-        let kept = Snapshot::of(&[
-            "owners.race.shared.switches",
-            "owners.race.frame.view_and_records",
-        ]);
+        let kept_switches = race.shared.switches.borrow().clone();
+        let kept = Snapshot::of(&["owners.race.frame.view_and_records"]);
         let mut vectors = Vectors::open("race.course_faces.face_turned_to_view", Kind::Exact, 1);
         let mut r = Rng(11);
         let mut points = [0u32; 12];
@@ -1165,7 +1163,7 @@ mod vector_tests {
         let place = &race.frame.view_and_records.get().view_vars.view_place_f;
         at_each_control_word(|| {
             for _ in 0..20000 {
-                race.shared.switches.get().scene_set_up.set(r.below(8));
+                race.shared.switches.borrow_mut().scene_set_up = r.below(8);
                 for cell in place {
                     cell.set(f32::from_bits(r.float()));
                 }
@@ -1186,6 +1184,7 @@ mod vector_tests {
             }
         });
         kept.restore();
+        *race.shared.switches.borrow_mut() = kept_switches;
         *race.course.course.borrow_mut() = kept_course;
         vectors.finish();
     }

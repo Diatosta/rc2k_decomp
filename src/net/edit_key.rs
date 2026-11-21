@@ -5,7 +5,6 @@
 //! Enter (or nothing was being edited), or cancelled with Escape.
 
 use crate::errors::Refused;
-use crate::memory::cells::{StoreBytes, copy_between, store_value};
 use crate::net::owner::Net;
 use crate::net::store::Editing;
 use crate::text::draw_text::GameCanvas;
@@ -37,18 +36,17 @@ pub fn edit_key(
             .get()
             .ok_or(crate::errors::BadInput("no edited text"))?
             .text(net);
-        let words = StoreBytes(text);
+        let words = text;
         let queued = crate::input::typed_text::take();
         // A character: appended (up to 0x3F) and taken off again when the text is then too wide.
         let append = |typed: u8| -> Result<(), Refused> {
             if editing::takes(typed)
-                && let Some(at) = editing::end_for_char(&words)?
+                && let Some(at) = editing::end_for_char(words)?
             {
                 // The text up to the character's place and the character, measured as a
                 // value; the character is taken off again (a NUL over it) when the text is
                 // then too wide.
-                let mut shown = vec![0; at];
-                text.load(0, &mut shown)?;
+                let mut shown = text.read_at(0, at, "an edited text")?;
                 shown.extend_from_slice(&[typed, 0]);
                 let width = {
                     measure_text_at(
@@ -64,7 +62,7 @@ pub fn edit_key(
                 } else {
                     [typed, 0]
                 };
-                text.store(at, &kept)?;
+                text.write_at(at, &kept, "an edited text")?;
             }
             Ok(())
         };
@@ -73,22 +71,18 @@ pub fn edit_key(
         }
         match EditKey::of(key) {
             EditKey::Escape => {
-                copy_between(
-                    &edit.text_before_edit,
-                    0,
-                    text,
-                    0,
-                    editing::TEXT_LEN,
-                    "an edited text",
-                )?;
+                let before =
+                    edit.text_before_edit
+                        .read_at(0, editing::TEXT_LEN, "an edited text")?;
+                text.write_at(0, &before, "an edited text")?;
                 edit.edited.set(editing::NOT_EDITING);
                 cancelled = true;
             }
             EditKey::Enter => edit.edited.set(editing::NOT_EDITING),
-            EditKey::Clear => text.store(0, &[0; editing::TEXT_LEN])?,
+            EditKey::Clear => text.write_at(0, &[0; editing::TEXT_LEN], "an edited text")?,
             EditKey::Backspace => {
-                if let Some(last) = editing::last_char(&words)? {
-                    store_value(text, last, 0u8)?;
+                if let Some(last) = editing::last_char(words)? {
+                    text.write_at(last, &[0], "an edited text")?;
                 }
             }
             // Printable keys come as typed text, not as keys.

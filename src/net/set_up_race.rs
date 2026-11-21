@@ -79,7 +79,7 @@ pub fn set_up_race(
     race.shared.vars.get().run_kind.set(0);
     race.shared.view.get().race_cars.set(cars);
     race.shared.view.get().players.set(1);
-    race.shared.switches.get().editor_mode.set(0);
+    race.shared.switches.borrow_mut().editor_mode = 0;
     crate::net::reset_cars::reset_cars(race)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
     crate::race::race_shell::set_start_states(race, &o.net.race_slot)?;

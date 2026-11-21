@@ -32,7 +32,7 @@ pub fn fill_light_tables(
     let mut t = scene.light_tables.borrow_mut();
     use core::mem::offset_of;
     let plain =
-        rc2k_core::scene::lamps::plain_light(race.shared.switches.get().scene_set_up.get(), || {
+        rc2k_core::scene::lamps::plain_light(race.shared.switches.borrow().scene_set_up, || {
             course.stage_prefs.get().lit_b.get()
         });
     // The plain colours are two (the light and the dark); the stage's are two (the dark one

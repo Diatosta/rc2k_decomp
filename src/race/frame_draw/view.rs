@@ -462,7 +462,7 @@ pub fn camera_view(
         .view_car_flag_a
         .set(view.car.camera_switch_share.get());
     view.vars.view_car_stage.set(view.car.camera_view.get());
-    if reads.switches.scene_set_up.get() == 0 {
+    if reads.switches.scene_set_up() == 0 {
         place_view(&reads.buffers.engine_tables, reads.course(), view)?;
         view_matrices(reads.course(), m, view)?;
         return Ok(());

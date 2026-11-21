@@ -118,7 +118,7 @@ pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Re
                 shared.view.get().players.get() == 1,
                 &kinds,
                 ExtraRuns {
-                    framed: shared.switches.get().editor_mode.get() != 0,
+                    framed: shared.switches.borrow().editor_mode != 0,
                     further_maps: shared.view.get().players.get() > 2,
                 },
                 other_levels,

@@ -65,10 +65,10 @@ pub fn reflection_coordinates(
     let point = table.place(object.borrow().reflection_point_number.wrapping_neg())?;
     // The normalising refuses without writing anything: the work vector is set once both
     // have been made.
-    let (roots, exponent_roots) = (
-        &reads.course_lists.root_table,
-        &reads.course_lists.exponent_root_table,
-    );
+    let (roots, exponent_roots) = reads
+        .course_lists
+        .read(|lists| (lists.root_table, lists.exponent_root_table));
+    let (roots, exponent_roots) = (&roots, &exponent_roots);
     let mut kept = m.borrow_mut();
     kept.reflect_vector = normal.map(f32::from_bits);
     let mut vector = [

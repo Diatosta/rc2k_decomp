@@ -132,7 +132,7 @@ fn round_a_race(
     stage_free::render3d_tidy(race, &o.scene.scratch)?;
     stage_free::objects_tidy(race, &o.scene.scratch)?;
     race_end::release_textures(o.scene, o.gfx);
-    shared.switches.get().mask_kind.set(0);
+    shared.switches.borrow_mut().mask_kind = 0;
     race_shell::clear_player_absences(race);
     f()?;
     step(o, Call::StopMusic)?;
@@ -157,7 +157,7 @@ fn test_course(o: Owners<'static>) -> Result<(), Refused> {
         race.course.number_vars.get().replay_mode.set(1);
         race.shared.tables().noise_seed.set(0x1234_5678);
         race.physics.split_tables_mut().arcade_kind = 2;
-        race.shared.switches.get().editor_mode.set(0);
+        race.shared.switches.borrow_mut().editor_mode = 0;
         // Free play leaves the car where it was: on another course, or with no race
         // yet, that is nowhere, and the first search ends the game.
         let course = SETTINGS.course.load(Relaxed);
@@ -270,7 +270,7 @@ mod tab {
         let s = &SETTINGS;
         number(ui, "Course", &s.course, 99);
         let course = s.course.load(Relaxed) as usize;
-        let present = race.shared.switches.get().course_present[course].get() != 0;
+        let present = race.shared.switches.borrow().course_present[course] != 0;
         ui.same_line();
         if ui.button("Find the courses")
             && let Err(e) = crate::race::find_present_courses::find_present_courses(race, scene)

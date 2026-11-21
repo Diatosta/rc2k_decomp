@@ -297,7 +297,7 @@ fn make_shape_set(
         let work = drops.shape_work.borrow();
         [listed(work.work.count[0])?, listed(work.work.count[1])?]
     };
-    let points: u32 = course.lists.get().object_points.get();
+    let points: u32 = course.lists.borrow().object_points;
     {
         let mut guard = drops.shape_work.borrow_mut();
         let sw = &mut *guard;

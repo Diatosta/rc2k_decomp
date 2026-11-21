@@ -3,10 +3,10 @@
 //! number of the picture of each kind. Four statics, so that each struct starts at its first
 //! cell and the layout stays as listed.
 
-use crate::memory::session::{PlainBytes, PlainDword, PlainFlag, PlainFloat};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::{PlainDword, PlainFlag, PlainFloat};
 
 /// The ground picture's name.
-#[derive(rc2k_derive::Cells)]
 pub struct GroundNames {
     /// Which of the six names (0 .. 5)
     pub ground: PlainDword,
@@ -14,7 +14,7 @@ pub struct GroundNames {
     pub ground_path: PlainDword,
     /// `files\m\snow1.pcx`, `mud1`, `dust1`, `mud1`, `mud1`, `gumbo0`, each NUL-ended, then
     /// zeros
-    pub names: PlainBytes<160>,
+    pub names: PlainBuffer<160>,
 }
 
 /// The ground picture's names.
@@ -23,7 +23,7 @@ impl GroundNames {
         GroundNames {
             ground: PlainDword::new(0x0),
             ground_path: PlainDword::new(0x0),
-            names: PlainBytes::new([
+            names: PlainBuffer::new([
                 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x73, 0x6E, 0x6F, 0x77, 0x31, 0x2E,
                 0x70, 0x63, 0x78, 0x00, 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x6D, 0x75,
                 0x64, 0x31, 0x2E, 0x70, 0x63, 0x78, 0x00, 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D,
@@ -418,7 +418,6 @@ impl KindBoxes {
 }
 
 /// The edges' scales, once-only mark and picture path.
-#[derive(rc2k_derive::Cells)]
 pub struct EdgeSettings {
     /// What the settings' `setting_to_scale` is multiplied by (`effects::scale_setting`; 1.0).
     pub factor: PlainFloat,
@@ -429,7 +428,7 @@ pub struct EdgeSettings {
     pub scale: [PlainFloat; 3],
     /// `files\m\edge00.pcx` and its NUL: the edge picture's path (the kind's two digits at bytes 12
     /// and 13).
-    pub path: PlainBytes<20>,
+    pub path: PlainBuffer<20>,
     /// 0.0175 (degrees to radians), the shape tilt's scale (a float's bits).
     pub tilt_scale: PlainDword,
 }
@@ -444,7 +443,7 @@ impl EdgeSettings {
                 PlainFloat::new(1000.0),
                 PlainFloat::new(90.0),
             ],
-            path: PlainBytes::new([
+            path: PlainBuffer::new([
                 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x65, 0x64, 0x67, 0x65, 0x30, 0x30,
                 0x2E, 0x70, 0x63, 0x78, 0x00, 0x00,
             ]),

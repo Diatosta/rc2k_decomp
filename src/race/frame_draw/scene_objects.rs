@@ -368,7 +368,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
     if view.lists.depth_entry_count.get() > SORT_MAX - 24 {
         return Err(BadInput("the depth list has no room for a car's flares").into());
     }
-    if ctx.reads.switches.mask_kind.get() == 8 {
+    if ctx.reads.switches.mask_kind() == 8 {
         ctx.view.object.borrow_mut().size = 2u32;
         let place = ctx.reads.frame_work.part_place();
         let point = [place[0], place[1].wrapping_sub(GROUND_DROP), place[2]];
@@ -380,7 +380,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
         }
         return Ok(());
     }
-    if ctx.reads.switches.scene_set_up.get() == 0 {
+    if ctx.reads.switches.scene_set_up() == 0 {
         return Ok(());
     }
     let kind = ctx.reads.frame_cars.car(car)?.car_kind.get();
@@ -434,7 +434,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
 /// `car_light_flares`. Refuses (before anything) no cars (the loop tests at its end) or more than
 /// eight, a null block, or a depth list without room for every car's entries.
 pub fn car_lights(ctx: &DrawCtx) -> Result<(), Refused> {
-    if ctx.reads.switches.scene_set_up.get() == 0 {
+    if ctx.reads.switches.scene_set_up() == 0 {
         return Ok(());
     }
     // The null block's refusal comes between the two checks.
@@ -710,7 +710,7 @@ fn draw_lamp_flare(ctx: &crate::race::view_scratch::DrawCtx<'_>, lamp: u32) -> R
     ctx.view.object.borrow_mut().place[2] = z;
     ctx.view.object.borrow_mut().size = lamp_record[1] << 3;
     ctx.view.light.borrow_mut().other_light = lamp_record[2];
-    let marker = ctx.reads.switches.marker_object.get();
+    let marker = ctx.reads.switches.marker_object();
     ctx.view.cars.borrow_mut().object_number = marker;
     ctx.view.light.borrow_mut().view_kind = 2u32;
     place_object_matrix(ctx)?;

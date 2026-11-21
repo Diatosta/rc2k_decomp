@@ -10,7 +10,6 @@
 #![allow(unsafe_code)]
 
 use crate::errors::BadInput;
-use crate::memory::host_hooks::log;
 use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
 
 /// A type made of atomics and cells only (`session::{Dword, Float, Word, Byte, Bytes<N>}`, their
@@ -1503,29 +1502,6 @@ pub fn load_value<T: Plain>(store: &dyn Store, offset: usize) -> Result<T, BadIn
 /// `value` written at byte `offset` of `store` (a run past the store is refused).
 pub fn store_value<T: Plain>(store: &dyn Store, offset: usize, value: T) -> Result<(), BadInput> {
     store.store(offset, bytes_of(&value))
-}
-
-/// `len` bytes copied from `from` at `from_at` to `to` at `to_at`: each side inside its own store
-/// (a run past either is refused, naming `what`).
-pub fn copy_between(
-    from: &dyn Store,
-    from_at: usize,
-    to: &dyn Store,
-    to_at: usize,
-    len: usize,
-    what: &str,
-) -> Result<(), BadInput> {
-    let mut bytes = vec![0; len];
-    from.load(from_at, &mut bytes).inspect_err(|_| {
-        log(&format!(
-            "pointers: {what}: {len} bytes read at {from_at:#x}"
-        ));
-    })?;
-    to.store(to_at, &bytes).inspect_err(|_| {
-        log(&format!(
-            "pointers: {what}: {len} bytes written at {to_at:#x}"
-        ));
-    })
 }
 
 #[cfg(test)]

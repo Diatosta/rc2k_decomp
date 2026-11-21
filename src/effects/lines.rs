@@ -41,7 +41,7 @@ fn lines_with(
 ) -> Result<(), Refused> {
     {
         let count = course.stage.object_faces.word(from)?;
-        let points: u32 = course.lists.get().object_points.get();
+        let points: u32 = course.lists.borrow().object_points;
         let mut n = 0u32;
         while n != count {
             let (a, b) = (
@@ -343,7 +343,7 @@ fn copy_block_points(
         let first: u32 = scene.objects.slots.borrow().first_point[object as usize];
         let mut from = first
             .wrapping_mul(12)
-            .wrapping_add(course.lists.get().object_points.get());
+            .wrapping_add(course.lists.borrow().object_points);
         for n in 0..count.max(0) as usize {
             let point = course.stage.object_points.point(from)?;
             to.with(|t| t.get_mut(n).map(|p| *p = point))?

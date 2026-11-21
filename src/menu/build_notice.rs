@@ -31,22 +31,23 @@ pub fn build_notice(menus: &Menus, strings: &Strings) {
     panels.notice.notice_second.set(0, 0);
 }
 
-use crate::memory::session::{PlainBytes, with_runs};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::with_runs;
 use crate::menu::owner::Menus;
 
 /// The build notice's two lines.
 pub struct BuildNotice {
     /// The first line, "Copyright ... Magnetic Fields ..." (`menu::build_notice`).
-    pub notice_first: PlainBytes<78>,
+    pub notice_first: PlainBuffer<78>,
     /// The second line, "Copyright ... Actualize Ltd ...", and the web address after it.
-    pub notice_second: PlainBytes<94>,
+    pub notice_second: PlainBuffer<94>,
 }
 
 impl BuildNotice {
     pub const fn new() -> Self {
         BuildNotice {
-    notice_first: PlainBytes::new(with_runs::<78>(&[(0, b"Copyright \xa9 Magnetic Fields (Software Design) Ltd, 1999. All rights reserved.")])),
-    notice_second: PlainBytes::new(with_runs::<94>(&[(0, b"Copyright \xa9 Actualize Ltd, 1999. All rights reserved.\x00http:\x01/\x01/\x01www.rallychampionship.co.uk\x01/")])),
+    notice_first: PlainBuffer::new(with_runs::<78>(&[(0, b"Copyright \xa9 Magnetic Fields (Software Design) Ltd, 1999. All rights reserved.")])),
+    notice_second: PlainBuffer::new(with_runs::<94>(&[(0, b"Copyright \xa9 Actualize Ltd, 1999. All rights reserved.\x00http:\x01/\x01/\x01www.rallychampionship.co.uk\x01/")])),
         }
     }
 }

@@ -81,7 +81,7 @@ pub fn draw_object_face(
     ctx.view.face.borrow_mut().reflects = reflects as u32;
     ctx.view.polygon.scalars.borrow_mut().polygon_vertex_count = count;
 
-    if ctx.reads.switches.scene_set_up.get() != 0 && ctx.view.cars.borrow().other_way_kind == 2 {
+    if ctx.reads.switches.scene_set_up() != 0 && ctx.view.cars.borrow().other_way_kind == 2 {
         for (entry, vertex) in vertices {
             entry.point.set(fw(vertex).wrapping_neg());
             entry.u2.set(fw(vertex + 4));

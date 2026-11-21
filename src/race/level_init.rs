@@ -21,14 +21,12 @@ pub(super) fn allocate_course_memory(
     course: &Course,
     list: &crate::memory::ListCells,
 ) -> Result<(), Refused> {
-    course.lists.get().course_bytes_total.set(
-        course
-            .lists
-            .get()
+    {
+        let mut lists = course.lists.borrow_mut();
+        lists.course_bytes_total = lists
             .course_bytes_total
-            .get()
-            .wrapping_add(FIRST_PART + INFO_PART),
-    );
+            .wrapping_add(FIRST_PART + INFO_PART);
+    }
     crate::memory::owned::count_on(list, FIRST_PART + INFO_PART)?;
     crate::race::course_places::take_info(&course.stage.course, INFO_PART)?;
     Ok(())

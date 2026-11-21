@@ -16,7 +16,7 @@ use crate::gfx::fill_row_table::ROW_TABLE_ROOM;
 use crate::gfx::picture::{has_picture, read_bytes, with_picture};
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
-use crate::memory::session::PlainBytes;
+use crate::memory::plain_buffer::PlainBuffer;
 use std::cell::Cell;
 
 /// The rescaler's variables (`gfx::rescale_picture`, `gfx::rescale_to_surface`).
@@ -40,7 +40,7 @@ pub struct Rescaler {
     /// The rows left (left at 0).
     pub rows_left: Cell<u32>,
     /// The pixel's three parts (`rescale_to_surface`), the fourth byte left as it was.
-    pub components: PlainBytes<4>,
+    pub components: PlainBuffer<4>,
 }
 
 impl Rescaler {
@@ -60,7 +60,7 @@ impl Rescaler {
             weight_y: Cell::new(0),
             columns_left: Cell::new(0),
             rows_left: Cell::new(0),
-            components: PlainBytes::new([0; 4]),
+            components: PlainBuffer::new([0; 4]),
         }
     }
 }

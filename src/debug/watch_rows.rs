@@ -3065,7 +3065,7 @@ pub static GROUPS: &[Group] = &[
                 "Car's draw mask",
                 "cdrawmsk",
                 Shown::Whole,
-                store_cell!(|o| o.race.shared.switches.get(), group_mask),
+                store_cell!(|o| o.scene.scratch.main_view(0).cars.borrow(), group_mask),
                 false,
                 (0, 0),
             ),

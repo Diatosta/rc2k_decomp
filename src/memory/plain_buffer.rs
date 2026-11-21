@@ -107,6 +107,19 @@ impl<const N: usize> ByteBuffer for PlainBuffer<N> {
     }
 }
 
+/// The whole dwords of a buffer (a gap between a record's fields).
+impl<const N: usize> crate::memory::session::Run for PlainBuffer<N> {
+    fn count(&self) -> usize {
+        N / 4
+    }
+    fn bits(&self, i: usize) -> u32 {
+        self.get_u32(4 * i)
+    }
+    fn set_bits(&self, i: usize, v: u32) {
+        self.set_u32(4 * i, v);
+    }
+}
+
 impl<const N: usize> TextPlace for PlainBuffer<N> {
     fn text(&self, _what: &str) -> Result<Vec<u8>, BadInput> {
         let all = self.0.borrow();

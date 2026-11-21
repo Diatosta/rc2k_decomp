@@ -30,7 +30,7 @@ fn flushes_a_second() -> Option<f32> {
 
 /// The tab.
 pub fn tab(race: &Race, ui: &Ui) {
-    let fps = race.shared.switches.get().frame_rate.get();
+    let fps = race.shared.switches.borrow().frame_rate;
     let flushes = crate::render::GPU_FLUSHES.load(Relaxed);
     let backend = if !crate::render::choice::gpu_wanted() {
         "software rasteriser (--renderer or RC2K_RENDERER)"

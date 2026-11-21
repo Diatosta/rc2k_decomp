@@ -21,7 +21,10 @@ use crate::scene::project_point::make_scene_record;
 // ---- game data ----
 const OBJECTS: u32 = 0x100;
 
-fn record_at(lists: &crate::race::course_lists_store::CourseLists, place: u32) -> Option<u32> {
+fn record_at(
+    lists: crate::race::course_lists_store::CourseListsRef<'_>,
+    place: u32,
+) -> Option<u32> {
     crate::scene::point_records::held(lists)
         .then(|| crate::scene::point_records::of_scene_point(place))
 }

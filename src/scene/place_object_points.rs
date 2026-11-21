@@ -83,7 +83,7 @@ struct Object {
 }
 
 fn object(
-    lists: &crate::race::course_lists_store::CourseLists,
+    lists: crate::race::course_lists_store::CourseListsRef<'_>,
     object_slots: crate::scene::object_slots_store::SlotShapesRef<'_>,
     cars: &crate::race::car_draw_state::CarDrawState,
 ) -> Result<Object, BadInput> {
@@ -95,7 +95,7 @@ fn object(
         first: object_slots.first_point(number as usize),
         points: object_slots.point_count(number as usize) as i32,
         normals: object_slots.normal_count(number as usize) as i32,
-        table: lists.object_points.get(),
+        table: lists.object_points(),
     };
     if object.points <= 0 && object.normals > 0 {
         return Err(BadInput("an object of normals and no points"));

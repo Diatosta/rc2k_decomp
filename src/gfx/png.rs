@@ -24,7 +24,7 @@ impl PngInfo {
     /// byte tells a palette if it is 1, then the width, the height and the palette's 0x300 bytes.
     /// Read once, before the decoder runs; nothing writes the scratch between.
     pub fn leftover(
-        scratch: &crate::memory::session::PlainBytes<65536>,
+        scratch: &crate::memory::plain_buffer::PlainBuffer<65536>,
     ) -> Result<PngInfo, BadInput> {
         let what = "the PNG info's leftover";
         let mut palette = [0u8; PALETTE_LEN];

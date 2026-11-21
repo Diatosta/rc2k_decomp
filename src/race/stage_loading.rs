@@ -115,8 +115,8 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     for car in &race.car_blocks().cars[..8] {
         car.value_jump_steps.set(8);
     }
-    race.shared.switches.get().scene_set_up.set(1);
-    race.shared.switches.get().view_marks_on.set(1);
+    race.shared.switches.borrow_mut().scene_set_up = 1;
+    race.shared.switches.borrow_mut().view_marks_on = 1;
     race.shared.view.get().view_on[0].set(1);
     race.shared.view.get().view_on[1].set(1);
     indent(-3);

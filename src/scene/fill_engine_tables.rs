@@ -53,10 +53,10 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race, scene: &Scene) {
     // The root tables.
     for n in 0..0x100usize {
         let root = bh::stf((bh::int(n as i32 + 0x100) / bh::ld(course.numbers.k256.get())).sqrt());
-        course.lists.get().root_table[n].set(root);
+        course.lists.borrow_mut().root_table[n] = root;
     }
     for n in 0..0x100usize {
-        course.lists.get().exponent_root_table[n].set(x87::sqrt((n as u32) << 23));
+        course.lists.borrow_mut().exponent_root_table[n] = x87::sqrt((n as u32) << 23);
     }
     // The shuffled words.
     race.shared.run_mut().noise_state = SEED;
@@ -79,9 +79,9 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race, scene: &Scene) {
     }
     // The face key factors.
     for n in 1..0x100usize {
-        course.lists.get().face_key_factors[n].set(x87::int_ratio(1, n as i32));
+        course.lists.borrow_mut().face_key_factors[n] = x87::int_ratio(1, n as i32);
     }
-    course.lists.get().face_key_factors[0].set(1.0f32);
+    course.lists.borrow_mut().face_key_factors[0] = 1.0f32;
     // The sines.
     for (n, cell) in tables.sines.iter().enumerate().take(SINES) {
         cell.set(bh::stf(

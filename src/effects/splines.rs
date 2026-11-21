@@ -266,7 +266,7 @@ fn gather_spline_points(
             }
         }
         let n = s.get(paths, COUNT)?;
-        let points: u32 = course.lists.get().object_points.get();
+        let points: u32 = course.lists.borrow().object_points;
         for k in (0..n).rev() {
             let id = s.get(paths, IDS + 4 * k)?;
             s.put(paths, IDS + 4 * k, id.wrapping_mul(12).wrapping_add(points))?;

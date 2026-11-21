@@ -17,7 +17,7 @@ const FACTORS: u32 = 0x100;
 pub fn face_sort_key(
     poly: &crate::scene::polygon_work_store::PolygonWork,
     part: &crate::scene::scratch_store::PartScratch,
-    lists: &crate::race::course_lists_store::CourseLists,
+    lists: crate::race::course_lists_store::CourseListsRef<'_>,
     face: usize,
     count: u32,
     points: &[u32],
@@ -39,7 +39,7 @@ pub fn face_sort_key(
             sum = x87::add_with(r, depth, sum).to_bits();
         }
     });
-    let factor = lists.face_key_factors[vertices as usize].get();
+    let factor = lists.face_key_factor(vertices as usize);
     poly.scalars.borrow_mut().face_sort_key = x87::mul_to_int(sum, factor) as u32;
     Ok(())
 }

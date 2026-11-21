@@ -1,20 +1,19 @@
 //! The 64 KB scratch the game's loaders share (the packed copy of a file, the replay's
 //! packing, the map's read buffer, the installer's pages, the PNG decoder's info).
 
-use crate::memory::session::PlainBytes;
+use crate::memory::plain_buffer::PlainBuffer;
 
 /// The shared 64 KB scratch.
 #[repr(align(16))]
-#[derive(rc2k_derive::Cells)]
 pub struct Scratch {
     /// Scratch space (0x10000 bytes), used by whoever needs a buffer for a moment.
-    pub buffer: PlainBytes<65536>,
+    pub buffer: PlainBuffer<65536>,
 }
 
 impl Scratch {
     pub const fn new() -> Self {
         Scratch {
-            buffer: PlainBytes::new([0; 65536]),
+            buffer: PlainBuffer::new([0; 65536]),
         }
     }
 }

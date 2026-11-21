@@ -167,6 +167,100 @@ fn texture_kinds_hash(scene: &crate::scene::owner::Scene) -> u64 {
     ))
 }
 
+/// The hash of the course lists as the one cell store they were: each field one run of dwords under
+/// its name (`record_hash`'s way), the memory lists' four words each, the physics' turn work, and the
+/// fields no longer kept (they only ever held 0) as zero runs.
+#[cfg(feature = "remote")]
+fn lists_hash(course: &crate::race::owner_course::Course) -> u64 {
+    let lists = course.lists.borrow();
+    let turn = course.turn_work();
+    let memory = course.memory();
+    let bits = |floats: &[f32]| floats.iter().map(|f| f.to_bits()).collect::<Vec<u32>>();
+    let cells = |cells: &[crate::memory::session::PlainFloat]| {
+        cells
+            .iter()
+            .map(crate::memory::session::PlainFloat::bits)
+            .collect::<Vec<u32>>()
+    };
+    let mut runs: Vec<(String, Vec<u32>)> = vec![
+        (".input_keys_mask".into(), vec![lists.input_keys_mask]),
+        (".face_key_factors[0]".into(), bits(&lists.face_key_factors)),
+        (".list_6ed0[0]".into(), vec![0; 4]),
+        (".course_bytes_total".into(), vec![lists.course_bytes_total]),
+        (
+            ".second_course_list_a".into(),
+            vec![lists.second_course_list_a],
+        ),
+        (
+            ".second_course_list_b".into(),
+            vec![lists.second_course_list_b],
+        ),
+        (".object_points".into(), vec![lists.object_points]),
+        (".face_memory".into(), vec![lists.face_memory]),
+        (".object_points_room".into(), vec![lists.object_points_room]),
+        (".face_memory_room".into(), vec![lists.face_memory_room]),
+        (".dword_6fb4_unused".into(), vec![0]),
+        (".point_records".into(), vec![lists.point_records]),
+        (".squared_row_0[0]".into(), vec![0; 4]),
+        (".squared_row_1[0]".into(), vec![0; 4]),
+        (".squared_row_2_and_after[0]".into(), vec![0; 8]),
+        (".turn_matrix[0]".into(), cells(&turn.turn_matrix)),
+        (".invert_copy[0]".into(), vec![0; 9]),
+        (".invert_made[0]".into(), vec![0; 9]),
+        (".vector_length".into(), vec![0]),
+        (".vector_unit_x".into(), vec![0]),
+        (".vector_unit_y".into(), vec![0]),
+        (".vector_unit_z".into(), vec![0]),
+        (".vector_scratch".into(), vec![0]),
+        (".root_table[0]".into(), bits(&lists.root_table)),
+        (
+            ".exponent_root_table[0]".into(),
+            bits(&lists.exponent_root_table),
+        ),
+        (".spin_axis[0]".into(), cells(&turn.spin_axis)),
+    ];
+    for (name, cell) in [
+        ("turn_sine", &turn.turn_sine),
+        ("turn_cosine", &turn.turn_cosine),
+        ("turn_one_less_cosine", &turn.turn_one_less_cosine),
+        ("turn_product_xz", &turn.turn_product_xz),
+        ("turn_product_xy", &turn.turn_product_xy),
+        ("turn_product_yz", &turn.turn_product_yz),
+        ("turn_sine_x", &turn.turn_sine_x),
+        ("turn_sine_y", &turn.turn_sine_y),
+        ("turn_sine_z", &turn.turn_sine_z),
+        ("car_pitch", &turn.car_pitch),
+        ("car_heading", &turn.car_heading),
+        ("car_roll", &turn.car_roll),
+        ("turned_x", &turn.turned_x),
+        ("turned_y", &turn.turned_y),
+        ("turned_z", &turn.turned_z),
+        ("spin_angle", &turn.spin_angle),
+    ] {
+        runs.push((format!(".{name}"), vec![cell.bits()]));
+    }
+    for (name, list) in [
+        ("course_memory_list", &memory.course_memory_list),
+        ("second_course_list", &memory.second_course_list),
+        ("object_points_list", &memory.object_points_list),
+        ("point_records_list", &memory.point_records_list),
+        ("mud_list", &memory.mud_list),
+    ] {
+        let list = list.get();
+        for (field, value) in [
+            ("head", list.head),
+            ("total", list.total),
+            ("cursor", list.cursor),
+            ("remaining", list.remaining),
+        ] {
+            runs.push((format!(".{name}.{field}"), vec![value]));
+        }
+    }
+    runs.iter().fold(0, |sum, (path, run)| {
+        sum.wrapping_add(dword_run_hash(path, run))
+    })
+}
+
 /// The hash of the stage's stores after loading (`after` "load") or freeing it ("free"), logged.
 #[cfg(feature = "remote")]
 pub fn log_hashes(
@@ -215,7 +309,7 @@ pub fn log_hashes(
             format!("{:016x}", dword_run_hash(path, &[value])),
         );
     }
-    say("lists", format!("{:016x}", record_hash(reads.lists)));
+    say("lists", format!("{:016x}", lists_hash(&race.course)));
     say(
         "stage_prefs",
         format!("{:016x}", record_hash(reads.stage_prefs)),

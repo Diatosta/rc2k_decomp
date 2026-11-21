@@ -7,6 +7,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::cells::Store;
+use crate::memory::plain_buffer::PlainBuffer;
 use crate::memory::session::{DwordLike, PlayerSlot, Run};
 use crate::menu::player::Player;
 use crate::owners::Owners;
@@ -136,16 +137,23 @@ type WordGet<'a> = dyn Fn() -> u32 + 'a;
 /// Writes a plain store's dword.
 type WordSet<'a> = dyn Fn(u32) + 'a;
 
+/// A buffer's bytes as a field: read whole, written whole.
+fn buffer_field<const N: usize>(buffer: &'static PlainBuffer<N>) -> Field<'static> {
+    Field::Bytes {
+        len: N,
+        get: Box::new(move || buffer.read().to_vec()),
+        set: Box::new(move |bytes| {
+            if let Err(e) = buffer.write_at(0, bytes, "an options text") {
+                crate::fatal::raise::end("saves::options_state", e);
+            }
+        }),
+    }
+}
+
 /// One entry of the options file: named fields of the game's state, in the file's order.
 pub(crate) enum Field<'a> {
     /// One dword.
     Dword(&'a dyn DwordLike),
-    /// `len` bytes of a text, name or GUID, from byte `from` of its cells.
-    Text {
-        cells: &'a dyn Store,
-        from: usize,
-        len: usize,
-    },
     /// One dword of a plain store, read and written through functions.
     Value {
         get: Box<WordGet<'a>>,
@@ -322,7 +330,7 @@ impl Field<'_> {
     pub(crate) fn len(&self) -> usize {
         match self {
             Self::Dword(_) | Self::Value { .. } => 4,
-            Self::Text { len, .. } | Self::Bytes { len, .. } => *len,
+            Self::Bytes { len, .. } => *len,
             Self::Player(_) => size_of::<Player>(),
             Self::Records(records) => records.len() * RECORD_LEN as usize,
             Self::TimeEntries(entries) => size_of_val(*entries),
@@ -333,7 +341,6 @@ impl Field<'_> {
         match self {
             Self::Dword(field) => m.dword(*field),
             Self::Value { get, set } => m.value(get, set),
-            Self::Text { cells, from, len } => m.text(*cells, *from, *len),
             Self::Bytes { len, get, set } => m.bytes(*len, get, set),
             Self::Player(player) => m.player(*player),
             Self::Records(records) => records.iter().try_for_each(|record| m.words(record)),
@@ -365,7 +372,6 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
     let display = &o.gfx.display;
     let menus = o.menus;
 
-    let text = |cells: &'static dyn Store, len: usize| Field::Text { cells, from: 0, len };
     let work = &menus.options;
     let numbers = &menus.cars.numbers;
     let tables = &system.records().stage_tables;
@@ -395,11 +401,11 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
         Field::Dword(&audio.state.tune_turn),                   // which tune comes next
         Field::Dword(&o.sound.menu.options.music_volume),                // the music volume
         Field::Dword(&o.sound.menu.options.race_music_volume),           // the race music's volume
-        text(&net.setup().machine_name, 0x40),                         // the machine's name
+        buffer_field(&net.setup().machine_name),                         // the machine's name
         Field::Dword(&net.setup().most_players),                          // the most players a hosted session takes
-        text(&net.setup().host_address, 0x40),                         // the host's address (TCP/IP)
+        buffer_field(&net.setup().host_address),                         // the host's address (TCP/IP)
         Field::Dword(&net.setup().port),                                  // the TCP/IP port
-        text(&net.setup().saved_connection, 0x10),                     // the saved connection's GUID
+        buffer_field(&net.setup().saved_connection),                     // the saved connection's GUID
         Field::Dword(&saves.save_games.kept_a),                         // a saved-games word kept in the file and read by no other code
         Field::Dword(&saves.save_games.kept_b),                         // a saved-games word kept in the file and read by no other code
         Field::Dword(&o.menus.service.set_ups.kept),                              // a car set-ups word kept in the file and read by no other code

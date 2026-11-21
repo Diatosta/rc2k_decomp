@@ -433,7 +433,7 @@ mod tests {
             ".two_devices_one_player",
         ),
         ("nonetwork", "owners.net.vars", ".receive_done"),
-        ("inetport", "owners.net.main.setup", ".port"),
+        ("inetport", "owners.net.main.setup.port", ""),
         (
             "noreplay",
             "owners.race.shared.replay_file",

@@ -2,7 +2,7 @@
 //! network and the audio side read too.
 
 use crate::errors::BadInput;
-use crate::memory::session::{DrawShared, GameThread};
+use crate::memory::session::{DrawPlain, DrawShared, GameThread};
 use crate::physics::car_store::Car;
 use crate::physics::run_store::PhysicsRun;
 use crate::physics::tables_store::PhysicsTables;
@@ -33,7 +33,7 @@ pub struct RaceShared {
     /// One copy: no drawing part writes it.
     pub view: DrawShared<RaceView>,
     /// One copy: no drawing part writes it.
-    pub switches: DrawShared<FrameSwitches>,
+    pub switches: DrawPlain<FrameSwitches>,
     /// One copy: the drawing only reads it.
     pub physics_tables: DrawShared<PhysicsTables>,
     /// The work car. One copy: the drawing does not read it, so the drawing threads need none of
@@ -76,7 +76,7 @@ impl RaceShared {
             buffers: Buffers::new(),
             vars: DrawShared::new(RaceVars::new()),
             view: DrawShared::new(RaceView::new()),
-            switches: DrawShared::new(FrameSwitches::new()),
+            switches: DrawPlain::new(FrameSwitches::new()),
             physics_tables: DrawShared::new(PhysicsTables::new()),
             car: GameThread::new(Car::new()),
             car_blocks: DrawShared::new(CarBlocks::new()),

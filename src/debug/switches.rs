@@ -62,13 +62,18 @@ pub fn tab(race: &Race, ui: &Ui) {
         &words[4],
         "scene::add_car_lights: only other cars' lamps change; needs rivals, at night",
     );
+    let marks_before = shared.switches.borrow().view_marks_on;
+    let view_marks_on = crate::memory::session::PlainDword::new(marks_before);
     tick(
         ui,
         9,
         "View marks",
-        &shared.switches.get().view_marks_on,
+        &view_marks_on,
         "the effects on the view (race::frame_views); a stage's load sets it on",
     );
+    if view_marks_on.get() != marks_before {
+        shared.switches.borrow_mut().view_marks_on = view_marks_on.get();
+    }
     let clear = &crate::scene::set_object_light::CLEAR_KIND_2_STRENGTH;
     let mut on = clear.load(std::sync::atomic::Ordering::Relaxed);
     if ui.checkbox("O: Light kind 2 without its strength", &mut on) {

@@ -30,7 +30,7 @@ struct GamePlayer<'a> {
 #[derive(Clone, Copy)]
 enum StreamPath<'a> {
     /// The music's path buffer.
-    Music(&'a crate::memory::session::PlainBytes<24>),
+    Music(&'a crate::memory::plain_buffer::PlainBuffer<24>),
     /// A sample name in the sound set (its text, read from the names' table).
     Name(&'a [u8]),
 }
@@ -38,7 +38,9 @@ enum StreamPath<'a> {
 impl StreamPath<'_> {
     fn text(self) -> Result<Vec<u8>, crate::errors::BadInput> {
         match self {
-            StreamPath::Music(field) => crate::files::cstring(field, "a stream's path"),
+            StreamPath::Music(field) => {
+                crate::memory::session::TextPlace::text(field, "a stream's path")
+            }
             StreamPath::Name(text) => Ok(text.to_vec()),
         }
     }
@@ -90,7 +92,8 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer<'_> {
         }
     }
     fn exists(&mut self) -> Result<bool, Refused> {
-        let path = crate::files::cstring(&self.state.music_path, "a tune's path")?;
+        let path =
+            crate::memory::session::TextPlace::text(&self.state.music_path, "a tune's path")?;
         Ok(crate::files::file_exists::file_exists(&path)?)
     }
     fn gave_up(&mut self, tune: u32) {

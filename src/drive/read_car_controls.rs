@@ -54,11 +54,8 @@ pub fn read_car_controls(
             return Err(BadInput("no checkpoints for the computer's driving").into());
         }
     }
-    course
-        .lists
-        .get()
-        .input_keys_mask
-        .set(race_owner.shared.car().input_keys.get());
+    let input_keys = race_owner.shared.car().input_keys.get();
+    course.lists.borrow_mut().input_keys_mask = input_keys;
     race_owner.shared.car().input_keys.set(0);
     race_owner.shared.car().keys_pressed.set(0);
     // The four input words (recorded or replayed) into the car's inputs.
@@ -81,7 +78,7 @@ pub fn read_car_controls(
         race_owner.shared.car().input_keys.set(0);
     }
     let keys = read_keys(
-        course.lists.get().input_keys_mask.get(),
+        course.lists.borrow().input_keys_mask,
         race_owner.shared.car().input_keys.get(),
     );
     let pressed = keys.pressed;

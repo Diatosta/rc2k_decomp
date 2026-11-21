@@ -19,7 +19,7 @@ pub fn credits_race(race: &'static Race, o: crate::owners::Owners<'static>) -> R
     race.shared.replay_file().hold_car_revs.set(0);
     race.shared.tables().noise_seed.set(0x1234_5678);
     race.physics.split_tables_mut().arcade_kind = 2;
-    race.shared.switches.get().editor_mode.set(0);
+    race.shared.switches.borrow_mut().editor_mode = 0;
     crate::race::set_up_credits_race::set_up_credits_race(race, &o)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
     crate::race::race_shell::set_start_states(race, &o.net.race_slot)?;

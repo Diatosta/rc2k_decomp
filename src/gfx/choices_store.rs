@@ -2,7 +2,8 @@
 //! switches the page's items copy.
 
 use crate::errors::BadInput;
-use crate::memory::session::{PlainBytes, Run};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::Run;
 use std::cell::Cell;
 
 /// The graphics page's choices (the rows' texts are in the language file: `tokAVPPrimary` /
@@ -51,7 +52,7 @@ pub struct ScreenMode {
 /// The resolutions' list: room for 64 and 8 bytes more.
 pub struct ModeList {
     pub modes: [ScreenMode; 64],
-    pub spare: PlainBytes<8>,
+    pub spare: PlainBuffer<8>,
 }
 
 /// A resolution's four dwords as a run.
@@ -99,7 +100,7 @@ impl ScreenChoices {
                         mode: Cell::new(0),
                     }
                 }; 64],
-                spare: PlainBytes::new([0; 8]),
+                spare: PlainBuffer::new([0; 8]),
             },
         }
     }

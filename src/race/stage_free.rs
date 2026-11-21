@@ -20,7 +20,7 @@ pub struct Freeing {
 /// Frees the course memory.
 pub(super) const COURSE: Freeing = Freeing {
     // course_memory_list
-    list: |race| &race.course.lists.get().course_memory_list,
+    list: |race| &race.course.memory().course_memory_list,
     counted: true,
     cleared: &[],
     given_back: |race, _| {
@@ -30,35 +30,35 @@ pub(super) const COURSE: Freeing = Freeing {
 };
 /// Frees the second course list.
 pub(super) const COURSE_2: Freeing = Freeing {
-    list: |race| &race.course.lists.get().second_course_list,
+    list: |race| &race.course.memory().second_course_list,
     counted: true,
     // `second_course_list_a`, `second_course_list_b`
     cleared: &[
         |race| {
-            race.course.lists.get().second_course_list_a.set(0);
+            race.course.lists.borrow_mut().second_course_list_a = 0;
         },
         |race| {
-            race.course.lists.get().second_course_list_b.set(0);
+            race.course.lists.borrow_mut().second_course_list_b = 0;
         },
     ],
     given_back: |_, _| {},
 };
 /// Frees the point records.
 pub(super) const POINT_RECORDS: Freeing = Freeing {
-    list: |race| &race.course.lists.get().point_records_list,
+    list: |race| &race.course.memory().point_records_list,
     counted: true,
     // point_records
-    cleared: &[|race| race.course.lists.get().point_records.set(0)],
+    cleared: &[|race| race.course.lists.borrow_mut().point_records = 0],
     given_back: |_, scratch| crate::scene::point_records::give_back(scratch),
 };
 /// Frees the object points.
 pub(super) const OBJECT_POINTS: Freeing = Freeing {
-    list: |race| &race.course.lists.get().object_points_list,
+    list: |race| &race.course.memory().object_points_list,
     counted: true,
     // object_points, face_memory
     cleared: &[
-        |race| race.course.lists.get().object_points.set(0),
-        |race| race.course.lists.get().face_memory.set(0),
+        |race| race.course.lists.borrow_mut().object_points = 0,
+        |race| race.course.lists.borrow_mut().face_memory = 0,
     ],
     given_back: |race, _| {
         race.course.stage.object_points.give_back();
@@ -67,7 +67,7 @@ pub(super) const OBJECT_POINTS: Freeing = Freeing {
 };
 /// Frees the mud.
 pub(super) const MUD: Freeing = Freeing {
-    list: |race| &race.course.lists.get().mud_list,
+    list: |race| &race.course.memory().mud_list,
     counted: true,
     // mud
     cleared: &[|race| race.shared.vars.get().mud.set(0)],
@@ -103,14 +103,10 @@ pub fn free(
     }
     if f.counted {
         // `course_bytes_total`
-        course.lists.get().course_bytes_total.set(
-            course
-                .lists
-                .get()
-                .course_bytes_total
-                .get()
-                .wrapping_sub(list.total),
-        );
+        {
+            let mut lists = course.lists.borrow_mut();
+            lists.course_bytes_total = lists.course_bytes_total.wrapping_sub(list.total);
+        }
     }
     crate::memory::free_list::free_list(l)?;
     for clear in f.cleared {

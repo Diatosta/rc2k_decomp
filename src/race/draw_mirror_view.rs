@@ -40,7 +40,7 @@ pub fn draw_mirror_view(
     view.take_vars(reads);
     if reads.no_place != 0
         || reads.work.in_credits.is_set()
-        || (reads.switches.scene_set_up.get() == 0 && !always())
+        || (reads.switches.scene_set_up() == 0 && !always())
     {
         return Ok(None);
     }

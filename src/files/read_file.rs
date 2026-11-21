@@ -18,17 +18,16 @@ pub fn read_file_into(path: &[u8], into: &mut [u8], offset: u32) -> Result<ReadR
     )?)
 }
 
-/// `read_file` into a store's field from its first byte.
+/// `read_file` into a buffer's first `count` bytes (more than it holds is refused).
 #[track_caller]
-pub fn read_file_to_store(
+pub fn read_file_to_buffer<const N: usize>(
     path: &[u8],
-    to: &dyn crate::memory::cells::Store,
+    to: &crate::memory::plain_buffer::PlainBuffer<N>,
     count: u32,
     offset: u32,
 ) -> Result<ReadResult, BadInput> {
-    let mut into = vec![0u8; count as usize];
-    to.load(0, &mut into)?;
+    let mut into = to.read_at(0, count as usize, "a file's buffer")?;
     let result = rc2k_core::files::io::read_file(&mut GameFiles::new(), path, &mut into, offset)?;
-    to.store(0, &into)?;
+    to.write_at(0, &into, "a file's buffer")?;
     Ok(result)
 }

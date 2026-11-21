@@ -24,6 +24,11 @@ fn log_number(v: u32) {
 enum Place<'a> {
     Shared(&'a dyn crate::memory::session::DwordLike),
     Plain(&'a crate::memory::session::PlainDword),
+    /// A word of the frame switches.
+    Switch(
+        &'a crate::memory::session::DrawPlain<crate::race::switches_store::FrameSwitches>,
+        fn(&mut crate::race::switches_store::FrameSwitches) -> &mut u32,
+    ),
     /// The finish state's "no place" switch.
     Finish(&'a crate::race::owner_replay::Replay),
     /// The split tables' arcade kind.
@@ -35,6 +40,7 @@ impl Place<'_> {
         match self {
             Place::Shared(cell) => cell.set(value),
             Place::Plain(cell) => cell.set(value),
+            Place::Switch(store, word) => *word(&mut store.borrow_mut()) = value,
             Place::Finish(replay) => replay.finish_mut().no_place = value,
             Place::ArcadeKind(physics) => physics.split_tables_mut().arcade_kind = value,
         }
@@ -44,7 +50,7 @@ impl Place<'_> {
 fn var(race: &Race, v: Var) -> Place<'_> {
     Place::Shared(match v {
         Var::D60101C => return Place::ArcadeKind(&race.physics),
-        Var::D621514 => return Place::Plain(&race.shared.switches.get().editor_mode),
+        Var::D621514 => return Place::Switch(&race.shared.switches, |s| &mut s.editor_mode),
         Var::D623854 => &race.shared.vars.get().direction,
         Var::D6235FC => &race.shared.vars.get().car_tyres[0],
         Var::RaceMode => &race.shared.vars.get().run_kind,
@@ -56,7 +62,7 @@ fn var(race: &Race, v: Var) -> Place<'_> {
         Var::D6238B0 => &race.shared.vars.get().settings_words[2],
         Var::D6238B4 => &race.shared.vars.get().settings_words[3],
         Var::D6238B8 => &race.shared.vars.get().settings_words[4],
-        Var::D621890 => return Place::Plain(&race.shared.switches.get().view_marks_on),
+        Var::D621890 => return Place::Switch(&race.shared.switches, |s| &mut s.view_marks_on),
         Var::D6238CC => &race.shared.vars.get().race_level,
         Var::D6238D0 => &race.shared.vars.get().race_stage,
         Var::D64BB18 => return Place::Finish(&race.replay),

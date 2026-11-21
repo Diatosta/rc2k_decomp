@@ -23,9 +23,8 @@
 //! - Game thread only (`LobbyVars`): `mode`, `sequence`, `first_host`, `send_buffer`,
 //!   `show_gaps`, `data_size`, `racing`, `after_race`, `sync_clock`.
 
-use crate::memory::session::{
-    Byte, Bytes, Dword, Flag, PlainByte, PlainBytes, PlainDword, Word, with_runs,
-};
+use crate::memory::plain_buffer::PlainBuffer;
+use crate::memory::session::{Byte, Bytes, Dword, Flag, PlainByte, PlainDword, Word, with_runs};
 use rc2k_core::net::inbox::Inbox;
 use rc2k_core::net::players::State;
 use rc2k_core::net::record::{self, Record};
@@ -297,7 +296,6 @@ impl SessionDesc {
 /// What the screen's text edit works on: the item edited, which text, how wide it may be, its
 /// font, and the text as it was before the edit (put back by Escape). The network settings and
 /// the lobby each have their own.
-#[derive(rc2k_derive::Cells)]
 pub struct Editing {
     /// The text of the item edited (none: nothing is edited).
     pub edit_text: crate::net::begin_edit::EditedTextCell,
@@ -308,7 +306,7 @@ pub struct Editing {
     /// The font the edited text is measured with.
     pub edit_font: crate::gfx::typefaces::FontCell,
     /// The edited text as it was before the edit, put back by Escape.
-    pub text_before_edit: PlainBytes<64>,
+    pub text_before_edit: PlainBuffer<64>,
 }
 
 impl Editing {
@@ -321,28 +319,27 @@ impl Editing {
             edit_font: crate::gfx::typefaces::FontCell::new(
                 crate::gfx::typefaces::FontId::numbered(0),
             ),
-            text_before_edit: PlainBytes::new([0; 64]),
+            text_before_edit: PlainBuffer::new([0; 64]),
         }
     }
 }
 
 /// The network settings screen's state, the game thread's.
-#[derive(rc2k_derive::Cells)]
 pub struct SettingsScreen {
     /// The setting being edited.
     pub edit: Editing,
     /// The players' count as text while it is edited.
-    pub most_players_text: PlainBytes<64>,
+    pub most_players_text: PlainBuffer<64>,
     /// The saved connection's name.
-    pub saved_name: PlainBytes<64>,
+    pub saved_name: PlainBuffer<64>,
 }
 
 impl SettingsScreen {
     pub const fn new() -> Self {
         Self {
             edit: Editing::new(),
-            most_players_text: PlainBytes::new([0; 64]),
-            saved_name: PlainBytes::new([0; 64]),
+            most_players_text: PlainBuffer::new([0; 64]),
+            saved_name: PlainBuffer::new([0; 64]),
         }
     }
 }
@@ -364,36 +361,35 @@ impl SessionsScreen {
 
 /// This machine's network settings and name: the fields kept in the options file, the
 /// player's name and a hosted session's mark.
-#[derive(rc2k_derive::Cells)]
 pub struct SetupVars {
     /// This player's name.
-    pub player_name: PlainBytes<32>,
+    pub player_name: PlainBuffer<32>,
     /// The machine's name (kept in `var\ral.dat`).
-    pub machine_name: PlainBytes<64>,
+    pub machine_name: PlainBuffer<64>,
     /// The most players a hosted session takes (kept).
     pub most_players: PlainDword,
     /// The four values of the game's own in a hosted session's description: a fixed mark
     /// (the second's bit 0 says the session is this game's). Nobody types them and nothing
     /// compares them as a password.
-    pub session_user_values: PlainBytes<16>,
+    pub session_user_values: PlainBuffer<16>,
     /// The host's address (TCP/IP), kept.
-    pub host_address: PlainBytes<64>,
+    pub host_address: PlainBuffer<64>,
     /// The TCP/IP port (the `inetport` setting, kept).
     pub port: PlainDword,
     /// The saved connection's GUID (kept).
-    pub saved_connection: PlainBytes<16>,
+    pub saved_connection: PlainBuffer<16>,
 }
 
 impl SetupVars {
     pub const fn new() -> Self {
         Self {
-            player_name: PlainBytes::new([0; 32]),
-            machine_name: PlainBytes::new([0; 64]),
+            player_name: PlainBuffer::new([0; 32]),
+            machine_name: PlainBuffer::new([0; 64]),
             most_players: PlainDword::new(0x8),
-            session_user_values: PlainBytes::new(with_runs::<16>(&[(0, b"\x17\x00\x00\x00\x01")])),
-            host_address: PlainBytes::new([0; 64]),
+            session_user_values: PlainBuffer::new(with_runs::<16>(&[(0, b"\x17\x00\x00\x00\x01")])),
+            host_address: PlainBuffer::new([0; 64]),
             port: PlainDword::new(0),
-            saved_connection: PlainBytes::new([0; 16]),
+            saved_connection: PlainBuffer::new([0; 16]),
         }
     }
 }
@@ -420,36 +416,34 @@ impl AddressVars {
 }
 
 /// The joined variables, the game thread's.
-#[derive(rc2k_derive::Cells)]
 pub struct JoinedVars {
     /// The joined session's GUID.
-    pub joined: PlainBytes<16>,
+    pub joined: PlainBuffer<16>,
     /// Its name.
-    pub joined_name: PlainBytes<64>,
+    pub joined_name: PlainBuffer<64>,
     /// Its most players.
     pub joined_most: PlainDword,
     /// Its description's four values of the game's own (the host's mark).
-    pub joined_user_values: PlainBytes<16>,
+    pub joined_user_values: PlainBuffer<16>,
 }
 
 impl JoinedVars {
     pub const fn new() -> Self {
         Self {
-            joined: PlainBytes::new([0; 16]),
-            joined_name: PlainBytes::new([0; 64]),
+            joined: PlainBuffer::new([0; 16]),
+            joined_name: PlainBuffer::new([0; 64]),
             joined_most: PlainDword::new(0),
-            joined_user_values: PlainBytes::new([0; 16]),
+            joined_user_values: PlainBuffer::new([0; 16]),
         }
     }
 }
 
 /// The lobby screen's state, the game thread's.
-#[derive(rc2k_derive::Cells)]
 pub struct LobbyScreen {
     /// The chat message being edited.
     pub edit: Editing,
     /// What this player types into the chat.
-    pub chat_input: PlainBytes<64>,
+    pub chat_input: PlainBuffer<64>,
     /// The time of the players' last listing.
     pub listed_at: PlainDword,
     /// The lobby's car item can be chosen.
@@ -459,7 +453,7 @@ pub struct LobbyScreen {
     /// The first player not the host.
     pub first_host: PlainDword,
     /// The message being sent.
-    pub send_buffer: PlainBytes<256>,
+    pub send_buffer: PlainBuffer<256>,
     /// Times shown as gaps.
     pub show_gaps: PlainDword,
     /// The size of the player data listed.
@@ -476,19 +470,19 @@ pub struct LobbyScreen {
     pub replay_kept: PlainByte,
     /// Two bytes that fill the record's last dword (`Cells` takes no padding); nothing
     /// reads or writes them.
-    pub _pad_cells: PlainBytes<2>,
+    pub _pad_cells: PlainBuffer<2>,
 }
 
 impl LobbyScreen {
     pub const fn new() -> Self {
         Self {
             edit: Editing::new(),
-            chat_input: PlainBytes::new([0; 64]),
+            chat_input: PlainBuffer::new([0; 64]),
             listed_at: PlainDword::new(0),
             car_item: PlainDword::new(0x1),
             mode: PlainDword::new(0x3),
             first_host: PlainDword::new(0),
-            send_buffer: PlainBytes::new([0; 256]),
+            send_buffer: PlainBuffer::new([0; 256]),
             show_gaps: PlainDword::new(0),
             data_size: PlainDword::new(0),
             after_race: PlainDword::new(0),
@@ -496,7 +490,7 @@ impl LobbyScreen {
             sync_clock: PlainDword::new(0),
             sequence: PlainByte::new(128),
             replay_kept: PlainByte::new(0),
-            _pad_cells: PlainBytes::new([0; 2]),
+            _pad_cells: PlainBuffer::new([0; 2]),
         }
     }
 }

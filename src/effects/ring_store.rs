@@ -1,7 +1,7 @@
 //! The ring's work and the surface pictures' names.
 
 use crate::memory::owned::Owned;
-use crate::memory::session::PlainBytes;
+use crate::memory::plain_buffer::PlainBuffer;
 
 /// The ring's work: its list, cursor and count, the emitters' and the draws' integers.
 pub struct RingWork {
@@ -80,22 +80,21 @@ impl crate::memory::HeldList for std::cell::RefCell<RingWork> {
 }
 
 /// The surface pictures' names: `effects::set_up_surface` reads them.
-#[derive(rc2k_derive::Cells)]
 pub struct PictureNames {
     /// "files\m\surfdata.pcx".
-    pub surfdata: PlainBytes<21>,
+    pub surfdata: PlainBuffer<21>,
     /// "files\m\surfmask.pcx".
-    pub surfmask: PlainBytes<21>,
+    pub surfmask: PlainBuffer<21>,
 }
 
 impl PictureNames {
     pub const fn new() -> Self {
         PictureNames {
-            surfdata: PlainBytes::new([
+            surfdata: PlainBuffer::new([
                 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x73, 0x75, 0x72, 0x66, 0x64, 0x61,
                 0x74, 0x61, 0x2E, 0x70, 0x63, 0x78, 0x00,
             ]),
-            surfmask: PlainBytes::new([
+            surfmask: PlainBuffer::new([
                 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x73, 0x75, 0x72, 0x66, 0x6D, 0x61,
                 0x73, 0x6B, 0x2E, 0x70, 0x63, 0x78, 0x00,
             ]),

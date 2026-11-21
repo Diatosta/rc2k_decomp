@@ -17,7 +17,7 @@ pub enum EditedText {
 
 impl EditedText {
     /// The text's buffer.
-    pub fn text(self, net: &Net) -> &dyn crate::memory::cells::Store {
+    pub fn text(self, net: &Net) -> &crate::memory::plain_buffer::PlainBuffer<64> {
         match self {
             EditedText::MachineName => &net.setup().machine_name,
             EditedText::HostAddress => &net.setup().host_address,
@@ -65,14 +65,10 @@ pub fn begin_edit(
     edit.edit_text.set(text);
     edit.edit_width.set(width);
     edit.edit_font.set(font);
-    Ok(crate::memory::cells::copy_between(
-        text.text(net),
-        0,
-        &edit.text_before_edit,
-        0,
-        editing::TEXT_LEN,
-        "an edited text",
-    )?)
+    let kept = text
+        .text(net)
+        .read_at(0, editing::TEXT_LEN, "an edited text")?;
+    Ok(edit.text_before_edit.write_at(0, &kept, "an edited text")?)
 }
 
 #[cfg(test)]

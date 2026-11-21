@@ -381,20 +381,161 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("owners.net.vars", &o.net.vars,),
         listed!("owners.net.link", o.net.link.cells(),),
         listed!(
-            "owners.net.main.settings",
-            on_game(&o.net.main.get().settings),
+            "owners.net.main.settings.edit.edit_text",
+            on_game(&o.net.main.get().settings.edit.edit_text),
+        ),
+        listed!(
+            "owners.net.main.settings.edit.edited",
+            on_game(&o.net.main.get().settings.edit.edited),
+        ),
+        listed!(
+            "owners.net.main.settings.edit.edit_width",
+            on_game(&o.net.main.get().settings.edit.edit_width),
+        ),
+        listed!(
+            "owners.net.main.settings.edit.edit_font",
+            on_game(&o.net.main.get().settings.edit.edit_font),
+        ),
+        listed!(
+            "owners.net.main.settings.edit.text_before_edit",
+            on_buffer(&o.net.main.get().settings.edit.text_before_edit),
+        ),
+        listed!(
+            "owners.net.main.settings.most_players_text",
+            on_buffer(&o.net.main.get().settings.most_players_text),
+        ),
+        listed!(
+            "owners.net.main.settings.saved_name",
+            on_buffer(&o.net.main.get().settings.saved_name),
         ),
         listed!(
             "owners.net.main.sessions",
             on_game(&o.net.main.get().sessions),
         ),
-        listed!("owners.net.main.setup", on_game(&o.net.main.get().setup),),
+        listed!(
+            "owners.net.main.setup.player_name",
+            on_buffer(&o.net.main.get().setup.player_name),
+        ),
+        listed!(
+            "owners.net.main.setup.machine_name",
+            on_buffer(&o.net.main.get().setup.machine_name),
+        ),
+        listed!(
+            "owners.net.main.setup.most_players",
+            on_game(&o.net.main.get().setup.most_players),
+        ),
+        listed!(
+            "owners.net.main.setup.session_user_values",
+            on_buffer(&o.net.main.get().setup.session_user_values),
+        ),
+        listed!(
+            "owners.net.main.setup.host_address",
+            on_buffer(&o.net.main.get().setup.host_address),
+        ),
+        listed!(
+            "owners.net.main.setup.port",
+            on_game(&o.net.main.get().setup.port),
+        ),
+        listed!(
+            "owners.net.main.setup.saved_connection",
+            on_buffer(&o.net.main.get().setup.saved_connection),
+        ),
         listed!(
             "owners.net.main.address",
             on_game(&o.net.main.get().address),
         ),
-        listed!("owners.net.main.joined", on_game(&o.net.main.get().joined),),
-        listed!("owners.net.main.lobby", on_game(&o.net.main.get().lobby),),
+        listed!(
+            "owners.net.main.joined.joined",
+            on_buffer(&o.net.main.get().joined.joined),
+        ),
+        listed!(
+            "owners.net.main.joined.joined_name",
+            on_buffer(&o.net.main.get().joined.joined_name),
+        ),
+        listed!(
+            "owners.net.main.joined.joined_most",
+            on_game(&o.net.main.get().joined.joined_most),
+        ),
+        listed!(
+            "owners.net.main.joined.joined_user_values",
+            on_buffer(&o.net.main.get().joined.joined_user_values),
+        ),
+        listed!(
+            "owners.net.main.lobby.edit.edit_text",
+            on_game(&o.net.main.get().lobby.edit.edit_text),
+        ),
+        listed!(
+            "owners.net.main.lobby.edit.edited",
+            on_game(&o.net.main.get().lobby.edit.edited),
+        ),
+        listed!(
+            "owners.net.main.lobby.edit.edit_width",
+            on_game(&o.net.main.get().lobby.edit.edit_width),
+        ),
+        listed!(
+            "owners.net.main.lobby.edit.edit_font",
+            on_game(&o.net.main.get().lobby.edit.edit_font),
+        ),
+        listed!(
+            "owners.net.main.lobby.edit.text_before_edit",
+            on_buffer(&o.net.main.get().lobby.edit.text_before_edit),
+        ),
+        listed!(
+            "owners.net.main.lobby.chat_input",
+            on_buffer(&o.net.main.get().lobby.chat_input),
+        ),
+        listed!(
+            "owners.net.main.lobby.listed_at",
+            on_game(&o.net.main.get().lobby.listed_at),
+        ),
+        listed!(
+            "owners.net.main.lobby.car_item",
+            on_game(&o.net.main.get().lobby.car_item),
+        ),
+        listed!(
+            "owners.net.main.lobby.mode",
+            on_game(&o.net.main.get().lobby.mode),
+        ),
+        listed!(
+            "owners.net.main.lobby.first_host",
+            on_game(&o.net.main.get().lobby.first_host),
+        ),
+        listed!(
+            "owners.net.main.lobby.send_buffer",
+            on_buffer(&o.net.main.get().lobby.send_buffer),
+        ),
+        listed!(
+            "owners.net.main.lobby.show_gaps",
+            on_game(&o.net.main.get().lobby.show_gaps),
+        ),
+        listed!(
+            "owners.net.main.lobby.data_size",
+            on_game(&o.net.main.get().lobby.data_size),
+        ),
+        listed!(
+            "owners.net.main.lobby.after_race",
+            on_game(&o.net.main.get().lobby.after_race),
+        ),
+        listed!(
+            "owners.net.main.lobby.racing",
+            on_game(&o.net.main.get().lobby.racing),
+        ),
+        listed!(
+            "owners.net.main.lobby.sync_clock",
+            on_game(&o.net.main.get().lobby.sync_clock),
+        ),
+        listed!(
+            "owners.net.main.lobby.sequence",
+            on_game(&o.net.main.get().lobby.sequence),
+        ),
+        listed!(
+            "owners.net.main.lobby.replay_kept",
+            on_game(&o.net.main.get().lobby.replay_kept),
+        ),
+        listed!(
+            "owners.net.main.lobby._pad_cells",
+            on_buffer(&o.net.main.get().lobby._pad_cells),
+        ),
         listed!("owners.net.button", on_game(o.net.button.get()),),
         listed!("owners.saves.save_games", on_game(&o.saves.save_games),),
         listed!(
@@ -420,7 +561,7 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         ),
         listed!(
             "owners.race.replay.snapshot",
-            on_game(o.race.replay.snapshot()),
+            on_buffer(o.race.replay.snapshot()),
         ),
         listed!("owners.gfx.card.texture_tables", &o.gfx.card.texture_tables,),
         listed!(
@@ -450,7 +591,30 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("owners.input.force_feedback", &o.input.force_feedback,),
         listed!("owners.sound.menu.options", &o.sound.menu.options,),
         listed!("owners.input.devices", &o.input.devices,),
-        listed!("owners.input.keyboard", on_game(o.input.keyboard()),),
+        listed!(
+            "owners.input.keyboard.silent_keys",
+            on_game(&o.input.keyboard().silent_keys),
+        ),
+        listed!(
+            "owners.input.keyboard.compose",
+            on_buffer(&o.input.keyboard().compose),
+        ),
+        listed!(
+            "owners.input.keyboard.plain",
+            on_buffer(&o.input.keyboard().plain),
+        ),
+        listed!(
+            "owners.input.keyboard.shifted",
+            on_buffer(&o.input.keyboard().shifted),
+        ),
+        listed!(
+            "owners.input.keyboard.key_names",
+            on_buffer(&o.input.keyboard().key_names),
+        ),
+        listed!(
+            "owners.input.keyboard.unused",
+            on_game(&o.input.keyboard()._unused_826c),
+        ),
         listed!("owners.input.mouse", on_game(o.input.mouse()),),
         listed!(
             "owners.sound.menu.next_sound_time",
@@ -485,7 +649,10 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game_from(&o.install.pages, ".texts[0].dx"),
             0xa25,
         ),
-        listed!("owners.system.work.files", on_game(&o.system.work().files),),
+        listed!(
+            "owners.system.work.files",
+            on_buffer(&o.system.work().files.buffer),
+        ),
         listed!(
             "owners.gfx.drawing.draw_surface",
             on_game(&o.gfx.drawing.draw_surface),
@@ -544,10 +711,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.race.course.number_vars",
             on_game(o.race.course.number_vars.get()),
         ),
-        listed!(
-            "owners.race.course.lists",
-            on_game(o.race.course.lists.get()),
-        ),
         listed!("owners.race.shared.tables", on_game(o.race.shared.tables()),),
         listed!(
             "owners.race.frame.view_and_records",
@@ -565,27 +728,50 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("owners.race.shared.view", on_game(o.race.shared.view.get()),),
         listed!("owners.race.shared.car", on_game(o.race.shared.car()),),
         listed!("owners.race.shared.work", on_game(o.race.shared.work.get()),),
-        listed!(
-            "owners.race.shared.switches",
-            on_game(o.race.shared.switches.get()),
-        ),
         listed!("owners.race.shared.state", &o.race.shared.state,),
         listed!(
-            "owners.effects.masks.edge_settings",
-            on_game(&o.race.effects.get().masks.edge_settings),
+            "owners.effects.masks.edge_settings.factor",
+            on_game(&o.race.effects.get().masks.edge_settings.factor),
+        ),
+        listed!(
+            "owners.effects.masks.edge_settings.done",
+            on_game(&o.race.effects.get().masks.edge_settings.done),
+        ),
+        listed!(
+            "owners.effects.masks.edge_settings.scale",
+            on_game(&o.race.effects.get().masks.edge_settings.scale),
+        ),
+        listed!(
+            "owners.effects.masks.edge_settings.path",
+            on_buffer(&o.race.effects.get().masks.edge_settings.path),
+        ),
+        listed!(
+            "owners.effects.masks.edge_settings.tilt_scale",
+            on_game(&o.race.effects.get().masks.edge_settings.tilt_scale),
         ),
         listed!(
             "owners.effects.blocks.corners",
             on_game(&o.race.effects.get().blocks.corners),
         ),
         listed!(
-            "owners.effects.masks.ground_names",
-            on_game(&o.race.effects.get().masks.ground_names),
-            0xa6,
+            "owners.effects.masks.ground_names.ground",
+            on_game(&o.race.effects.get().masks.ground_names.ground),
         ),
         listed!(
-            "owners.effects.ring.names",
-            on_game(&o.race.effects.get().ring.names),
+            "owners.effects.masks.ground_names.ground_path",
+            on_game(&o.race.effects.get().masks.ground_names.ground_path),
+        ),
+        listed!(
+            "owners.effects.masks.ground_names.names",
+            on_buffer(&o.race.effects.get().masks.ground_names.names),
+        ),
+        listed!(
+            "owners.effects.ring.names.surfdata",
+            on_buffer(&o.race.effects.get().ring.names.surfdata),
+        ),
+        listed!(
+            "owners.effects.ring.names.surfmask",
+            on_buffer(&o.race.effects.get().ring.names.surfmask),
         ),
         listed!(
             "owners.effects.masks.list",

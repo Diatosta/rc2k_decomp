@@ -573,7 +573,7 @@ fn profiler(o: &Owners<'static>, ui: &Ui) {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     take_readings(o.system, &mut t);
-    let fps = shared.switches.get().frame_rate.get();
+    let fps = shared.switches.borrow().frame_rate;
     ui.text(format!("Frame rate (the game's, over 16 frames): {fps:.1}"));
     ui.same_line();
     ui.checkbox("Each part in the graph", &mut t.each);
@@ -705,7 +705,7 @@ fn profiler(o: &Owners<'static>, ui: &Ui) {
         "Machine",
         &[(
             "Course memory",
-            format!("{} KiB", course.lists.get().course_bytes_total.get() >> 10),
+            format!("{} KiB", course.lists.borrow().course_bytes_total >> 10),
         )],
     );
 }

@@ -28,7 +28,7 @@ use crate::race::view_scratch::{DrawCtx, ViewScratch};
 /// car's lights' bit, which the view's cars' state already holds (`race::car_light_modes`).
 pub fn own_car(ctx: &DrawCtx<'_>) -> Option<u32> {
     use rc2k_core::race::lights::lights_on;
-    if ctx.reads.switches.scene_set_up.get() == 0 {
+    if ctx.reads.switches.scene_set_up() == 0 {
         return None;
     }
     let n = ctx

@@ -160,7 +160,7 @@ mod tests {
             .iter()
             .map(crate::memory::session::Dword::get)
             .collect();
-        let bytes = |b: &crate::memory::session::PlainBytes<16>| {
+        let bytes = |b: &crate::memory::plain_buffer::PlainBuffer<16>| {
             (0..16).map(|k| b.get(k)).collect::<Vec<u8>>()
         };
         let kept_saved = bytes(&net.setup().saved_connection);

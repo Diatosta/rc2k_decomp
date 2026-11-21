@@ -368,7 +368,7 @@ pub(super) fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused>
             .noise_seed
             .set(race.shared.random.next_random());
     }
-    race.shared.switches.get().editor_mode.set(0u32);
+    race.shared.switches.borrow_mut().editor_mode = 0u32;
     race.course.number_vars.get().replay_mode.set(1u32);
     crate::race::settings_copy::copy_settings_in(race, o.gfx, &o.saves.best_tables)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
@@ -395,7 +395,7 @@ pub fn release_textures(scene: &crate::scene::owner::Scene, gfx: &crate::gfx::ow
 
 /// Sets `mask_kind` 0 and runs `race::run_race`.
 fn start_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    o.race.shared.switches.get().mask_kind.set(0u32);
+    o.race.shared.switches.borrow_mut().mask_kind = 0u32;
     run_race(o)
 }
 

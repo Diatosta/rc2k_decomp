@@ -143,7 +143,7 @@ fn draw_description(
     let place = u32::from_le_bytes([head[4], head[5], head[6], head[7]]);
     let shown = object <= 0x64
         && place < ctx.reads.course_work.get().scene_point_count
-        && !(ctx.reads.switches.scene_set_up.get() != 0 && object == 0x3F);
+        && !(ctx.reads.switches.scene_set_up() != 0 && object == 0x3F);
     if shown {
         check_object(ctx.reads.number_vars, ctx.reads.work, object)?;
     }

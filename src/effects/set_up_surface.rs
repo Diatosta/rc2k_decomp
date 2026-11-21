@@ -12,7 +12,7 @@ use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::memory::session::PlainBytes;
+use crate::memory::plain_buffer::PlainBuffer;
 
 const MASK_BYTES: u32 = 0x4_0000;
 const PIXELS: u32 = 0x1_0000;
@@ -21,7 +21,7 @@ const CELLS: u32 = 0x40;
 /// `gfx::read_picture_file` at 256 x 256 (the picture's sizes kept round it): whether it
 /// was read.
 fn read(
-    path: &PlainBytes<21>,
+    path: &PlainBuffer<21>,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {

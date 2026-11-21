@@ -33,7 +33,13 @@ const WRITES: [(StepOperand, u32); 74] = [
     (var!(@race shared.vars.get().settings_words[2]), 1),
     (var!(@race shared.vars.get().settings_words[3]), 0),
     (var!(@race shared.vars.get().settings_words[4]), 1),
-    (var!(@race shared.switches.get().view_marks_on), 1),
+    (
+        crate::race::settings_copy::StepOperand::Plain {
+            get: |o| o.race.shared.switches.borrow().view_marks_on,
+            set: |o, value| o.race.shared.switches.borrow_mut().view_marks_on = value,
+        },
+        1,
+    ),
     (var!(@race shared.vars.get().race_level), 0),
     (var!(@race shared.vars.get().race_stage), 0),
     (car_bits!(0, engine_damage), 0),

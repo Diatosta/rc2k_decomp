@@ -303,24 +303,25 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     if state & 0x10 == 0 {
         nearness(ctx.reads.numbers, &ctx.view.cars, &ctx.view.course);
         let depth = ctx.view.cars.borrow().car_depth;
-        // Read before the masking: `and` borrows the draw state mutably, so no borrow may be held in its argument.
-        let gm = ctx.view.cars.borrow().group_masks;
+        // The masks are read into a `let` first: a borrow in the argument would still be held
+        // when `and` writes the same record.
+        let masks = ctx.view.cars.borrow().group_masks;
         if !below(depth, 0x14_0000) {
             and(with_bit(field(0x40)?, bit));
             for var in [13usize, 14, 15, 16] {
-                and(!(1u32 << (gm[var] & 31)));
+                and(!(1u32 << (masks[var] & 31)));
             }
-            and(!gm[7]);
-            and(!gm[8]);
+            and(!masks[7]);
+            and(!masks[8]);
         }
         if !below(depth, 0x28_0000) {
-            and(!gm[9]);
-            and(!gm[10]);
-            and(!gm[6]);
+            and(!masks[9]);
+            and(!masks[10]);
+            and(!masks[6]);
         }
         if !below(depth, 0x3C_0000) {
-            and(!gm[12]);
-            and(!gm[11]);
+            and(!masks[12]);
+            and(!masks[11]);
         }
     }
     let mut fade_alpha = 0x60u32.wrapping_add(near_size(&ctx.view.cars));

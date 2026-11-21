@@ -10,7 +10,6 @@
 
 use crate::errors::BadInput;
 use crate::math::x87_float::{ONE, compare, ld, st};
-use crate::memory::session::PlainFloat;
 
 // The work vector (the race's) and the root tables
 // (`scene::fill_engine_tables` makes them) are the game's; the squares and the length are
@@ -45,14 +44,14 @@ pub(crate) fn scaled_by_inverse(
 /// The work vector's bits `work` normalised (its first three words are replaced; nothing
 /// is written when it refuses).
 pub fn normalise_bits(
-    root_table: &[PlainFloat; 256],
-    exponent_root_table: &[PlainFloat; 256],
+    root_table: &[f32; 256],
+    exponent_root_table: &[f32; 256],
     work: &mut [u32; 4],
 ) -> Result<u32, BadInput> {
     let v = *work;
     let sum = squares_sum([v[0], v[1], v[2]]);
-    let root: f32 = root_table[((sum >> 15) & 0xFF) as usize].get();
-    let exponent_root: f32 = exponent_root_table[((sum & 0x7F80_0000) >> 23) as usize].get();
+    let root: f32 = root_table[((sum >> 15) & 0xFF) as usize];
+    let exponent_root: f32 = exponent_root_table[((sum & 0x7F80_0000) >> 23) as usize];
     // The product of two floats is exact in a double, as it is in the x87.
     let length = ld(root) * ld(exponent_root);
     if compare(length, ld(NOTHING)) & 0x4000 != 0 {

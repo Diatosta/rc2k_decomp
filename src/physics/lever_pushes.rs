@@ -10,7 +10,6 @@ use crate::physics::car_store::Car;
 use crate::physics::lever_push::lever_push;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
-use crate::race::switches_store::FrameSwitches;
 use std::cmp::Ordering;
 
 /// Whether `share` is below `limit`, or unordered.
@@ -23,11 +22,11 @@ fn below(share: f32, limit: f32) -> bool {
 
 pub fn lever_pushes(
     numbers: &Numbers,
-    switches: &FrameSwitches,
+    switches: crate::race::switches_store::FrameSwitchesRef<'_>,
     physics_tables: &PhysicsTables,
     car: &Car,
 ) {
-    if switches.levers_on.get() != 1 || car.all_wheels_off.get() != 0 {
+    if switches.levers_on() != 1 || car.all_wheels_off.get() != 0 {
         return;
     }
     let (share, zero) = lever_share(

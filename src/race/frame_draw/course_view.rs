@@ -111,7 +111,7 @@ fn face_hidden(
         .ok_or(BadInput("the view hides: a camera view past the table"))?
         .get();
     let hiding = if shows == 0 {
-        ctx.reads.switches.scene_set_up.get()
+        ctx.reads.switches.scene_set_up()
     } else {
         0
     };
@@ -431,7 +431,7 @@ pub fn prepare_course_view(
     check_course_grid(reads.course())?;
     face_hide_mask(reads, view, part)?;
     course_grid(reads.course(), reads.work, &view.grid, &view.vars)?;
-    if reads.switches.scene_set_up.get() == 0 {
+    if reads.switches.scene_set_up() == 0 {
         return Ok(());
     }
     let limit = if reads.vars.checkpoint_count.get() >= 2 {

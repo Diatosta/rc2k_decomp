@@ -3,7 +3,7 @@
 //! preferences, numbers, league.
 
 use crate::memory::session::{DrawPlain, DrawShared, GameThread};
-use crate::race::course_lists_store::CourseLists;
+use crate::race::course_lists_store::{CourseLists, CourseListsRef, CourseMemory, TurnWork};
 use crate::race::course_store::{CourseWork, CourseWorkRef};
 use crate::race::kind_records_store::{KindRecords, KindRecordsRef};
 use crate::race::league_store::League;
@@ -18,8 +18,8 @@ use std::cell::{Ref, RefCell, RefMut};
 pub struct Course {
     /// A copy is lent to the drawing parts (`scene::workers::DrawReads`): no part writes it.
     pub course: DrawPlain<CourseWork>,
-    /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it.
-    pub lists: DrawShared<CourseLists>,
+    /// A copy is lent to the drawing parts (`scene::workers::DrawReads`): no part writes it.
+    pub lists: DrawPlain<CourseLists>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it (the fog
     /// settings the draw distance picks are set once a frame before the views,
     /// `race::draw_distance_settings`).
@@ -44,7 +44,7 @@ pub struct Course {
 #[derive(Clone, Copy)]
 pub struct CourseReads<'a> {
     pub course: CourseWorkRef<'a>,
-    pub lists: &'a CourseLists,
+    pub lists: CourseListsRef<'a>,
     pub stage_prefs: &'a StagePrefs,
     pub numbers: &'a Numbers,
     pub number_vars: &'a NumberVars,
@@ -54,6 +54,8 @@ pub struct CourseReads<'a> {
 
 /// What only the game's thread reaches (no drawing part and no other thread touches it).
 struct CourseMain {
+    memory: CourseMemory,
+    turn_work: TurnWork,
     level_paths: RefCell<LevelPaths>,
     lights_data: LightsData,
     lights_table: RefCell<LightsTable>,
@@ -64,13 +66,15 @@ impl Course {
     pub const fn new() -> Self {
         Course {
             course: DrawPlain::new(CourseWork::new()),
-            lists: DrawShared::new(CourseLists::new()),
+            lists: DrawPlain::new(CourseLists::new()),
             stage_prefs: DrawShared::new(StagePrefs::new()),
             numbers: Numbers::new(),
             number_vars: DrawShared::new(NumberVars::new()),
             kind_records: DrawPlain::new(KindRecords::new()),
             stage: StageData::new(),
             main: GameThread::new(CourseMain {
+                memory: CourseMemory::new(),
+                turn_work: TurnWork::new(),
                 level_paths: RefCell::new(LevelPaths::new()),
                 lights_data: LightsData::new(),
                 lights_table: RefCell::new(LightsTable::new()),
@@ -83,13 +87,23 @@ impl Course {
     pub fn reads(&self) -> CourseReads<'_> {
         CourseReads {
             course: CourseWorkRef::Store(&self.course),
-            lists: self.lists.get(),
+            lists: CourseListsRef::Store(&self.lists),
             stage_prefs: self.stage_prefs.get(),
             numbers: &self.numbers,
             number_vars: self.number_vars.get(),
             kind_records: KindRecordsRef::Store(&self.kind_records),
             stage: &self.stage,
         }
+    }
+
+    /// The course's memory lists.
+    pub fn memory(&self) -> &CourseMemory {
+        &self.main.get().memory
+    }
+
+    /// The physics' turn and angle work values.
+    pub fn turn_work(&self) -> &TurnWork {
+        &self.main.get().turn_work
     }
 
     /// The level and picture paths, read.

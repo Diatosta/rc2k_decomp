@@ -191,7 +191,7 @@ pub fn tab(race: &Race, scene: &Scene, ui: &Ui) {
 
 /// The mode value itself: only 5 and 8 change what the game draws.
 fn mode_choice(shared: &RaceShared, ui: &Ui) {
-    let now = shared.switches.get().mask_kind.get();
+    let now = shared.switches.borrow().mask_kind;
     ui.text("The game's own mode:");
     for (name, mode) in [
         ("Off", 0),
@@ -200,7 +200,7 @@ fn mode_choice(shared: &RaceShared, ui: &Ui) {
     ] {
         ui.same_line();
         if ui.radio_button_bool(name, now == mode) {
-            shared.switches.get().mask_kind.set(mode);
+            shared.switches.borrow_mut().mask_kind = mode;
         }
     }
 }

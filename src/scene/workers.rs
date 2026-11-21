@@ -128,15 +128,14 @@ pub struct Lent<'s> {
     screen: crate::memory::session::PhaseRead<'s, crate::memory::session::Screen>,
     net_race: &'s rc2k_core::net::net_race::NetRaceSlot,
     // The course's groups.
-    course_lists:
-        crate::memory::session::PhaseRead<'s, crate::race::course_lists_store::CourseLists>,
+    course_lists: crate::memory::session::PlainRead<crate::race::course_lists_store::CourseLists>,
     stage_prefs: crate::memory::session::PhaseRead<'s, crate::race::prefs_store::StagePrefs>,
     course_work: crate::memory::session::PlainRead<crate::race::course_store::CourseWork>,
     stage: &'s crate::race::stage_data_store::StageData,
     kind_records: crate::memory::session::PlainRead<crate::race::kind_records_store::KindRecords>,
     numbers: &'s crate::race::numbers_store::Numbers,
     number_vars: crate::memory::session::PhaseRead<'s, crate::race::numbers_store::NumberVars>,
-    switches: crate::memory::session::PhaseRead<'s, crate::race::switches_store::FrameSwitches>,
+    switches: crate::memory::session::PlainRead<crate::race::switches_store::FrameSwitches>,
     vars: crate::memory::session::PhaseRead<'s, crate::race::vars_store::RaceVars>,
     view: crate::memory::session::PhaseRead<'s, crate::race::view_store::RaceView>,
     work: crate::memory::session::PhaseRead<'s, crate::race::work_store::RaceWork>,
@@ -190,7 +189,7 @@ impl<'s> Lent<'s> {
             screen: PhaseRead::lend(&system.session.screen, scope),
             net_race: &net.race_slot,
             // The course's groups.
-            course_lists: PhaseRead::lend(&race.course.lists, scope),
+            course_lists: crate::memory::session::PlainRead::lend(&race.course.lists, scope),
             stage_prefs: PhaseRead::lend(&race.course.stage_prefs, scope),
             course_work: crate::memory::session::PlainRead::lend(&race.course.course, scope),
             stage: &race.course.stage,
@@ -200,7 +199,7 @@ impl<'s> Lent<'s> {
             ),
             numbers: &race.course.numbers,
             number_vars: PhaseRead::lend(&race.course.number_vars, scope),
-            switches: PhaseRead::lend(&race.shared.switches, scope),
+            switches: crate::memory::session::PlainRead::lend(&race.shared.switches, scope),
             vars: PhaseRead::lend(&race.shared.vars, scope),
             view: PhaseRead::lend(&race.shared.view, scope),
             work: PhaseRead::lend(&race.shared.work, scope),
@@ -243,14 +242,14 @@ impl<'s> Lent<'s> {
             screen: &self.screen,
             net_race: self.net_race,
             // The course's groups.
-            course_lists: &self.course_lists,
+            course_lists: (&self.course_lists).into(),
             stage_prefs: &self.stage_prefs,
             course_work: (&self.course_work).into(),
             stage: self.stage,
             kind_records: (&self.kind_records).into(),
             numbers: self.numbers,
             number_vars: &self.number_vars,
-            switches: &self.switches,
+            switches: (&self.switches).into(),
             vars: &self.vars,
             view: &self.view,
             work: &self.work,
@@ -322,7 +321,7 @@ pub struct DrawReads<'a> {
     // The course's groups.
     /// The course's lists and work tables: the face-key factors, the root tables, the object
     /// points and point records (`race::owner_course::Course::lists`).
-    pub course_lists: &'a crate::race::course_lists_store::CourseLists,
+    pub course_lists: crate::race::course_lists_store::CourseListsRef<'a>,
     /// The stage's prefs and scene settings: colours, fog, sun and sky, the face tables
     /// (`race::owner_course::Course::stage_prefs`).
     pub stage_prefs: &'a crate::race::prefs_store::StagePrefs,
@@ -340,7 +339,7 @@ pub struct DrawReads<'a> {
     pub number_vars: &'a crate::race::numbers_store::NumberVars,
     /// The frame switches (`race::owner_shared::RaceShared::switches`): the scene set-up flag,
     /// the mask kind, the marker object.
-    pub switches: &'a crate::race::switches_store::FrameSwitches,
+    pub switches: crate::race::switches_store::FrameSwitchesRef<'a>,
     /// The race's variables (`race::owner_shared::RaceShared::vars`): the settings the drawing
     /// reads (run kind, split, the settings words), the mud texture's state, the fade figures.
     pub vars: &'a crate::race::vars_store::RaceVars,
@@ -427,7 +426,9 @@ impl<'a> DrawReads<'a> {
             screen: system.session.screen.get(),
             net_race: &net.race_slot,
             // The course's groups.
-            course_lists: race.course.lists.get(),
+            course_lists: crate::race::course_lists_store::CourseListsRef::Store(
+                &race.course.lists,
+            ),
             stage_prefs: race.course.stage_prefs.get(),
             course_work: crate::race::course_store::CourseWorkRef::Store(&race.course.course),
             stage: &race.course.stage,
@@ -436,7 +437,7 @@ impl<'a> DrawReads<'a> {
             ),
             numbers: &race.course.numbers,
             number_vars: race.course.number_vars.get(),
-            switches: race.shared.switches.get(),
+            switches: crate::race::switches_store::FrameSwitchesRef::Store(&race.shared.switches),
             vars: race.shared.vars.get(),
             view: race.shared.view.get(),
             work: race.shared.work.get(),

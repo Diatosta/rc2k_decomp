@@ -14,13 +14,9 @@ pub fn allocate_point_records_in_game(
     scratch: &crate::scene::scratch_store::DrawingScratch,
     course: &Course,
 ) -> Result<(), Refused> {
-    course.lists.get().course_bytes_total.set(
-        course
-            .lists
-            .get()
-            .course_bytes_total
-            .get()
-            .wrapping_add(BYTES),
-    );
-    point_records::take(scratch, course, &course.lists.get().point_records_list)
+    {
+        let mut lists = course.lists.borrow_mut();
+        lists.course_bytes_total = lists.course_bytes_total.wrapping_add(BYTES);
+    }
+    point_records::take(scratch, course, &course.memory().point_records_list)
 }

@@ -39,7 +39,7 @@ pub fn object_hits_car(
     let points = if count == 0 {
         0
     } else {
-        c.course.lists.get().object_points.get()
+        c.course.lists.borrow().object_points
     };
     let refused = std::cell::Cell::new(None::<Refused>);
     let walk = contacts::walk_points(

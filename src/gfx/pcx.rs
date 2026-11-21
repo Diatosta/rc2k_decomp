@@ -5,7 +5,7 @@
 //! palette, 0x300 bytes, is the end of the file.
 
 use crate::files::stream::Stream;
-use crate::memory::session::PlainBytes;
+use crate::memory::plain_buffer::PlainBuffer;
 use std::cell::Cell;
 
 pub const HEADER_LEN: usize = 0x80;
@@ -21,9 +21,9 @@ pub struct Pcx {
     pub line_bytes: Cell<u32>,
     pub planes: Cell<u32>,
     /// The header as read from the file, 0x80 bytes.
-    pub header: PlainBytes<HEADER_LEN>,
+    pub header: PlainBuffer<HEADER_LEN>,
     /// The palette as read from the file, three bytes an entry.
-    pub file_palette: PlainBytes<FILE_PALETTE_LEN>,
+    pub file_palette: PlainBuffer<FILE_PALETTE_LEN>,
     /// The widest picture that is taken.
     pub width_limit: Cell<u32>,
     /// The highest picture that is taken.
@@ -37,8 +37,8 @@ impl Pcx {
             file_height: Cell::new(0),
             line_bytes: Cell::new(0),
             planes: Cell::new(0),
-            header: PlainBytes::new([0; HEADER_LEN]),
-            file_palette: PlainBytes::new([0; FILE_PALETTE_LEN]),
+            header: PlainBuffer::new([0; HEADER_LEN]),
+            file_palette: PlainBuffer::new([0; FILE_PALETTE_LEN]),
             width_limit: Cell::new(0x320),
             height_limit: Cell::new(0x258),
         }

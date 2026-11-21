@@ -82,16 +82,15 @@ pub fn move_slot(c: &SlotInputs<'_>, s: &RaceSlot, number: usize) -> Result<(), 
     // Tested as a dword: any bit set (a NaN too) means a spin.
     if s.spin_length.get().to_bits() != 0 {
         let axis = spin_axis(c.work, number);
-        unit_vector(c.course.reads(), &axis, &c.course.lists.get().spin_axis);
+        unit_vector(c.course.reads(), &axis, &c.course.turn_work().spin_axis);
         c.course
-            .lists
-            .get()
+            .turn_work()
             .spin_angle
             .set(x87::mul(&s.spin_length, dt));
-        axis_turn_matrix(c.course, &c.course.lists.get().turn_matrix);
-        square_matrix(c.course.reads(), &c.course.lists.get().turn_matrix);
+        axis_turn_matrix(c.course, &c.course.turn_work().turn_matrix);
+        square_matrix(c.course.reads(), &c.course.turn_work().turn_matrix);
         let slot_matrix = matrix_of(&s.matrix);
-        let turn_now = matrix_of(&c.course.lists.get().turn_matrix);
+        let turn_now = matrix_of(&c.course.turn_work().turn_matrix);
         let turned = {
             let mut kept = c.matrices.borrow_mut();
             kept.turned_matrix = product(&slot_matrix, &turn_now, kept.turned_matrix);

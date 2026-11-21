@@ -38,13 +38,12 @@ use crate::physics::tables_store::PhysicsTables;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::race::switches_store::FrameSwitches;
 
 /// The motion: moved, spun, levered, the inverse matrix, the angles.
 fn motion(
     course: &Course,
     matrices: &DrawPlain<SceneMatrices>,
-    switches: &FrameSwitches,
+    switches: crate::race::switches_store::FrameSwitchesRef<'_>,
     physics_tables: &PhysicsTables,
     car: &Car,
     scene: &crate::scene::owner::Scene,
@@ -197,7 +196,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     motion(
         &race.course,
         &race.frame.matrices,
-        race.shared.switches.get(),
+        crate::race::switches_store::FrameSwitchesRef::Store(&race.shared.switches),
         race.shared.physics_tables.get(),
         race.shared.car(),
         scene,
@@ -245,7 +244,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         motion(
             &race.course,
             &race.frame.matrices,
-            race.shared.switches.get(),
+            crate::race::switches_store::FrameSwitchesRef::Store(&race.shared.switches),
             race.shared.physics_tables.get(),
             race.shared.car(),
             scene,

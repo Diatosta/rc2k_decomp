@@ -7,14 +7,7 @@ use crate::memory::cells::Store;
 
 pub const ENTRIES: usize = 256;
 
-/// The palette is read at byte `from_at` of `from`; the dwords go to the start of `to`.
-pub fn palette_to_dwords(from: &dyn Store, from_at: usize, to: &dyn Store) -> Result<(), BadInput> {
-    let mut palette = [0u8; ENTRIES * 3];
-    from.load(from_at, &mut palette)?;
-    palette_bytes_to_dwords(&palette, to)
-}
-
-/// The same for a palette held as bytes.
+/// The palette (256 entries of three bytes) turned into dwords, written to the start of `to`.
 pub(crate) fn palette_bytes_to_dwords(
     palette: &[u8; ENTRIES * 3],
     to: &dyn Store,

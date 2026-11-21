@@ -19,20 +19,20 @@ use rc2k_core::menu::films::{self, Film, Step, StepAnswer};
 /// The films' file names.
 pub struct Films {
     /// The intro film's path.
-    pub intro: crate::memory::session::PlainBytes<22>,
+    pub intro: crate::memory::plain_buffer::PlainBuffer<22>,
     /// The `mflogo` film's path.
-    pub mflogo: crate::memory::session::PlainBytes<23>,
+    pub mflogo: crate::memory::plain_buffer::PlainBuffer<23>,
     /// The `allogo` film's path.
-    pub allogo: crate::memory::session::PlainBytes<23>,
+    pub allogo: crate::memory::plain_buffer::PlainBuffer<23>,
 }
 
 /// The films' names (the leading `;3` is the game's own marker for the file functions).
 impl Films {
     pub const fn new() -> Self {
         Films {
-            intro: crate::memory::session::PlainBytes::new(*b";3files\\fmv\\intro.mpg\0"),
-            mflogo: crate::memory::session::PlainBytes::new(*b";3files\\fmv\\mflogo.mpg\0"),
-            allogo: crate::memory::session::PlainBytes::new(*b";3files\\fmv\\allogo.avi\0"),
+            intro: crate::memory::plain_buffer::PlainBuffer::new(*b";3files\\fmv\\intro.mpg\0"),
+            mflogo: crate::memory::plain_buffer::PlainBuffer::new(*b";3files\\fmv\\mflogo.mpg\0"),
+            allogo: crate::memory::plain_buffer::PlainBuffer::new(*b";3files\\fmv\\allogo.avi\0"),
         }
     }
 }

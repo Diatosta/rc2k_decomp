@@ -21,7 +21,7 @@ pub fn spin_matrix(course: &Course, matrices: &DrawPlain<SceneMatrices>, car: &C
     car.spin_length.set(rounded_value(vector_length(&car.spin)));
     // Tested as a dword: any bit set (a NaN too) means a spin.
     if car.spin_length.get().to_bits() != 0 {
-        let lists = course.lists.get();
+        let lists = course.turn_work();
         let turn = &lists.turn_matrix;
         unit_vector(course.reads(), &car.spin, &lists.spin_axis);
         lists

@@ -141,19 +141,15 @@ pub(super) fn init_mud(
     net_race: &rc2k_core::net::net_race::NetRaceSlot,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    course.lists.get().course_bytes_total.set(
-        course
-            .lists
-            .get()
-            .course_bytes_total
-            .get()
-            .wrapping_add(MUD_LEN),
-    );
+    {
+        let mut lists = course.lists.borrow_mut();
+        lists.course_bytes_total = lists.course_bytes_total.wrapping_add(MUD_LEN);
+    }
     let mud = load_mud(race.kind_tables(), &race.shared, net_race.get())?;
     course
         .stage
         .mud
-        .take(&course.lists.get().mud_list, MUD_LEN, mud)?;
+        .take(&course.memory().mud_list, MUD_LEN, mud)?;
     clear_mud_state(&race.shared);
     sample_mud_colours(&race.shared, scene, gfx, system)
 }

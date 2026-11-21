@@ -7,7 +7,7 @@
 
 use crate::clock::packed_local_time::packed_local_time;
 use crate::errors::Refused;
-use crate::files::write_file::write_file_from_store;
+use crate::files::write_file::write_file_from_buffer;
 use crate::owners::Owners;
 use crate::saves::options_state::capture;
 
@@ -27,7 +27,7 @@ pub(super) fn save_options(
     let pieces: Vec<&[u8]> = owned.iter().map(std::vec::Vec::as_slice).collect();
     let bytes = rc2k_core::saves::kept::options_file(packed_local_time(), &pieces);
     file.write_at(0, &bytes, "the scratch buffer")?;
-    Ok(write_file_from_store(
+    Ok(write_file_from_buffer(
         &crate::files::cstring(path, "the options file's path")?,
         file,
         file_len() as u32,
