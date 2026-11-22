@@ -7,7 +7,7 @@
 //!
 //! Returns i on the curve's path.
 
-use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::{CellX87, PlainX87};
 use crate::math::x87;
 use crate::math::x87::{lerp_table, trunc_mul_to_int};
 use crate::physics::figures::TORQUE_EASE;
@@ -36,36 +36,28 @@ pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene:
         let i = trunc_mul_to_int(s, course.numbers.eight.get()) as u32;
         scene.draw_work_mut().work_dword = i;
         let k = i as usize;
-        shared_store
-            .physics_tables
-            .get()
-            .engine_force
-            .set(lerp_table(
-                s,
-                crate::physics::figures::TORQUE_CURVE[k],
-                crate::physics::figures::TORQUE_CURVE[k + 1],
-                shared_store.physics_tables.get().spec_torque[k].get(),
-                shared_store.physics_tables.get().spec_torque[k + 1].get(),
-            ));
+        let force = lerp_table(
+            s,
+            crate::physics::figures::TORQUE_CURVE[k],
+            crate::physics::figures::TORQUE_CURVE[k + 1],
+            shared_store.physics_tables().spec_torque[k],
+            shared_store.physics_tables().spec_torque[k + 1],
+        );
+        shared_store.physics_tables_mut().engine_force = force;
     } else {
-        shared_store
-            .physics_tables
-            .get()
-            .engine_force
-            .set(x87::loaded(
-                shared_store.physics_tables.get().spec_torque[0].get(),
-            ));
+        let force = x87::loaded(shared_store.physics_tables().spec_torque[0]);
+        shared_store.physics_tables_mut().engine_force = force;
     }
     shared_store
-        .physics_tables
-        .get()
+        .physics_tables_mut()
         .engine_torque
         .st(
             shared_store.car().engine_speed.ld() / shared_store.car().engine_speed_limit.ld()
                 * crate::math::x87_float::ld(TORQUE_EASE),
         );
-    shared_store.physics_tables.get().engine_force.set(x87::mul(
-        &shared_store.physics_tables.get().engine_force,
+    let force = x87::mul(
+        shared_store.physics_tables().engine_force,
         &shared_store.car().engine_power_factor,
-    ));
+    );
+    shared_store.physics_tables_mut().engine_force = force;
 }

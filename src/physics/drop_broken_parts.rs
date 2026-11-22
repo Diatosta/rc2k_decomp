@@ -15,7 +15,7 @@ use rc2k_core::physics::parts::{BROKEN_BITS, breaks, broken_checked};
 // Core: `rc2k_core::physics::parts::{BROKEN_BITS, broken_checked, breaks}`.
 pub fn drop_broken_parts(
     numbers: &Numbers,
-    work: &RaceWork,
+    work: &mut RaceWork,
     car: &Car,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
@@ -24,7 +24,7 @@ pub fn drop_broken_parts(
             continue;
         }
         if !breaks(car.part_damage_limits[k].get(), || {
-            work.part_break_limits[k].get()
+            work.part_break_limits[k]
         }) {
             continue;
         }

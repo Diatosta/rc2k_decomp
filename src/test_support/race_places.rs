@@ -9,6 +9,7 @@ use crate::physics::camera_store::CameraWork;
 use crate::physics::contact_store::{ContactWork, ProbeLists};
 use crate::physics::ground_query::GroundSearch;
 use crate::physics::wheel_work::WheelWork;
+use crate::race::groups_store::ViewAndRecords;
 use std::sync::OnceLock;
 
 /// `(offset, store, field path)`, sorted by offset.
@@ -483,6 +484,50 @@ fn course_word<'a>(
     }
 }
 
+/// The view variables and records (plain fields, not cells): its registry name.
+const VIEW: &str = "owners.race.frame.view_and_records";
+
+/// How a field of the view variables or records is read and written as bits.
+type ViewBits = (fn(&ViewAndRecords) -> u32, fn(&mut ViewAndRecords, u32));
+
+/// The view variables' or records' field at `path` (the ones the recorded vectors touch).
+fn view_field(path: &str) -> Option<ViewBits> {
+    macro_rules! float {
+        ($($f:tt)+) => {
+            Some((
+                |v| v.$($f)+.to_bits(),
+                |v, b| v.$($f)+ = f32::from_bits(b),
+            ))
+        };
+    }
+    macro_rules! word {
+        ($($f:tt)+) => {
+            Some((|v| v.$($f)+, |v, b| v.$($f)+ = b))
+        };
+    }
+    match path {
+        ".view_vars.camera_bias_scale" => float!(view_vars.camera_bias_scale),
+        ".view_vars.camera_bias_limit" => float!(view_vars.camera_bias_limit),
+        ".view_vars.camera_vector[0]" => float!(view_vars.camera_vector[0]),
+        ".view_vars.camera_vector[1]" => float!(view_vars.camera_vector[1]),
+        ".view_vars.camera_vector[2]" => float!(view_vars.camera_vector[2]),
+        ".view_vars.camera_distance" => float!(view_vars.camera_distance),
+        ".records[1].focus[1]" => word!(records[1].focus[1]),
+        ".records[1].focus[2]" => word!(records[1].focus[2]),
+        ".records[2].focus[0]" => word!(records[2].focus[0]),
+        ".records[2].focus[1]" => word!(records[2].focus[1]),
+        ".records[2].focus[2]" => word!(records[2].focus[2]),
+        ".records[3].focus[0]" => word!(records[3].focus[0]),
+        ".records[3].focus[1]" => word!(records[3].focus[1]),
+        ".records[3].focus[2]" => word!(records[3].focus[2]),
+        ".records[6].offset[1]" => word!(records[6].offset[1]),
+        ".records[6].offset[2]" => word!(records[6].offset[2]),
+        ".records[6].angles[0]" => word!(records[6].angles[0]),
+        ".records[6].angles[1]" => word!(records[6].angles[1]),
+        _ => None,
+    }
+}
+
 /// The camera work (plain fields, not cells): its registry name.
 const CAMERA: &str = "owners.race.physics.camera";
 
@@ -559,6 +604,8 @@ fn work_field(path: &str) -> Option<WorkBits> {
 
 /// The start and tables work (not walked by path: its one place here is `view_share`).
 const TABLES: &str = "owners.race.shared.tables";
+/// The race's work variables (a plain record, not walked): its one place here is `patch_factors[1]`.
+const WORK: &str = "owners.race.shared.work";
 
 /// The best-line place and the camera shake (plain fields, not cells): their registry name.
 const LINE_AND_SHAKE: &str = "owners.scene.line_and_shake";
@@ -787,6 +834,9 @@ pub fn numbers() -> crate::race::numbers_store::Numbers {
     n
 }
 
+/// The physics' tables (a plain record): their registry name.
+const PHYSICS_TABLES: &str = "owners.race.shared.physics_tables";
+
 /// The engine tables (plain arrays, not cells): their registry name.
 const ENGINE_TABLES: &str = "owners.race.shared.buffers.engine_tables";
 
@@ -860,9 +910,26 @@ fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
         let tables = super::own::race().shared.buffers.engine_tables.borrow();
         return Some(tables.sines.get(n)?.to_bits().to_le_bytes().to_vec());
     }
+    if name == WORK && path == ".patch_factors[1]" {
+        let factor = super::own::race().shared.work().patch_factors[1];
+        return Some(factor.to_bits().to_le_bytes().to_vec());
+    }
+    if name == PHYSICS_TABLES {
+        let mut tables = super::own::race().shared.physics_tables().clone();
+        let word = tables.word_mut(path)?;
+        return Some(word.bits().to_le_bytes().to_vec());
+    }
     if name == TABLES && path == ".view_share" {
         let share = super::own::race().shared.tables().view_share.get();
         return Some(share.to_bits().to_le_bytes().to_vec());
+    }
+    if name == VIEW {
+        let (get, _) = view_field(path)?;
+        return Some(
+            get(&super::own::race().frame.view_and_records.borrow())
+                .to_le_bytes()
+                .to_vec(),
+        );
     }
     if name == CAMERA {
         let (get, _) = camera_field(path)?;
@@ -995,12 +1062,41 @@ fn set_store_bytes(name: &str, path: &str, bytes: &[u8]) -> bool {
         *entry = f32::from_bits(u32::from_le_bytes(word));
         return true;
     }
+    if name == WORK && path == ".patch_factors[1]" {
+        let Ok(word) = <[u8; 4]>::try_from(bytes) else {
+            return false;
+        };
+        super::own::race().shared.work_mut().patch_factors[1] =
+            f32::from_bits(u32::from_le_bytes(word));
+        return true;
+    }
+    if name == PHYSICS_TABLES {
+        let Ok(word) = <[u8; 4]>::try_from(bytes) else {
+            return false;
+        };
+        let mut tables = super::own::race().shared.physics_tables_mut();
+        let Some(slot) = tables.word_mut(path) else {
+            return false;
+        };
+        slot.set_bits(u32::from_le_bytes(word));
+        return true;
+    }
     if name == TABLES && path == ".view_share" {
         let Ok(word) = <[u8; 4]>::try_from(bytes) else {
             return false;
         };
         let share = &super::own::race().shared.tables().view_share;
         share.set(f32::from_bits(u32::from_le_bytes(word)));
+        return true;
+    }
+    if name == VIEW {
+        let (Some((_, set)), Ok(word)) = (view_field(path), <[u8; 4]>::try_from(bytes)) else {
+            return false;
+        };
+        set(
+            &mut super::own::race().frame.view_and_records.borrow_mut(),
+            u32::from_le_bytes(word),
+        );
         return true;
     }
     if name == CAMERA {

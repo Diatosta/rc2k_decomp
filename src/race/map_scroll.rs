@@ -191,7 +191,7 @@ pub(super) fn scroll_maps(
     );
     for &v in views {
         let car = view_car(race.shared.view.get(), v).get() & 7;
-        if !race.shared.work.get().has_car_block(car as usize) {
+        if !race.shared.work().has_car_block(car as usize) {
             return Err(BadInput("a view car without its block").into());
         }
     }

@@ -69,7 +69,7 @@ pub(super) fn corner_hits_car(
     {
         crate::physics::restore_saved_car::restore_saved_car(
             c.car,
-            c.tables,
+            &mut c.tables.borrow_mut(),
             &c.ground.probes.borrow(),
         )
     }?;

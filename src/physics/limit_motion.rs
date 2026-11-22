@@ -55,7 +55,7 @@ pub fn limit_motion(car: &Car, tables: &PhysicsTables) {
         hold(&car.velocity.cell_at(k), VELOCITY_LIMIT.to_bits());
     }
     let length = rounded_value(vector_length(&car.velocity));
-    let top = tables.top_speed.get();
+    let top = tables.top_speed;
     let past =
         matches!(top.partial_cmp(&length), Some(Ordering::Less)) || top.is_nan() || length.is_nan();
     if past {

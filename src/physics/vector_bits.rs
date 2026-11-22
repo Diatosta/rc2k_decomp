@@ -3,7 +3,7 @@
 //! `turn_by_inverse` and `turn_by_car_matrix`) taking and returning values: the contact work's
 //! vectors go through these.
 
-use crate::math::cells::{Cells, load};
+use crate::math::cells::{Cells, Words, load};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::math::x87_float::{ld, st};
@@ -53,7 +53,7 @@ pub fn turn(m: &(impl Cells + ?Sized), v: [u32; 3]) -> [u32; 3] {
 }
 
 /// The first three cells' bits.
-pub fn bits_of(cells: &(impl Cells + ?Sized)) -> [u32; 3] {
+pub fn bits_of(cells: &(impl Words + ?Sized)) -> [u32; 3] {
     load(cells)
 }
 

@@ -3,6 +3,7 @@
 //! probe, the contact steps (which hold the other two), the camera, the reset chain and the
 //! clear-place search, the checkpoints, the lighting and the moving slots.
 
+use crate::memory::session::DrawArc;
 use crate::memory::session::DrawPlain;
 use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
@@ -33,7 +34,7 @@ pub struct SoundInputs<'a> {
     /// The car whose camera the sounds are placed against (`race::heard_cars::listener`).
     pub listener: &'a Car,
     pub numbers: &'a Numbers,
-    pub work: &'a RaceWork,
+    pub work: &'a DrawArc<RaceWork>,
     pub frame_work: &'a FrameWorkStore,
     pub matrices: &'a DrawPlain<SceneMatrices>,
     pub view_turn: crate::scene::matrix::Matrix,
@@ -49,7 +50,7 @@ pub struct SoundInputs<'a> {
 pub struct GroundInputs<'a> {
     pub car: &'a Car,
     pub numbers: &'a Numbers,
-    pub tables: &'a PhysicsTables,
+    pub tables: &'a DrawArc<PhysicsTables>,
     pub course: &'a Course,
     pub contact: &'a RefCell<ContactWork>,
     pub probes: &'a RefCell<ProbeLists>,
@@ -76,14 +77,14 @@ pub struct CameraInputs<'a> {
     pub car: &'a Car,
     pub course: &'a Course,
     pub numbers: &'a Numbers,
-    pub tables: &'a PhysicsTables,
+    pub tables: &'a DrawArc<PhysicsTables>,
     pub camera: &'a RefCell<CameraWork>,
     /// The replay still flag (`SplitTables.still`), as it is when the inputs are built.
     pub still: u32,
     pub race_tables: &'a RaceTables,
     pub shared: &'a RaceShared,
     pub frame_work: &'a FrameWorkStore,
-    pub view_records: &'a ViewAndRecords,
+    pub view_records: &'a DrawArc<ViewAndRecords>,
     pub lights_data: &'a LightsData,
     pub step_first: u32,
     pub checkpoints: crate::race::checkpoints_store::CheckpointsRef<'a>,
@@ -97,11 +98,11 @@ pub struct CameraInputs<'a> {
 pub struct ContactInputs<'a> {
     pub car: &'a Car,
     pub numbers: &'a Numbers,
-    pub tables: &'a PhysicsTables,
+    pub tables: &'a DrawArc<PhysicsTables>,
     pub course: &'a Course,
     pub contact: &'a RefCell<ContactWork>,
     pub lit_faces: &'a crate::physics::lit_faces_store::LitFacesStore,
-    pub work: &'a RaceWork,
+    pub work: &'a DrawArc<RaceWork>,
     pub frame: &'a crate::race::owner_frame::Frame,
     pub shared: &'a RaceShared,
     pub ground: GroundInputs<'a>,
@@ -117,9 +118,9 @@ pub struct ResetInputs<'a> {
     pub physics: &'a Physics,
     pub car: &'a Car,
     pub numbers: &'a Numbers,
-    pub tables: &'a PhysicsTables,
+    pub tables: &'a DrawArc<PhysicsTables>,
     pub course: &'a Course,
-    pub work: &'a RaceWork,
+    pub work: &'a DrawArc<RaceWork>,
     pub shared: &'a RaceShared,
     pub vars: &'a RaceVars,
     pub view: &'a RaceView,
@@ -157,8 +158,8 @@ pub struct CheckpointInputs<'a> {
     pub numbers: &'a Numbers,
     pub shared: &'a RaceShared,
     pub car: &'a Car,
-    pub tables: &'a PhysicsTables,
-    pub work: &'a RaceWork,
+    pub tables: &'a DrawArc<PhysicsTables>,
+    pub work: &'a DrawArc<RaceWork>,
     pub vars: &'a RaceVars,
     pub frame_work: &'a FrameWorkStore,
     /// The finish state's "no place" switch.
@@ -184,7 +185,7 @@ pub struct LightingInputs<'a> {
 pub struct WheelInputs<'a> {
     pub car: &'a Car,
     pub numbers: &'a Numbers,
-    pub tables: &'a PhysicsTables,
+    pub tables: &'a DrawArc<PhysicsTables>,
     pub course: &'a Course,
     pub shared: &'a RaceShared,
     pub probes: &'a RefCell<ProbeLists>,
@@ -197,9 +198,9 @@ pub struct WheelInputs<'a> {
 #[derive(Clone, Copy)]
 pub struct SlotInputs<'a> {
     pub numbers: &'a Numbers,
-    pub tables: &'a PhysicsTables,
+    pub tables: &'a DrawArc<PhysicsTables>,
     pub course: &'a Course,
-    pub work: &'a RaceWork,
+    pub work: &'a DrawArc<RaceWork>,
     pub matrices: &'a DrawPlain<SceneMatrices>,
     pub search: &'a RefCell<GroundSearch>,
     pub probe: &'a RefCell<GroundProbe>,
@@ -217,7 +218,7 @@ impl<'a> StepInputs<'a> {
             race_tables: self.race_tables,
             shared: self.shared,
             frame_work: &self.frame.frame_work,
-            view_records: self.frame.view_and_records.get(),
+            view_records: &self.frame.view_and_records,
             lights_data: self.course.lights_data(),
             step_first: self.step_first,
             checkpoints: self.shared.checkpoints(),

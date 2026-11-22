@@ -146,7 +146,7 @@ fn copy_header_settings_of(
     let shared = &race.shared;
     let settings = &shared.state.settings;
     let car = &settings.cars[0];
-    let patches = shared.work.get().patch_settings();
+    let [_, patches @ ..] = shared.work().patches;
     // (bytes, place in the sealed header, value)
     let cells: [(usize, usize, u32); 30] = [
         (
@@ -181,19 +181,19 @@ fn copy_header_settings_of(
         (1, 0x44, car.steering_sensitivity.get()),
         (1, 0x45, car.ride_height.get()),
         (1, 0x46, car.suspension_stiffness.get()),
-        (1, 0x47, shared.work.get().patch_switch().get()),
-        (1, 0x48, patches[0].get()),
-        (1, 0x49, patches[1].get()),
-        (2, 0x4A, patches[2].get()),
-        (4, 0x4C, patches[3].get()),
-        (2, 0x50, patches[4].get()),
-        (2, 0x52, patches[5].get()),
-        (2, 0x54, patches[6].get()),
-        (2, 0x56, patches[7].get()),
-        (2, 0x58, patches[8].get()),
-        (2, 0x5A, patches[9].get()),
-        (2, 0x5C, patches[10].get()),
-        (2, 0x5E, patches[11].get()),
+        (1, 0x47, shared.work().patch_switch()),
+        (1, 0x48, patches[0]),
+        (1, 0x49, patches[1]),
+        (2, 0x4A, patches[2]),
+        (4, 0x4C, patches[3]),
+        (2, 0x50, patches[4]),
+        (2, 0x52, patches[5]),
+        (2, 0x54, patches[6]),
+        (2, 0x56, patches[7]),
+        (2, 0x58, patches[8]),
+        (2, 0x5A, patches[9]),
+        (2, 0x5C, patches[10]),
+        (2, 0x5E, patches[11]),
     ];
     for (size, at, value) in cells {
         put_header(&mut work.sealed_header, at, &value.to_le_bytes()[..size])?;
@@ -417,12 +417,8 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
         w.header_codriver_sex_0 = shared.state.settings.cars[0].codriver_sex.get();
         w.header_codriver_sex_1 = shared.state.settings.cars[1].codriver_sex.get();
         w.patches_in_header = 6;
-        for (to, from) in w
-            .header_patches
-            .iter_mut()
-            .zip(crate::race::replay_patches::switches(shared))
-        {
-            *to = from.get();
+        for (to, from) in w.header_patches.iter_mut().zip(shared.work().patches) {
+            *to = from;
         }
     }
     seal_replay_header(race, o.menus, o.strings)?;
@@ -489,7 +485,6 @@ mod header_tests {
 
     const LOCALE: &str = "owners.strings.language.locale";
     const SEASON_CODE: &str = "owners.race.shared.replay_file.season_code";
-    const WORK: &str = "owners.race.shared.work";
     const STATE: &str = "owners.race.shared.state";
     #[derive(Clone, Copy)]
     enum Dest {
@@ -511,8 +506,10 @@ mod header_tests {
         Cheats,
         /// The replay buffers' header (a plain buffer, not walked), from byte `offset`.
         Header(usize),
+        /// The race work's patch dword `n` (a plain record, not walked).
+        Patch(usize),
     }
-    use Source::{Bytes, Cell, Cheats, Header};
+    use Source::{Bytes, Cell, Cheats, Header, Patch};
 
     /// The header's copies: (bytes, where they are written, the store read and the field in it).
     /// The header's own layout is the file's, so the destinations stay byte positions.
@@ -570,19 +567,19 @@ mod header_tests {
             STATE,
             Cell(".settings.cars[0].own.suspension_stiffness"),
         ),
-        (1, Sealed(0x47), WORK, Cell(".patches[0]")),
-        (1, Sealed(0x48), WORK, Cell(".patches[1]")),
-        (1, Sealed(0x49), WORK, Cell(".patches[2]")),
-        (2, Sealed(0x4A), WORK, Cell(".patches[3]")),
-        (4, Sealed(0x4C), WORK, Cell(".patches[4]")),
-        (2, Sealed(0x50), WORK, Cell(".patches[5]")),
-        (2, Sealed(0x52), WORK, Cell(".patches[6]")),
-        (2, Sealed(0x54), WORK, Cell(".patches[7]")),
-        (2, Sealed(0x56), WORK, Cell(".patches[8]")),
-        (2, Sealed(0x58), WORK, Cell(".patches[9]")),
-        (2, Sealed(0x5A), WORK, Cell(".patches[10]")),
-        (2, Sealed(0x5C), WORK, Cell(".patches[11]")),
-        (2, Sealed(0x5E), WORK, Cell(".patches[12]")),
+        (1, Sealed(0x47), "", Patch(0)),
+        (1, Sealed(0x48), "", Patch(1)),
+        (1, Sealed(0x49), "", Patch(2)),
+        (2, Sealed(0x4A), "", Patch(3)),
+        (4, Sealed(0x4C), "", Patch(4)),
+        (2, Sealed(0x50), "", Patch(5)),
+        (2, Sealed(0x52), "", Patch(6)),
+        (2, Sealed(0x54), "", Patch(7)),
+        (2, Sealed(0x56), "", Patch(8)),
+        (2, Sealed(0x58), "", Patch(9)),
+        (2, Sealed(0x5A), "", Patch(10)),
+        (2, Sealed(0x5C), "", Patch(11)),
+        (2, Sealed(0x5E), "", Patch(12)),
     ];
 
     fn old_copy() -> Result<(), BadInput> {
@@ -590,6 +587,7 @@ mod header_tests {
             let bytes = match source {
                 Cheats => menus().play.cheats.read().cheats.to_le_bytes()[..size].to_vec(),
                 Header(skip) => race().shared.replays().header.read()[skip..skip + size].to_vec(),
+                Patch(n) => race().shared.work().patches[n].to_le_bytes()[..size].to_vec(),
                 Bytes(path, skip) => {
                     let walk = crate::test_support::state::walk(from);
                     walk.path_bytes(path).expect("a field of the store")[skip..skip + size].to_vec()
@@ -623,7 +621,7 @@ mod header_tests {
         let shared = &race().shared;
         let settings = &shared.state.settings;
         let car = &settings.cars[0];
-        let mut cells: Vec<&dyn DwordLike> = vec![
+        let cells: Vec<&dyn DwordLike> = vec![
             &settings.stage,
             &settings.run_kind,
             &settings.car_kind_current,
@@ -639,14 +637,7 @@ mod header_tests {
             &car.suspension_stiffness,
             &shared.replay_file().season_code,
         ];
-        cells.extend(
-            shared
-                .work
-                .get()
-                .patches
-                .iter()
-                .map(|c| c as &dyn DwordLike),
-        );
+        let kept_patches = shared.work().patches;
         let locale = &crate::test_support::own::strings().language.locale;
         let header = &shared.replays().header;
         let kept_cells: Vec<u32> = cells.iter().map(|c| c.get()).collect();
@@ -661,6 +652,9 @@ mod header_tests {
             let mut state = seed;
             for c in &cells {
                 c.set(next(&mut state) as u32);
+            }
+            for patch in &mut shared.work_mut().patches {
+                *patch = next(&mut state) as u32;
             }
             menus().play.cheats.write().cheats = next(&mut state) as u32;
             locale.set(8, next(&mut state) as u8);
@@ -691,6 +685,7 @@ mod header_tests {
         for (c, v) in cells.iter().zip(kept_cells) {
             c.set(v);
         }
+        shared.work_mut().patches = kept_patches;
         menus().play.cheats.write().cheats = kept_cheats;
         locale.set(8, kept_locale);
         for (i, b) in kept_header.into_iter().enumerate() {

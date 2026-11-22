@@ -17,16 +17,14 @@ use rc2k_core::drive::replay_frames::plays_inputs;
 /// Does a computer drive this step?
 fn computer(shared: &RaceShared, net: &crate::net::owner::Net) -> bool {
     // A test's switch (`tools/remote.py pilot`): the computer at a player's wheel.
-    if crate::remote::autodrive()
-        && shared.work.get().current_car.get() < shared.view.get().players.get()
-    {
+    if crate::remote::autodrive() && shared.work().current_car < shared.view.get().players.get() {
         return true;
     }
     // A network race's computer drivers: every machine drives them, the host's messages keep
     // the copies together.
-    net.race_slot.is_bot(shared.work.get().current_car.get())
+    net.race_slot.is_bot(shared.work().current_car)
         || computer_drives(
-            shared.work.get().in_credits.is_set(),
+            shared.work().in_credits != 0,
             || shared.vars.get().run_kind.get(),
             || shared.car().driver_kind.get(),
         )
@@ -47,7 +45,7 @@ pub fn read_car_controls(
         // `drive_computer_car`'s refusal, before anything here is written.
         let reaches = crate::math::x87::compare_full(
             race_owner.shared.car().crash_matrix.at(5),
-            &race_owner.shared.work.get().driver_tilt_limit,
+            race_owner.shared.work().driver_tilt_limit,
         ) & 0x100
             == 0;
         if reaches {
@@ -72,8 +70,7 @@ pub fn read_car_controls(
     // A held race (`RC2K_HELD_RACE`) takes no key from the players: a key still held from the
     // menus (the test's Return) would reach the car at a tick that depends on the timing.
     if crate::remote::held_race()
-        && race_owner.shared.work.get().current_car.get()
-            < race_owner.shared.view.get().players.get()
+        && race_owner.shared.work().current_car < race_owner.shared.view.get().players.get()
     {
         race_owner.shared.car().input_keys.set(0);
     }
@@ -95,8 +92,7 @@ pub fn read_car_controls(
     }
     let network_game = net.race_slot.is_on();
     if network_game
-        || race_owner.shared.work.get().current_car.get()
-            < race_owner.shared.view.get().players.get()
+        || race_owner.shared.work().current_car < race_owner.shared.view.get().players.get()
     {
         if pressed & FLIP_BIT != 0 {
             race_owner
@@ -119,44 +115,34 @@ pub fn read_car_controls(
     if !computer(&race_owner.shared, net) {
         return Ok(());
     }
-    race_owner
-        .shared
-        .work
-        .get()
-        .driver_slot
-        .set(race_owner.shared.work.get().current_car.get());
+    let current_car = race_owner.shared.work().current_car;
+    race_owner.shared.work_mut().driver_slot = current_car;
     start_blend(race, scene);
-    race_owner
-        .shared
-        .work
-        .get()
-        .driver_start_blend
-        .set(x87::loaded(&race_owner.shared.car().start_blend));
+    let blend = x87::loaded(&race_owner.shared.car().start_blend);
+    race_owner.shared.work_mut().driver_start_blend = blend;
     // A test's switch (`tools/remote.py pilot`): a player's car has no computer's skill
     // (its blend near 0 holds the wanted speed down), so it drives at the full blend.
     if crate::remote::autodrive()
-        && race_owner.shared.work.get().current_car.get()
-            < race_owner.shared.view.get().players.get()
+        && race_owner.shared.work().current_car < race_owner.shared.view.get().players.get()
     {
-        race_owner.shared.work.get().driver_start_blend.set(1.0f32);
+        race_owner.shared.work_mut().driver_start_blend = 1.0f32;
     }
     drive_computer_car(race, scene)?;
     {
-        let w = race_owner.shared.work.get();
+        let w = race_owner.shared.work();
         let mut run = race_owner.shared.run_mut();
         let inputs = &mut run.gear_inputs;
-        inputs.steer = w.driver_steer.get();
-        inputs.first = w.driver_throttle.get();
-        inputs.second = w.driver_brake.get();
-        inputs.hold = w.driver_flags[0].get();
-        inputs.gear_up = w.driver_flags[1].get();
-        inputs.gear_down = w.driver_flags[2].get();
+        inputs.steer = w.driver_steer;
+        inputs.first = w.driver_throttle;
+        inputs.second = w.driver_brake;
+        inputs.hold = w.driver_flags[0];
+        inputs.gear_up = w.driver_flags[1];
+        inputs.gear_down = w.driver_flags[2];
     }
     // A test's switch (`tools/remote.py pilot`): a stalled car reset as a player would,
     // with the reset key.
     if crate::remote::autodrive()
-        && race_owner.shared.work.get().current_car.get()
-            < race_owner.shared.view.get().players.get()
+        && race_owner.shared.work().current_car < race_owner.shared.view.get().players.get()
     {
         let keys =
             crate::remote::autodrive_keys(race_owner, race_owner.shared.car().checkpoint.get());

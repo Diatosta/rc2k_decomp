@@ -48,7 +48,7 @@ struct GameFace<'a>(
     &'a crate::scene::object_place::ObjectPlace,
     &'a crate::race::car_draw_state::CarDrawState,
     &'a crate::physics::car_store::ViewCar,
-    &'a crate::race::view_vars_store::ViewVarsCopy,
+    &'a crate::race::plain_slot::PlainSlot<crate::race::view_vars_store::ViewVarsCopy>,
     crate::scene::workers::DrawReads<'a>,
 );
 
@@ -131,13 +131,13 @@ impl FaceWorld for GameFace<'_> {
     }
     fn line_value(&self, extra: u32) -> Result<u32, rc2k_core::Invalid> {
         {
-            let which: u32 = self.6.drawn_car.get();
+            let which: u32 = self.6.borrow().drawn_car;
             if which >= BLOCKS || !self.7.work.has_car_block(which as usize) {
                 return Err(rc2k_core::Invalid("no block for a face of kind 0x1C"));
             }
             // The core asks for 1 ..= 6: the six parts' wake counts.
             crate::race::owner_shared::RaceShared::race_car_or_end_in(
-                self.7.work,
+                &self.7.work.borrow(),
                 self.7.car_blocks,
                 which as usize,
             )

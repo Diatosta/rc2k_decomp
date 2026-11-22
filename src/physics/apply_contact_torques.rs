@@ -29,9 +29,7 @@ pub(super) fn apply_contact_torques(
     contact: &RefCell<ContactWork>,
     car: &Car,
 ) -> Result<(), Refused> {
-    apply_contact_torques_with(
-        tables.contact_step.get(),
-        &tables.contacts[..COUNT],
-        |records| apply_torques(numbers, contact, car, records),
-    )
+    apply_contact_torques_with(tables.contact_step, &tables.contacts[..COUNT], |records| {
+        apply_torques(numbers, contact, car, records)
+    })
 }

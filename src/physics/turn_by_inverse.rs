@@ -4,10 +4,12 @@
 //!
 //! See `physics/turn_by_car_matrix.rs` (the core and the test).
 
-use crate::math::cells::Cells;
+use crate::math::matrix3::{extended, rounded_value};
 use crate::physics::car_store::Car;
-use crate::physics::turn_by_car_matrix::turn_cells;
+use crate::scene::rotate_point::rotate_point;
 
-pub(super) fn turn_by_inverse(car: &Car, v: &(impl Cells + ?Sized)) {
-    turn_cells(&car.car_inverse_matrix, v);
+/// The vector `v`, in floats, turned by the car's inverse matrix.
+pub(super) fn turn_by_inverse(car: &Car, v: &mut [f32; 3]) {
+    let out = rotate_point(&car.car_inverse_matrix, v.map(extended));
+    *v = out.map(rounded_value);
 }

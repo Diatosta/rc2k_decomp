@@ -56,7 +56,7 @@ pub fn set_object_light(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     let place = object.borrow().place;
     light.borrow_mut().lit_place = place;
     if own_car {
-        light.borrow_mut().drawn_car_light = vars.drawn_car.get();
+        light.borrow_mut().drawn_car_light = vars.borrow().drawn_car;
     }
     light.borrow_mut().light_colour = 0u32;
     let drawn_car = ctx.view.light.borrow().drawn_car_light;

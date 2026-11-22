@@ -38,9 +38,9 @@ use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 use rc2k_core::physics::gearbox::GearInputs;
 
 /// Up.
-fn up(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
+fn up(car: &Car, tables: &mut PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
     let gear = car.gear.get();
-    if let Some(shift) = shifts::manual_up(gear, || tables.gear_count.get()) {
+    if let Some(shift) = shifts::manual_up(gear, || tables.gear_count) {
         return Ok(shift);
     }
     wheels(car, tables)?;
@@ -54,7 +54,7 @@ fn up(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Ref
 }
 
 /// Down.
-fn down(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
+fn down(car: &Car, tables: &mut PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
     let gear = car.gear.get();
     if let Some(shift) = shifts::manual_down(gear) {
         return Ok(shift);
@@ -65,7 +65,7 @@ fn down(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, R
     };
     car.gear.set(to);
     revs(car, tables, numbers)?;
-    if !below(&car.engine_speed, &tables.rev_limit) {
+    if !below(&car.engine_speed, tables.rev_limit) {
         car.gear.set(car.gear.get().wrapping_add(1));
         revs(car, tables, numbers)?;
         car.gear_change_hold.set(shifts::HOLD);
@@ -81,7 +81,7 @@ fn down(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, R
 /// step).
 pub fn reverse(
     car: &Car,
-    tables: &PhysicsTables,
+    tables: &mut PhysicsTables,
     numbers: &Numbers,
     quarter: bool,
 ) -> Result<(), Refused> {
@@ -101,7 +101,7 @@ pub fn reverse(
 /// The start-line rules.
 fn start_line(
     car: &Car,
-    tables: &PhysicsTables,
+    tables: &mut PhysicsTables,
     inputs: &GearInputs,
     gear_figures: &GearFigures,
 ) -> Result<Shift, Refused> {
@@ -149,7 +149,7 @@ fn start_line(
 // Core: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
 pub(super) fn manual_gearbox(
     car: &Car,
-    tables: &PhysicsTables,
+    tables: &mut PhysicsTables,
     inputs: &GearInputs,
     numbers: &Numbers,
     gear_figures: &GearFigures,

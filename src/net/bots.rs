@@ -118,7 +118,7 @@ fn place_like_arcade(
     );
     let c = crate::physics::step_inputs::StepInputs::of(race).reset();
     for (k, place) in places.into_iter().enumerate() {
-        shared.work.get().current_car.set(players + k as u32);
+        shared.work_mut().current_car = players + k as u32;
         crate::drive::load_car::load_car(shared)?;
         scene.line_and_shake_mut().line_place = place;
         scene.line_and_shake_mut().line_fraction = 0;

@@ -53,7 +53,8 @@ const SETTLE_MARK: u32 = 0x80;
 #[derive(Clone, Copy)]
 pub struct ProbeInputs<'a> {
     pub numbers: &'a crate::race::numbers_store::Numbers,
-    pub tables: &'a crate::physics::tables_store::PhysicsTables,
+    /// `PhysicsTables.handling[2]` and `handling[3]`.
+    pub handling: [f32; 2],
     pub course: crate::race::owner_course::CourseReads<'a>,
     pub engine_tables: crate::math::engine_tables::EngineTablesRef<'a>,
 }
@@ -62,7 +63,10 @@ impl<'a> ProbeInputs<'a> {
     pub(super) fn of_ground(c: &GroundInputs<'a>) -> Self {
         ProbeInputs {
             numbers: c.numbers,
-            tables: c.tables,
+            handling: {
+                let tables = c.tables.borrow();
+                [tables.handling[2], tables.handling[3]]
+            },
             course: c.course.reads(),
             engine_tables: c.engine_tables,
         }
@@ -113,10 +117,10 @@ fn probe_points(
             (add, _) = ground::wheel_lifted(car.parts_present.get(), b);
             less_plus_less_product_80(
                 &car.probe_point_y[6],
-                &c.tables.handling[2],
+                c.handling[0],
                 add.then_some(PROBE_LIFT),
                 PROBE_SHARE,
-                &c.tables.handling[3],
+                c.handling[1],
             )
         } else {
             extended(y)

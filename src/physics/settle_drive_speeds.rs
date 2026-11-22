@@ -92,7 +92,7 @@ fn settle_drive_speeds_at(
 pub(super) fn settle_drive_speeds(numbers: &Numbers, shared: &RaceShared) -> Result<(), Refused> {
     settle_drive_speeds_at(
         numbers,
-        &GearPlaces::game(shared.car(), shared.physics_tables.get()),
+        &GearPlaces::game(shared.car(), &shared.physics_tables()),
         &SettlePlaces::game(shared),
     )
 }

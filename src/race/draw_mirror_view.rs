@@ -39,7 +39,7 @@ pub fn draw_mirror_view(
 ) -> Result<Option<crate::race::draw_view_scene::ViewOutput>, Refused> {
     view.take_vars(reads);
     if reads.no_place != 0
-        || reads.work.in_credits.is_set()
+        || reads.work.in_credits()
         || (reads.switches.scene_set_up() == 0 && !always())
     {
         return Ok(None);
@@ -49,8 +49,8 @@ pub fn draw_mirror_view(
     // while its own part may be writing it.
     view.course.borrow_mut().view_value_kept =
         reads.stage_prefs.read(|p| p.grid_reach).wrapping_mul(0x20);
-    let saved = view.vars.view_scale.get();
-    view.vars.view_scale.set(reads.numbers.k256.get());
+    let saved = view.vars.borrow().view_scale;
+    view.vars.borrow_mut().view_scale = reads.numbers.k256.get();
     let drawn = (|| {
         crate::race::frame_views::mirror_view_window(race, view, part, reads)?;
         view.polygon.window.borrow_mut().view_depth[1] = view.course.borrow().view_value_kept;
@@ -61,7 +61,7 @@ pub fn draw_mirror_view(
             race, scene, input, view, [0; 3], part, reads, None,
         )
     })();
-    view.vars.view_scale.set(saved);
+    view.vars.borrow_mut().view_scale = saved;
     // The full window the front end uses after the mirror is set again in `race::draw_race_scene`.
     drawn.map(Some)
 }

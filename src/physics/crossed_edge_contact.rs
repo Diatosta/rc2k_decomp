@@ -13,6 +13,7 @@ use crate::math::x87::mul;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ProbeLists;
 use crate::physics::step_families::ContactInputs;
+use crate::physics::tables_store::RecordAt;
 use crate::physics::vector_bits::bits_of;
 use crate::physics::wall_edge_contact::edge_normal;
 use rc2k_core::physics::walls;
@@ -89,7 +90,13 @@ pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
         work.contact_point = point;
         work.contact_slide_limit = 0;
     }
-    contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[1]);
+    contact_force(
+        c.contact,
+        c.numbers,
+        &mut c.tables.borrow_mut(),
+        c.car,
+        RecordAt::Contact(1),
+    );
     { crate::physics::place_sound_e1::place_sound_e1(&c.sound) }?;
     Ok(())
 }

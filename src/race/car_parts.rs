@@ -43,17 +43,14 @@ fn car_part_matrices(
     // `c` is the block (the shown steering, the marks on), `part` the car's drawing state (the shown
     // speed, the switches, the marks), `p` the car as the drawing sees it (`frame_view`).
     let c = race.shared.race_car(car)?;
-    let block_number = race.shared.work.get().block_number(car)?;
+    let block_number = race.shared.work().block_number(car)?;
     let p = race.frame.cars.car(block_number)?;
     let Some(ax) = axles(race, p.car_kind.get())? else {
         return Err(BadInput("a car model whose axle scaling would fault").into());
     };
     let mut shown = loaded(&p.engine_speed);
-    if below_or_unordered(
-        shown,
-        race.shared.physics_tables.get().idle_engine_speed.get(),
-    ) {
-        shown = loaded(&race.shared.physics_tables.get().idle_engine_speed);
+    if below_or_unordered(shown, race.shared.physics_tables().idle_engine_speed) {
+        shown = loaded(race.shared.physics_tables().idle_engine_speed);
     }
     let on = p.lights_on.get();
     let s = mark_switches(&PartState {
@@ -189,7 +186,7 @@ pub(super) fn ready_car_parts(
     use rc2k_core::race::car_parts::{check_part_cars, parts_shown};
     let count = race.shared.view.get().race_cars.get();
     check_part_cars(count, |n| {
-        u32::from(race.shared.work.get().has_car_block(n as usize))
+        u32::from(race.shared.work().has_car_block(n as usize))
     })?;
     // With no cars the loop still looks at car 0.
     let mut c = 0u32;
@@ -197,7 +194,7 @@ pub(super) fn ready_car_parts(
         let car = c as usize;
         // Refused when the car has no block.
         race.shared.race_car(car)?;
-        let block_number = race.shared.work.get().block_number(car)?;
+        let block_number = race.shared.work().block_number(car)?;
         let view = race.frame.cars.car(block_number)?;
         if parts_shown(view.driver_kind.get()) {
             car_part_matrices(race, car, scene)?;

@@ -14,7 +14,7 @@ use rc2k_core::physics::parts::{part_number, take_bit};
 // Core: `rc2k_core::physics::parts::{take_bit, part_number}`.
 pub(super) fn fill_slot_on_bit(
     numbers: &Numbers,
-    work: &RaceWork,
+    work: &mut RaceWork,
     car: &Car,
     bit: u32,
     scene: &crate::scene::owner::Scene,
@@ -23,7 +23,7 @@ pub(super) fn fill_slot_on_bit(
     let Some(cleared) = cleared else {
         return Ok(());
     };
-    let Some(part) = part_number(work.current_car.get(), bit) else {
+    let Some(part) = part_number(work.current_car, bit) else {
         return Err(BadInput("a part past 0xFF").into());
     };
     car.parts_present.set(cleared);

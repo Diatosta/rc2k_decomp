@@ -482,7 +482,7 @@ pub fn wake_part_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Resu
     if cars > 8 {
         return Err(BadInput("more than eight race cars").into());
     }
-    let current: u32 = shared.work.get().current_car.get();
+    let current: u32 = shared.work().current_car;
     // The plan: (block slot to set, whether to wake the object) by car.
     let mut plan: Vec<&dyn crate::memory::session::DwordLike> = Vec::new();
     let mut woken: Vec<&crate::sound::store::SoundObjectCell> = Vec::new();
@@ -552,13 +552,13 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
         if car > 7 {
             return Err(BadInput("a neighbour's car past the eight").into());
         }
-        if !shared.work.get().has_car_block(car as usize) {
+        if !shared.work().has_car_block(car as usize) {
             return Err(BadInput("a neighbour's block is null").into());
         }
         Ok(race
             .frame
             .cars
-            .car(shared.work.get().block_number(car as usize)?)?)
+            .car(shared.work().block_number(car as usize)?)?)
     };
     let behind = block_of(on(Listed::ComputerEaseSpeed, place.wrapping_add(1))?)?;
     let ahead = block_of(on(Listed::ComputerEaseSpeed, place)?)?;
@@ -777,7 +777,7 @@ pub(super) fn check_panel_neighbours(
         let car = shared
             .tables()
             .dword_from(Listed::ComputerEaseSpeed, n as usize)?;
-        if car > 7 || !shared.work.get().has_car_block(car as usize) {
+        if car > 7 || !shared.work().has_car_block(car as usize) {
             return Err(BadInput("a neighbour's car past the eight or null").into());
         }
     }
@@ -812,5 +812,5 @@ pub fn reset_lamps(ctx: &crate::race::view_scratch::DrawCtx) -> Result<(), BadIn
 
 /// Holds `value` to `patch_settings` (unsigned).
 pub fn hold_to_limit(work: &crate::race::work_store::RaceWork, value: u32) -> u32 {
-    rc2k_core::race::frame::hold_to_limit(value, work.patch_settings()[0].get())
+    rc2k_core::race::frame::hold_to_limit(value, work.patch_settings()[0])
 }

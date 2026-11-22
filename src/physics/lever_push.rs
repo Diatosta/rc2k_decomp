@@ -21,7 +21,7 @@ pub(super) fn lever_push(
 ) {
     let place = turn(&car.car_inverse_matrix, bits_of(&car.spin));
     let mut turned = turn(&car.crash_matrix, cross(lever, place));
-    for factor in [share_left, tables.lever_share.get()] {
+    for factor in [share_left, tables.lever_share] {
         turned = scale(turned, extended(factor));
     }
     for (from, axis) in [(turned[0], 0), (turned[2], 2)] {

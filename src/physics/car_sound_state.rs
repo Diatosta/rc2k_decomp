@@ -55,7 +55,7 @@ pub fn car_sound_state(
     let Some(l) = listener(shared) else {
         return Err(BadInput("a null view block").into());
     };
-    let so = crate::sound::store::current_object(sound, shared.work.get());
+    let so = crate::sound::store::current_object(sound, &shared.work());
     so.borrow_mut().new_revs = 1;
     so.borrow_mut().revs = shared.car().engine_sound_revs.get();
     let w = shared.car().wheel_surface_a[4].get();

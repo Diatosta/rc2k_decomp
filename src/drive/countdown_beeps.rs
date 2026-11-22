@@ -10,7 +10,7 @@ pub(super) fn countdown_beeps(
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     for car in [0u32, 1] {
-        race.shared.work.get().current_car.set(car);
+        race.shared.work_mut().current_car = car;
         crate::drive::countdown_beep::countdown_beep(
             race,
             &race.car_blocks().cars[car as usize],
@@ -22,7 +22,7 @@ pub(super) fn countdown_beeps(
     // seconds go nowhere (the start lights show the second view's).
     let others = crate::sound::cue_players::count().min(4);
     for car in 2..others {
-        race.shared.work.get().current_car.set(car);
+        race.shared.work_mut().current_car = car;
         crate::drive::countdown_beep::countdown_beep(
             race,
             &race.car_blocks().cars[car as usize],
@@ -31,7 +31,7 @@ pub(super) fn countdown_beeps(
         )?;
     }
     if others > 2 {
-        race.shared.work.get().current_car.set(1);
+        race.shared.work_mut().current_car = 1;
     }
     Ok(())
 }

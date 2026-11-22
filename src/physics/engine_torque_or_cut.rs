@@ -22,5 +22,5 @@ pub(super) fn engine_torque_or_cut(
         return;
     };
     shared.car().rev_cut_count.set(cut);
-    shared.physics_tables.get().engine_force.set(0.0);
+    shared.physics_tables_mut().engine_force = 0.0;
 }

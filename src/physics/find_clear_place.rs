@@ -42,7 +42,7 @@ pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     {
         crate::physics::restore_saved_car::restore_saved_car(
             car,
-            tables,
+            &mut tables.borrow_mut(),
             &c.reset.ground.probes.borrow(),
         )
     }?;
@@ -54,9 +54,10 @@ pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
             &c.reset.ground.probes.borrow(),
         )
     }?;
-    tables.clear_place_face.set(contact.borrow().lowest_depth);
+    let lowest_depth = contact.borrow().lowest_depth;
+    tables.borrow_mut().clear_place_face = lowest_depth;
     let found = clear_place::tries(clear_place::first_try(car.step_clock.get()), |n| {
-        tables.clear_place_count.set(0);
+        tables.borrow_mut().clear_place_count = 0;
         let m = clear_place::try_move(n);
         for (table, axis) in [(&CLEAR_PLACE_STEPS_A, 0), (&CLEAR_PLACE_STEPS_B, 2)] {
             let (part, _) = clear_place::move_part(m.step, table[m.entry as usize]);
@@ -64,7 +65,7 @@ pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
                 .set_bits_at(axis, car.position.bits_at(axis).wrapping_add(part));
         }
         try_place(c, scene)?;
-        Ok::<_, Refused>(tables.clear_place_count.get() == 0)
+        Ok::<_, Refused>(tables.borrow().clear_place_count == 0)
     })?;
     let Some(n) = found else {
         return crate::physics::reset_car::reset_car(&c.reset, scene);
@@ -83,9 +84,10 @@ pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     }
     crate::logfile::log_write::log_nul(&PORKY, false, 1);
     crate::logfile::log_int::log_int(n as i32, false, 1);
-    crate::logfile::log_hex8::log_hex8(tables.clear_place_face.get(), false, 1);
+    let face = tables.borrow().clear_place_face;
+    crate::logfile::log_hex8::log_hex8(face, false, 1);
     crate::logfile::log_hex8::log_hex8(contact.borrow().lowest_depth, true, 1);
-    crate::physics::limit_motion::limit_motion(car, tables);
+    crate::physics::limit_motion::limit_motion(car, &tables.borrow());
     Ok(())
 }
 

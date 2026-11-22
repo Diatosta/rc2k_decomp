@@ -36,7 +36,7 @@ pub(super) fn load_prefs(race: &Race) -> Result<(), Refused> {
     let stage = race.shared.vars.get().stage_number.get();
     prefs.swap_stage_texture(stage);
     prefs.tweak_stage(stage);
-    prefs.clear_precipitation_range(race.shared.work.get().no_precipitation.get() != 0);
+    prefs.clear_precipitation_range(race.shared.work().no_precipitation != 0);
     course
         .stage_prefs
         .borrow_mut()

@@ -197,7 +197,7 @@ impl<'a> Machine<'a> {
         }
         Ok(Self {
             notes: Notes::new(
-                race.shared.physics_tables.get().pace_slot.get(),
+                race.shared.physics_tables().pace_slot,
                 image(physics),
                 course,
                 stage,
@@ -209,7 +209,7 @@ impl<'a> Machine<'a> {
     /// The slot and the tables written back.
     pub fn commit(&self, race: &Race) -> Result<(), BadInput> {
         let physics = &race.physics;
-        race.shared.physics_tables.get().pace_slot.set(self.slot);
+        race.shared.physics_tables_mut().pace_slot = self.slot;
         put_image(physics, &self.image);
         Ok(())
     }

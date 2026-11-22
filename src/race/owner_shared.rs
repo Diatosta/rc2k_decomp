@@ -25,8 +25,8 @@ use std::cell::{Ref, RefCell, RefMut};
 
 /// The race's stores the menus, the network and the audio side read too.
 pub struct RaceShared {
-    /// One copy: no drawing part writes it.
-    pub work: DrawShared<RaceWork>,
+    /// The race's work variables, lent to the drawing parts as they stood when their scope opened.
+    pub work: DrawArc<RaceWork>,
     pub state: RaceState,
     pub buffers: Buffers,
     /// The checkpoint tables: shared with the drawing parts copy-on-write.
@@ -38,7 +38,7 @@ pub struct RaceShared {
     /// One copy: no drawing part writes it.
     pub switches: DrawPlain<FrameSwitches>,
     /// One copy: the drawing only reads it.
-    pub physics_tables: DrawShared<PhysicsTables>,
+    pub physics_tables: crate::memory::session::DrawArc<PhysicsTables>,
     /// The work car. One copy: the drawing does not read it, so the drawing threads need none of
     /// their own.
     car: GameThread<Car>,
@@ -77,14 +77,14 @@ struct SharedMain {
 impl RaceShared {
     pub const fn new() -> Self {
         RaceShared {
-            work: DrawShared::new(RaceWork::new()),
+            work: DrawArc::new(RaceWork::new),
             state: RaceState::new(),
             buffers: Buffers::new(),
             checkpoints: DrawArc::new(Checkpoints::new),
             vars: crate::memory::session::GameThread::new(RaceVars::new()),
             view: GameThread::new(RaceView::new()),
             switches: DrawPlain::new(FrameSwitches::new()),
-            physics_tables: DrawShared::new(PhysicsTables::new()),
+            physics_tables: crate::memory::session::DrawArc::new(PhysicsTables::new),
             car: GameThread::new(Car::new()),
             car_blocks: DrawShared::new(CarBlocks::new()),
             car_parts: crate::memory::session::DrawArc::new(
@@ -121,6 +121,19 @@ impl RaceShared {
         self.car_blocks.get()
     }
 
+    /// The physics' tables and work variables, read, on the game's thread outside a drawing scope
+    /// (a drawing part reads them through its `scene::workers::DrawReads`): no write borrow may be
+    /// held.
+    pub fn physics_tables(&self) -> std::cell::Ref<'_, PhysicsTables> {
+        self.physics_tables.borrow()
+    }
+
+    /// The physics' tables, to write, on the game's thread outside a drawing scope: no other
+    /// borrow of them may be held.
+    pub fn physics_tables_mut(&self) -> std::cell::RefMut<'_, PhysicsTables> {
+        self.physics_tables.borrow_mut()
+    }
+
     /// The cars' drawing state, on the game's thread outside a drawing scope (a drawing part reads
     /// it through its `scene::workers::DrawReads`).
     pub fn car_parts(&self) -> std::cell::Ref<'_, crate::race::car_parts_store::CarParts> {
@@ -130,6 +143,18 @@ impl RaceShared {
     /// The cars' drawing state, to write, on the game's thread outside a drawing scope.
     pub fn car_parts_mut(&self) -> std::cell::RefMut<'_, crate::race::car_parts_store::CarParts> {
         self.car_parts.borrow_mut()
+    }
+
+    /// The race's work variables, on the game's thread outside a drawing scope (a drawing part reads
+    /// them through its `scene::workers::DrawReads`).
+    pub fn work(&self) -> Ref<'_, RaceWork> {
+        self.work.borrow()
+    }
+
+    /// The race's work variables, to write, on the game's thread outside a drawing scope: no other
+    /// borrow of them may be held.
+    pub fn work_mut(&self) -> RefMut<'_, RaceWork> {
+        self.work.borrow_mut()
     }
 
     /// The race's clocks and input words, read: no write borrow may be held.
@@ -171,7 +196,7 @@ impl RaceShared {
     /// Car `n`'s block (`car_blocks[n]`), refused for a value that names no block (see
     /// `RaceWork::car_block` for the read past the eight).
     pub fn race_car(&self, n: usize) -> Result<&Car, BadInput> {
-        Self::race_car_in(self.work.get(), self.car_blocks(), n)
+        Self::race_car_in(&self.work(), self.car_blocks(), n)
     }
 
     /// `race_car` in the blocks `blocks` (a drawing part's, `scene::workers::DrawReads`).
@@ -181,8 +206,8 @@ impl RaceShared {
         n: usize,
     ) -> Result<&'b Car, BadInput> {
         use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG};
-        if let Some(cell) = work.car_blocks.get(n) {
-            let k = (cell.get() ^ BLOCK_TAG) as usize;
+        if let Some(&handle) = work.car_blocks.get(n) {
+            let k = (handle ^ BLOCK_TAG) as usize;
             if k < BLOCK_COUNT {
                 return Ok(&blocks.cars[k]);
             }
@@ -193,7 +218,7 @@ impl RaceShared {
     /// Car `n`'s block, or the refusal `what` for none. A handle that names no block ends the
     /// program, as `RaceWork::car_block`.
     pub fn race_car_or(&self, n: usize, what: &'static str) -> Result<&Car, BadInput> {
-        Self::race_car_or_in(self.work.get(), self.car_blocks(), n, what)
+        Self::race_car_or_in(&self.work(), self.car_blocks(), n, what)
     }
 
     /// `race_car_or` in the blocks `blocks` (a drawing part's, `scene::workers::DrawReads`).
@@ -204,7 +229,7 @@ impl RaceShared {
         what: &'static str,
     ) -> Result<&'b Car, BadInput> {
         match work.car_blocks.get(n) {
-            Some(cell) if cell.get() == 0 => Err(BadInput(what)),
+            Some(0) => Err(BadInput(what)),
             Some(_) => Self::race_car_in(work, blocks, n),
             None => blocks.at(work.car_block(n), what),
         }
@@ -212,7 +237,7 @@ impl RaceShared {
 
     /// Car `n`'s block; a null block or one that is none of the eight ends the program.
     pub fn race_car_or_end(&self, n: usize) -> &Car {
-        Self::race_car_or_end_in(self.work.get(), self.car_blocks(), n)
+        Self::race_car_or_end_in(&self.work(), self.car_blocks(), n)
     }
 
     /// `race_car_or_end` in the blocks `blocks` (a drawing part's, `scene::workers::DrawReads`).

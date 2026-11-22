@@ -35,8 +35,8 @@ fn draw_slot_object(
 ) -> Result<(), Refused> {
     let race = ctx.race;
     use crate::scene::matrix;
-    check_slot_object(ctx.reads.work, slot)?;
-    let object = slot.part.get();
+    check_slot_object(&ctx.reads.work.borrow(), slot)?;
+    let object = slot.part;
     ctx.view.cars.borrow_mut().object_number = object;
     let mode: u32 = ctx.reads.vars.run_kind();
     if ctx.reads.view.players() != 1 && mode != 0 && mode != 2 {
@@ -59,11 +59,9 @@ fn draw_slot_object(
     ctx.view.light.borrow_mut().light_kind = 2;
     ctx.view.matrices.borrow_mut().object_turn_matrix = matrix::matrix_of(&slot.matrix);
     let place = [
-        slot.place[0].get(),
-        slot.place[1]
-            .get()
-            .wrapping_add(slot.draw_height_offset.get()),
-        slot.place[2].get(),
+        slot.place[0],
+        slot.place[1].wrapping_add(slot.draw_height_offset),
+        slot.place[2],
     ];
     for (k, &p) in place.iter().enumerate() {
         ctx.view.object.borrow_mut().place[k] = p;
@@ -107,7 +105,7 @@ fn check_slot_object(
     work: &crate::race::work_store::RaceWork,
     slot: &crate::race::work_store::RaceSlot,
 ) -> Result<(), Refused> {
-    let n = slot.part.get().wrapping_sub(0x50);
+    let n = slot.part.wrapping_sub(0x50);
     if n < 0xA0 && !work.has_car_block((n / 0x14) as usize) {
         return Err(BadInput("a slot's car without its block").into());
     }
@@ -117,14 +115,14 @@ fn check_slot_object(
 /// `race::draw_race_slots`: `draw_slot_object` for each of the eight race slots (0x78 bytes at
 /// `race_slots`) whose `part` is not 0. Refuses (before anything) as `check_slot_object` for any.
 pub fn draw_race_slots(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
-    let slots = &ctx.reads.work.race_slots;
+    let slots = &ctx.reads.work.borrow().race_slots;
     for slot in slots {
-        if slot.part.get() != 0 {
-            check_slot_object(ctx.reads.work, slot)?;
+        if slot.part != 0 {
+            check_slot_object(&ctx.reads.work.borrow(), slot)?;
         }
     }
     for slot in slots {
-        if slot.part.get() != 0 {
+        if slot.part != 0 {
             draw_slot_object(ctx, slot)?;
         }
     }

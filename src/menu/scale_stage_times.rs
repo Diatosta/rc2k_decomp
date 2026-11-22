@@ -41,8 +41,8 @@ pub fn scale_stage_times(
     let section = held_section(screens);
     let times: [u32; 4] = screens.state.read().menus.class_times;
     let (times, f) = scaled(race, times, section);
-    race.shared.work.get().stage_time_scales[0].set(f[0]);
-    race.shared.work.get().stage_time_scales[1].set(f[1]);
+    race.shared.work_mut().stage_time_scales[0] = f[0];
+    race.shared.work_mut().stage_time_scales[1] = f[1];
     screens.state.write().menus.class_times = times;
     let text = |n: usize| &TEXTS[n];
     crate::logfile::log_write::log_nul(text(0), false, 1);

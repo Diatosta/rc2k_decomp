@@ -8,7 +8,7 @@
 //!   variables overrunning onto the first records' fields, the third chase view read half of
 //!   record 6 from the wrong memory.
 
-use crate::memory::session::{GameThread, PlainCells};
+use crate::memory::session::GameThread;
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::race::viewer_screen_store::ViewerPanelBlock;
@@ -22,16 +22,13 @@ pub struct ViewerAndKinds {
 }
 
 /// The view variables and the 52 view records after them.
-#[derive(rc2k_derive::Cells)]
+#[derive(Clone, rc2k_derive::PlainRecord)]
 pub struct ViewAndRecords {
     /// `race::view_vars_store`.
     pub view_vars: ViewVars,
     /// The 52 view records, after the view variables (named through `ViewerAndKinds` handles).
     pub records: [ViewRecord; 52],
 }
-
-// SAFETY (the groups): every field is a cell over a plain integer (`session`'s cells and
-// records of them): any bit pattern is a valid value.
 
 /// The viewer's panel and the marks' settings as the game starts.
 impl ViewerAndKinds {
@@ -47,7 +44,7 @@ impl ViewerAndKinds {
 impl ViewAndRecords {
     pub const fn new() -> Self {
         ViewAndRecords {
-            view_vars: ViewVars::<PlainCells>::new(),
+            view_vars: ViewVars::new(),
             records: ViewRecord::first_records(),
         }
     }
@@ -59,11 +56,7 @@ mod tests {
     #[test]
     fn groups_have_their_homes() {
         let race = crate::test_support::own::race();
-        for home in [
-            core::ptr::from_ref(&race.replay.viewer_and_kinds).addr(),
-            core::ptr::from_ref(race.frame.view_and_records.get()).addr(),
-        ] {
-            assert_eq!(home % 4, 0);
-        }
+        let home = core::ptr::from_ref(&race.replay.viewer_and_kinds).addr();
+        assert_eq!(home % 4, 0);
     }
 }

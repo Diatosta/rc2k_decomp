@@ -35,10 +35,58 @@ const EXTRA_UNUSED: [(usize, usize); 4] = [(0x80, 4), (0x12c, 12), (0x2c4, 16), 
 /// The byte the unused places of a frame hold.
 const UNUSED_BYTE: u8 = 0;
 
+/// A plain value (a word, a float, an array of them) moved to and from the file's little-endian
+/// bytes; floats by their bits.
+trait PlainField {
+    /// The field's size in the file.
+    const SIZE: usize;
+    /// The field's bytes put into `out` (`SIZE` long).
+    fn put(&self, out: &mut [u8]);
+    /// The field set from `bytes` (`SIZE` long).
+    fn take(&mut self, bytes: &[u8]);
+}
+
+impl PlainField for u32 {
+    const SIZE: usize = 4;
+    fn put(&self, out: &mut [u8]) {
+        out.copy_from_slice(&self.to_le_bytes());
+    }
+    fn take(&mut self, bytes: &[u8]) {
+        *self = u32::from_le_bytes(bytes.try_into().expect("a word"));
+    }
+}
+
+impl PlainField for f32 {
+    const SIZE: usize = 4;
+    fn put(&self, out: &mut [u8]) {
+        out.copy_from_slice(&self.to_bits().to_le_bytes());
+    }
+    fn take(&mut self, bytes: &[u8]) {
+        *self = f32::from_bits(u32::from_le_bytes(bytes.try_into().expect("a word")));
+    }
+}
+
+impl<T: PlainField, const N: usize> PlainField for [T; N] {
+    const SIZE: usize = N * T::SIZE;
+    fn put(&self, out: &mut [u8]) {
+        for (value, bytes) in self.iter().zip(out.chunks_exact_mut(T::SIZE)) {
+            value.put(bytes);
+        }
+    }
+    fn take(&mut self, bytes: &[u8]) {
+        for (value, bytes) in self.iter_mut().zip(bytes.chunks_exact(T::SIZE)) {
+            value.take(bytes);
+        }
+    }
+}
+
 /// Moves one field between a record and the file's bytes.
 trait Move {
     /// The field at byte `at` of the piece being moved.
     fn field<T: ByteView>(&mut self, at: usize, field: &T);
+
+    /// The plain field at byte `at` of the piece being moved.
+    fn plain<T: PlainField>(&mut self, at: usize, field: &mut T);
 
     /// `len` bytes at `at` that no record holds: written as `UNUSED_BYTE`, ignored when read.
     fn unused(&mut self, at: usize, len: usize);
@@ -55,6 +103,11 @@ impl Move for Gather<'_> {
         let from = self.base + at;
         load_cells(field, 0, &mut self.bytes[from..from + size_of::<T>()])
             .expect("a field inside the file's bytes");
+    }
+
+    fn plain<T: PlainField>(&mut self, at: usize, field: &mut T) {
+        let from = self.base + at;
+        field.put(&mut self.bytes[from..from + T::SIZE]);
     }
 
     fn unused(&mut self, at: usize, len: usize) {
@@ -74,6 +127,11 @@ impl Move for Scatter<'_> {
         let from = self.base + at;
         store_cells(field, 0, &self.bytes[from..from + size_of::<T>()])
             .expect("a field inside the file's bytes");
+    }
+
+    fn plain<T: PlainField>(&mut self, at: usize, field: &mut T) {
+        let from = self.base + at;
+        field.take(&self.bytes[from..from + T::SIZE]);
     }
 
     fn unused(&mut self, _at: usize, _len: usize) {}
@@ -252,69 +310,69 @@ fn car_fields(car: &Car, m: &mut impl Move) {
 }
 
 /// A loose part (0x78 bytes).
-fn slot_fields(slot: &RaceSlot, m: &mut impl Move) {
-    m.field(0x0, &slot.part);
-    m.field(0x4, &slot.place);
-    m.field(0x10, &slot.matrix);
-    m.field(0x50, &slot.motion);
-    m.field(0x5c, &slot.draw_height_offset);
-    m.field(0x60, &slot.car_word);
-    m.field(0x64, &slot.age);
-    m.field(0x68, &slot.spin);
-    m.field(0x74, &slot.spin_length);
+fn slot_fields(slot: &mut RaceSlot, m: &mut impl Move) {
+    m.plain(0x0, &mut slot.part);
+    m.plain(0x4, &mut slot.place);
+    m.plain(0x10, &mut slot.matrix);
+    m.plain(0x50, &mut slot.motion);
+    m.plain(0x5c, &mut slot.draw_height_offset);
+    m.plain(0x60, &mut slot.car_word);
+    m.plain(0x64, &mut slot.age);
+    m.plain(0x68, &mut slot.spin);
+    m.plain(0x74, &mut slot.spin_length);
 }
 
 /// The computer driver's state: the 0x400 bytes of the race work from `replay_extra`.
-fn extra_fields(work: &RaceWork, m: &mut impl Move) {
-    m.field(0x0, &work.replay_extra);
-    m.field(0x4, &work.driver_steer);
-    m.field(0x8, &work.driver_throttle);
-    m.field(0xc, &work.driver_brake);
-    m.field(0x10, &work.driver_flags);
-    m.field(0x20, &work.driver_start_blend);
-    m.field(0x24, &work.driver_steps);
-    m.field(0x4c, &work.driver_reverse_left);
-    m.field(0x74, &work.driver_moved);
-    m.field(0x78, &work.driver_turn);
-    m.field(0x7c, &work.driver_bend_index);
-    m.field(0x84, &work.driver_wanted_speed);
-    m.field(0x88, &work.driver_speed);
-    m.field(0x8c, &work.driver_bend_to);
-    m.field(0xb4, &work.driver_bend_noted);
-    m.field(0xdc, &work.driver_reverse_tries);
-    m.field(0x104, &work.driver_bend_turn);
-    m.field(0x138, &work.driver_flag_bc);
-    m.field(0x13c, &work.driver_step_x);
-    m.field(0x140, &work.driver_step_z);
-    m.field(0x144, &work.driver_speed_scale);
-    m.field(0x148, &work.driver_slot);
-    m.field(0x14c, &work.driver_lookahead);
-    m.field(0x150, &work.driver_bend_a);
-    m.field(0x154, &work.driver_bend_b);
-    m.field(0x158, &work.driver_point_now);
-    m.field(0x15c, &work.driver_point_then);
-    m.field(0x160, &work.driver_aim);
-    m.field(0x164, &work.driver_points_now);
-    m.field(0x204, &work.driver_points_then);
-    m.field(0x2a4, &work.driver_from);
-    m.field(0x2b4, &work.driver_to);
-    m.field(0x2d4, &work.driver_way);
-    m.field(0x2e4, &work.driver_way_unit);
-    m.field(0x2f4, &work.driver_ahead);
-    m.field(0x314, &work.driver_flat);
-    m.field(0x324, &work.driver_flat_unit);
-    m.field(0x334, &work.driver_side);
-    m.field(0x344, &work.driver_work);
+fn extra_fields(work: &mut RaceWork, m: &mut impl Move) {
+    m.plain(0x0, &mut work.replay_extra);
+    m.plain(0x4, &mut work.driver_steer);
+    m.plain(0x8, &mut work.driver_throttle);
+    m.plain(0xc, &mut work.driver_brake);
+    m.plain(0x10, &mut work.driver_flags);
+    m.plain(0x20, &mut work.driver_start_blend);
+    m.plain(0x24, &mut work.driver_steps);
+    m.plain(0x4c, &mut work.driver_reverse_left);
+    m.plain(0x74, &mut work.driver_moved);
+    m.plain(0x78, &mut work.driver_turn);
+    m.plain(0x7c, &mut work.driver_bend_index);
+    m.plain(0x84, &mut work.driver_wanted_speed);
+    m.plain(0x88, &mut work.driver_speed);
+    m.plain(0x8c, &mut work.driver_bend_to);
+    m.plain(0xb4, &mut work.driver_bend_noted);
+    m.plain(0xdc, &mut work.driver_reverse_tries);
+    m.plain(0x104, &mut work.driver_bend_turn);
+    m.plain(0x138, &mut work.driver_flag_bc);
+    m.plain(0x13c, &mut work.driver_step_x);
+    m.plain(0x140, &mut work.driver_step_z);
+    m.plain(0x144, &mut work.driver_speed_scale);
+    m.plain(0x148, &mut work.driver_slot);
+    m.plain(0x14c, &mut work.driver_lookahead);
+    m.plain(0x150, &mut work.driver_bend_a);
+    m.plain(0x154, &mut work.driver_bend_b);
+    m.plain(0x158, &mut work.driver_point_now);
+    m.plain(0x15c, &mut work.driver_point_then);
+    m.plain(0x160, &mut work.driver_aim);
+    m.plain(0x164, &mut work.driver_points_now);
+    m.plain(0x204, &mut work.driver_points_then);
+    m.plain(0x2a4, &mut work.driver_from);
+    m.plain(0x2b4, &mut work.driver_to);
+    m.plain(0x2d4, &mut work.driver_way);
+    m.plain(0x2e4, &mut work.driver_way_unit);
+    m.plain(0x2f4, &mut work.driver_ahead);
+    m.plain(0x314, &mut work.driver_flat);
+    m.plain(0x324, &mut work.driver_flat_unit);
+    m.plain(0x334, &mut work.driver_side);
+    m.plain(0x344, &mut work.driver_work);
     for (at, len) in EXTRA_UNUSED {
         m.unused(at, len);
     }
 }
 
-fn pieces(cars: &[Car], work: &RaceWork, m: &mut dyn FnMut(usize, Piece)) {
+fn pieces(cars: &[Car], work: &mut RaceWork, m: &mut dyn FnMut(usize, Piece)) {
     for (k, car) in cars.iter().take(4).enumerate() {
         m(k * CAR_BYTES, Piece::Car(car));
     }
-    for (i, slot) in work.race_slots.iter().enumerate() {
+    for (i, slot) in work.race_slots.iter_mut().enumerate() {
         m(SLOTS_AT + i * SLOT_BYTES, Piece::Slot(slot));
     }
     m(EXTRA_AT, Piece::Extra(work));
@@ -322,11 +380,11 @@ fn pieces(cars: &[Car], work: &RaceWork, m: &mut dyn FnMut(usize, Piece)) {
 
 enum Piece<'a> {
     Car(&'a Car),
-    Slot(&'a RaceSlot),
-    Extra(&'a RaceWork),
+    Slot(&'a mut RaceSlot),
+    Extra(&'a mut RaceWork),
 }
 
-fn move_piece(piece: &Piece, m: &mut impl Move) {
+fn move_piece(piece: Piece, m: &mut impl Move) {
     match piece {
         Piece::Car(car) => car_fields(car, m),
         Piece::Slot(slot) => slot_fields(slot, m),
@@ -338,9 +396,11 @@ fn move_piece(piece: &Piece, m: &mut impl Move) {
 /// tape zero), as a replay frame.
 pub fn gather(cars: &[Car], work: &RaceWork) -> ReplayFrame {
     let mut bytes = vec![0u8; 4 * START_DWORDS];
-    pieces(cars, work, &mut |base, piece| {
+    // The fields are moved through `&mut`: a copy of the work variables is walked.
+    let mut work = work.clone();
+    pieces(cars, &mut work, &mut |base, piece| {
         move_piece(
-            &piece,
+            piece,
             &mut Gather {
                 bytes: &mut bytes,
                 base,
@@ -352,11 +412,11 @@ pub fn gather(cars: &[Car], work: &RaceWork) -> ReplayFrame {
 
 /// A replay frame's starting state put into the first four cars, the loose parts and the
 /// driver's state.
-pub(super) fn scatter(frame: &ReplayFrame, cars: &[Car], work: &RaceWork) {
+pub(super) fn scatter(frame: &ReplayFrame, cars: &[Car], work: &mut RaceWork) {
     let bytes = frame.start_bytes();
     pieces(cars, work, &mut |base, piece| {
         move_piece(
-            &piece,
+            piece,
             &mut Scatter {
                 bytes: &bytes,
                 base,
@@ -403,6 +463,10 @@ impl Move for ScatterState<'_> {
         }
     }
 
+    fn plain<T: PlainField>(&mut self, _at: usize, _field: &mut T) {
+        unreachable!("a car has no plain fields");
+    }
+
     fn unused(&mut self, _at: usize, _len: usize) {}
 }
 
@@ -433,7 +497,8 @@ pub(super) fn scatter_tail(keys: &[[u32; CAR_DWORDS]; TAIL_CARS], cars: &[Car], 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::memory::cells::cells_of_bytes;
+    use crate::memory::cells::CellVisitor;
+    use crate::memory::plain_record::PlainRecord;
     use rc2k_core::drive::replay_frames::FRAME_BYTES;
 
     const SLOTS_AT: usize = core::mem::offset_of!(RaceWork, race_slots);
@@ -449,10 +514,20 @@ mod tests {
         crate::physics::car_offsets_1999::car_with_1999_bytes(fill)
     }
 
-    fn work_of(fill: impl Fn(usize) -> u8) -> Box<RaceWork> {
-        Box::new(cells_of_bytes::<RaceWork, { size_of::<RaceWork>() }>(
-            core::array::from_fn(fill),
-        ))
+    /// The bytes of the record in the order of its fields (the layout the game's records had).
+    fn work_bytes(work: &RaceWork) -> Vec<u8> {
+        struct Collect(Vec<u8>);
+        impl CellVisitor for Collect {
+            fn enter(&mut self, _: &'static str) {}
+            fn index(&mut self, _: usize) {}
+            fn leave(&mut self) {}
+            fn leaf(&mut self, bytes: &[u8]) {
+                self.0.extend_from_slice(bytes);
+            }
+        }
+        let mut collect = Collect(Vec::new());
+        work.visit(&mut collect);
+        collect.0
     }
 
     fn cars_of(fill: impl Fn(usize) -> u8 + Copy) -> [Car; 4] {
@@ -474,12 +549,6 @@ mod tests {
         bytes
     }
 
-    fn bytes_of<T: ByteView>(record: &T, from: usize, len: usize) -> Vec<u8> {
-        let mut bytes = vec![0; len];
-        load_cells(record, from, &mut bytes).unwrap();
-        bytes
-    }
-
     /// Where the file's byte `at` of a piece lies in the record, when the record keeps it:
     /// `unused` lists the file's places no record holds (the records closed up over them).
     fn in_record(at: usize, unused: &[(usize, usize)]) -> Option<usize> {
@@ -497,57 +566,60 @@ mod tests {
 
     /// `len` bytes of the file's piece `from` the record at `base`, as the game's raw copy had
     /// them: the places no record holds are `UNUSED_BYTE`.
-    fn raw_bytes<T: ByteView>(
-        record: &T,
-        base: usize,
-        len: usize,
-        unused: &[(usize, usize)],
-    ) -> Vec<u8> {
+    fn raw_bytes(record: &[u8], base: usize, len: usize, unused: &[(usize, usize)]) -> Vec<u8> {
         (0..len)
             .map(|at| match in_record(at, unused) {
-                Some(n) => bytes_of(record, base + n, 1)[0],
+                Some(n) => record[base + n],
                 None => UNUSED_BYTE,
             })
             .collect()
     }
 
-    /// The frame a gather makes puts every field at the offset the game's raw copy had:
-    /// the cars' first 0x684 bytes, the loose parts (`race_slots` on), the driver's state (`replay_extra` on).
+    /// A frame from the file's bytes put into the cars and the work, which then lie as the game's
+    /// raw copy had them: every field at the offset the game's record had (the cars' first 0x684
+    /// bytes, the loose parts from `race_slots` on, the driver's state from `replay_extra` on).
     #[test]
-    fn gather_makes_the_files_bytes() {
-        let cars = cars_of(pattern);
-        let work = work_of(pattern);
-        let frame = gather(&cars, &work);
-        let mut expected = Vec::new();
-        for car in &cars {
+    fn scatter_puts_every_field_at_the_files_offset() {
+        let bytes = with_unused_places((0..FRAME_BYTES).map(|n| pattern(n + 3)).collect());
+        let frame = ReplayFrame::from_bytes(&bytes).unwrap();
+        let cars = cars_of(|_| 0);
+        let mut work = RaceWork::new();
+        scatter(&frame, &cars, &mut work);
+        for (k, car) in cars.iter().enumerate() {
             let mut file = crate::physics::car_offsets_1999::bytes_1999(car);
             file.truncate(CAR_BYTES);
-            for (at, len) in CAR_UNUSED {
-                file[at..at + len].fill(UNUSED_BYTE);
-            }
-            expected.extend(file);
+            assert_eq!(file, bytes[k * CAR_BYTES..(k + 1) * CAR_BYTES], "car {k}");
         }
-        expected.extend(bytes_of(&*work, SLOTS_AT, 8 * SLOT_BYTES));
-        expected.extend(raw_bytes(&*work, EXTRA_AT, 0x400, &EXTRA_UNUSED));
-        assert_eq!(frame.start_bytes(), expected);
-        assert_eq!(frame.tape, [0; 400]);
+        let memory = work_bytes(&work);
+        assert_eq!(
+            memory[SLOTS_AT..SLOTS_AT + 8 * SLOT_BYTES],
+            bytes[super::SLOTS_AT..super::SLOTS_AT + 8 * SLOT_BYTES]
+        );
+        assert_eq!(
+            raw_bytes(&memory, EXTRA_AT, 0x400, &EXTRA_UNUSED),
+            bytes[super::EXTRA_AT..super::EXTRA_AT + 0x400]
+        );
     }
 
     #[test]
     fn scatter_writes_only_the_starting_state() {
-        let frame = gather(&cars_of(pattern), &work_of(pattern));
+        let bytes = with_unused_places((0..FRAME_BYTES).map(|n| pattern(n + 5)).collect());
+        let frame = ReplayFrame::from_bytes(&bytes).unwrap();
         let cars = cars_of(|_| 0);
-        let work = work_of(|_| 0);
-        scatter(&frame, &cars, &work);
-        assert_eq!(gather(&cars, &work), frame);
+        let mut work = RaceWork::new();
+        let before = work_bytes(&work);
+        scatter(&frame, &cars, &mut work);
+        assert_eq!(gather(&cars, &work).start_bytes(), frame.start_bytes());
         for car in &cars {
             let file = crate::physics::car_offsets_1999::bytes_1999(car);
             assert_eq!(file[CAR_BYTES..], vec![0; file.len() - CAR_BYTES]);
         }
-        assert_eq!(bytes_of(&*work, 0, SLOTS_AT), vec![0; SLOTS_AT]);
+        // What lies before the slots and between them and the driver's state stays.
+        let after = work_bytes(&work);
+        assert_eq!(after[..SLOTS_AT], before[..SLOTS_AT]);
         assert_eq!(
-            bytes_of(&*work, SLOTS_AT + 0x3C0, EXTRA_AT - SLOTS_AT - 0x3C0),
-            vec![0; EXTRA_AT - SLOTS_AT - 0x3C0]
+            after[SLOTS_AT + 0x3C0..EXTRA_AT],
+            before[SLOTS_AT + 0x3C0..EXTRA_AT]
         );
     }
 
@@ -556,8 +628,9 @@ mod tests {
     fn a_synthetic_frame_round_trips() {
         let bytes = with_unused_places((0..FRAME_BYTES).map(|n| pattern(n + 7)).collect());
         let frame = ReplayFrame::from_bytes(&bytes).unwrap();
-        let (cars, work) = (cars_of(|_| 0), work_of(|_| 0));
-        scatter(&frame, &cars, &work);
+        let cars = cars_of(|_| 0);
+        let mut work = RaceWork::new();
+        scatter(&frame, &cars, &mut work);
         let back = gather(&cars, &work);
         assert_eq!(back.start_bytes(), bytes[..4 * START_DWORDS]);
     }
@@ -574,7 +647,8 @@ mod tests {
         let Ok(files) = std::fs::read_dir(dir) else {
             return;
         };
-        let (cars, work) = (cars_of(|_| 0), work_of(|_| 0));
+        let cars = cars_of(|_| 0);
+        let mut work = RaceWork::new();
         let mut frames = 0;
         for file in files.flatten() {
             let Ok(data) = std::fs::read(file.path()) else {
@@ -583,7 +657,7 @@ mod tests {
             for block in file_blocks(&data) {
                 let frame = ReplayFrame::from_bytes(&block).expect("a whole frame");
                 assert_eq!(frame.to_bytes(), block);
-                scatter(&frame, &cars, &work);
+                scatter(&frame, &cars, &mut work);
                 assert_eq!(
                     gather(&cars, &work).start_bytes(),
                     block[..4 * START_DWORDS],

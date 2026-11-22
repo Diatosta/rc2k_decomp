@@ -18,12 +18,9 @@ fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refuse
     crate::drive::car_input_words::car_input_words(race, input, net)?;
     crate::drive::record_inputs_if::record_inputs_if(race, net)?;
     crate::drive::play_inputs_if::play_inputs_if(race)?;
-    let slot = race_steps::block_slot(race.shared.work.get().current_car.get());
-    race.shared
-        .work
-        .get()
-        .work_block
-        .set(race.shared.work.get().car_block(slot as usize));
+    let slot = race_steps::block_slot(race.shared.work().current_car);
+    let block = race.shared.work().car_block(slot as usize);
+    race.shared.work_mut().work_block = block;
     crate::drive::load_car::load_car(&race.shared)?;
     if race.shared.car().driver_kind.get() != 0 {
         crate::drive::read_car_controls::read_car_controls(race, scene, net)?;
@@ -68,9 +65,9 @@ pub fn replay_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(),
         .previous_step_clock
         .set(race.car_blocks().cars[0].step_clock.get());
     race_steps::each_car(
-        || shared.work.get().current_car.get(),
+        || shared.work().current_car,
         || shared.view.get().race_cars.get(),
-        |n| shared.work.get().current_car.set(n),
+        |n| shared.work_mut().current_car = n,
         || car_step(o, race),
     )?;
     crate::drive::replay_check::note(race)?;

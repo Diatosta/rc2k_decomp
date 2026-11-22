@@ -19,7 +19,7 @@ pub(super) fn cue_listed_car_sound(
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<u32, Refused> {
-    let (entry, listed) = listed_entry(work.current_car.get(), |car| {
+    let (entry, listed) = listed_entry(work.current_car, |car| {
         frame_work.borrow().listed_car_sounds[car as usize]
     })?;
     if listed {

@@ -26,7 +26,7 @@
 //! physics' variables are put back then (the callees put back their own other writes).
 
 use crate::errors::{BadInput, Refused};
-use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::{CellX87, PlainX87};
 use crate::math::matrix3::rounded_value;
 use crate::math::x87::loaded;
 use crate::memory::session::DrawPlain;
@@ -63,13 +63,13 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     ph::load_car_specs::load_car_specs(
         race.physics.car_specs(),
         &race.course,
-        race.shared.physics_tables.get(),
+        &mut race.shared.physics_tables_mut(),
         race.shared.car(),
         race.gear(),
     )?;
     ph::make_gear_ratios::make_gear_ratios(
         race.shared.car(),
-        race.shared.physics_tables.get(),
+        &mut race.shared.physics_tables_mut(),
         &race.course.numbers,
         race.gear(),
     )?;
@@ -86,11 +86,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         camera.ground_found = 0;
         camera.ground_same = 0;
     }
-    race.shared
-        .physics_tables
-        .get()
-        .vertical_speed
-        .set(loaded(race.shared.car().velocity.bits_at(1)));
+    race.shared.physics_tables_mut().vertical_speed = loaded(race.shared.car().velocity.bits_at(1));
     race.shared.car().contact_flag.set(0);
     race.shared.car().contact_point.set([0.0; 3]);
     race.shared.car().contact_depth.set(0.0);
@@ -108,17 +104,17 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     )?;
     ph::save_car_state::save_car_state(
         race.shared.car(),
-        race.shared.physics_tables.get(),
+        &mut race.shared.physics_tables_mut(),
         &mut race.physics.probes().borrow_mut(),
     )?;
-    ph::clear_forces::clear_forces(race.shared.physics_tables.get())?;
+    ph::clear_forces::clear_forces(&mut race.shared.physics_tables_mut())?;
     ph::set_wheel_weights::set_wheel_weights(
         race.shared.car(),
-        race.shared.physics_tables.get(),
+        &mut race.shared.physics_tables_mut(),
         race.physics.contact(),
         &race.course.numbers,
     );
-    ph::set_downforce::set_downforce(race.shared.car(), race.shared.physics_tables.get());
+    ph::set_downforce::set_downforce(race.shared.car(), &mut race.shared.physics_tables_mut());
     ph::gearbox_step::gearbox_step(&race.course.numbers, &race.shared, race.gear())?;
     { ph::drive_force::drive_force(&race.course, &race.shared, race.gear(), scene) }?;
     // The side speed held within the limit.
@@ -133,7 +129,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     );
     ph::drive_grip_forces::drive_grip_forces(
         race.shared.car(),
-        race.shared.physics_tables.get(),
+        &mut race.shared.physics_tables_mut(),
         &race.course.numbers,
         race.course.grip_change(),
         race.engine_tables(),
@@ -142,7 +138,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     ph::drive_wheels_step::drive_wheels_step(
         &race.course,
         race.shared.vars.get(),
-        race.shared.physics_tables.get(),
+        &mut race.shared.physics_tables_mut(),
         race.physics.wheel_work(),
         race.shared.car(),
         scene,
@@ -154,17 +150,17 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     if race.shared.car().brake.get() == 0 {
         hold_low(
             &race.shared.car().engine_speed,
-            &race.shared.physics_tables.get().idle_engine_speed,
+            &race.shared.physics_tables().idle_engine_speed,
         );
     }
     hold_high(
         &race.shared.car().engine_speed,
-        &race.shared.physics_tables.get().rev_limit,
+        &race.shared.physics_tables().rev_limit,
     );
-    ph::wheels_from_revs::wheels_from_revs(race.shared.car(), race.shared.physics_tables.get())?;
+    ph::wheels_from_revs::wheels_from_revs(race.shared.car(), &race.shared.physics_tables())?;
     ph::air_drag::air_drag(
         race.shared.car(),
-        race.shared.physics_tables.get(),
+        &mut race.shared.physics_tables_mut(),
         &race.course.numbers,
     );
     ph::wheel_springs::wheel_springs(
@@ -178,11 +174,11 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     ph::apply_wheel_forces::apply_wheel_forces(
         race.shared.car(),
         &race.course.numbers,
-        race.shared.physics_tables.get(),
+        &race.shared.physics_tables(),
     )?;
     ph::apply_wheel_torques::apply_wheel_torques(
         &race.course.numbers,
-        race.shared.physics_tables.get(),
+        &race.shared.physics_tables(),
         race.physics.contact(),
         race.shared.car(),
     )?;
@@ -190,21 +186,17 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         &race.course,
         &race.frame.matrices,
         crate::race::switches_store::FrameSwitchesRef::Store(&race.shared.switches),
-        race.shared.physics_tables.get(),
+        &race.shared.physics_tables(),
         race.shared.car(),
         scene,
     );
-    race.shared
-        .physics_tables
-        .get()
-        .top_speed
-        .set(rounded_value(ph::vector_length::vector_length(
-            &race.shared.car().velocity,
-        )));
+    race.shared.physics_tables_mut().top_speed = rounded_value(ph::vector_length::vector_length(
+        &race.shared.car().velocity,
+    ));
     // The contacts' rounds.
-    race.shared.physics_tables.get().contact_step.set(0);
+    race.shared.physics_tables_mut().contact_step = 0;
     loop {
-        ph::clear_contacts::clear_contacts(race.shared.physics_tables.get())?;
+        ph::clear_contacts::clear_contacts(&mut race.shared.physics_tables_mut())?;
         ph::feel_ground::feel_ground(&inputs.ground())?;
 
         ph::crossed_edge::crossed_edge(&inputs.contact(sound))?;
@@ -212,59 +204,54 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         ph::ground_contact::ground_contact(&inputs.contact(sound))?;
         { ph::car_collisions::car_collisions(&inputs.collisions(sound)) }?;
         ph::face_contacts::face_contacts(&inputs.contact(sound), scene)?;
-        ph::keep_motion::keep_motion(race.shared.car(), race.shared.physics_tables.get());
+        ph::keep_motion::keep_motion(race.shared.car(), &mut race.shared.physics_tables_mut());
         ph::apply_contact_forces::apply_contact_forces(
             race.shared.car(),
             &race.course.numbers,
-            race.shared.physics_tables.get(),
+            &race.shared.physics_tables(),
         )?;
         ph::apply_contact_torques::apply_contact_torques(
             &race.course.numbers,
-            race.shared.physics_tables.get(),
+            &race.shared.physics_tables(),
             race.physics.contact(),
             race.shared.car(),
         )?;
 
-        if race.shared.physics_tables.get().clear_place_count.get() == 0 {
+        if race.shared.physics_tables().clear_place_count == 0 {
             break;
         }
-        ph::stall_when_still::stall_when_still(race.shared.car(), race.shared.physics_tables.get());
+        ph::stall_when_still::stall_when_still(
+            race.shared.car(),
+            &mut race.shared.physics_tables_mut(),
+        );
         ph::keep_motion_vectors::keep_motion_vectors(
             race.shared.car(),
-            race.shared.physics_tables.get(),
+            &mut race.shared.physics_tables_mut(),
         );
 
         motion(
             &race.course,
             &race.frame.matrices,
             crate::race::switches_store::FrameSwitchesRef::Store(&race.shared.switches),
-            race.shared.physics_tables.get(),
+            &race.shared.physics_tables(),
             race.shared.car(),
             scene,
         );
-        race.shared.physics_tables.get().clear_place_count.set(0);
-        race.shared.physics_tables.get().contact_step.set(
-            race.shared
-                .physics_tables
-                .get()
-                .contact_step
-                .get()
-                .wrapping_add(1),
-        );
-        if race.shared.physics_tables.get().contact_step.get()
-            >= race.shared.physics_tables.get().contact_steps.get()
-        {
-            ph::limit_motion::limit_motion(race.shared.car(), race.shared.physics_tables.get());
+        race.shared.physics_tables_mut().clear_place_count = 0;
+        let step = race.shared.physics_tables().contact_step.wrapping_add(1);
+        race.shared.physics_tables_mut().contact_step = step;
+        if race.shared.physics_tables().contact_step >= race.shared.physics_tables().contact_steps {
+            ph::limit_motion::limit_motion(race.shared.car(), &race.shared.physics_tables());
             ph::find_clear_place::find_clear_place(&inputs.clear_place(sound), scene)?;
             break;
         }
     }
-    if race.shared.physics_tables.get().contact_step.get() != 0 {
+    if race.shared.physics_tables().contact_step != 0 {
         ph::put_back_motion_vectors::put_back_motion_vectors(
             race.shared.car(),
-            race.shared.physics_tables.get(),
+            &race.shared.physics_tables(),
         );
-        ph::limit_motion::limit_motion(race.shared.car(), race.shared.physics_tables.get());
+        ph::limit_motion::limit_motion(race.shared.car(), &race.shared.physics_tables());
     }
     ph::feel_ground::feel_ground(&inputs.ground())?;
     ph::reset_when_stuck::reset_when_stuck(&inputs.reset(), scene)?;
@@ -284,7 +271,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     ph::damage_step::damage_step(
         race.shared.car(),
         &mut race.physics.damage_mut(),
-        race.shared.work.get(),
+        &race.shared.work(),
     )?;
     let view_turn = race.frame.view_kept.borrow().view_turn_matrix;
     ph::hit_part_checks::hit_part_checks(
@@ -297,10 +284,10 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     )?;
     ph::damage_notices::damage_notices(race.shared.car(), &mut race.physics.damage_mut())?;
     ph::take_notice::take_notice(race.shared.car());
-    ph::drop_to_neutral::drop_to_neutral(race.shared.car(), race.shared.physics_tables.get());
+    ph::drop_to_neutral::drop_to_neutral(race.shared.car(), &race.shared.physics_tables());
     // A step that set only flags nobody reads is left out.
     // The step's three callers run it for the cars from 0 up to the race's car count, at most 8.
-    let car = race.shared.work.get().current_car.get() as usize;
+    let car = race.shared.work().current_car as usize;
     let listed = *race
         .frame
         .frame_work
@@ -313,29 +300,29 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     }
     ph::hold_spin_on_ground::hold_spin_on_ground(
         race.shared.car(),
-        race.shared.physics_tables.get(),
+        &mut race.shared.physics_tables_mut(),
     );
     ph::drop_broken_parts::drop_broken_parts(
         &race.course.numbers,
-        race.shared.work.get(),
+        &mut race.shared.work_mut(),
         race.shared.car(),
         scene,
     )?;
     ph::car_lighting::car_lighting(&inputs.lighting(), scene)?;
     ph::sum_forces::sum_forces(
         &race.course.numbers,
-        race.shared.physics_tables.get(),
+        &race.shared.physics_tables(),
         race.physics.wheel_work(),
     );
     ph::blend_wheel_load::blend_wheel_load(race.shared.car(), &race.course.numbers);
-    ph::share_engine_sound::share_engine_sound(race.shared.car(), sound, race.shared.work.get())?;
+    ph::share_engine_sound::share_engine_sound(race.shared.car(), sound, &race.shared.work())?;
     ph::false_start::false_start(&inputs.reset(), scene, &o.net.race_slot)?;
     ph::value_notice::value_notice(race.shared.car());
     Ok(())
 }
 
 pub fn car_physics_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
-    if race.shared.work.get().current_car.get() > 7 {
+    if race.shared.work().current_car > 7 {
         return Err(BadInput("a current car past 7 (the per-car table's room)").into());
     }
     steps(o, race)
@@ -355,7 +342,7 @@ fn x87_1(race: &Race, half: crate::memory::session::ConstFloat) {
     let t4 = t2 * t3;
     race.shared.car().mean_drive_speed.st(t4);
     let t5 = race.shared.car().velocity.ld(1);
-    let t6 = race.shared.physics_tables.get().vertical_speed.ld();
+    let t6 = race.shared.physics_tables().vertical_speed.ld();
     let t7 = t5 - t6;
     race.shared.car().vertical_speed_change.st(t7);
 }

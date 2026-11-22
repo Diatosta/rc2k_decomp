@@ -66,13 +66,13 @@ pub(super) fn engine_sound(
     }
     run(shared.car(), numbers);
     let speed = x87::loaded(&shared.car().engine_speed);
-    let floor = shared.physics_tables.get().idle_engine_speed.get();
+    let floor = shared.physics_tables().idle_engine_speed;
     let held = hold_low(speed, floor);
     let whole = ext_to_int(extended(held.to_bits())) as u32;
     let (revs, _) = ease_revs(shared.car().engine_sound_revs.get(), whole);
     shared.car().engine_sound_revs.set(revs);
     { car_sound_state(numbers, view_turn, shared, sound) }?;
-    gear_change_sound(shared.car(), sound, shared.work.get())
+    gear_change_sound(shared.car(), sound, &shared.work())
 }
 
 #[cfg(test)]

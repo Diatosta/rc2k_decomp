@@ -221,7 +221,7 @@ pub fn course_grid(
     use rc2k_core::race::frame::{GRID_EMPTY, GRID_SIDE, grid_cell, grid_corner, record_cell};
     let half = hold_to_limit(work, course.stage_prefs.read(|p| p.grid_reach));
     let span = half.wrapping_add(half);
-    let (gx, gz) = grid_corner(vars.view_x.get(), vars.view_z.get(), half);
+    let (gx, gz) = grid_corner(vars.view_x, vars.view_z, half);
     let mut grid = view.borrow_mut();
     let unchanged = gx == grid.x && gz == grid.z;
     let count: u32 = course.course.get().course_record_count;
@@ -335,7 +335,9 @@ pub fn face_hide_mask(
     crate::physics::probe_ground::probe_ground_in_view(
         &crate::physics::probe_ground::ProbeInputs {
             numbers: reads.numbers,
-            tables: reads.physics_tables,
+            handling: reads
+                .physics_tables
+                .read(|tables| [tables.handling[2], tables.handling[3]]),
             course: reads.course(),
             engine_tables: reads.engine_tables,
         },
@@ -427,7 +429,12 @@ pub fn prepare_course_view(
 ) -> Result<(), Refused> {
     check_course_grid(reads.course())?;
     face_hide_mask(reads, view, part)?;
-    course_grid(reads.course(), reads.work, &view.grid, &view.vars)?;
+    course_grid(
+        reads.course(),
+        &reads.work.borrow(),
+        &view.grid,
+        &view.vars.borrow(),
+    )?;
     if reads.switches.scene_set_up() == 0 {
         return Ok(());
     }

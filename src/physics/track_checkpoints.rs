@@ -40,9 +40,9 @@ pub fn track_checkpoints(
     }?;
     crate::physics::off_line_warnings::off_line_warnings(
         c.frame_work,
-        c.work,
+        &c.work.borrow(),
         c.shared.replay_file(),
-        c.tables,
+        &c.tables.borrow(),
         c.checkpoints,
         c.car,
         sound,

@@ -23,5 +23,5 @@ pub(super) fn higher_free_gear(
     tables: &PhysicsTables,
     gear: i32,
 ) -> Result<Option<i32>, Refused> {
-    higher_free_gear_at(&car.lost_gear_bits, tables.gear_count.get(), gear)
+    higher_free_gear_at(&car.lost_gear_bits, tables.gear_count, gear)
 }

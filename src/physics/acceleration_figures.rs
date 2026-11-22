@@ -22,13 +22,13 @@ pub fn acceleration_figures(
     crate::physics::load_car_specs::load_car_specs(
         car_specs,
         course,
-        shared.physics_tables.get(),
+        &mut shared.physics_tables_mut(),
         shared.car(),
         gear,
     )?;
     crate::physics::make_gear_ratios::make_gear_ratios(
         shared.car(),
-        shared.physics_tables.get(),
+        &mut shared.physics_tables_mut(),
         &course.numbers,
         gear,
     )?;

@@ -62,7 +62,7 @@ pub fn compare_split_times(
     {
         car.split_gaps[k].set(v);
     }
-    let current = work.current_car.get();
+    let current = work.current_car;
     // The players' cars (the first four); the computer's have no record.
     let times = match current {
         0..=3 => state.result(current as usize),

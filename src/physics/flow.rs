@@ -85,6 +85,24 @@ impl<T: FloatView + ?Sized> FloatRead for T {
     }
 }
 
+impl FloatRead for f32 {
+    fn read_float(&self) -> f32 {
+        *self
+    }
+}
+
+impl FloatRead for &f32 {
+    fn read_float(&self) -> f32 {
+        **self
+    }
+}
+
+impl FloatRead for u32 {
+    fn read_float(&self) -> f32 {
+        f32::from_bits(*self)
+    }
+}
+
 impl FloatRead for crate::memory::session::ConstFloat {
     fn read_float(&self) -> f32 {
         self.get()
@@ -144,6 +162,20 @@ pub fn hold_high(v: &impl FloatView, lim: &impl FloatRead) {
 pub(super) fn hold_high_to(v: &impl FloatView, lim: f32) {
     if !c0(v.float(), lim) {
         v.set_float(x87::loaded(lim));
+    }
+}
+
+/// `hold_low` on a plain float.
+pub fn hold_low_plain(v: &mut f32, lim: f32) {
+    if c0(*v, lim) {
+        *v = x87::loaded(lim);
+    }
+}
+
+/// `hold_high` on a plain float.
+pub fn hold_high_plain(v: &mut f32, lim: f32) {
+    if !c0(*v, lim) {
+        *v = x87::loaded(lim);
     }
 }
 

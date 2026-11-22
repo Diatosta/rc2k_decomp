@@ -57,7 +57,7 @@ pub unsafe trait Cells {
 ///
 /// # Safety
 /// The type is `#[repr(C)]` (or transparent) over `ByteView` fields with no padding, so any bit
-/// pattern of `size_of::<Self>()` bytes is a valid value (`cells_of_bytes` relies on it). Every
+/// pattern of `size_of::<Self>()` bytes is a valid value. Every
 /// byte is inside an `UnsafeCell` or an atomic (`Cells`). `cell_run` is safe to get wrong (it
 /// hands out references): a wrong run is a wrong read, which the tests of every store look for
 /// (`cells_tests`).
@@ -1424,23 +1424,6 @@ pub fn boxed_zeroed_cells<T: Cells>() -> Box<T> {
     // SAFETY: as `zeroed_cells`: `T` is made of cells over plain integers (`Cells`), so the
     // all-zero value is valid.
     unsafe { Box::<T>::new_zeroed().assume_init() }
-}
-
-#[cfg(test)]
-/// A record of cells with these bytes as its first values (a static's, at compile time: a
-/// race-block piece that left the block takes the starting bytes).
-pub const fn cells_of_bytes<T: ByteView, const N: usize>(bytes: [u8; N]) -> T {
-    assert!(core::mem::size_of::<T>() == N, "the record's size");
-    union Bits<T, const N: usize> {
-        bytes: core::mem::ManuallyDrop<[u8; N]>,
-        record: core::mem::ManuallyDrop<T>,
-    }
-    let bits = Bits::<T, N> {
-        bytes: core::mem::ManuallyDrop::new(bytes),
-    };
-    // SAFETY: `T` is made of cells over plain integers with no padding (`ByteView`), so any
-    // bytes are a valid value, and the sizes are equal (checked above).
-    core::mem::ManuallyDrop::into_inner(unsafe { bits.record })
 }
 
 /// The `T` at byte `offset` of `store` (any alignment; a run past the store is refused).

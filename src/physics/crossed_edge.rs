@@ -25,7 +25,7 @@ pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     {
         crate::physics::restore_saved_car::restore_saved_car(
             c.car,
-            c.tables,
+            &mut c.tables.borrow_mut(),
             &c.ground.probes.borrow(),
         )
     }?;

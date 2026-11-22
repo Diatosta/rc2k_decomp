@@ -20,7 +20,7 @@ use rc2k_core::net::net_race::NetRace;
 /// The car file's six figures times 65536 over 1000, or the refusal (before anything).
 fn figures(race: &Race, net_race: Option<NetRace>, viewed: u32) -> Result<[i32; 6], Refused> {
     let shared = &race.shared;
-    listener::check_viewed(viewed, || shared.work.get().has_car_block(viewed as usize))?;
+    listener::check_viewed(viewed, || shared.work().has_car_block(viewed as usize))?;
     let n = car_file_number(race.kind_tables(), shared.own_car(net_race).car_kind.get());
     rc2k_core::drive::sharing::check_light_record(n)?;
     let mut out = [0i32; 6];
@@ -69,9 +69,7 @@ impl<'a> ListenerView<'a> {
             drawn_view: race.shared.view.get().drawn_view.get(),
             view_matrix: kept.view_matrix,
             view_turn_matrix: kept.view_turn_matrix,
-            view_place: crate::memory::session::read_bits(
-                &frame.view_and_records.get().view_vars.view_place,
-            ),
+            view_place: frame.view_and_records.borrow().view_vars.view_place,
             sun: &scene.scratch.main_view(0).polygon.sun,
         }
     }

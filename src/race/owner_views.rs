@@ -36,8 +36,7 @@ impl Race {
     /// Refused past the eight and for a name that is not a record's start.
     pub fn car_record(&self, n: usize) -> Result<&CarEffects, BadInput> {
         self.shared
-            .work
-            .get()
+            .work()
             .car_record_number(n)
             .map(|k| &self.effects_settings().cars[k])
     }

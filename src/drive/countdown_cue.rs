@@ -9,10 +9,10 @@ pub(super) fn countdown_cue(
     sound: u32,
     audio: &crate::audio::owner::Audio,
 ) -> Result<u32, Refused> {
-    let (slot, listed) = rc2k_core::physics::listed_cars::listed_entry(
-        race.shared.work.get().current_car.get(),
-        |car| race.frame.frame_work.borrow().listed_car_sounds[car as usize],
-    )?;
+    let (slot, listed) =
+        rc2k_core::physics::listed_cars::listed_entry(race.shared.work().current_car, |car| {
+            race.frame.frame_work.borrow().listed_car_sounds[car as usize]
+        })?;
     if listed {
         crate::drive::countdown_sound::countdown_sound(slot, sound, audio);
     }

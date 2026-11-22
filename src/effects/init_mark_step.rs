@@ -55,7 +55,7 @@ pub fn init_mark_step(
         let records = race.car_records()?;
         // `check_cars` holds the count to 8 before `record` is asked.
         let record = |n: u32| records[n as usize];
-        race::check_cars(count, |n| race.shared.work.get().has_car_block(n as usize))?;
+        race::check_cars(count, |n| race.shared.work().has_car_block(n as usize))?;
         race.effects_settings()
             .cars_copy
             .set(race.shared.view.get().race_cars.get());

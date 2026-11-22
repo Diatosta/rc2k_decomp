@@ -31,7 +31,7 @@ pub fn listed(frame_work: &FrameWorkStore, car: u32) -> Result<bool, Refused> {
 
 /// The current car's sound object.
 pub fn object<'a>(c: &SoundInputs<'a>) -> &'a SoundObjectCell {
-    crate::sound::store::current_object(c.owner, c.work)
+    crate::sound::store::current_object(c.owner, &c.work.borrow())
 }
 
 /// The place (with `offset` added to the car's, when given), turned and scaled.

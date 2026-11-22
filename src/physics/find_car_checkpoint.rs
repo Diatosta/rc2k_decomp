@@ -35,15 +35,11 @@ pub(super) fn find_car_checkpoint(
     let near =
         crate::race::start_place::nearest_checkpoint_in(physics, course, shared, from, to, scene)?;
     // The nearest checkpoint's distance.
-    shared
-        .physics_tables
-        .get()
-        .nearest_checkpoint_distance
-        .set(ext_div2(
-            int_80(near.distance as i32, false),
-            course.numbers.k65536,
-            0x3F80_0000,
-        ));
+    shared.physics_tables_mut().nearest_checkpoint_distance = ext_div2(
+        int_80(near.distance as i32, false),
+        course.numbers.k65536,
+        0x3F80_0000,
+    );
     if progress::search_all(near.distance) {
         return crate::race::start_place::nearest_checkpoint(physics, course, shared, scene);
     }

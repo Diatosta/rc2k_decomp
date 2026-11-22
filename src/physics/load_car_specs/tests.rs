@@ -71,7 +71,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 load_figures_and_shift_points(
                     race().shared.car(),
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.physics_tables_mut(),
                     &crate::test_support::race_places::numbers(),
                     race().gear(),
                     &spec_at(a[0], 0x64, 0xB0),
@@ -93,7 +93,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 scale_record_ratios(
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.physics_tables_mut(),
                     &crate::test_support::race_places::numbers(),
                     &spec_at(a[0], 0x40, 0x4C),
                 );
@@ -114,7 +114,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |_| {
                 scale_default_ratios(
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.physics_tables_mut(),
                     &crate::test_support::race_places::numbers(),
                 );
             },
@@ -134,7 +134,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 scale_record_grips(
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.physics_tables_mut(),
                     &spec_at(a[0], 0x38, 0x40),
                 );
             },
@@ -151,7 +151,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 set_rev_limits(
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.physics_tables_mut(),
                     &crate::test_support::race_places::numbers(),
                     a[1],
                 );
@@ -169,7 +169,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 set_rev_limits(
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.physics_tables_mut(),
                     &crate::test_support::race_places::numbers(),
                     a[1],
                 );
@@ -187,7 +187,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 set_rev_limits(
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.physics_tables_mut(),
                     &crate::test_support::race_places::numbers(),
                     a[1],
                 );

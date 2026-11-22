@@ -18,7 +18,7 @@ pub fn apply_force(car: &Car, numbers: &Numbers, rec: &ForceRecord) {
     // The push in the car's frame, worked out on the spot (the fourth dword stays 0).
     let work = [const { PlainDword::new(0) }; 4];
     for (k, w) in work[..3].iter().enumerate() {
-        w.set_float(rec.force[k].get());
+        w.set_float(rec.force[k]);
     }
     let dt = extended(numbers.step_time.get());
     scale_vector(&work, dt);

@@ -857,19 +857,10 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.course.grip_change()),
         ),
         listed!(
-            "owners.race.frame.view_and_records",
-            on_game(o.race.frame.view_and_records.get()),
-        ),
-        listed!(
-            "owners.race.shared.physics_tables",
-            on_game(o.race.shared.physics_tables.get()),
-        ),
-        listed!(
             "owners.race.shared.vars.mud_scale_a",
             on_game(&o.race.shared.vars.get().mud_scale_a),
         ),
         listed!("owners.race.shared.car", on_game(o.race.shared.car()),),
-        listed!("owners.race.shared.work", on_game(o.race.shared.work.get()),),
         listed!("owners.race.shared.state", &o.race.shared.state,),
         listed!(
             "owners.effects.masks.edge_settings.factor",

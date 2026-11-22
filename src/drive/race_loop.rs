@@ -73,15 +73,14 @@ pub(crate) fn net_player_car(
     net_race: NetRace,
     shared: &RaceShared,
 ) -> Result<&crate::physics::car_store::Car, BadInput> {
-    let handle = shared
-        .work
-        .get()
+    let handle = *shared
+        .work()
         .car_blocks
         .get(net_race.player as usize)
         .ok_or(BadInput("the network player's car"))?;
     shared
         .car_blocks()
-        .of(handle.get())
+        .of(handle)
         .ok_or(BadInput("the network player's car"))
 }
 
@@ -177,7 +176,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             let begun = crate::debug::timing::start();
             input_update(o);
             crate::debug::timing::stop(crate::debug::timing::Stage::Input, begun);
-            if race.shared.work.get().in_credits.is_set() {
+            if race.shared.work().in_credits != 0 {
                 if race.frame.credits().done != 0 {
                     crate::program_log::log("drive::race_loop: the credits race ends: rolled off");
                     return Ok(());
@@ -221,7 +220,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
                     pause_binding.answered();
                     break false;
                 }
-                if race.shared.work.get().in_credits.is_set() {
+                if race.shared.work().in_credits != 0 {
                     crate::program_log::log(&format!(
                         "drive::race_loop: the credits race ends: the quit question (Escape latched), answer {answer:#x}, frame {}",
                         race.shared.run().scene_clock
@@ -248,7 +247,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             crate::debug::timing::stop(crate::debug::timing::Stage::Physics, begun);
             tyre_change(o)?;
             if players_all_out(race, &o.net.race_slot)? {
-                if race.shared.work.get().in_credits.is_set() {
+                if race.shared.work().in_credits != 0 {
                     crate::program_log::log(&format!(
                         "drive::race_loop: the credits race ends: every player out, frame {}",
                         race.shared.run().scene_clock

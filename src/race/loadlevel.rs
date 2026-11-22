@@ -157,7 +157,7 @@ fn begin_level(
     if [0x1F, 0x22, 0x51].contains(&race.shared.vars.get().stage_number.get()) {
         direction ^= 1;
     }
-    race.shared.work.get().stage_direction.set(direction);
+    race.shared.work_mut().stage_direction = direction;
     race.course.set_in_race(true);
     crate::scene::workers::set_game_part_racing(&scene.scratch, true);
     o.audio.racing.set(true);

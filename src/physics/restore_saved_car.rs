@@ -60,17 +60,15 @@ fn saved_face_or_flip(probes: &ProbeLists, k: usize) -> u32 {
 /// Core: `rc2k_core::physics::saved_car::{restore_count, restored}`.
 pub(super) fn restore_saved_car(
     car: &Car,
-    tables: &PhysicsTables,
+    tables: &mut PhysicsTables,
     probes: &ProbeLists,
 ) -> Result<(), Refused> {
     let n = restore_count(car.probe_count.get())?;
-    tables
-        .clear_place_count
-        .set(restored(tables.clear_place_count.get()));
+    tables.clear_place_count = restored(tables.clear_place_count);
     car.position
-        .set_bits(std::array::from_fn(|k| tables.saved_place[k].get()));
+        .set_bits(std::array::from_fn(|k| tables.saved_place[k]));
     car.crash_matrix
-        .set_bits(crate::memory::session::read_bits(&tables.saved_matrix));
+        .set_bits(tables.saved_matrix.map(f32::to_bits));
     // Up to 0x7C dwords from the saved faces (0x40), on into the face-flip list after them, into
     // the car's faces (0x40), on through the fields after them to the record's end (0x7C in all).
     put_dwords(

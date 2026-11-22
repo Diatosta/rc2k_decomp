@@ -42,10 +42,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 x87_2(
                     &crate::test_support::race_places::numbers(),
-                    crate::test_support::own::race()
-                        .frame
-                        .view_and_records
-                        .get(),
+                    &crate::test_support::own::race().frame.view_and_records,
                     *view(a[0], 0),
                 );
             },
@@ -63,10 +60,7 @@ fn blocks() -> Vec<Block> {
                 x87_3(
                     car,
                     &crate::test_support::race_places::numbers(),
-                    crate::test_support::own::race()
-                        .frame
-                        .view_and_records
-                        .get(),
+                    &crate::test_support::own::race().frame.view_and_records,
                     car.camera_zoom.get().to_bits() as i32,
                 );
             },
@@ -104,9 +98,9 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 x87_4(
-                    race().shared.physics_tables.get(),
+                    &race().shared.physics_tables(),
                     &crate::test_support::race_places::numbers(),
-                    race().frame.view_and_records.get(),
+                    &race().frame.view_and_records,
                     &core::array::from_fn(|k| {
                         if k < 10 {
                             crate::math::x87_mem::Base::dword(a[0], 4 * k)

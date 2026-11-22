@@ -297,12 +297,12 @@ fn tidy_stage(
     race.course.set_in_race(false);
     crate::scene::workers::set_game_part_racing(&scene.scratch, false);
     audio.racing.set(false);
+    let kept_scale = race.shared.vars.get().kept_scale.get();
     race.frame
         .view_and_records
-        .get()
+        .borrow_mut()
         .view_vars
-        .view_scale
-        .set(race.shared.vars.get().kept_scale.get());
+        .view_scale = kept_scale;
     s.indent(-3);
     s.log(STAGE_WORDS[9]);
     Ok(())

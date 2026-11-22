@@ -10,6 +10,7 @@ use crate::math::x87::{compare_80, length_80};
 use crate::physics::contact_force::contact_force;
 use crate::physics::flow::{ZERO_BITS as ZERO, negated_velocity};
 use crate::physics::step_families::ContactInputs;
+use crate::physics::tables_store::RecordAt;
 use crate::physics::vector_bits::bits_of;
 use crate::race::norms::normalise_work_vector;
 
@@ -31,7 +32,13 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
         work.contact_point = [0; 3];
         work.contact_slide_limit = 0;
     }
-    contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[4]);
+    contact_force(
+        c.contact,
+        c.numbers,
+        &mut c.tables.borrow_mut(),
+        c.car,
+        RecordAt::Contact(4),
+    );
     { crate::physics::place_sound_e1::place_sound_e1(&c.sound) }?;
     Ok(())
 }

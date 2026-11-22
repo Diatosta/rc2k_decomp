@@ -7,18 +7,21 @@ use crate::errors::Refused;
 use crate::physics::move_slot::move_slot;
 use crate::physics::step_families::SlotInputs;
 
-/// The eight slots, those in use moved, `slot_count` the number done so far.
+/// The eight slots, those in use moved, `slot_count` the number done so far. Each slot is moved
+/// as a copy and put back (also when its move is refused).
 pub fn move_slots(c: &SlotInputs<'_>) -> Result<(), Refused> {
-    let work = c.work;
-    let slots = &work.race_slots;
     let mut n = 0u32;
-    for (number, slot) in slots.iter().enumerate() {
-        if slot.part.get() != 0 {
+    let count = c.work.borrow().race_slots.len();
+    for number in 0..count {
+        let mut slot = c.work.borrow().race_slots[number].clone();
+        if slot.part != 0 {
             n += 1;
-            work.slot_count.set(n);
-            move_slot(c, slot, number)?;
+            c.work.borrow_mut().slot_count = n;
+            let moved = move_slot(c, &mut slot, number);
+            c.work.borrow_mut().race_slots[number] = slot;
+            moved?;
         }
     }
-    work.slot_count.set(n);
+    c.work.borrow_mut().slot_count = n;
     Ok(())
 }

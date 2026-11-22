@@ -23,15 +23,17 @@
 //! refuse; everything written is put back.
 
 use crate::errors::Refused;
-use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::{CellX87, PlainX87};
 use crate::math::matrix3::rounded_value;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
+use crate::math::x87_float::{st, stf};
+use crate::memory::session::DrawArc;
 use crate::physics::camera_store::CameraWork;
 use crate::physics::camera_view::record;
 use crate::physics::car_store::Car;
-use crate::physics::flow::{ZERO_BITS as ZERO, hold_high, hold_low, hold_low_bits};
+use crate::physics::flow::{ZERO_BITS as ZERO, hold_high, hold_low, hold_low_bits, hold_low_to};
 use crate::physics::step_families::CameraInputs;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::groups_store::ViewAndRecords;
@@ -91,11 +93,12 @@ fn fixed_camera(c: &CameraInputs<'_>, second: bool) -> Result<(), crate::errors:
         .set((c.car.camera_pitch.get() << 4).wrapping_neg());
     let w = [dx, dy, dz];
     x87_2(c.numbers, c.view_records, w);
-    c.view_records.view_vars.camera_distance.set(rounded_value({
-        crate::physics::vector_length::vector_length(&c.view_records.view_vars.camera_vector)
-    }));
+    let distance = rounded_value(crate::physics::vector_length::vector_length(
+        &c.view_records.borrow().view_vars.camera_vector,
+    ));
+    c.view_records.borrow_mut().view_vars.camera_distance = distance;
     c.car.camera_zoom.set(c.camera.borrow().camera_zoom_kept);
-    if record(c.view_records, c.car)?.fixed_zoom.get() != 0 {
+    if record(c.view_records, c.car)?.fixed_zoom != 0 {
         x87_3(c.car, c.numbers, c.view_records, 0x180);
         hold_low(&c.car.camera_zoom, &c.numbers.k384);
     }
@@ -121,12 +124,16 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         .ok_or(crate::errors::BadInput(
             "a car kind past the 34 light records",
         ))?;
-    x87_4(c.tables, c.numbers, c.view_records, &head);
-    ViewVars::record(c.view_records, 3).angles[0].set(head[3]);
-    ViewVars::record(c.view_records, 3).angles[0].set(head[7]);
-    if !camera_view::keeps_light_figure(car, || c.kind_tables.kind_has_views[car as usize]) {
-        ViewVars::record(c.view_records, 1).focus[2]
-            .set(crate::math::x87::loaded(head[10]).to_bits());
+    x87_4(&c.tables.borrow(), c.numbers, c.view_records, &head);
+    {
+        let mut records = c.view_records.borrow_mut();
+        // The first figure is written, then overwritten by the second, as in the original.
+        ViewVars::record_mut(&mut records, 3).angles[0] = head[3];
+        ViewVars::record_mut(&mut records, 3).angles[0] = head[7];
+        if !camera_view::keeps_light_figure(car, || c.kind_tables.kind_has_views[car as usize]) {
+            ViewVars::record_mut(&mut records, 1).focus[2] =
+                crate::math::x87::loaded(head[10]).to_bits();
+        }
     }
     if c.car.camera_switch_active.get() == 0
         && let Some(second) = camera_view::fixed_camera(c.car.camera_view.get())
@@ -172,13 +179,13 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         &mut c.camera.borrow_mut(),
         c.car,
         c.view_records,
-        ViewVars::record_of(c.view_records, mode as usize)?,
+        &ViewVars::record_of(&c.view_records.borrow(), mode as usize)?.clone(),
         scene,
     )?;
     crate::physics::take_second_view::take_second_view(
         &mut c.camera.borrow_mut(),
         c.car,
-        ViewVars::record_of(c.view_records, before as usize)?,
+        &ViewVars::record_of(&c.view_records.borrow(), before as usize)?.clone(),
         scene,
     );
     {
@@ -206,15 +213,13 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         work.view_blend_aux_2 = work.view_a_aux_2;
         x87_8(&work, c.car);
     }
-    hold_low(
-        &c.car.camera_zoom,
-        &c.view_records.view_vars.camera_zoom_hold,
-    );
+    let zoom_hold = c.view_records.borrow().view_vars.camera_zoom_hold;
+    hold_low_to(&c.car.camera_zoom, zoom_hold);
     crate::physics::ease_view_angles::ease_view_angles(c.numbers, c.shared, c.view_records)?;
     crate::physics::ease_view_blend::ease_view_blend(c)?;
     crate::physics::camera_avoid_ground::steps(c, scene)?;
     let flat_depth = x87_9(&c.camera.borrow());
-    let camera_first = c.view_records.view_vars.view_angles[1].get();
+    let camera_first = c.view_records.borrow().view_vars.view_angles[1];
     {
         let mut course = c.course.course.borrow_mut();
         course.flat_depth = flat_depth;
@@ -258,27 +263,27 @@ fn x87_1(car: &Car, numbers: &Numbers, v: [u32; 3]) {
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn x87_2(numbers: &Numbers, view_records: &ViewAndRecords, v: [u32; 3]) {
+fn x87_2(numbers: &Numbers, view_records: &DrawArc<ViewAndRecords>, v: [u32; 3]) {
     let t0 = int(v[0] as i32);
     let t1 = numbers.k65536.ld();
     let t2 = t0 / t1;
-    view_records.view_vars.camera_vector[0].st(t2);
+    view_records.borrow_mut().view_vars.camera_vector[0] = stf(t2);
     let t3 = int(v[1] as i32);
     let t4 = numbers.k65536.ld();
     let t5 = t3 / t4;
-    view_records.view_vars.camera_vector[1].st(t5);
+    view_records.borrow_mut().view_vars.camera_vector[1] = stf(t5);
     let t6 = int(v[2] as i32);
     let t7 = numbers.k65536.ld();
     let t8 = t6 / t7;
-    view_records.view_vars.camera_vector[2].st(t8);
+    view_records.borrow_mut().view_vars.camera_vector[2] = stf(t8);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[camera_zoom] = (int [camera_zoom] * [camera_distance]) / [five]`
-fn x87_3(car: &Car, numbers: &Numbers, view_records: &ViewAndRecords, zoom: i32) {
+fn x87_3(car: &Car, numbers: &Numbers, view_records: &DrawArc<ViewAndRecords>, zoom: i32) {
     let t0 = int(zoom);
-    let t1 = view_records.view_vars.camera_distance.ld();
+    let t1 = ld(view_records.borrow().view_vars.camera_distance);
     let t2 = t0 * t1;
     let t3 = numbers.five.ld();
     let t4 = t2 / t3;
@@ -286,41 +291,46 @@ fn x87_3(car: &Car, numbers: &Numbers, view_records: &ViewAndRecords, zoom: i32)
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn x87_4(tables: &PhysicsTables, numbers: &Numbers, view_records: &ViewAndRecords, d: &[u32; 11]) {
+fn x87_4(
+    tables: &PhysicsTables,
+    numbers: &Numbers,
+    view_records: &DrawArc<ViewAndRecords>,
+    d: &[u32; 11],
+) {
     let t0 = int(d[0] as i32);
     let t1 = numbers.one_over_65536.ld();
     let t2 = t0 * t1;
-    ViewVars::record(view_records, 2).focus[0].st(t2);
+    ViewVars::record_mut(&mut view_records.borrow_mut(), 2).focus[0] = st(t2);
     let t3 = int(d[1] as i32);
     let t4 = numbers.one_over_65536.ld();
     let t5 = t3 * t4;
     let t6 = tables.camera_drop.ld();
     let t7 = t5 - t6;
-    ViewVars::record(view_records, 2).focus[1].st(t7);
+    ViewVars::record_mut(&mut view_records.borrow_mut(), 2).focus[1] = st(t7);
     let t8 = int(d[2] as i32);
     let t9 = numbers.one_over_65536.ld();
     let t10 = t8 * t9;
-    ViewVars::record(view_records, 2).focus[2].st(t10);
+    ViewVars::record_mut(&mut view_records.borrow_mut(), 2).focus[2] = st(t10);
     let t11 = int(d[4] as i32);
     let t12 = numbers.one_over_65536.ld();
     let t13 = t11 * t12;
-    ViewVars::record(view_records, 3).focus[0].st(t13);
+    ViewVars::record_mut(&mut view_records.borrow_mut(), 3).focus[0] = st(t13);
     let t14 = int(d[5] as i32);
     let t15 = numbers.one_over_65536.ld();
     let t16 = t14 * t15;
     let t17 = tables.camera_drop.ld();
     let t18 = t16 - t17;
-    ViewVars::record(view_records, 3).focus[1].st(t18);
+    ViewVars::record_mut(&mut view_records.borrow_mut(), 3).focus[1] = st(t18);
     let t19 = int(d[6] as i32);
     let t20 = numbers.one_over_65536.ld();
     let t21 = t19 * t20;
-    ViewVars::record(view_records, 3).focus[2].st(t21);
+    ViewVars::record_mut(&mut view_records.borrow_mut(), 3).focus[2] = st(t21);
     let t22 = ld(d[9]);
-    ViewVars::record(view_records, 1).focus[1].st(t22);
+    ViewVars::record_mut(&mut view_records.borrow_mut(), 1).focus[1] = st(t22);
     let t23 = int(d[8] as i32);
     let t24 = numbers.one_over_65536.ld();
     let t25 = t23 * t24;
-    ViewVars::record(view_records, 1).focus[2].st(t25);
+    ViewVars::record_mut(&mut view_records.borrow_mut(), 1).focus[2] = st(t25);
 }
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables

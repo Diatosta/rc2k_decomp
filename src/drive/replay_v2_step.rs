@@ -17,7 +17,7 @@ pub fn after_step(race: &Race) -> Result<(), BadInput> {
     if mode != RECORDING && mode != PLAYING {
         return Ok(());
     }
-    let car = race.shared.work.get().current_car.get() as usize;
+    let car = race.shared.work().current_car as usize;
     if car >= MAX_CARS {
         return Ok(());
     }

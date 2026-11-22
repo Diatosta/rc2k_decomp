@@ -8,6 +8,7 @@
 
 use crate::math::engine_tables::EngineTablesRef;
 use crate::math::x87_float::{f80, int, ld};
+use crate::memory::session::DrawArc;
 use crate::physics::camera_store::CameraWork;
 use crate::race::frame_store::FrameWorkStore;
 use crate::race::groups_store::ViewAndRecords;
@@ -32,7 +33,7 @@ type Turns = (
 fn place_with(
     camera: &CameraWork,
     lights_data: &LightsData,
-    view_records: &ViewAndRecords,
+    view_records: &DrawArc<ViewAndRecords>,
     frame_work: &FrameWorkStore,
     shared: &RaceShared,
     turns: Turns,
@@ -44,21 +45,16 @@ fn place_with(
         &lights_data.place_usual
     };
     // Records 4, 5 and 6: the offset's y and z, then the first angle.
-    let [r4, r5, r6] = [4, 5, 6].map(|n| ViewVars::record(view_records, n));
-    let places = [
-        &r4.offset[1],
-        &r4.offset[2],
-        &r5.offset[1],
-        &r5.offset[2],
-        &r6.offset[1],
-        &r6.offset[2],
-    ];
-    for (k, to) in places.iter().enumerate() {
-        to.set(figures[k]);
-    }
-    let last = figures[6];
-    for to in [&r4.angles[0], &r5.angles[0], &r6.angles[0]] {
-        to.set(last);
+    {
+        let mut records = view_records.borrow_mut();
+        for (k, n) in [4, 4, 5, 5, 6, 6].into_iter().enumerate() {
+            let offset = &mut ViewVars::record_mut(&mut records, n).offset;
+            offset[1 + k % 2] = figures[k];
+        }
+        let last = figures[6];
+        for n in [4, 5, 6] {
+            ViewVars::record_mut(&mut records, n).angles[0] = last;
+        }
     }
     // The offset (x, y, z) turned about each axis in turn: the `rotate_point_about_y*` functions
     // take the three coordinates in the order x, y, z.
@@ -114,7 +110,7 @@ fn place_with(
 pub fn place_camera(
     camera: &CameraWork,
     lights_data: &LightsData,
-    view_records: &ViewAndRecords,
+    view_records: &DrawArc<ViewAndRecords>,
     numbers: &Numbers,
     frame_work: &FrameWorkStore,
     shared: &RaceShared,

@@ -40,8 +40,8 @@ pub(super) fn block_word(car: &Car, word: BlockWord) -> Result<&PlainDword, BadI
 
 /// Zeroes the first dword of the eight `race_slots` records.
 pub fn clear_race_slots(shared: &RaceShared) {
-    for slot in &shared.work.get().race_slots {
-        slot.part.set(0);
+    for slot in &mut shared.work_mut().race_slots {
+        slot.part = 0;
     }
 }
 
@@ -49,7 +49,7 @@ pub fn clear_race_slots(shared: &RaceShared) {
 /// set), `start_in_gear` and `false_start_count` to 0.
 pub fn reset_car_starts(shared: &RaceShared) -> Result<(), BadInput> {
     // Logic in `rc2k_core::race::cars::start_value`.
-    let value = rc2k_core::race::cars::start_value(shared.work.get().in_credits.is_set());
+    let value = rc2k_core::race::cars::start_value(shared.work().in_credits != 0);
     for n in 0..BLOCKS {
         {
             block(shared, n)?.run_ticks.set(value);

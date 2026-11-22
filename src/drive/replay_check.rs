@@ -70,7 +70,7 @@ pub fn note(race: &Race) -> Result<(), BadInput> {
     let mut line = format!("replay check: {mode}, clock {clock}:");
     // The cars' state as the replay file keeps it, field by field at the file's offsets, so
     // the hash does not depend on how the live record lies in memory.
-    let kept = crate::drive::replay_state::gather(&race.car_blocks().cars, race.shared.work.get());
+    let kept = crate::drive::replay_state::gather(&race.car_blocks().cars, &race.shared.work());
     let cars = race.shared.view.get().race_cars.get().min(4) as usize;
     for (car, (block, kept_car)) in race
         .car_blocks()
@@ -105,7 +105,7 @@ pub(super) fn compare_frame(race: &Race) -> Result<(), BadInput> {
         SKIPPED.fetch_add(1, Relaxed);
         return Ok(());
     }
-    let live = crate::drive::replay_state::gather(&race.car_blocks().cars, race.shared.work.get());
+    let live = crate::drive::replay_state::gather(&race.car_blocks().cars, &race.shared.work());
     let mut differing = 0;
     for (piece, offset, n) in start_layout() {
         let ours: &[u32] = match piece {

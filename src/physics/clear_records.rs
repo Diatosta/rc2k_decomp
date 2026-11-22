@@ -3,10 +3,10 @@
 
 use crate::physics::tables_store::ForceRecord;
 
-pub fn clear_records(records: &[ForceRecord]) {
+pub fn clear_records(records: &mut [ForceRecord]) {
     for record in records {
-        for part in record.force.iter().chain(&record.point) {
-            part.set(0.0);
+        for part in record.force.iter_mut().chain(&mut record.point) {
+            *part = 0.0;
         }
     }
 }

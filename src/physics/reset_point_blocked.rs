@@ -17,7 +17,7 @@ pub fn reset_point_blocked(
 ) -> bool {
     line_places::reset_point_blocked(
         block.driver_kind.get(),
-        tables.reset_candidate.get(),
+        tables.reset_candidate,
         || vars.checkpoint_count.get(),
         || block.reset_checkpoint.get(),
     )

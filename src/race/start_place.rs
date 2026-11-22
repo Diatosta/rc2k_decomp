@@ -308,11 +308,7 @@ pub fn nearest_checkpoint(
             near.distance,
             course.numbers.k65536.get(),
         );
-        shared
-            .physics_tables
-            .get()
-            .nearest_checkpoint_distance
-            .set(units);
+        shared.physics_tables_mut().nearest_checkpoint_distance = units;
         Ok(near.checkpoint)
     }
 }

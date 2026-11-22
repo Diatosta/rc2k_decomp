@@ -44,8 +44,8 @@ fn set_var(race: &Race, v: Var, value: u32) {
         Var::D64BB18 => race.replay.finish_mut().no_place = value,
         Var::D5C2F88 => race.effects_settings().race_done.set(value),
         // View record 6's first two angles (the finish camera's).
-        Var::D606744 => race.frame.view_and_records.get().records[6].angles[0].set(value),
-        Var::D606748 => race.frame.view_and_records.get().records[6].angles[1].set(value),
+        Var::D606744 => race.frame.view_and_records.borrow_mut().records[6].angles[0] = value,
+        Var::D606748 => race.frame.view_and_records.borrow_mut().records[6].angles[1] = value,
         Var::D63DB84 => view.after_credits.set(value),
     }
 }

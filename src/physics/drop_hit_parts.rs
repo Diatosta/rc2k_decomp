@@ -43,7 +43,7 @@ pub fn hit_tests(
 // Core: `rc2k_core::physics::parts::{hit_tests, DROP_TESTS}`.
 pub(super) fn drop_hit_parts(
     numbers: &Numbers,
-    work: &RaceWork,
+    work: &mut RaceWork,
     car: &Car,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {

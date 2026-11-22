@@ -7,11 +7,10 @@
 //! lists nothing writes; 0x10 has only 8's keys. What this tab writes is the game's memory until
 //! the stage reloads, as the developers' keys did.
 
-use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::race::view_vars_store::{ViewRecord, ViewVars};
+use crate::race::view_vars_store::ViewRecord;
 use crate::scene::owner::Scene;
 use dear_imgui_rs::{TreeNodeFlags, Ui};
 use std::sync::Mutex;
@@ -100,20 +99,27 @@ const LIGHT_NAMES: [&str; 12] = [
 
 /// The camera record's figures the page edits, by the developers' labels: name, offset; the
 /// last is whole.
-fn camera_figures(r: &ViewRecord) -> [(&'static str, &PlainDword); 12] {
+fn camera_figures(r: &mut ViewRecord) -> [(&'static str, &mut u32); 12] {
+    let ViewRecord {
+        focus: [xfoc, yfoc, zfoc],
+        offset: [xoff, yoff, zoff],
+        angles: [xang, yang, zang],
+        speeds: [mspx, mspy, mspz],
+        ..
+    } = r;
     [
-        ("xfoc", &r.focus[0]),
-        ("yfoc", &r.focus[1]),
-        ("zfoc", &r.focus[2]),
-        ("xoff", &r.offset[0]),
-        ("yoff", &r.offset[1]),
-        ("zoff", &r.offset[2]),
-        ("xang", &r.angles[0]),
-        ("yang", &r.angles[1]),
-        ("zang", &r.angles[2]),
-        ("mspx", &r.speeds[0]),
-        ("mspy", &r.speeds[1]),
-        ("mspz", &r.speeds[2]),
+        ("xfoc", xfoc),
+        ("yfoc", yfoc),
+        ("zfoc", zfoc),
+        ("xoff", xoff),
+        ("yoff", yoff),
+        ("zoff", zoff),
+        ("xang", xang),
+        ("yang", yang),
+        ("zang", zang),
+        ("mspx", mspx),
+        ("mspy", mspy),
+        ("mspz", mspz),
     ]
 }
 
@@ -231,23 +237,24 @@ fn camera(race: &Race, ui: &Ui) {
     let view = (first_car(race).camera_view.get() as i32).clamp(0, 0x33) as usize;
     ui.text(format!("View {view}: {}", VIEW_NAMES[view]));
     ui.text_disabled("Changes the view's record until the stage is loaded again");
-    let Ok(record) = ViewVars::record_of(race.frame.view_and_records.get(), view) else {
+    let mut records = race.frame.view_and_records.borrow_mut();
+    let Some(record) = records.records.get_mut(view) else {
         ui.text("This view's record is not readable");
         return;
     };
+    let mut fish = record.fish as i32;
     for (label, cell) in camera_figures(record) {
-        let mut v = f32::from_bits(cell.get());
+        let mut v = f32::from_bits(*cell);
         if ui
             .drag_config::<_, f32>(label)
             .speed(1.0 / 64.0)
             .build(ui, &mut v)
         {
-            cell.set(v.to_bits());
+            *cell = v.to_bits();
         }
     }
-    let mut fish = record.fish.get() as i32;
     if ui.drag("fish", &mut fish) {
-        record.fish.set(fish as u32);
+        record.fish = fish as u32;
     }
 }
 

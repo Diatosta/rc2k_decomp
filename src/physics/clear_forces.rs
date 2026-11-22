@@ -4,7 +4,7 @@
 use crate::errors::Refused;
 use crate::physics::clear_records::clear_records;
 use crate::physics::tables_store::PhysicsTables;
-pub(super) fn clear_forces(tables: &PhysicsTables) -> Result<(), Refused> {
-    clear_records(&tables.forces);
+pub(super) fn clear_forces(tables: &mut PhysicsTables) -> Result<(), Refused> {
+    clear_records(&mut tables.forces);
     Ok(())
 }

@@ -7,17 +7,16 @@
 //! `steering` + it, `steer_angle_visual` = `steering_raw` + 4 x it; both 0 unless
 //! `steering_damage` is below `hundred` (or unordered).
 
-use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
-use crate::memory::session::{DwordLike, FloatLike};
+use crate::memory::session::DwordLike;
 use crate::physics::flow::c0;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 
 /// `to` = `from` (signed) x `by`, as a whole number rounded as the x87 rounds.
-fn scale(from: &impl DwordLike, by: &impl FloatLike, to: &impl DwordLike) {
-    to.set(to_int(int(from.get() as i32) * by.ld()) as u32);
+fn scale(from: &impl DwordLike, by: impl crate::math::x87::Flt, to: &impl DwordLike) {
+    to.set(to_int(int(from.get() as i32) * crate::math::x87_float::ld(by.bits())) as u32);
 }
 
 const LEFT: u32 = 0xE000_0000;
@@ -32,11 +31,7 @@ fn key_step(shared: &RaceShared, scene: &crate::scene::owner::Scene) -> u32 {
     scene.draw_work_mut().scratch = 0xA0_0000;
     {
         let scratch = scene.scratch_cell();
-        scale(
-            &*scratch,
-            &shared.physics_tables.get().handling[8],
-            &*scratch,
-        );
+        scale(&*scratch, shared.physics_tables().handling[8], &*scratch);
     }
     scene.draw_work().scratch
 }
@@ -101,7 +96,7 @@ pub fn steer_inputs(race: &Race, scene: &crate::scene::owner::Scene) {
             let scratch = scene.scratch_cell();
             scale(
                 &*scratch,
-                &race_owner.shared.physics_tables.get().handling[7],
+                race_owner.shared.physics_tables().handling[7],
                 &*scratch,
             );
         }
@@ -179,7 +174,7 @@ mod reference_vectors {
                     let scratch = scene().scratch_cell();
                     scale(
                         &*scratch,
-                        &race().shared.physics_tables.get().handling[8],
+                        race().shared.physics_tables().handling[8],
                         &*scratch,
                     );
                 },
@@ -195,7 +190,7 @@ mod reference_vectors {
                     let scratch = scene().scratch_cell();
                     scale(
                         &*scratch,
-                        &race().shared.physics_tables.get().handling[7],
+                        race().shared.physics_tables().handling[7],
                         &*scratch,
                     );
                 },

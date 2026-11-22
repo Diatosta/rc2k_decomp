@@ -9,7 +9,7 @@ use rc2k_core::drive::replay_frames::on_tape;
 pub fn record_inputs(race: &Race) -> Result<(), BadInput> {
     let shared = &race.shared;
     let replay = &race.replay;
-    let car = shared.work.get().current_car.get();
+    let car = shared.work().current_car;
     let extended = race.viewer_buffers().extra_tape.is_set();
     // A replay of the own format also has a tape for cars 4 .. 7 (`race::replay_v2_store`).
     let tail = race.viewer_buffers().v2.is_set() && (4..8).contains(&car);

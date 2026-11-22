@@ -14,8 +14,8 @@ pub(super) fn drop_to_neutral(car: &Car, tables: &PhysicsTables) {
         car.contact_flag.get(),
         car.gear.get(),
         car.engine_speed.get(),
-        tables.stall_engine_speed.get(),
-        || tables.no_auto_neutral.get(),
+        tables.stall_engine_speed,
+        || tables.no_auto_neutral,
     ) {
         return;
     }

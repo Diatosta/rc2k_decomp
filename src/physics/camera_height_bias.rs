@@ -3,8 +3,9 @@
 //! integer into `camera_height_bias` and added to the camera's height.
 
 use crate::math::cell_x87::CellX87;
-use crate::math::x87_float::X;
 use crate::math::x87_float::to_int;
+use crate::math::x87_float::{X, ld};
+use crate::memory::session::DrawArc;
 use crate::physics::camera_view::record;
 use crate::physics::car_store::Car;
 use crate::physics::flow::{ZERO_BITS as ZERO, hold_high, hold_low_bits};
@@ -14,23 +15,23 @@ use crate::race::numbers_store::Numbers;
 /// The exact version, for `physics::update_camera`.
 pub fn camera_height_bias(
     numbers: &Numbers,
-    view_records: &ViewAndRecords,
+    view_records: &DrawArc<ViewAndRecords>,
     car: &Car,
 ) -> Result<(), crate::errors::BadInput> {
     let scratch = crate::memory::session::PlainDword::new(0);
     let view_record = record(view_records, car)?;
-    if view_record.height_bias.get() == 0 {
+    if view_record.height_bias == 0 {
         return Ok(());
     }
-    x87_1(view_records, &scratch);
+    x87_1(&view_records.borrow(), &scratch);
     hold_low_bits(&scratch, ZERO);
     hold_high(&scratch, &numbers.one);
-    if (view_record.height_bias.get() as i32) < 0 {
+    if (view_record.height_bias as i32) < 0 {
         x87_2(&scratch);
     }
-    x87_3(numbers, view_records, &scratch);
+    x87_3(numbers, &view_records.borrow(), &scratch);
     let bias = scratch.get();
-    view_records.view_vars.camera_height_bias.set(bias);
+    view_records.borrow_mut().view_vars.camera_height_bias = bias;
     car.camera_position
         .set_bits_at(1, car.camera_position.bits_at(1).wrapping_add(bias));
     Ok(())
@@ -42,8 +43,8 @@ pub fn camera_height_bias(
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[scratch] = [camera_distance] / [camera_bias_limit]`
 fn x87_1(view_records: &ViewAndRecords, scratch: &crate::memory::session::PlainDword) {
-    let t0 = view_records.view_vars.camera_distance.ld();
-    let t1 = view_records.view_vars.camera_bias_limit.ld();
+    let t0 = ld(view_records.view_vars.camera_distance);
+    let t1 = ld(view_records.view_vars.camera_bias_limit);
     let t2 = t0 / t1;
     scratch.st(t2);
 }
@@ -69,7 +70,7 @@ fn x87_3(
     let t0 = scratch.ld();
     let t1 = numbers.k65536.ld();
     let t2 = t0 * t1;
-    let t3 = view_and_records.view_vars.camera_bias_scale.ld();
+    let t3 = ld(view_and_records.view_vars.camera_bias_scale);
     let t4 = t2 * t3;
     scratch.set(to_int(t4) as u32);
 }
@@ -90,10 +91,10 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_1(
-                        crate::test_support::own::race()
+                        &crate::test_support::own::race()
                             .frame
                             .view_and_records
-                            .get(),
+                            .borrow(),
                         &crate::test_support::own::scene().scratch_cell(),
                     );
                 },
@@ -119,10 +120,10 @@ mod reference_vectors {
                 plain: |_| {
                     x87_3(
                         &crate::test_support::race_places::numbers(),
-                        crate::test_support::own::race()
+                        &crate::test_support::own::race()
                             .frame
                             .view_and_records
-                            .get(),
+                            .borrow(),
                         &crate::test_support::own::scene().scratch_cell(),
                     );
                 },

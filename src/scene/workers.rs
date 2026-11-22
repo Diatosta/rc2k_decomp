@@ -121,8 +121,7 @@ pub struct Lent<'s> {
     // The cars' blocks and the view variables.
     car_blocks: crate::memory::session::PhaseRead<'s, crate::race::blocks_store::CarBlocks>,
     car_parts: crate::memory::session::ArcRead<crate::race::car_parts_store::CarParts>,
-    view_and_records:
-        crate::memory::session::PhaseRead<'s, crate::race::groups_store::ViewAndRecords>,
+    view_and_records: crate::memory::session::ArcRead<crate::race::groups_store::ViewAndRecords>,
     // The system's screen.
     screen: crate::memory::session::PhaseRead<'s, crate::memory::session::Screen>,
     net_race: &'s rc2k_core::net::net_race::NetRaceSlot,
@@ -138,9 +137,8 @@ pub struct Lent<'s> {
     checkpoints: crate::memory::session::ArcRead<crate::race::checkpoints_store::Checkpoints>,
     vars: crate::race::vars_store::DrawnVars,
     view: crate::race::view_store::DrawnView,
-    work: crate::memory::session::PhaseRead<'s, crate::race::work_store::RaceWork>,
-    physics_tables:
-        crate::memory::session::PhaseRead<'s, crate::physics::tables_store::PhysicsTables>,
+    work: crate::memory::session::ArcRead<crate::race::work_store::RaceWork>,
+    physics_tables: crate::memory::session::ArcRead<crate::physics::tables_store::PhysicsTables>,
     // The frame's matrices and the physics' contact work.
     matrices: crate::memory::session::PlainRead<crate::race::matrices_store::SceneMatrices>,
     lit_faces: crate::memory::session::PlainRead<crate::physics::lit_faces_store::LitFaces>,
@@ -187,7 +185,10 @@ impl<'s> Lent<'s> {
             // The cars' blocks and the view variables.
             car_blocks: PhaseRead::lend(&race.shared.car_blocks, scope),
             car_parts: crate::memory::session::ArcRead::lend(&race.shared.car_parts, scope),
-            view_and_records: PhaseRead::lend(&race.frame.view_and_records, scope),
+            view_and_records: crate::memory::session::ArcRead::lend(
+                &race.frame.view_and_records,
+                scope,
+            ),
             // The system's screen.
             screen: PhaseRead::lend(&system.session.screen, scope),
             net_race: &net.race_slot,
@@ -206,8 +207,11 @@ impl<'s> Lent<'s> {
             checkpoints: crate::memory::session::ArcRead::lend(&race.shared.checkpoints, scope),
             vars: race.shared.vars.get().drawn(),
             view: race.shared.view.get().drawn(),
-            work: PhaseRead::lend(&race.shared.work, scope),
-            physics_tables: PhaseRead::lend(&race.shared.physics_tables, scope),
+            work: crate::memory::session::ArcRead::lend(&race.shared.work, scope),
+            physics_tables: crate::memory::session::ArcRead::lend(
+                &race.shared.physics_tables,
+                scope,
+            ),
             // The frame's matrices and the physics' contact work.
             matrices: crate::memory::session::PlainRead::lend(&race.frame.matrices, scope),
             lit_faces: crate::memory::session::PlainRead::lend(&race.physics.lit_faces, scope),
@@ -250,7 +254,7 @@ impl<'s> Lent<'s> {
             // The cars' blocks and the view variables.
             car_blocks: &self.car_blocks,
             car_parts: (&self.car_parts).into(),
-            view_and_records: &self.view_and_records,
+            view_and_records: (&self.view_and_records).into(),
             // The system's screen.
             screen: &self.screen,
             net_race: self.net_race,
@@ -266,8 +270,8 @@ impl<'s> Lent<'s> {
             checkpoints: (&self.checkpoints).into(),
             vars: crate::race::vars_store::DrawnVarsRef::Copy(&self.vars),
             view: crate::race::view_store::DrawnViewRef::Copy(&self.view),
-            work: &self.work,
-            physics_tables: &self.physics_tables,
+            work: (&self.work).into(),
+            physics_tables: (&self.physics_tables).into(),
             // The frame's matrices and the physics' contact work.
             matrices: (&self.matrices).into(),
             lit_faces: (&self.lit_faces).into(),
@@ -329,7 +333,8 @@ pub struct DrawReads<'a> {
         crate::memory::drawn_table::DrawnTable<'a, crate::race::car_parts_store::CarParts>,
     /// The shared view variables and the view records
     /// (`race::owner_frame::Frame::view_and_records`).
-    pub view_and_records: &'a crate::race::groups_store::ViewAndRecords,
+    pub view_and_records:
+        crate::memory::drawn_table::DrawnTable<'a, crate::race::groups_store::ViewAndRecords>,
     // The system's screen.
     /// The screen's figures (`system::owner::Session::screen`).
     pub screen: &'a crate::memory::session::Screen,
@@ -368,10 +373,11 @@ pub struct DrawReads<'a> {
     pub view: crate::race::view_store::DrawnViewRef<'a>,
     /// The race's work variables (`race::owner_shared::RaceShared::work`): the cars' block
     /// handles, the number textures, the loose parts' slots, the credits flag.
-    pub work: &'a crate::race::work_store::RaceWork,
+    pub work: crate::race::work_store::RaceWorkRef<'a>,
     /// The physics' tables and work variables (`race::owner_shared::RaceShared::physics_tables`):
     /// the ground kinds, the scene's clock, the drops the models are placed by.
-    pub physics_tables: &'a crate::physics::tables_store::PhysicsTables,
+    pub physics_tables:
+        crate::memory::drawn_table::DrawnTable<'a, crate::physics::tables_store::PhysicsTables>,
     // The frame's matrices and the physics' contact work.
     /// The frame's matrices (`race::owner_frame::Frame::matrices`): the identity and the work
     /// matrices the views are made from, the fourth columns the views hold from.
@@ -448,7 +454,9 @@ impl<'a> DrawReads<'a> {
             // The cars' blocks and the view variables.
             car_blocks: race.shared.car_blocks.get(),
             car_parts: crate::memory::drawn_table::DrawnTable::Store(&race.shared.car_parts),
-            view_and_records: race.frame.view_and_records.get(),
+            view_and_records: crate::memory::drawn_table::DrawnTable::Store(
+                &race.frame.view_and_records,
+            ),
             // The system's screen.
             screen: system.session.screen.get(),
             net_race: &net.race_slot,
@@ -468,8 +476,10 @@ impl<'a> DrawReads<'a> {
             checkpoints: race.shared.checkpoints(),
             vars: crate::race::vars_store::DrawnVarsRef::Store(race.shared.vars.get()),
             view: crate::race::view_store::DrawnViewRef::Store(race.shared.view.get()),
-            work: race.shared.work.get(),
-            physics_tables: race.shared.physics_tables.get(),
+            work: crate::race::work_store::RaceWorkRef::Store(&race.shared.work),
+            physics_tables: crate::memory::drawn_table::DrawnTable::Store(
+                &race.shared.physics_tables,
+            ),
             // The frame's matrices and the physics' contact work.
             matrices: (&race.frame.matrices).into(),
             lit_faces: (&race.physics.lit_faces).into(),

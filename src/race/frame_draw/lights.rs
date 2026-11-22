@@ -240,7 +240,9 @@ pub(super) fn car_lights_on_point(
                     .parts_of(
                         reads.car_parts,
                         crate::race::owner_shared::RaceShared::race_car_in(
-                            race_work, blocks, n as usize,
+                            &race_work.borrow(),
+                            blocks,
+                            n as usize,
                         )?,
                     )
                     .marks_count,
@@ -316,7 +318,7 @@ pub fn light_colour_at(
     drawn_view: u32,
 ) -> Result<(), Refused> {
     // The turned place, the spreads and the lamps' distances are the x87's and the scene's.
-    check_light_colour(reads.work, reads.view, lamps)?;
+    check_light_colour(&reads.work.borrow(), reads.view, lamps)?;
     object_light.borrow_mut().light_colour = 0u32;
     car_lights_on_point(reads, net_race, object_light, drawn_view)?;
     lamp_lights_on_point(reads.course(), points, lamps, object_light)?;
@@ -331,7 +333,7 @@ pub fn view_light(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let (race, view) = (ctx.race, ctx.view);
     let (lamps, object_light, car) = (&view.lamps, &view.light, &view.car);
     let drawn_view = view.drawn_view(race);
-    check_light_colour(ctx.reads.work, ctx.reads.view, lamps)?;
+    check_light_colour(&ctx.reads.work.borrow(), ctx.reads.view, lamps)?;
     let car_place: [u32; 3] = car.position.bits();
     object_light.borrow_mut().lit_place = car_place;
     light_colour_at(

@@ -13,7 +13,7 @@
 //! checkpoint past 0x1418, no faces or points.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::PlainX87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
 use crate::physics::car_store::Car;
@@ -30,7 +30,7 @@ use std::cmp::Ordering;
 /// The distance from `point`: the whole-number gaps (the search's `x` and `z` less the
 /// point's x and z), their squares added, square-rooted,
 /// x `one_over_65536`, into the split point distance.
-fn distance(tables: &PhysicsTables, numbers: &Numbers, ground: &GroundSearch, point: [u32; 3]) {
+fn distance(tables: &mut PhysicsTables, numbers: &Numbers, ground: &GroundSearch, point: [u32; 3]) {
     let word = |k: usize| point[k] as i32;
     let dx = word(0).wrapping_sub(ground.x as i32);
     let first = int(dx);
@@ -99,11 +99,16 @@ pub fn passed_split_point(c: &CheckpointInputs<'_>) -> Result<bool, Refused> {
         search.x = c.car.position.bits_at(0);
         search.z = c.car.position.bits_at(2);
     }
-    distance(c.tables, c.numbers, &c.physics.ground_search().borrow(), pt);
+    distance(
+        &mut c.tables.borrow_mut(),
+        c.numbers,
+        &c.physics.ground_search().borrow(),
+        pt,
+    );
     let within = !matches!(
         c.tables
+            .borrow()
             .split_point_distance
-            .get()
             .partial_cmp(&SPLIT_DISTANCE),
         Some(Ordering::Greater | Ordering::Equal)
     );

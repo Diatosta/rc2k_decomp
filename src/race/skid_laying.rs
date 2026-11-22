@@ -92,7 +92,7 @@ pub fn add_skid_point(race: &Race, slot: &PlainDword) -> Result<(), Refused> {
 /// What `lay_skidmarks` reads: the cars' blocks.
 fn cars_refuse(shared: &RaceShared) -> Result<(), Refused> {
     for n in 0..shared.view.get().race_cars.get().min(8) {
-        if !shared.work.get().has_car_block(n as usize) {
+        if !shared.work().has_car_block(n as usize) {
             return Err(BadInput("a race car without its block").into());
         }
     }
@@ -125,7 +125,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
         let car = race
             .frame
             .cars
-            .car(shared.work.get().block_number(c as usize)?)?;
+            .car(shared.work().block_number(c as usize)?)?;
         for wheel in 0..4usize {
             let slot = &slots[wheel];
             let on = car.wheel_squeeze[wheel].bits() != 0

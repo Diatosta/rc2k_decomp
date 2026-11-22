@@ -40,14 +40,14 @@ fn wheels(probes: &ProbeLists) -> [u32; 4] {
 
 /// One bisection step of `settle_car`: `angle` moved by `step` towards the higher pair (down when
 /// `low` - `high` is negative), the step halved.
-fn settle_step(low: u32, high: u32, angle: &impl DwordLike, step: &impl DwordLike) {
-    let s = step.get();
+fn settle_step(low: u32, high: u32, angle: &impl DwordLike, step: &mut u32) {
+    let s = *step;
     if (low.wrapping_sub(high) as i32) < 0 {
         angle.set(angle.get().wrapping_sub(s));
     } else {
         add(angle, s);
     }
-    step.set(s >> 1);
+    *step = s >> 1;
 }
 
 /// The matrix (`get_mat_crash`) and the wheels (`physics::probe_ground`).
@@ -74,8 +74,8 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     crate::physics::set_handling::set_handling(&mut c.physics.damage_mut(), c.numbers, c.shared)?;
     shared.car().car_pitch.set(0);
     shared.car().car_roll.set(0);
-    shared.physics_tables.get().settle_steps[0].set(0x2000_0000u32);
-    shared.physics_tables.get().settle_steps[1].set(0x2000_0000u32);
+    shared.physics_tables_mut().settle_steps[0] = 0x2000_0000u32;
+    shared.physics_tables_mut().settle_steps[1] = 0x2000_0000u32;
     physics.ground_probe().borrow_mut().settle_mark = 0x80;
     for _ in 0..8 {
         let w = matrix_and_wheels(shared.buffers.engine_tables(), &c.ground, c.matrices, scene)?;
@@ -83,13 +83,13 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
             w[0].wrapping_add(w[2]),
             w[1].wrapping_add(w[3]),
             &shared.car().car_roll,
-            &shared.physics_tables.get().settle_steps[1],
+            &mut shared.physics_tables_mut().settle_steps[1],
         );
         settle_step(
             w[0].wrapping_add(w[1]),
             w[2].wrapping_add(w[3]),
             &shared.car().car_pitch,
-            &shared.physics_tables.get().settle_steps[0],
+            &mut shared.physics_tables_mut().settle_steps[0],
         );
     }
     let w = matrix_and_wheels(shared.buffers.engine_tables(), &c.ground, c.matrices, scene)?;
@@ -211,7 +211,7 @@ pub fn start_car(
         use rc2k_core::race::start::{side_offset, start_checkpoint, starts_aside};
         let first = crate::race::race_init::first_check_checkpoint(c.course, c.shared)?;
         let mode: u32 = c.vars.run_kind.get();
-        let place = start_checkpoint(first, mode, c.work.current_car.get());
+        let place = start_checkpoint(first, mode, c.work.borrow().current_car);
         scene.line_and_shake_mut().line_place = place;
         scene.line_and_shake_mut().line_fraction = 0;
         if c.no_place != 0 {
@@ -227,7 +227,12 @@ pub fn start_car(
                 || c.view.players.get(),
             );
             if side {
-                move_turned(c.course, c.shared, side_offset(c.work.current_car.get()), 0);
+                move_turned(
+                    c.course,
+                    c.shared,
+                    side_offset(c.work.borrow().current_car),
+                    0,
+                );
             }
         }
     }
@@ -268,7 +273,7 @@ pub fn start_cars(
         return Err(BadInput("no cars or more than eight").into());
     }
     for n in 0..cars {
-        shared.work.get().current_car.set(n);
+        shared.work_mut().current_car = n;
         crate::drive::load_car::load_car(shared)?;
         start_car(
             &crate::physics::step_inputs::StepInputs::of(race).reset(),

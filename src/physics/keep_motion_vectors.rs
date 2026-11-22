@@ -6,13 +6,13 @@ use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 
 /// Bit copies of floats into words.
-pub(super) fn keep_motion_vectors(car: &Car, tables: &PhysicsTables) {
-    if tables.contact_step.get() != 0 {
+pub(super) fn keep_motion_vectors(car: &Car, tables: &mut PhysicsTables) {
+    if tables.contact_step != 0 {
         return;
     }
-    let kept = &tables.kept_vectors;
+    let kept = &mut tables.kept_vectors;
     for k in 0..3 {
-        kept[k].set(car.velocity.at(k));
-        kept[4 + k].set(car.spin.at(k));
+        kept[k] = car.velocity.at(k);
+        kept[4 + k] = car.spin.at(k);
     }
 }

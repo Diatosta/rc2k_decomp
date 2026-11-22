@@ -151,9 +151,9 @@ pub struct ViewScratch {
     /// The view variables as the view's drawing has them: taken from the shared ones
     /// (`race().frame.view_and_records.view_vars`) as the view's drawing begins (`take_vars`),
     /// what it changed handed back on the main thread in the views' order (`hand_on_vars`).
-    pub vars: crate::race::view_vars_store::ViewVarsCopy,
+    pub vars: PlainSlot<crate::race::view_vars_store::ViewVarsCopy>,
     /// `vars` as taken.
-    vars_taken: crate::race::view_vars_store::ViewVarsCopy,
+    vars_taken: PlainSlot<crate::race::view_vars_store::ViewVarsCopy>,
 }
 
 impl ViewScratch {
@@ -175,29 +175,28 @@ impl ViewScratch {
             state: PlainSlot::new(crate::race::view_state::ViewState::new()),
             car: crate::physics::car_store::ViewCar::new(),
             hand_off: crate::race::scene_hand_off::SceneHandOff::new(),
-            vars: crate::race::view_vars_store::ViewVarsCopy::new(),
-            vars_taken: crate::race::view_vars_store::ViewVarsCopy::new(),
+            vars: PlainSlot::new(crate::race::view_vars_store::ViewVarsCopy::new()),
+            vars_taken: PlainSlot::new(crate::race::view_vars_store::ViewVarsCopy::new()),
         }
     }
 
     /// The shared view variables (`reads.view_and_records`) into the view's (`vars`), as its
     /// drawing begins.
     pub(super) fn take_vars(&self, reads: crate::scene::workers::DrawReads<'_>) {
-        let shared = &reads.view_and_records.view_vars;
-        use crate::memory::cells::Cells;
-        self.vars.copy_from(shared);
-        self.vars_taken.copy_from(shared);
+        let shared = reads.view_and_records.read(|records| records.view_vars);
+        self.vars.reset(shared);
+        self.vars_taken.reset(shared);
     }
 
     /// Hands what the view's drawing changed in its view variables into the shared ones (on the
     /// main thread, once it is drawn).
     pub(super) fn hand_on_vars(&self, race: &crate::race::owner::Race) {
-        use crate::memory::cells::Cells;
-        race.frame
-            .view_and_records
-            .get()
-            .view_vars
-            .merge_changes(&self.vars, &self.vars_taken);
+        let (now, start) = (*self.vars.borrow(), *self.vars_taken.borrow());
+        crate::memory::plain_record::PlainRecord::merge_changes(
+            &mut race.frame.view_and_records.borrow_mut().view_vars,
+            &now,
+            &start,
+        );
     }
 
     /// Every part but the lamps and the sort lists set back to its first values: a race view's

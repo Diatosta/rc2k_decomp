@@ -133,21 +133,24 @@ const EXTRA_FIELDS: [Field; 9] = [
 pub(super) fn send_fields(race: &Race, net: &Net, m: &Message) -> Result<(), Refused> {
     let shared = &race.shared;
     let car = shared.car();
-    let message = &shared.work.get().net_message;
     log_send(race, net, m.text);
     let values: Vec<u32> = fields(m.kind)
         .iter()
         .map(|(field, _)| field(car).bits())
         .collect();
     // The work area keeps a copy of the message: the tag, then the kind's fields' bits.
-    let cells = message
-        .get(..1 + values.len())
-        .ok_or(BadInput("a network message past its buffer"))?;
-    for (cell, &v) in cells
-        .iter()
-        .zip(std::iter::once(&m.kind.tag()).chain(&values))
     {
-        cell.set(v);
+        let mut work = shared.work_mut();
+        let cells = work
+            .net_message
+            .get_mut(..1 + values.len())
+            .ok_or(BadInput("a network message past its buffer"))?;
+        for (cell, &v) in cells
+            .iter_mut()
+            .zip(std::iter::once(&m.kind.tag()).chain(&values))
+        {
+            *cell = v;
+        }
     }
     send_payload(net, Payload::of(m.kind, values))
 }

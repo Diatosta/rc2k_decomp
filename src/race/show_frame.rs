@@ -15,7 +15,7 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
     if locked < 1 || lose_this_frame() {
         return Ok(());
     }
-    if race.shared.work.get().in_credits.is_set() {
+    if race.shared.work().in_credits != 0 {
         crate::race::frame_text::roll_credits(
             crate::strings::append_string_by_id::StringOwners::of(o),
             frame,

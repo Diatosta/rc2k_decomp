@@ -18,7 +18,7 @@ use rc2k_core::physics::gear_shifts::Change;
 /// The other places: the asked gear, the gear bits, the two words set.
 #[derive(Clone, Copy)]
 struct ChangePlaces<'a> {
-    pub wanted: &'a PlainInt,
+    pub wanted: i32,
     /// By address: `bt` on memory, its bit number past the first dword.
     pub bits: &'a PlainDword,
     pub changed: &'a PlainInt,
@@ -28,7 +28,7 @@ struct ChangePlaces<'a> {
 impl<'a> ChangePlaces<'a> {
     pub fn game(shared: &'a RaceShared) -> Self {
         Self {
-            wanted: &shared.physics_tables.get().gear_asked,
+            wanted: shared.physics_tables().gear_asked,
             bits: &shared.car().lost_gear_bits,
             changed: &shared.car().gear_changed,
             pending: &shared.car().gear_change_pending,
@@ -52,7 +52,7 @@ fn change_gear_at(
     c: &ChangePlaces<'_>,
 ) -> Result<(), Refused> {
     let gear = gp.gear.get();
-    let w = c.wanted.get();
+    let w = c.wanted;
     let way = rc2k_core::physics::gear_shifts::change(gear, w);
     if way == Change::Same {
         return Ok(());
@@ -91,7 +91,7 @@ fn change_gear_at(
 pub fn change_gear(numbers: &Numbers, shared: &RaceShared) -> Result<(), Refused> {
     change_gear_at(
         numbers,
-        &GearPlaces::game(shared.car(), shared.physics_tables.get()),
+        &GearPlaces::game(shared.car(), &shared.physics_tables()),
         &ChangePlaces::game(shared),
     )
 }

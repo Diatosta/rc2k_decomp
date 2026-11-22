@@ -26,29 +26,25 @@ pub(super) fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Res
     let (frame_work, overlay) = (&race.frame.frame_work, race.frame.overlay_cell());
     let (shared, car_blocks) = (&race.shared, race.car_blocks());
     use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};
-    shared.physics_tables.get().weight.set(1.0f32);
+    shared.physics_tables_mut().weight = 1.0f32;
     let finished = shared.car().finish_flag.get() != 0;
     let factor = if finished {
         physics.split_tables().timer_factor
     } else {
         0.0
     };
-    shared
-        .physics_tables
-        .get()
-        .weight
-        .set(timer_rate(finished, factor));
+    shared.physics_tables_mut().weight = timer_rate(finished, factor);
     let run = timer_run(shared.vars.get().run_kind.get());
     if run == TimerRun::None {
         return Ok(());
     }
     count_start_second(shared.car());
     if run == TimerRun::Start {
-        count_down_start(frame_work, shared.work.get(), shared.car(), sound)?;
+        count_down_start(frame_work, &shared.work(), shared.car(), sound)?;
         take_split_counted(o, physics, league, frame_work, overlay, shared, car_blocks)?;
         start_go_notice(
             frame_work,
-            shared.work.get(),
+            &shared.work(),
             shared.car(),
             sound,
             o.menus.play.cheats.read().cheats,

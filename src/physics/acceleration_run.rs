@@ -13,9 +13,8 @@
 //! written is put back.
 
 use crate::errors::{BadInput, Refused};
-use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::{CellX87, PlainX87};
 use crate::math::x87_float::int;
-use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
 use crate::physics::flow::c0;
 use crate::physics::gear_store::GearFigures;
@@ -44,23 +43,22 @@ fn step(
     if !(-1..=7).contains(&gear) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    x87_1(
-        shared.physics_tables.get(),
-        figures,
-        &course.numbers,
-        &shared.physics_tables.get().gear_ratios[gear.wrapping_add(1) as usize],
-    );
+    {
+        let mut tables = shared.physics_tables_mut();
+        let ratio = tables.gear_ratios[gear.wrapping_add(1) as usize];
+        x87_1(&mut tables, figures, &course.numbers, ratio);
+    }
     crate::physics::drive_torque_share::drive_torque_share(
         shared.car(),
-        shared.physics_tables.get(),
+        &mut shared.physics_tables_mut(),
         &course.numbers,
         scene,
     );
-    x87_2(shared.car(), shared.physics_tables.get(), &course.numbers);
+    x87_2(shared.car(), &shared.physics_tables(), &course.numbers);
     {
         crate::physics::revs_from_wheels::revs_from_wheels(
             shared.car(),
-            shared.physics_tables.get(),
+            &shared.physics_tables(),
             &course.numbers,
         )
     }?;
@@ -120,7 +118,7 @@ pub fn acceleration_run(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[drive_torque] = (([engine_force] * [drive_torque_figure]) / [r + 0]) / [k10000]`
-fn x87_1(tables: &PhysicsTables, figures: &GearFigures, numbers: &Numbers, r: &PlainFloat) {
+fn x87_1(tables: &mut PhysicsTables, figures: &GearFigures, numbers: &Numbers, r: f32) {
     let t0 = tables.engine_force.ld();
     let t1 = figures.drive_torque_figure.ld();
     let t2 = t0 * t1;

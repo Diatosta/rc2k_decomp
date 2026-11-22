@@ -30,7 +30,7 @@ pub fn full_view_window(
         &draw,
         session.screen.get(),
         window,
-        &race.frame.view_and_records.get().view_vars,
+        &race.frame.view_and_records.borrow().view_vars,
         &crate::race::vars_store::SCALE_FACTOR,
     );
     // `draw_mode` is not written: it stays 0 (modes 1 and 2 are only read), and the drawing parts
@@ -52,7 +52,7 @@ pub fn mirror_view_window(
     reads: crate::scene::workers::DrawReads<'_>,
 ) -> Result<(), Refused> {
     let draw = &reads.scene_draw;
-    let (fog, poly, car, vars) = (&view.fog, &view.polygon, &view.car, &view.vars);
+    let (fog, poly, car) = (&view.fog, &view.polygon, &view.car);
     let drawn_view = view.drawn_view(race);
     // Logic in `rc2k_core::race::view::{mirror_entry, mirror_window}`.
     use rc2k_core::race::view::{MirrorRect, mirror_entry, mirror_window};
@@ -108,7 +108,7 @@ pub fn mirror_view_window(
         draw,
         reads.screen,
         &poly.window,
-        vars,
+        &view.vars.borrow(),
         &crate::race::vars_store::SCALE_FACTOR,
         MIRROR_REACH,
     );
@@ -200,10 +200,10 @@ fn draw_marks_overlays(
 /// Loads car 0 as the current car (`drive::load_car`). Refuses (before anything) car 0 without
 /// its block.
 pub fn load_first_car(shared: &RaceShared) -> Result<(), Refused> {
-    if !shared.work.get().has_car_block(0) {
+    if !shared.work().has_car_block(0) {
         return Err(BadInput("car 0 without its block").into());
     }
-    shared.work.get().current_car.set(0);
+    shared.work_mut().current_car = 0;
     crate::drive::load_car::load_car(shared)?;
     Ok(())
 }
@@ -411,7 +411,7 @@ pub(super) fn draw_screen_tint(
     // Logic in `rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha,
     // glare_colour}`.
     use rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha, glare_colour};
-    if ctx.reads.work.in_credits.is_set() {
+    if ctx.reads.work.in_credits() {
         ctx.view.quad.borrow_mut().colour[1] = NIGHT_ALPHA;
         window_corners(ctx.view);
         ctx.view.quad.borrow_mut().colour[0] = NIGHT_COLOUR;
@@ -481,7 +481,7 @@ pub fn draw_own_car(
         return Err(BadInput("the drawn car without its block").into());
     }
     let car = ctx.reads.work.block_number(car_number(number) as usize)?;
-    ctx.view.vars.drawn_car.set(number);
+    ctx.view.vars.borrow_mut().drawn_car = number;
     ctx.view.state.borrow_mut().drawn_car = number;
     // The state bits are the view's own; the rest, the car as seen.
     if !seen_inside(ctx.view.cars.borrow().state_of(car)?) {

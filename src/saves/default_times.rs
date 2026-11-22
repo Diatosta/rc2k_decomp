@@ -71,7 +71,7 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
     }
 
     fn checkpoint_count(&mut self, stage: u32) -> u32 {
-        self.race.shared.work.get().checkpoint_counts[stage as usize].get()
+        self.race.shared.work().checkpoint_counts[stage as usize]
     }
 
     fn log(&mut self, piece: rc2k_core::saves::defaults::Piece) {
@@ -154,8 +154,8 @@ pub fn apply(
             screens.draw_work.write().button_x = sum;
         }
         if let Some(c) = filled.checkpoints {
-            for (cell, v) in race.shared.work.get().guessed_checkpoints.iter().zip(c) {
-                cell.set(v);
+            for (cell, v) in race.shared.work_mut().guessed_checkpoints.iter_mut().zip(c) {
+                *cell = v;
             }
         }
     }

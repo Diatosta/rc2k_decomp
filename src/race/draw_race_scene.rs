@@ -88,7 +88,7 @@ fn load_car(
     car: usize,
 ) -> Result<(), Refused> {
     crate::race::frame::load_view_car(
-        race.shared.work.get(),
+        &race.shared.work(),
         race.shared.car_blocks(),
         race.shared.view.get().into(),
         car,
@@ -189,7 +189,13 @@ fn view_mirror(
     let crate::scene::workers::PartRun {
         part, view: mirror, ..
     } = run;
-    crate::race::frame::load_view_car(reads.work, reads.car_blocks, reads.view, car, mirror)?;
+    crate::race::frame::load_view_car(
+        &reads.work.borrow(),
+        reads.car_blocks,
+        reads.view,
+        car,
+        mirror,
+    )?;
     let begun = crate::debug::timing::start();
     let output = crate::race::draw_mirror_view::draw_mirror_view(
         o.race, o.scene, o.input, mirror, part, reads,
@@ -636,7 +642,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
                     (w, h)
                 },
                 own,
-                &reads.view_and_records.view_vars,
+                &reads.view_and_records.read(|records| records.view_vars),
                 &crate::race::vars_store::SCALE_FACTOR,
             );
         };
@@ -680,7 +686,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     for state in [0x11, 0x12] {
         set_render_state(part, 2, state);
     }
-    if !race.shared.work.get().in_credits.is_set() && race.replay.no_place() == 0 {
+    if race.shared.work().in_credits == 0 && race.replay.no_place() == 0 {
         crate::hud::overlay_pass::overlay_pass(
             &mut race.hud.get().borrow_mut(),
             race,

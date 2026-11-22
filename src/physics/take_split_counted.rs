@@ -32,7 +32,7 @@ pub(super) fn take_split_counted(
 ) -> Result<(), Refused> {
     let sound = o.sound;
     let physics_store = physics;
-    if shared.work.get().current_car.get() != 0 {
+    if shared.work().current_car != 0 {
         return Ok(());
     }
     if !split_due(
@@ -41,7 +41,7 @@ pub(super) fn take_split_counted(
     )? {
         return Ok(());
     }
-    { flag_current_car_listed(frame_work, shared.work.get(), sound) }?;
+    { flag_current_car_listed(frame_work, &shared.work(), sound) }?;
     split_by_mode(
         o,
         &mut physics.split_tables_mut(),

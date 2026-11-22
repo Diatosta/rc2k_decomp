@@ -15,7 +15,7 @@ use rc2k_core::net::race::Kind;
 /// Sends the current (bot) car's messages that are due at its step count.
 pub(super) fn send_bot_turn(race: &Race, net: &Net) -> Result<(), Refused> {
     let car = race.shared.car();
-    let number = race.shared.work.get().current_car.get() as u8;
+    let number = race.shared.work().current_car as u8;
     for kind in [Kind::Position, Kind::Extra] {
         if !kind.due(car.step_clock.get()).0 {
             continue;

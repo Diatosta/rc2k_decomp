@@ -38,7 +38,7 @@ pub(super) fn gearbox_step(
         GearboxTurn::Idle => {}
         GearboxTurn::Manual => manual_gearbox(
             shared.car(),
-            shared.physics_tables.get(),
+            &mut shared.physics_tables_mut(),
             &inputs,
             numbers,
             gear_figures,
@@ -49,7 +49,7 @@ pub(super) fn gearbox_step(
         }
         GearboxTurn::Auto => auto_gearbox(
             shared.car(),
-            shared.physics_tables.get(),
+            &mut shared.physics_tables_mut(),
             &inputs,
             numbers,
             gear_figures,
@@ -61,5 +61,5 @@ pub(super) fn gearbox_step(
             .engine_speed
             .set(x87::mul(&shared.car().engine_speed, ENGINE_EASE));
     }
-    wheels(shared.car(), shared.physics_tables.get())
+    wheels(shared.car(), &shared.physics_tables())
 }

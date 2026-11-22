@@ -26,7 +26,7 @@
 //! (what was written by then is put back).
 
 use crate::errors::{BadInput, Refused};
-use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::{CellX87, PlainX87};
 use crate::math::x87_float::to_int;
 use crate::math::x87_float::{int, ld, st};
 use crate::physics::car_store::Car;
@@ -92,11 +92,11 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
             share_u ^= 1;
         }
         let (_, _, d1) = flip_cell_index(face_byte(0)?, share_u, share_v);
-        c.tables.surface_firsts[cc].set(d1);
+        c.tables.borrow_mut().surface_firsts[cc] = d1;
         let (_, _, d2) = flip_cell_index(face_byte(0x20)?, share_u, share_v);
-        c.tables.surface_seconds[cc].set(d2);
+        c.tables.borrow_mut().surface_seconds[cc] = d2;
         {
-            let e = c.tables.surface_firsts[cc].get();
+            let e = c.tables.borrow().surface_firsts[cc];
             c.car.wheel_surface_a[cc].set(info_byte(
                 c.shared.buffers.polygon_tables(),
                 t1,
@@ -113,7 +113,7 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
                 e.wrapping_add(0x14),
             )?);
             let t2 = face_byte(0x21)?;
-            let e2 = c.tables.surface_seconds[cc].get();
+            let e2 = c.tables.borrow().surface_seconds[cc];
             c.car.wheel_surface_b[cc].set(info_byte(
                 c.shared.buffers.polygon_tables(),
                 t2,
@@ -165,14 +165,19 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
             if s1 > 15 || s2 > 15 {
                 return Err(BadInput("a surface past 15").into());
             }
-            let (esi, edi) = (
-                &c.tables.surfaces[s1 as usize],
-                &c.tables.surfaces[s2 as usize],
-            );
+            // Copies: the figures are blended into the tables' other fields.
+            let (esi, edi) = {
+                let tables = c.tables.borrow();
+                (
+                    tables.surfaces[s1 as usize].clone(),
+                    tables.surfaces[s2 as usize].clone(),
+                )
+            };
+            let (esi, edi) = (&esi, &edi);
             x87_3(c.shared, esi, edi, cc);
             let (ps, pd) = (
-                c.tables.surface_table_index(s1)?,
-                c.tables.surface_table_index(s2)?,
+                c.tables.borrow().surface_table_index(s1)?,
+                c.tables.borrow().surface_table_index(s2)?,
             );
             let k = c.car.tyre_kind.get();
             x87_4(
@@ -194,27 +199,27 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
         let hard = |s: u32| matches!(s, 1 | 2 | 3 | 0xC);
         let on =
             hard(c.car.wheel_surface_a[point].get()) || hard(c.car.wheel_surface_b[point].get());
-        c.tables.hard_ground[point].set(on as u32);
+        c.tables.borrow_mut().hard_ground[point] = on as u32;
     }
-    let hard = c.tables.hard_ground[0]
-        .get()
-        .wrapping_add(c.tables.hard_ground[1].get())
-        .wrapping_add(c.tables.hard_ground[2].get())
-        .wrapping_add(c.tables.hard_ground[3].get());
+    let hard = c.tables.borrow().hard_ground[0]
+        .wrapping_add(c.tables.borrow().hard_ground[1])
+        .wrapping_add(c.tables.borrow().hard_ground[2])
+        .wrapping_add(c.tables.borrow().hard_ground[3]);
     c.car.hard_ground_count.set(hard);
     let below =
         |a: f32, b: f32| !matches!(a.partial_cmp(&b), Some(Ordering::Greater | Ordering::Equal));
-    let mut least = if below(c.tables.point_grips[0].get(), c.tables.point_grips[1].get()) {
-        c.tables.point_grips[0].get()
+    let grips = c.tables.borrow().point_grips;
+    let mut least = if below(grips[0], grips[1]) {
+        grips[0]
     } else {
-        c.tables.point_grips[1].get()
+        grips[1]
     };
     c.car.ground_bump_scale.set(crate::math::x87::loaded(least));
-    for k in &c.tables.point_grips[2..5] {
-        least = if below(c.car.ground_bump_scale.get(), k.get()) {
+    for &k in &grips[2..5] {
+        least = if below(c.car.ground_bump_scale.get(), k) {
             c.car.ground_bump_scale.get()
         } else {
-            k.get()
+            k
         };
         c.car.ground_bump_scale.set(crate::math::x87::loaded(least));
     }
@@ -273,7 +278,7 @@ fn x87_3(shared: &RaceShared, s: &Surface, d: &Surface, c: usize) {
     let t3 = shared.car().wheel_surface_blend[c].ld();
     let t4 = t2 * t3;
     let t5 = t0 + t4;
-    shared.physics_tables.get().point_grips[c].st(t5);
+    shared.physics_tables_mut().point_grips[c].st(t5);
     let t6 = s.wear_factor.ld();
     let t7 = d.wear_factor.ld();
     let t8 = t7 - t6;
@@ -293,7 +298,7 @@ fn x87_4(shared: &RaceShared, numbers: &Numbers, s: &[u32], d: &[u32], k: usize)
     let t11 = t6 + t10;
     let t12 = numbers.hundredth_a.ld();
     let t13 = t11 * t12;
-    shared.physics_tables.get().surface_scales[0].st(t13);
+    shared.physics_tables_mut().surface_scales[0].st(t13);
     let t14 = int(d[k + 1] as i32);
     let t15 = int(d[k + 7] as i32);
     let t16 = t15 - t14;
@@ -302,7 +307,7 @@ fn x87_4(shared: &RaceShared, numbers: &Numbers, s: &[u32], d: &[u32], k: usize)
     let t19 = t14 + t18;
     let t20 = numbers.hundredth_a.ld();
     let t21 = t19 * t20;
-    shared.physics_tables.get().surface_scales[1].st(t21);
+    shared.physics_tables_mut().surface_scales[1].st(t21);
 }
 
 /// One straight x87 run as plain Rust over `X`.
@@ -315,44 +320,44 @@ fn x87_5(shared: &RaceShared, s: &Surface, d: &Surface, c: usize) {
 /// `x87_5`'s first three blends (the point's three grip figures), needed for every point.
 fn x87_5_grips(shared: &RaceShared, s: &Surface, d: &Surface, c: usize) {
     let t0 = s.slide_grip.ld();
-    let t1 = shared.physics_tables.get().surface_scales[0].ld();
+    let t1 = shared.physics_tables().surface_scales[0].ld();
     let t2 = t0 * t1;
     let t3 = d.slide_grip.ld();
-    let t4 = shared.physics_tables.get().surface_scales[1].ld();
+    let t4 = shared.physics_tables().surface_scales[1].ld();
     let t5 = t3 * t4;
     let t6 = t5 - t2;
     let t7 = shared.car().wheel_surface_blend[c].ld();
     let t8 = t6 * t7;
     let t9 = t2 + t8;
-    let t10 = shared.physics_tables.get().spec_surface[2].ld();
+    let t10 = shared.physics_tables().spec_surface[2].ld();
     let t11 = t9 * t10;
-    shared.physics_tables.get().wheel_loads[c].st(t11);
+    shared.physics_tables_mut().wheel_loads[c].st(t11);
     let t12 = s.accel_grip.ld();
-    let t13 = shared.physics_tables.get().surface_scales[0].ld();
+    let t13 = shared.physics_tables().surface_scales[0].ld();
     let t14 = t12 * t13;
     let t15 = d.accel_grip.ld();
-    let t16 = shared.physics_tables.get().surface_scales[1].ld();
+    let t16 = shared.physics_tables().surface_scales[1].ld();
     let t17 = t15 * t16;
     let t18 = t17 - t14;
     let t19 = shared.car().wheel_surface_blend[c].ld();
     let t20 = t18 * t19;
     let t21 = t14 + t20;
-    let t22 = shared.physics_tables.get().spec_surface[0].ld();
+    let t22 = shared.physics_tables().spec_surface[0].ld();
     let t23 = t21 * t22;
-    shared.physics_tables.get().wheel_grips[c].st(t23);
+    shared.physics_tables_mut().wheel_grips[c].st(t23);
     let t24 = s.brake_grip.ld();
-    let t25 = shared.physics_tables.get().surface_scales[0].ld();
+    let t25 = shared.physics_tables().surface_scales[0].ld();
     let t26 = t24 * t25;
     let t27 = d.brake_grip.ld();
-    let t28 = shared.physics_tables.get().surface_scales[1].ld();
+    let t28 = shared.physics_tables().surface_scales[1].ld();
     let t29 = t27 * t28;
     let t30 = t29 - t26;
     let t31 = shared.car().wheel_surface_blend[c].ld();
     let t32 = t30 * t31;
     let t33 = t26 + t32;
-    let t34 = shared.physics_tables.get().spec_surface[1].ld();
+    let t34 = shared.physics_tables().spec_surface[1].ld();
     let t35 = t33 * t34;
-    shared.physics_tables.get().wheel_grips_b[c].st(t35);
+    shared.physics_tables_mut().wheel_grips_b[c].st(t35);
 }
 
 /// `x87_5`'s last four blends (`surface_blends`: drag, minimum speed, two mud rates), read only
@@ -364,48 +369,48 @@ fn x87_5_blends(shared: &RaceShared, s: &Surface, d: &Surface, c: usize) {
     let t39 = shared.car().wheel_surface_blend[c].ld();
     let t40 = t38 * t39;
     let t41 = t36 + t40;
-    shared.physics_tables.get().surface_blends[c].st(t41);
+    shared.physics_tables_mut().surface_blends[c].st(t41);
     let t42 = s.rolling_drag_min_speed.ld();
     let t43 = d.rolling_drag_min_speed.ld();
     let t44 = t43 - t42;
     let t45 = shared.car().wheel_surface_blend[c].ld();
     let t46 = t44 * t45;
     let t47 = t42 + t46;
-    shared.physics_tables.get().surface_blends[5 + c].st(t47);
+    shared.physics_tables_mut().surface_blends[5 + c].st(t47);
     let t48 = s.mud_rates[1].ld();
     let t49 = d.mud_rates[1].ld();
     let t50 = t49 - t48;
     let t51 = shared.car().wheel_surface_blend[c].ld();
     let t52 = t50 * t51;
     let t53 = t48 + t52;
-    shared.physics_tables.get().surface_blends[10 + c].st(t53);
+    shared.physics_tables_mut().surface_blends[10 + c].st(t53);
     let t54 = s.mud_rates[0].ld();
     let t55 = d.mud_rates[0].ld();
     let t56 = t55 - t54;
     let t57 = shared.car().wheel_surface_blend[c].ld();
     let t58 = t56 * t57;
     let t59 = t54 + t58;
-    shared.physics_tables.get().surface_blends[15 + c].st(t59);
+    shared.physics_tables_mut().surface_blends[15 + c].st(t59);
 }
 
 /// One straight x87 run as plain Rust over `X`.
 fn x87_6(numbers: &Numbers, shared: &RaceShared) {
-    let t0 = shared.physics_tables.get().wheel_loads[0].ld();
-    let t1 = shared.physics_tables.get().wheel_loads[1].ld();
+    let t0 = shared.physics_tables().wheel_loads[0].ld();
+    let t1 = shared.physics_tables().wheel_loads[1].ld();
     let t2 = t0 + t1;
-    let t3 = shared.physics_tables.get().wheel_loads[2].ld();
+    let t3 = shared.physics_tables().wheel_loads[2].ld();
     let t4 = t2 + t3;
-    let t5 = shared.physics_tables.get().wheel_loads[3].ld();
+    let t5 = shared.physics_tables().wheel_loads[3].ld();
     let t6 = t4 + t5;
     let t7 = numbers.wheel_load_scale.ld();
     let t8 = t6 * t7;
-    shared.physics_tables.get().wheel_load.st(t8);
+    shared.physics_tables_mut().wheel_load.st(t8);
 }
 
 /// One straight x87 run as plain Rust over `X`.
 fn x87_7(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) {
     let t0 = c.car.ground_bump_scale.ld();
-    let t1 = c.tables.handling[6].ld();
+    let t1 = c.tables.borrow().handling[6].ld();
     let t2 = t0 * t1;
     c.car.ground_bump_scale.st(t2);
     let t3 = c.numbers.surface_blend[0].ld();
@@ -433,14 +438,14 @@ fn x87_7(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) {
     let t23 = t19 * t22;
     let t24 = ld(scene.draw_work().surface_point[0]);
     let t25 = t23 + t24;
-    c.tables.surface_softness.st(t25);
-    let t26 = c.tables.surface_blends[4].ld();
-    c.tables.wheel_drag[0].st(t26);
-    let t27 = c.tables.surface_blends[9].ld();
-    c.tables.wheel_drag[1].st(t27);
-    let t28 = c.tables.surface_blends[14].ld();
+    c.tables.borrow_mut().surface_softness.st(t25);
+    let t26 = c.tables.borrow().surface_blends[4].ld();
+    c.tables.borrow_mut().wheel_drag[0].st(t26);
+    let t27 = c.tables.borrow().surface_blends[9].ld();
+    c.tables.borrow_mut().wheel_drag[1].st(t27);
+    let t28 = c.tables.borrow().surface_blends[14].ld();
     c.vars.mud_scale_a[0].st(t28);
-    let t29 = c.tables.surface_blends[19].ld();
+    let t29 = c.tables.borrow().surface_blends[19].ld();
     c.vars.mud_scale_a[1].st(t29);
 }
 

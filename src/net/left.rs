@@ -128,7 +128,7 @@ pub fn session_ended() -> bool {
 /// The step of the car being stepped, a remote player's: when its player has left, and the car
 /// had not finished, it is taken out of the race and the others are told.
 pub fn apply(race: &Race, net: &Net) {
-    let number = race.shared.work.get().current_car.get() as usize;
+    let number = race.shared.work().current_car as usize;
     if number >= PLAYERS || net.race_slot.player() as usize == number {
         return;
     }

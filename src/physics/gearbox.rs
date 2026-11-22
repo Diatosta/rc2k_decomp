@@ -74,5 +74,5 @@ pub fn ratio(tables: &PhysicsTables, gear: i32) -> Result<f32, Refused> {
     if !(-1..=7).contains(&gear) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    Ok(tables.gear_ratios[(gear + 1) as usize].get())
+    Ok(tables.gear_ratios[(gear + 1) as usize])
 }

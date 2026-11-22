@@ -17,7 +17,7 @@ use std::cmp::Ordering;
 /// less the gear ratio setting word.
 pub fn drive_torque_share(
     car: &Car,
-    tables: &PhysicsTables,
+    tables: &mut PhysicsTables,
     numbers: &Numbers,
     scene: &crate::scene::owner::Scene,
 ) -> u32 {
@@ -48,13 +48,8 @@ pub fn drive_torque_share(
     // replaces it.
     let gears_left = count.get().wrapping_sub(car.gear_ratio_setting.get());
     gears_share.set(x87::int_ratio(gears_left as i32, count.get() as i32));
-    tables
-        .torque_share
-        .set(toward_one(gears_share.get(), speed_share.get()));
-    tables.drive_torque.set(x87::mul(
-        tables.drive_torque.get(),
-        tables.torque_share.get(),
-    ));
+    tables.torque_share = toward_one(gears_share.get(), speed_share.get());
+    tables.drive_torque = x87::mul(tables.drive_torque, tables.torque_share);
     {
         let mut work = scene.draw_work_mut();
         work.work_float_a = speed_share.get();

@@ -836,7 +836,7 @@ pub(super) fn shadow_points(
         .wrapping_sub(0x40);
     sun_slant(work, sun, turn);
     let (sx, sz) = (work.slant_x.get(), work.slant_z.get());
-    let lift = reads.physics_tables.camera_drop.get();
+    let lift = reads.physics_tables.read(|tables| tables.camera_drop);
     let unit = reads.numbers.k65536.get();
     for k in 0..count {
         let at = point_at(work, k)?;
@@ -934,7 +934,7 @@ pub(super) fn cast_car_shadows(
     for n in 0..cars {
         // Each car's shadow from its own block.
         let car = crate::race::owner_shared::RaceShared::race_car_or_in(
-            ctx.reads.work,
+            &ctx.reads.work.borrow(),
             ctx.reads.car_blocks,
             n as usize,
             "a car's block",

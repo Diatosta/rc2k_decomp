@@ -22,3 +22,42 @@ impl<T: Cell32 + ?Sized> CellX87 for T {
         self.set_bits(bh::st(x));
     }
 }
+
+/// Loads and stores for the plain float words (`f32`, and `u32` / `i32` holding a float's bits)
+/// the float code works on: the same moves as `CellX87`, on a value written through `&mut`.
+pub trait PlainX87 {
+    /// The word's float.
+    fn ld(&self) -> X;
+    /// `x` rounded to a float as the control word says, stored in the word.
+    fn st(&mut self, x: X);
+}
+
+impl PlainX87 for f32 {
+    fn ld(&self) -> X {
+        bh::ld(self.to_bits())
+    }
+
+    fn st(&mut self, x: X) {
+        *self = f32::from_bits(bh::st(x));
+    }
+}
+
+impl PlainX87 for u32 {
+    fn ld(&self) -> X {
+        bh::ld(*self)
+    }
+
+    fn st(&mut self, x: X) {
+        *self = bh::st(x);
+    }
+}
+
+impl PlainX87 for i32 {
+    fn ld(&self) -> X {
+        bh::ld(*self as u32)
+    }
+
+    fn st(&mut self, x: X) {
+        *self = bh::st(x) as i32;
+    }
+}

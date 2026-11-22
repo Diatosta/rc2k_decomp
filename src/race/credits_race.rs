@@ -23,7 +23,7 @@ pub fn credits_race(race: &'static Race, o: crate::owners::Owners<'static>) -> R
     crate::race::set_up_credits_race::set_up_credits_race(race, &o)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
     crate::race::race_shell::set_start_states(race, &o.net.race_slot)?;
-    race.shared.work.get().in_credits.set(true);
+    race.shared.work_mut().in_credits = 1;
     let word = |n: usize| &WORDS[n];
     crate::logfile::log_write::log_nul(word(0), false, 1);
     log_int(race.shared.vars.get().stage_number.get() as i32, false, 1);
@@ -45,6 +45,6 @@ pub fn credits_race(race: &'static Race, o: crate::owners::Owners<'static>) -> R
     )?;
     race.shared.view.get().after_credits.set(0);
     crate::drive::play_race::play_race(race, o)?;
-    race.shared.work.get().in_credits.set(false);
+    race.shared.work_mut().in_credits = 0;
     crate::race::race_end::tidy_everything(race, o)
 }

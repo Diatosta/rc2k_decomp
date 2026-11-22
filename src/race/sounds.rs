@@ -49,7 +49,7 @@ pub fn wake_car_sounds(
     picture_clock: &crate::clock::tick_count::PictureClock,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
-    if shared.work.get().in_credits.is_set() {
+    if shared.work().in_credits != 0 {
         return Ok(());
     }
     let cars: u32 = shared.view.get().race_cars.get();

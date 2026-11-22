@@ -58,9 +58,7 @@ fn steps(
         let turned = [0, 1, 2].map(|k| loaded(&corner_turned[k]).to_bits());
         c.contact.borrow_mut().contact_point = turned;
     }
-    for v in &c.tables.contacts[6].force {
-        v.set(0.0);
-    }
+    c.tables.borrow_mut().contacts[6].force = [0.0; 3];
     c.car.contact_flag.set(1);
     other_car.contact_flag.set(1);
     relative_speed(c.car, &relative, &other_car.velocity);

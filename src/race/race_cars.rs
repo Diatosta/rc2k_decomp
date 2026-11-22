@@ -357,25 +357,16 @@ fn set_up_mode_4_cars(race: &Race) -> Result<(), BadInput> {
 /// Zeroes entries 9 .. 0 of the thirteen tables (four of them overlap, one dword apart: the
 /// points' tables from entries 0 .. 3).
 fn clear_race_tables(shared: &RaceShared) {
-    let w = shared.work.get();
-    let tables: [(&[PlainDword], usize); 13] = [
-        (&w.driver_bend_to, 0),
-        (&w.driver_bend_noted, 0),
-        (&w.driver_steps, 0),
-        (&w.driver_reverse_left, 0),
-        (&w.driver_bend_turn, 0),
-        (&w.driver_points_now, 0),
-        (&w.driver_points_now, 1),
-        (&w.driver_points_now, 2),
-        (&w.driver_points_now, 3),
-        (&w.driver_points_then, 0),
-        (&w.driver_points_then, 1),
-        (&w.driver_points_then, 2),
-        (&w.driver_points_then, 3),
-    ];
+    let mut w = shared.work_mut();
     for k in (0..10).rev() {
-        for (table, first) in tables {
-            table[first + k].set(0);
+        w.driver_bend_to[k] = 0;
+        w.driver_bend_noted[k] = 0;
+        w.driver_steps[k] = 0;
+        w.driver_reverse_left[k] = 0;
+        w.driver_bend_turn[k] = 0;
+        for first in 0..4 {
+            w.driver_points_now[first + k] = 0;
+            w.driver_points_then[first + k] = 0;
         }
     }
 }

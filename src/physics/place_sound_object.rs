@@ -23,7 +23,7 @@ pub fn place_sound_object(
     c: &SoundInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    if !listed(c.frame_work, c.work.current_car.get())? {
+    if !listed(c.frame_work, c.work.borrow().current_car)? {
         return Ok(());
     }
     let face_object = c.contact.borrow().face_object;

@@ -5,6 +5,7 @@
 use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
+use crate::memory::session::DrawArc;
 use crate::physics::camera_view::{record, share_done};
 use crate::race::groups_store::ViewAndRecords;
 use crate::race::numbers_store::Numbers;
@@ -15,16 +16,16 @@ use crate::race::tables_store::RaceTables;
 pub fn ease_view_angles(
     numbers: &Numbers,
     shared: &RaceShared,
-    view_records: &ViewAndRecords,
+    view_records: &DrawArc<ViewAndRecords>,
 ) -> Result<(), crate::errors::BadInput> {
     let view_record = record(view_records, shared.car())?;
-    if view_record.change_time.get() == 0 {
+    if view_record.change_time == 0 {
         return Ok(());
     }
-    share_done(shared, view_record);
+    share_done(shared, &view_record);
     let scratch = crate::memory::session::PlainDword::new(0);
     for (k, rate) in view_record.turn_rates.iter().enumerate().take(3) {
-        x87_1(numbers, shared.tables(), rate.get(), &scratch);
+        x87_1(numbers, shared.tables(), *rate, &scratch);
         let turns = &shared.car().camera_offset_turns;
         turns.set_bits_at(k, turns.bits_at(k).wrapping_add(scratch.get() << 16));
     }

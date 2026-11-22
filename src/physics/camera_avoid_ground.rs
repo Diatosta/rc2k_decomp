@@ -14,6 +14,7 @@
 //! changes to chase 1 for a while so the camera does not clip into the ground.
 
 use crate::errors::Refused;
+use crate::memory::session::DrawArc;
 use crate::memory::session::PlainDword;
 use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
 use crate::physics::camera_over_ground::camera_over_ground;
@@ -33,7 +34,7 @@ use std::cell::RefCell;
 fn place(
     camera: &RefCell<CameraWork>,
     lights_data: &LightsData,
-    view_records: &ViewAndRecords,
+    view_records: &DrawArc<ViewAndRecords>,
     numbers: &Numbers,
     frame_work: &FrameWorkStore,
     shared: &RaceShared,
@@ -148,7 +149,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         c.frame_work,
         c.shared,
     );
-    if record(c.view_records, c.car)?.halve_tilt.get() == 0 {
+    if record(c.view_records, c.car)?.halve_tilt == 0 {
         return Ok(());
     }
     if !camera_over_ground(c.shared.buffers.engine_tables(), &c.ground)? {

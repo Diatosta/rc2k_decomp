@@ -20,6 +20,7 @@ use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e1::place_sound_e1;
 use crate::physics::restore_saved_car::restore_saved_car;
 use crate::physics::step_families::ContactInputs;
+use crate::physics::tables_store::RecordAt;
 
 // Core: `rc2k_core::physics::contacts::touches` and `walls::raised_hit` (the x87 steps stay).
 fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
@@ -37,7 +38,13 @@ fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     c.car.contact_point.set_at(2, c.car.probe_point_z[n].get());
     take_contact(c.contact, &c.ground.probes.borrow(), c.course, c.car, n)?;
     c.contact.borrow_mut().contact_slide_limit = 0;
-    contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[2]);
+    contact_force(
+        c.contact,
+        c.numbers,
+        &mut c.tables.borrow_mut(),
+        c.car,
+        RecordAt::Contact(2),
+    );
     { place_sound_e1(&c.sound) }?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
         f32::from_bits(c.contact.borrow().contact_speed_length),
@@ -47,7 +54,7 @@ fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     }
     let lowest_depth = c.contact.borrow().lowest_depth;
     if sign(lowest_depth) {
-        { restore_saved_car(c.car, c.tables, &c.ground.probes.borrow()) }?;
+        { restore_saved_car(c.car, &mut c.tables.borrow_mut(), &c.ground.probes.borrow()) }?;
         { feel_ground(&c.ground) }?;
     }
     Ok(())

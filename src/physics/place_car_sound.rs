@@ -20,7 +20,7 @@ pub(super) fn place_car_sound(
     shared: &RaceShared,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    let so = crate::sound::store::current_object(sound, shared.work.get());
+    let so = crate::sound::store::current_object(sound, &shared.work());
     so.borrow_mut().slot_b.start = 1;
     let d = |a: u32, b: u32| ints_diff_80(a as i32, b as i32);
     let listener = crate::race::heard_cars::listener(shared, shared.car());

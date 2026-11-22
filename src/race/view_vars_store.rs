@@ -3,107 +3,105 @@
 //! the 52 view records (`ViewRecord`). The record fields' short names are the ones on the kstar
 //! camera page: `xoff`, `xfoc`, `xang`, `mspx`, `fish`.
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::{CellKind, ConstFloat, PlainCells, PlainDword, PlainFloat};
+use crate::memory::session::ConstFloat;
 use crate::race::groups_store::ViewAndRecords;
 
-/// The view variables, on the cells of kind `K`: plain for the shared ones
-/// (`ViewAndRecords::view_vars`, which only the main thread writes) and for a view's copy
-/// (`ViewVarsCopy`), which only the view's drawing part reaches.
-#[derive(rc2k_derive::Cells)]
-pub struct ViewVars<K: CellKind = PlainCells> {
+/// The view variables: the shared ones (`ViewAndRecords::view_vars`, which only the game's
+/// thread writes) and a view's copy (`ViewVarsCopy`), which only the view's drawing part
+/// reaches.
+#[derive(Clone, Copy, rc2k_derive::PlainRecord)]
+pub struct ViewVars {
     /// The car block's `camera_switch_share` copied at the frame start (`race::frame_draw`);
     /// `race::car_draw` tests it against the drawn car, so it marks which car the view follows.
-    pub view_car_flag_a: K::Float,
+    pub view_car_flag_a: f32,
     /// The car block's `camera_view` copied at the frame start; the car's index into the
     /// stage records (`race::car_draw`, `race::frame_draw`).
-    pub view_car_stage: K::Dword,
+    pub view_car_stage: u32,
     /// The car block's `camera_mode_is_2_or_3` copied at the frame start
     /// (`race::frame_draw`); read by `camera_view` and written by `race::car_light_modes`.
-    pub view_car_flag_b: K::Dword,
+    pub view_car_flag_b: u32,
     /// The car being drawn (`race::car_draw`, `scene::set_object_light`,
     /// `scene::list_object_face`).
-    pub drawn_car: K::Dword,
+    pub drawn_car: u32,
     /// Camera height bias (`physics::camera_height_bias`).
-    pub camera_height_bias: K::Dword,
+    pub camera_height_bias: u32,
     /// The camera height bias's scale (`physics::camera_height_bias`).
-    pub camera_bias_scale: K::Float,
+    pub camera_bias_scale: f32,
     /// Held to 0 ..= 1 (`physics::camera_height_bias`).
-    pub camera_bias_limit: K::Float,
+    pub camera_bias_limit: f32,
     /// A float, the far/scale (`scene::set_view_window`, `race::draw_mirror_view`,
     /// `race::race_end`).
-    pub view_scale: K::Float,
+    pub view_scale: f32,
     /// `view_place`: the view place x, y, z (`scene::view_matrix`, `race::frame_draw`,
     /// `drive::set_listener`). The three are written as a run.
-    pub view_place: [K::Dword; 3],
+    pub view_place: [u32; 3],
     /// The place as floats (`race::course_faces`, `race::frame_draw`).
-    pub view_place_f: [K::Float; 3],
+    pub view_place_f: [f32; 3],
     /// View x (`race::frame_draw`).
-    pub view_x: K::Dword,
+    pub view_x: u32,
     /// View z (`race::frame_draw`).
-    pub view_z: K::Dword,
+    pub view_z: u32,
     /// `view_angles`: y, x, z then a second triple (`scene::view_matrix`,
     /// `race::frame_draw`).
-    pub view_angles: [K::Dword; 6],
+    pub view_angles: [u32; 6],
     /// The camera's zoom hold (`physics::update_camera`).
-    pub camera_zoom_hold: K::Float,
+    pub camera_zoom_hold: f32,
     /// The camera vector (three floats) whose length `physics::update_camera` takes.
-    pub camera_vector: [K::Float; 3],
+    pub camera_vector: [f32; 3],
     /// Held to 0 ..= 1 (`physics::camera_height_bias`, `physics::update_camera`).
-    pub camera_distance: K::Float,
+    pub camera_distance: f32,
     /// The view kind, the camera mode number (`drive::set_camera_view`;
     /// `race::frame_draw::scene_objects` and `car_draw` branch on it).
-    pub view_kind: K::Dword,
+    pub view_kind: u32,
 }
 
 /// A view record (0x5C bytes; 52 of them, `ViewAndRecords::records`): one
 /// camera mode's figures. The three-letter names are the developers' (the kstar camera page).
 /// Records 1 .. 3 are refilled from the car's light record (`physics::update_camera`), 4 .. 6
 /// placed by `physics::place_camera`, 6 by the finish camera too.
-#[derive(rc2k_derive::Cells)]
+#[derive(Clone, Copy, rc2k_derive::PlainRecord)]
 pub struct ViewRecord {
     /// The mode's kind (what a replay camera wish stops at: `drive::pick_replay_camera`).
-    pub kind: PlainDword,
+    pub kind: u32,
     /// `xoff`, `yoff`, `zoff`: the camera's offset (floats; `take_first_view` /
     /// `take_second_view` add the camera frame to it).
-    pub offset: [PlainDword; 3],
+    pub offset: [u32; 3],
     /// `xfoc`, `yfoc`, `zfoc`: the focus (floats). The next eleven figures are the ones the
     /// views take whole (`take_first_view` / `take_second_view`).
-    pub focus: [PlainDword; 3],
+    pub focus: [u32; 3],
     /// `xang`, `yang`, `zang`: the angles.
-    pub angles: [PlainDword; 3],
+    pub angles: [u32; 3],
     /// `mspx`, `mspy`, `mspz` (floats; the views' shares).
-    pub speeds: [PlainDword; 3],
+    pub speeds: [u32; 3],
     /// The record's dword before `fish`; copied with the rest of the record and never
     /// used otherwise.
-    pub reserved_34: PlainDword,
+    pub reserved_34: u32,
     /// `fish` (a whole number).
-    pub fish: PlainDword,
+    pub fish: u32,
     /// How long a change into this mode takes (ticks; `physics::camera_view::share_done`).
-    pub change_time: PlainDword,
+    pub change_time: u32,
     /// The three turn figures eased in over a change (floats; `ease_view_angles`).
-    pub turn_rates: [PlainDword; 3],
+    pub turn_rates: [u32; 3],
     /// Nonzero: the car's pitch and roll halved and the camera kept off the ground
     /// (`take_first_view`, `camera_avoid_ground`).
-    pub halve_tilt: PlainDword,
+    pub halve_tilt: u32,
     /// Nonzero: the zoom held at 0x180 (`physics::update_camera`).
-    pub fixed_zoom: PlainDword,
+    pub fixed_zoom: u32,
     /// The height bias's figure (`camera_height_bias`; sign read).
-    pub height_bias: PlainDword,
+    pub height_bias: u32,
     /// The blend's figure (`ease_view_blend`; sign read).
-    pub blend: PlainDword,
+    pub blend: u32,
 }
 
 impl ViewRecord {
     /// The offset's three dwords.
     pub fn offset_bits(&self) -> [u32; 3] {
-        self.offset.each_ref().map(PlainDword::get)
+        self.offset
     }
 
     /// The eleven dwords the views take whole (`focus`, angles, speeds, one more figure, fish).
     pub fn taken(&self) -> [u32; 11] {
-        let [f, a, s] =
-            [&self.focus, &self.angles, &self.speeds].map(|t| t.each_ref().map(PlainDword::get));
+        let [f, a, s] = [self.focus, self.angles, self.speeds];
         [
             f[0],
             f[1],
@@ -114,8 +112,8 @@ impl ViewRecord {
             s[0],
             s[1],
             s[2],
-            self.reserved_34.get(),
-            self.fish.get(),
+            self.reserved_34,
+            self.fish,
         ]
     }
 }
@@ -125,6 +123,11 @@ impl ViewVars {
     /// placed).
     pub fn record(view_records: &ViewAndRecords, n: usize) -> &ViewRecord {
         &view_records.records[n]
+    }
+
+    /// View record `n`, to write.
+    pub fn record_mut(view_records: &mut ViewAndRecords, n: usize) -> &mut ViewRecord {
+        &mut view_records.records[n]
     }
 
     /// View record `n`. A view past the 52 is refused.
@@ -149,40 +152,38 @@ pub const VIEW_HIDES: [u32; 52] = [
 /// The size scale `view_scale` takes at a view's start (`race::frame_draw`).
 pub const VIEW_SCALE_FIRST: ConstFloat = ConstFloat::new(256.0);
 
+impl crate::race::plain_slot::Merge for ViewVars {
+    fn merge_changes(&mut self, now: &Self, start: &Self) {
+        crate::memory::plain_record::PlainRecord::merge_changes(self, now, start);
+    }
+}
+
 /// A view's copy of the view variables (`race::view_scratch::ViewScratch::vars`): the same
 /// fields, which only the view's drawing part reaches.
 pub type ViewVarsCopy = ViewVars;
 
-/// The view variables at the start, on the cells `$dword` and `$float`: the camera's bias
-/// figures and the first view kind.
-macro_rules! first_view_vars {
-    ($dword:ident, $float:ident) => {
-        Self {
-            view_car_flag_a: ZeroCells::ZERO,
-            view_car_stage: ZeroCells::ZERO,
-            view_car_flag_b: ZeroCells::ZERO,
-            drawn_car: ZeroCells::ZERO,
-            camera_height_bias: ZeroCells::ZERO,
-            camera_bias_scale: $float::new(8.0),
-            camera_bias_limit: $float::new(64.0),
-            view_scale: $float::new(384.0),
-            view_place: ZeroCells::ZERO,
-            view_place_f: ZeroCells::ZERO,
-            view_x: ZeroCells::ZERO,
-            view_z: ZeroCells::ZERO,
-            view_angles: ZeroCells::ZERO,
-            camera_zoom_hold: $float::new(128.0),
-            camera_vector: ZeroCells::ZERO,
-            camera_distance: ZeroCells::ZERO,
-            view_kind: $dword::new(1),
-        }
-    };
-}
-
-impl ViewVars<PlainCells> {
-    /// The view variables' starting values.
+impl ViewVars {
+    /// The view variables' starting values: the camera's bias figures and the first view kind.
     pub const fn new() -> Self {
-        first_view_vars!(PlainDword, PlainFloat)
+        Self {
+            view_car_flag_a: 0.0,
+            view_car_stage: 0,
+            view_car_flag_b: 0,
+            drawn_car: 0,
+            camera_height_bias: 0,
+            camera_bias_scale: 8.0,
+            camera_bias_limit: 64.0,
+            view_scale: 384.0,
+            view_place: [0; 3],
+            view_place_f: [0.0; 3],
+            view_x: 0,
+            view_z: 0,
+            view_angles: [0; 6],
+            camera_zoom_hold: 128.0,
+            camera_vector: [0.0; 3],
+            camera_distance: 0.0,
+            view_kind: 1,
+        }
     }
 }
 
@@ -402,39 +403,19 @@ impl ViewRecord {
     /// A record from its 23 dwords in field order.
     const fn from_words(w: [u32; 23]) -> Self {
         ViewRecord {
-            kind: PlainDword::new(w[0]),
-            offset: [
-                PlainDword::new(w[1]),
-                PlainDword::new(w[2]),
-                PlainDword::new(w[3]),
-            ],
-            focus: [
-                PlainDword::new(w[4]),
-                PlainDword::new(w[5]),
-                PlainDword::new(w[6]),
-            ],
-            angles: [
-                PlainDword::new(w[7]),
-                PlainDword::new(w[8]),
-                PlainDword::new(w[9]),
-            ],
-            speeds: [
-                PlainDword::new(w[10]),
-                PlainDword::new(w[11]),
-                PlainDword::new(w[12]),
-            ],
-            reserved_34: PlainDword::new(w[13]),
-            fish: PlainDword::new(w[14]),
-            change_time: PlainDword::new(w[15]),
-            turn_rates: [
-                PlainDword::new(w[16]),
-                PlainDword::new(w[17]),
-                PlainDword::new(w[18]),
-            ],
-            halve_tilt: PlainDword::new(w[19]),
-            fixed_zoom: PlainDword::new(w[20]),
-            height_bias: PlainDword::new(w[21]),
-            blend: PlainDword::new(w[22]),
+            kind: w[0],
+            offset: [w[1], w[2], w[3]],
+            focus: [w[4], w[5], w[6]],
+            angles: [w[7], w[8], w[9]],
+            speeds: [w[10], w[11], w[12]],
+            reserved_34: w[13],
+            fish: w[14],
+            change_time: w[15],
+            turn_rates: [w[16], w[17], w[18]],
+            halve_tilt: w[19],
+            fixed_zoom: w[20],
+            height_bias: w[21],
+            blend: w[22],
         }
     }
 
@@ -453,13 +434,14 @@ impl ViewRecord {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::memory::session::{PlainDword, PlainFloat};
 
     #[test]
     fn a_view_record_is_found_by_its_place_and_one_past_the_52_is_refused() {
-        let places = crate::test_support::own::race()
+        let places = &*crate::test_support::own::race()
             .frame
             .view_and_records
-            .get();
+            .borrow();
         for n in 0..52usize {
             assert!(core::ptr::eq(
                 ViewVars::record_of(places, n).unwrap(),
@@ -467,6 +449,123 @@ mod tests {
             ));
         }
         assert!(ViewVars::record_of(places, 52).is_err());
+    }
+
+    /// Every call a walk makes, as text.
+    #[derive(Default)]
+    struct Trace(Vec<String>);
+
+    impl crate::memory::cells::CellVisitor for Trace {
+        fn enter(&mut self, name: &'static str) {
+            self.0.push(format!("enter {name}"));
+        }
+        fn index(&mut self, i: usize) {
+            self.0.push(format!("index {i}"));
+        }
+        fn leave(&mut self) {
+            self.0.push("leave".into());
+        }
+        fn leaf(&mut self, bytes: &[u8]) {
+            self.0.push(format!("leaf {bytes:?}"));
+        }
+    }
+
+    /// The view variables as they were held in cells.
+    #[derive(rc2k_derive::Cells)]
+    struct VarsInCells {
+        view_car_flag_a: PlainFloat,
+        view_car_stage: PlainDword,
+        view_car_flag_b: PlainDword,
+        drawn_car: PlainDword,
+        camera_height_bias: PlainDword,
+        camera_bias_scale: PlainFloat,
+        camera_bias_limit: PlainFloat,
+        view_scale: PlainFloat,
+        view_place: [PlainDword; 3],
+        view_place_f: [PlainFloat; 3],
+        view_x: PlainDword,
+        view_z: PlainDword,
+        view_angles: [PlainDword; 6],
+        camera_zoom_hold: PlainFloat,
+        camera_vector: [PlainFloat; 3],
+        camera_distance: PlainFloat,
+        view_kind: PlainDword,
+    }
+
+    /// A view record as it was held in cells.
+    #[derive(rc2k_derive::Cells)]
+    struct RecordInCells {
+        kind: PlainDword,
+        offset: [PlainDword; 3],
+        focus: [PlainDword; 3],
+        angles: [PlainDword; 3],
+        speeds: [PlainDword; 3],
+        reserved_34: PlainDword,
+        fish: PlainDword,
+        change_time: PlainDword,
+        turn_rates: [PlainDword; 3],
+        halve_tilt: PlainDword,
+        fixed_zoom: PlainDword,
+        height_bias: PlainDword,
+        blend: PlainDword,
+    }
+
+    /// The group as it was held in cells.
+    #[derive(rc2k_derive::Cells)]
+    struct GroupInCells {
+        view_vars: VarsInCells,
+        records: [RecordInCells; 52],
+    }
+
+    /// The plain group walks as the cells of its shape did: the same paths and bytes, which is
+    /// what keeps the walks the tests and the simulation hash take.
+    #[test]
+    fn the_plain_group_walks_as_the_cells_of_its_shape() {
+        use crate::memory::cells::Cells;
+        let plain = ViewAndRecords::new();
+        let cells = GroupInCells {
+            view_vars: VarsInCells {
+                view_car_flag_a: PlainFloat::new(plain.view_vars.view_car_flag_a),
+                view_car_stage: PlainDword::new(plain.view_vars.view_car_stage),
+                view_car_flag_b: PlainDword::new(plain.view_vars.view_car_flag_b),
+                drawn_car: PlainDword::new(plain.view_vars.drawn_car),
+                camera_height_bias: PlainDword::new(plain.view_vars.camera_height_bias),
+                camera_bias_scale: PlainFloat::new(plain.view_vars.camera_bias_scale),
+                camera_bias_limit: PlainFloat::new(plain.view_vars.camera_bias_limit),
+                view_scale: PlainFloat::new(plain.view_vars.view_scale),
+                view_place: PlainDword::array(plain.view_vars.view_place),
+                view_place_f: PlainFloat::array(plain.view_vars.view_place_f),
+                view_x: PlainDword::new(plain.view_vars.view_x),
+                view_z: PlainDword::new(plain.view_vars.view_z),
+                view_angles: PlainDword::array(plain.view_vars.view_angles),
+                camera_zoom_hold: PlainFloat::new(plain.view_vars.camera_zoom_hold),
+                camera_vector: PlainFloat::array(plain.view_vars.camera_vector),
+                camera_distance: PlainFloat::new(plain.view_vars.camera_distance),
+                view_kind: PlainDword::new(plain.view_vars.view_kind),
+            },
+            records: std::array::from_fn(|n| {
+                let r = &plain.records[n];
+                RecordInCells {
+                    kind: PlainDword::new(r.kind),
+                    offset: PlainDword::array(r.offset),
+                    focus: PlainDword::array(r.focus),
+                    angles: PlainDword::array(r.angles),
+                    speeds: PlainDword::array(r.speeds),
+                    reserved_34: PlainDword::new(r.reserved_34),
+                    fish: PlainDword::new(r.fish),
+                    change_time: PlainDword::new(r.change_time),
+                    turn_rates: PlainDword::array(r.turn_rates),
+                    halve_tilt: PlainDword::new(r.halve_tilt),
+                    fixed_zoom: PlainDword::new(r.fixed_zoom),
+                    height_bias: PlainDword::new(r.height_bias),
+                    blend: PlainDword::new(r.blend),
+                }
+            }),
+        };
+        let (mut from_cells, mut from_plain) = (Trace::default(), Trace::default());
+        cells.visit(&mut from_cells);
+        crate::memory::plain_record::PlainRecord::visit(&plain, &mut from_plain);
+        assert_eq!(from_plain.0, from_cells.0);
     }
 
     #[test]

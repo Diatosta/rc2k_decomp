@@ -8,18 +8,14 @@ use rc2k_core::physics::motion::hold_spin;
 
 /// Compares and copies of floats only: the same at any precision.
 // Core: `rc2k_core::physics::motion::hold_spin`.
-pub(super) fn hold_spin_on_ground(car: &Car, tables: &PhysicsTables) {
+pub(super) fn hold_spin_on_ground(car: &Car, tables: &mut PhysicsTables) {
     // Wheels down: all four squeeze words (integers in float cells, tested as words) are not 0.
     if car.wheel_squeeze.iter().any(|w| w.bits() == 0) {
         return;
     }
-    let (mut limit, mut x, mut z) = (
-        tables.ground_spin_limit.get(),
-        car.spin.at(0),
-        car.spin.at(2),
-    );
+    let (mut limit, mut x, mut z) = (tables.ground_spin_limit, car.spin.at(0), car.spin.at(2));
     hold_spin(&mut limit, &mut x, &mut z);
-    tables.ground_spin_limit.set(limit);
+    tables.ground_spin_limit = limit;
     car.spin.set_at(0, x);
     car.spin.set_at(2, z);
 }

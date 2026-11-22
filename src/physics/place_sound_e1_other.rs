@@ -18,7 +18,8 @@ pub fn place_sound_e1_other(
     other_car_number: u32,
     bump_speed_length: f32,
 ) -> Result<(), Refused> {
-    if !listed(c.frame_work, other_car_number)? && !listed(c.frame_work, c.work.current_car.get())?
+    if !listed(c.frame_work, other_car_number)?
+        && !listed(c.frame_work, c.work.borrow().current_car)?
     {
         return Ok(());
     }

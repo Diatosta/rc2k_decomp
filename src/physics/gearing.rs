@@ -24,7 +24,7 @@ pub(super) struct GearPlaces<'a> {
     pub drive_speed: &'a PlainFloat,
     pub drive_speed_b: &'a PlainFloat,
     pub drive_kind: &'a PlainDword,
-    pub ratios: &'a [PlainFloat; 9],
+    pub ratios: &'a [f32; 9],
     pub local_velocity: &'a PlainFloats<3>,
 }
 
@@ -48,7 +48,7 @@ fn gear_ratio(p: &GearPlaces<'_>) -> Result<Option<(i32, f32)>, Refused> {
     let Some(index) = rc2k_core::physics::gearing::ratio_index(gear)? else {
         return Ok(None);
     };
-    Ok(Some((gear, p.ratios[index].get())))
+    Ok(Some((gear, p.ratios[index])))
 }
 
 /// `physics::revs_from_wheels`: in gear, engine speed = the driven speed (with

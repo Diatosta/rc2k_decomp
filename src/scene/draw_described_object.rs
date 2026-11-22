@@ -143,7 +143,7 @@ fn draw_description(
         && place < ctx.reads.course_work.get().scene_point_count
         && !(ctx.reads.switches.scene_set_up() != 0 && object == 0x3F);
     if shown {
-        check_object(ctx.reads.number_vars, ctx.reads.work, object)?;
+        check_object(ctx.reads.number_vars, &ctx.reads.work.borrow(), object)?;
     }
     ctx.view.cars.borrow_mut().object_number = object;
     let end = || {

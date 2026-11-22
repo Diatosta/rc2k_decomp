@@ -13,11 +13,11 @@ use crate::race::owner_shared::RaceShared;
 /// The exact version, for `physics::update_camera`.
 pub fn ease_view_blend(c: &CameraInputs<'_>) -> Result<(), crate::errors::BadInput> {
     let view_record = record(c.view_records, c.car)?;
-    if view_record.blend.get() == 0 || view_record.change_time.get() == 0 {
+    if view_record.blend == 0 || view_record.change_time == 0 {
         return Ok(());
     }
-    share_done(c.shared, view_record);
-    if (view_record.blend.get() as i32) < 0 {
+    share_done(c.shared, &view_record);
+    if (view_record.blend as i32) < 0 {
         x87_1(c.shared);
     }
     x87_2(c);

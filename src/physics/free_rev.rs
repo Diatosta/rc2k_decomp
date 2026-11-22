@@ -6,7 +6,7 @@
 //!
 //! The x87 run is plain Rust over `X` (`math/x87_float.rs`).
 
-use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::{CellX87, PlainX87};
 use crate::math::x87;
 use crate::math::x87_float::int;
 use crate::physics::car_store::Car;
@@ -18,7 +18,12 @@ use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 
 /// The drag and the engine speed's step.
-fn run(numbers: &Numbers, physics_tables: &PhysicsTables, car: &Car, gear: &GearFigures) -> u32 {
+fn run(
+    numbers: &Numbers,
+    physics_tables: &mut PhysicsTables,
+    car: &Car,
+    gear: &GearFigures,
+) -> u32 {
     x87_1(numbers, physics_tables, car, gear)
 }
 
@@ -32,7 +37,7 @@ pub fn free_rev(
     engine_torque(course, shared, scene);
     let drag = run(
         &course.numbers,
-        shared.physics_tables.get(),
+        &mut shared.physics_tables_mut(),
         shared.car(),
         gear,
     );
@@ -58,7 +63,12 @@ pub fn free_rev(
 // ---- the x87 arithmetic ----
 
 /// One straight x87 run as plain Rust over `X`; the drag's float bits.
-fn x87_1(numbers: &Numbers, physics_tables: &PhysicsTables, car: &Car, gear: &GearFigures) -> u32 {
+fn x87_1(
+    numbers: &Numbers,
+    physics_tables: &mut PhysicsTables,
+    car: &Car,
+    gear: &GearFigures,
+) -> u32 {
     let t0 = physics_tables.drive_ratio.ld();
     let t1 = gear.drive_torque_figure.ld();
     let t2 = t0 * t1;
@@ -116,7 +126,7 @@ mod reference_vectors {
             plain: |_| {
                 let drag = x87_1(
                     &crate::test_support::race_places::numbers(),
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.physics_tables_mut(),
                     race().shared.car(),
                     race().gear(),
                 );

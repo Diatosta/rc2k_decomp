@@ -12,7 +12,7 @@ use rc2k_core::physics::sound_places::{SECOND, SOUND_E5};
 
 // Core: `rc2k_core::physics::sound_places`.
 pub fn place_sound_e5(c: &SoundInputs<'_>) -> Result<(), Refused> {
-    if !listed(c.frame_work, c.work.current_car.get())? {
+    if !listed(c.frame_work, c.work.borrow().current_car)? {
         return Ok(());
     }
     let b = band_value_plain(c, &CRASH_BAND);

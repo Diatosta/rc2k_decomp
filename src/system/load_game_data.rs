@@ -236,9 +236,9 @@ fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
             }
         }
         Call::ApplyPatches => crate::physics::apply_patches::apply_patches(
-            race.shared.physics_tables.get(),
+            &mut race.shared.physics_tables_mut(),
             &race.course.numbers,
-            race.shared.work.get(),
+            &mut race.shared.work_mut(),
         ),
         Call::RemoveSecretCars => crate::menu::remove_secret_cars::remove_secret_cars(menus)?,
         Call::ApplyCheats => crate::menu::apply_cheats::apply_cheats(

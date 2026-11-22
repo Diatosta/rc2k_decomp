@@ -15,7 +15,7 @@
 //! was written is put back.
 
 use crate::errors::Refused;
-use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::{CellX87, PlainX87};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87::neg_rounded;
 use crate::math::x87::{loaded, mul};
@@ -31,6 +31,7 @@ use crate::physics::place_sound_e5::place_sound_e5;
 use crate::physics::sound_cue_e5::sound_cue_e5;
 use crate::physics::step_families::ContactInputs;
 use crate::physics::tables_store::PhysicsTables;
+use crate::physics::tables_store::RecordAt;
 use crate::physics::vector_bits::{bits_of, dot};
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
@@ -92,7 +93,7 @@ fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
         crate::physics::figures::CRASH_DEPTH,
         c.car.all_wheels_off.get() != 0,
     ) {
-        { sound_cue_e5(c.sound.frame_work, c.work, c.sound.owner) }?;
+        { sound_cue_e5(c.sound.frame_work, &c.work.borrow(), c.sound.owner) }?;
         return Ok(());
     }
     let n = point_number(c.contact)?;
@@ -121,13 +122,17 @@ fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     }
     let normal = c.contact.borrow().contact_normal;
     up_dot.set_float(neg_rounded(dot(bits_of(&car_up), normal)));
-    let slide_limit = x87_1(&up_dot, c.tables, c.numbers);
+    let slide_limit = x87_1(&up_dot, &c.tables.borrow(), c.numbers);
     c.contact.borrow_mut().contact_slide_limit = slide_limit;
-    contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.forces[21]);
+    contact_force(
+        c.contact,
+        c.numbers,
+        &mut c.tables.borrow_mut(),
+        c.car,
+        RecordAt::Force(21),
+    );
     { place_sound_e5(&c.sound) }?;
-    for cell in &c.tables.forces[21].point {
-        cell.set(0.0);
-    }
+    c.tables.borrow_mut().forces[21].point = [0.0; 3];
     x87_2(&ground_scale, c.car, c.numbers);
     hold_high(&ground_scale, &c.numbers.one);
     c.car
@@ -210,7 +215,7 @@ mod reference_vectors {
                 plain: |a| {
                     let limit = x87_1(
                         crate::math::x87_mem::view::<PlainFloat>(a[1], 0),
-                        crate::test_support::own::race().shared.physics_tables.get(),
+                        &crate::test_support::own::race().shared.physics_tables(),
                         &crate::test_support::race_places::numbers(),
                     );
                     crate::test_support::own::race()

@@ -25,7 +25,7 @@ fn gates(work: &RaceWork, replay_file: &ReplayFileBlock, car: &Car) -> [u32; 7] 
         car.go_stand_timer.get(),
         car.started_stand_timer.get(),
         replay_file.hold_car_revs.get(),
-        u32::from(work.in_credits.is_set()),
+        u32::from(work.in_credits != 0),
         car.false_start_count.get(),
         car.all_wheels_off.get(),
     ]
@@ -43,7 +43,7 @@ pub fn pace_notes_step(
     let car = c.car;
     let scene_clock = c.shared.run().scene_clock;
     if !calling(
-        gates(work, replay_file, car),
+        gates(&work.borrow(), replay_file, car),
         car.driver_kind.get(),
         car.run_ticks.get(),
     ) {
@@ -69,7 +69,7 @@ pub fn pace_notes_step(
             crate::physics::queue_pace_note::queue_pace_note(
                 physics,
                 frame_work,
-                work,
+                &work.borrow(),
                 scene_clock,
                 car,
                 checkpoint,

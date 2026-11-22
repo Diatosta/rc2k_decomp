@@ -444,7 +444,7 @@ fn add_rate_to_gauge(gauge: &impl FloatLike, rate: f32) {
 
 /// The size of the hit times the damage setting.
 fn scale_hit_size(work: &RaceWork, m: &mut DamageModel) {
-    m.hit_size = (figure(m.hit_size) * value(&work.patch_factors[1])) as f32;
+    m.hit_size = (figure(m.hit_size) * figure(work.patch_factors[1])) as f32;
 }
 
 /// The gear's gauge plus the size of the hit times the gear's hit figure.

@@ -28,6 +28,7 @@ use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::flow::{ZERO_BITS as ZERO, negated_velocity};
 use crate::physics::step_families::ContactInputs;
+use crate::physics::tables_store::RecordAt;
 use crate::physics::touch_face::touch_face;
 use crate::physics::vector_bits::bits_of;
 use crate::race::norms::normalise_work_vector;
@@ -89,7 +90,7 @@ pub fn steps(
         crate::program_log::log(&format!(
             "physics::face_contact: face {}: object {object}, kind {kind:#x}, car {} at {:?}",
             face,
-            c.work.current_car.get(),
+            c.work.borrow().current_car,
             c.car.position.bits().map(|c| c as i32),
         ));
         return Err(e.into());
@@ -99,7 +100,7 @@ pub fn steps(
         crate::scene::polygon::material_run_byte(c.shared.buffers.polygon_tables(), kind, 0x1C)?
             .into();
     c.contact.borrow_mut().contact_kind = material_kind;
-    if contacts::object_tried(face_byte(0x25)?, c.work.stage_direction.get(), object).is_err() {
+    if contacts::object_tried(face_byte(0x25)?, c.work.borrow().stage_direction, object).is_err() {
         return Ok(());
     }
     for (k, o) in [8u32, 0xC, 0x10].iter().enumerate() {
@@ -159,7 +160,7 @@ pub fn steps(
     {
         crate::physics::restore_saved_car::restore_saved_car(
             c.car,
-            c.tables,
+            &mut c.tables.borrow_mut(),
             &c.ground.probes.borrow(),
         )
     }?;
@@ -184,7 +185,13 @@ pub fn steps(
         work.contact_point[1] = 0;
         work.contact_slide_limit = 0;
     }
-    contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[0]);
+    contact_force(
+        c.contact,
+        c.numbers,
+        &mut c.tables.borrow_mut(),
+        c.car,
+        RecordAt::Contact(0),
+    );
     Ok(())
 }
 

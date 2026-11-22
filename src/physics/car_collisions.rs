@@ -42,13 +42,13 @@ pub fn car_collisions(c: &CollisionInputs<'_>) -> Result<(), Refused> {
     if n > 8 {
         return Err(BadInput("more than eight cars (g_carBlocks' room)").into());
     }
-    if (0..n).any(|k| k != work.current_car.get() && !work.has_car_block(k as usize)) {
+    if (0..n).any(|k| k != work.borrow().current_car && !work.borrow().has_car_block(k as usize)) {
         return Err(BadInput("a null car block").into());
     }
     {
         let corner_work = CornerWork::new();
         for car in 0..n {
-            if car == work.current_car.get() {
+            if car == work.borrow().current_car {
                 continue;
             }
             // A car block of the eight, not null (both checked above).

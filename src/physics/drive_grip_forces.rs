@@ -17,7 +17,7 @@
 //! The flow, the compares and the integer steps are Rust; each straight x87 run is plain Rust
 //! over `X` in the named helpers below.
 
-use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::{CellX87, PlainX87};
 use crate::math::engine_tables::EngineTablesRef;
 use crate::math::x87;
 use crate::math::x87::mul_status;
@@ -33,8 +33,8 @@ use crate::physics::figures::{
 };
 use crate::physics::flow::FloatView;
 use crate::physics::flow::{
-    ZERO_BITS as ZERO, abs_below_or_unordered, c3, ease_zero, hold_high, hold_high_to,
-    hold_low_bits, hold_low_to, negate, negated,
+    ZERO_BITS as ZERO, abs_below_or_unordered, c3, ease_zero, hold_high, hold_high_plain,
+    hold_high_to, hold_low_bits, hold_low_plain, hold_low_to, negate, negated,
 };
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
@@ -51,7 +51,7 @@ fn product_below(a: u32, b: u32, c: u32) -> bool {
 
 pub fn drive_grip_forces(
     car: &Car,
-    tables: &PhysicsTables,
+    tables: &mut PhysicsTables,
     numbers: &Numbers,
     grip_change: &crate::memory::session::PlainFloat,
     engine_tables: EngineTablesRef,
@@ -63,8 +63,8 @@ pub fn drive_grip_forces(
     // The share of `wall_hit_timer` out of 50, from 1, held 0 ..= 1.
     scratch.set(0x32);
     lever_share_from_timer(car, tables, numbers, &scratch);
-    hold_low_bits(&tables.lever_share, ZERO);
-    hold_high(&tables.lever_share, &numbers.one);
+    hold_low_plain(&mut tables.lever_share, f32::from_bits(ZERO));
+    hold_high_plain(&mut tables.lever_share, numbers.one.get());
     car.grip_forces[0].set(0.0);
     if car.front_wheels_off.get() == 0 {
         steer_sine_force(car, tables, engine_tables, steer_index(car) as usize);
@@ -136,7 +136,7 @@ pub fn drive_grip_forces(
             .wrapping_add(scratch.get())
             .wrapping_add(car.handbrake.get())
     };
-    tables.grip_drive_word.set(braking_word as i32);
+    tables.grip_drive_word = braking_word as i32;
     engine_braking_force(car, tables, numbers);
     if product_below(car.grip_forces[1].bits(), car.grip_forces[0].bits(), ZERO) {
         car.grip_forces[1].set(x87::mul(&car.grip_forces[1], SIDE_GRIP_SHARE));
@@ -173,8 +173,8 @@ pub fn drive_grip_forces(
     }
     // The sum, and the yaw twist on the rear wheels.
     sum_grip_forces(car);
-    tables.forces[19].force[0].set(0.0);
-    tables.forces[20].force[0].set(0.0);
+    tables.forces[19].force[0] = 0.0;
+    tables.forces[20].force[0] = 0.0;
     if car.all_wheels_off.get() != 0 {
         return;
     }
@@ -188,7 +188,12 @@ pub fn drive_grip_forces(
 // ---- the x87 arithmetic ----
 
 /// One straight x87 run as plain Rust over `X`.
-fn steer_sine_force(car: &Car, tables: &PhysicsTables, engine_tables: EngineTablesRef, e: usize) {
+fn steer_sine_force(
+    car: &Car,
+    tables: &mut PhysicsTables,
+    engine_tables: EngineTablesRef,
+    e: usize,
+) {
     let t0 = crate::math::x87_float::ld(crate::math::engine_tables::sine(engine_tables, e));
     let t1 = car.local_velocity.ld(2);
     let t2 = t0 * t1;
@@ -202,7 +207,7 @@ fn steer_sine_force(car: &Car, tables: &PhysicsTables, engine_tables: EngineTabl
 /// `[lever_share] = -((int [wall_hit_timer] / int [scratch]) - [one])`
 fn lever_share_from_timer(
     car: &Car,
-    tables: &PhysicsTables,
+    tables: &mut PhysicsTables,
     numbers: &Numbers,
     scratch: &crate::memory::session::PlainDword,
 ) {
@@ -216,7 +221,7 @@ fn lever_share_from_timer(
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn grip_limit_for(car: &Car, tables: &PhysicsTables, f: f32) {
+fn grip_limit_for(car: &Car, tables: &mut PhysicsTables, f: f32) {
     let t0 = tables.wheel_grips[4].ld();
     let t1 = tables.gravity.ld();
     let t2 = t0 * t1;
@@ -296,7 +301,7 @@ fn lean_force(
 /// One straight x87 run as plain Rust over `X`.
 fn braking_count_geared(
     car: &Car,
-    tables: &PhysicsTables,
+    tables: &mut PhysicsTables,
     numbers: &Numbers,
     scratch: &crate::memory::session::PlainDword,
 ) {
@@ -311,7 +316,7 @@ fn braking_count_geared(
 /// One straight x87 run as plain Rust over `X`.
 fn braking_count_neutral(
     car: &Car,
-    tables: &PhysicsTables,
+    tables: &mut PhysicsTables,
     scratch: &crate::memory::session::PlainDword,
 ) {
     let t0 = tables.handling[1].ld();
@@ -322,8 +327,8 @@ fn braking_count_neutral(
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn engine_braking_force(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
-    let t0 = int(tables.grip_drive_word.get());
+fn engine_braking_force(car: &Car, tables: &mut PhysicsTables, numbers: &Numbers) {
+    let t0 = int(tables.grip_drive_word);
     let t1 = numbers.k256.ld();
     let t2 = t0 / t1;
     let t3 = car.side_speed_held.ld();
@@ -360,7 +365,7 @@ fn yaw_share_from_limit(numbers: &Numbers, scene: &crate::scene::owner::Scene) {
 /// A long formula, covered by the tests.
 fn yaw_force(
     car: &Car,
-    tables: &PhysicsTables,
+    tables: &mut PhysicsTables,
     numbers: &Numbers,
     engine_tables: EngineTablesRef,
     e: usize,
@@ -398,7 +403,7 @@ fn sum_grip_forces(car: &Car) {
 /// One straight x87 run as plain Rust over `X`.
 fn ease_yaw_twist(
     car: &Car,
-    tables: &PhysicsTables,
+    tables: &mut PhysicsTables,
     numbers: &Numbers,
     grip_change: &crate::memory::session::PlainFloat,
     o: u32,

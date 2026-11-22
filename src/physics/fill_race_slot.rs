@@ -20,7 +20,7 @@ use rc2k_core::physics::parts::{LAST_PART, choose_slot};
 // Core: `rc2k_core::physics::parts::choose_slot` (the slot; the floats stay x87).
 pub fn fill_race_slot(
     numbers: &Numbers,
-    work: &RaceWork,
+    work: &mut RaceWork,
     car: &Car,
     part: u32,
     scene: &crate::scene::owner::Scene,
@@ -28,14 +28,12 @@ pub fn fill_race_slot(
     if part > LAST_PART {
         return Err(BadInput("a part past 0xFF").into());
     }
-    let Some(choice) = choose_slot(
-        |n| work.race_slots[n].part.get(),
-        |n| work.race_slots[n].age.get(),
-    ) else {
+    let Some(choice) = choose_slot(|n| work.race_slots[n].part, |n| work.race_slots[n].age) else {
         return Err(BadInput("no race slot to take (every +0x64 -1)").into());
     };
-    let slot = &work.race_slots[choice.slot];
-    slot.part.set(part);
+    let k = work.part_fling;
+    let slot = &mut work.race_slots[choice.slot];
+    slot.part = part;
     let i = |t: usize| {
         int_80(
             scene.loaded_slots().part_extents[t][part as usize] as i32,
@@ -46,34 +44,31 @@ pub fn fill_race_slot(
     for (k, e) in out.iter().enumerate() {
         let n = ext_to_int(*e) as u32;
         scene.object_work_mut().object_position[k] = n;
-        slot.place[k].set(n.wrapping_add(car.position.bits_at(k)));
+        slot.place[k] = n.wrapping_add(car.position.bits_at(k));
     }
-    slot.car_word.set(car.probe_point_face[4].get());
-    slot.age.set(car.step_clock.get());
-    for (to, value) in slot.matrix.iter().zip(car.crash_matrix.get()) {
-        to.set(value);
-    }
-    let k = &work.part_fling;
-    slot.motion[0].set(int_mul_add(
+    slot.car_word = car.probe_point_face[4].get();
+    slot.age = car.step_clock.get();
+    slot.matrix = car.crash_matrix.get();
+    slot.motion[0] = int_mul_add(
         scene.object_work().object_position[0] as i32,
         k,
         car.velocity.bits_at(0),
         None,
-    ));
-    slot.motion[1].set(int_mul_add(
+    );
+    slot.motion[1] = int_mul_add(
         scene.object_work().object_position[1] as i32,
         k,
         car.velocity.bits_at(1),
         Some(numbers.two.bits()),
-    ));
-    slot.motion[2].set(int_mul_add(
+    );
+    slot.motion[2] = int_mul_add(
         scene.object_work().object_position[2] as i32,
         k,
         car.velocity.bits_at(2),
         None,
-    ));
-    for (k, spin) in slot.spin.iter().enumerate() {
-        spin.set(car.spin.at(k));
+    );
+    for (k, spin) in slot.spin.iter_mut().enumerate() {
+        *spin = car.spin.at(k);
     }
     Ok(())
 }

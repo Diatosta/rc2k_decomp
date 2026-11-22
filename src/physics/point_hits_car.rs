@@ -67,9 +67,9 @@ pub(super) fn point_hits_car(
     if !contacts::inside_box(
         x,
         z,
-        c.tables.spec_ints[2].get(),
-        c.tables.spec_ints[0].get(),
-        c.tables.spec_ints[1].get(),
+        c.tables.borrow().spec_ints[2],
+        c.tables.borrow().spec_ints[0],
+        c.tables.borrow().spec_ints[1],
     ) {
         return Ok(false);
     }
