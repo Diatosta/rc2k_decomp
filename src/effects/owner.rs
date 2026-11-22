@@ -50,10 +50,13 @@ impl Effects {
     }
 
     /// The cars' drawing state the race handed `init_marks`; refused before the first.
-    pub fn car_parts(&self) -> Result<&'static crate::race::car_parts_store::CarParts, BadInput> {
+    pub fn car_parts(
+        &self,
+    ) -> Result<std::cell::Ref<'static, crate::race::car_parts_store::CarParts>, BadInput> {
         self.setup
             .car_parts
             .get()
+            .map(crate::memory::session::DrawArc::borrow)
             .ok_or(BadInput("a car record without its block"))
     }
 

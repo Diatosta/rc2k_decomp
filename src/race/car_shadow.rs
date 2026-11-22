@@ -804,7 +804,7 @@ pub(super) fn shadow_points(
     points: &OwnPoints,
     work: &ShadowWork,
     car: &Car,
-    body_matrix: &crate::memory::plain_floats::PlainFloats<16>,
+    body_matrix: &[f32; 16],
     sun: u32,
 ) -> Result<(), Refused> {
     use crate::math::x87::mul_to_int;
@@ -886,7 +886,7 @@ fn cast_car_shadow(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
     car: &Car,
-    body_matrix: &crate::memory::plain_floats::PlainFloats<16>,
+    body_matrix: &[f32; 16],
     sun: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::race::shadow::{SHADOW_TEXTURE, casts, hull_drawn, hull_list};
@@ -948,13 +948,16 @@ pub(super) fn cast_car_shadows(
             continue;
         }
         work.point_count.set(car.probe_count.get());
-        let body_matrix =
-            &ctx.reads.car_parts.cars[ctx.reads.work.block_number(n as usize)?].body_matrix;
+        let body_matrix = ctx
+            .reads
+            .car_parts
+            .car(ctx.reads.work.block_number(n as usize)?)
+            .body_matrix;
         if first_pass(ctx.reads.vars.settings_word(2)) {
             let sun: u32 = ctx.reads.stage_prefs.read(|p| p.sun_height);
-            cast_car_shadow(ctx, &work, car, body_matrix, sun)?;
+            cast_car_shadow(ctx, &work, car, &body_matrix, sun)?;
         }
-        cast_car_shadow(ctx, &work, car, body_matrix, SUN_PASS)?;
+        cast_car_shadow(ctx, &work, car, &body_matrix, SUN_PASS)?;
     }
     crate::scene::depth_test_on::depth_test_on(ctx.part);
     Ok(())

@@ -220,15 +220,18 @@ impl<const N: usize> SameShape<PlainFloats<N>> for PlainFloats<N> {
 }
 
 /// The row's elements by index, as the helpers on runs of cells take them.
-impl<const N: usize> crate::math::cells::Cells for PlainFloats<N> {
+impl<const N: usize> crate::math::cells::Words for PlainFloats<N> {
     fn bits(&self, n: usize) -> u32 {
         self.bits_at(n)
     }
-    fn set_bits(&self, n: usize, bits: u32) {
-        self.set_bits_at(n, bits);
-    }
     fn count(&self) -> usize {
         N
+    }
+}
+
+impl<const N: usize> crate::math::cells::Cells for PlainFloats<N> {
+    fn set_bits(&self, n: usize, bits: u32) {
+        self.set_bits_at(n, bits);
     }
 }
 

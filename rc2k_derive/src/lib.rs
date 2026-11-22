@@ -1,4 +1,5 @@
-//! `#[derive(Cells)]` and `#[derive(ByteView)]` for `rc2k_decomp::cells`, and `#[derive(ZeroCells)]`.
+//! `#[derive(Cells)]` and `#[derive(ByteView)]` for `rc2k_decomp::cells`, `#[derive(ZeroCells)]`, and
+//! `#[derive(PlainRecord)]` for the plain records that replace the stores of cells.
 //! `Cells` makes a record of cells copy, merge and be visited field by field, in any layout.
 //! `ByteView` adds the byte view of a `#[repr(C)]` or `#[repr(transparent)]` record: the runs of
 //! cells found by byte offset, and the debug pages' field paths. Both derives check at compile
@@ -368,6 +369,103 @@ fn expand_zero_cells(input: Tokens) -> Tokens {
     quote! {
         impl crate::memory::cells::ZeroCells for #name {
             const ZERO: Self = #init;
+        }
+    }
+}
+
+/// `#[derive(PlainRecord)]` for `crate::memory::plain_record::PlainRecord`: a record of plain
+/// values (numbers, arrays, records of them) merged and walked field by field. The walk names
+/// the fields as `#[derive(Cells)]` does (a field named `inline` adds nothing to the path); a
+/// field marked `#[plain(bytes)]` (a byte array that was a run of byte cells) is one run with no
+/// index. Every field must be `PlainRecord` (checked at compile time); `Clone` is derived apart.
+#[proc_macro_derive(PlainRecord, attributes(plain))]
+pub fn derive_plain_record(input: TokenStream) -> TokenStream {
+    expand_plain_record(input.into()).into()
+}
+
+/// Whether a field carries `#[plain(bytes)]`.
+fn is_plain_bytes(field: &syn::Field) -> bool {
+    field
+        .attrs
+        .iter()
+        .any(|a| a.path().is_ident("plain") && quote!(#a).to_string().contains("bytes"))
+}
+
+/// The code `#[derive(PlainRecord)]` writes for the item `input`, or the compile error.
+fn expand_plain_record(input: Tokens) -> Tokens {
+    let input = match parse_item(input) {
+        Ok(input) => input,
+        Err(error) => return error,
+    };
+    let name = &input.ident;
+    let (with, of, clause) = input.generics.split_for_impl();
+    let (types, names) = match struct_fields(&input, "PlainRecord") {
+        Ok(fields) => fields,
+        Err(error) => return error,
+    };
+    let bytes: Vec<bool> = match &input.data {
+        Data::Struct(s) => s.fields.iter().map(is_plain_bytes).collect(),
+        _ => Vec::new(),
+    };
+    let mut clause = clause.cloned().unwrap_or_else(|| syn::parse_quote!(where));
+    for (ty, is_bytes) in types.iter().zip(&bytes) {
+        if !is_bytes {
+            clause
+                .predicates
+                .push(syn::parse_quote!(#ty: crate::memory::plain_record::PlainRecord));
+        }
+    }
+    let merges: Vec<_> = names
+        .iter()
+        .zip(&bytes)
+        .map(|(n, is_bytes)| {
+            if *is_bytes {
+                quote! {
+                    for ((to, now), start) in self.#n.iter_mut().zip(&now.#n).zip(&start.#n) {
+                        if now != start {
+                            *to = *now;
+                        }
+                    }
+                }
+            } else {
+                quote! {
+                    crate::memory::plain_record::PlainRecord::merge_changes(
+                        &mut self.#n, &now.#n, &start.#n,
+                    );
+                }
+            }
+        })
+        .collect();
+    let visits: Vec<_> = names
+        .iter()
+        .zip(&bytes)
+        .map(|(n, is_bytes)| {
+            let text = n.to_string();
+            let walk = if *is_bytes {
+                quote! { crate::memory::plain_record::visit_bytes(&self.#n[..], visitor); }
+            } else {
+                quote! { crate::memory::plain_record::PlainRecord::visit(&self.#n, visitor); }
+            };
+            if text == "inline" {
+                walk
+            } else {
+                quote! {
+                    visitor.enter(#text);
+                    #walk
+                    visitor.leave();
+                }
+            }
+        })
+        .collect();
+    quote! {
+        impl #with crate::memory::plain_record::PlainRecord for #name #of #clause {
+            fn merge_changes(&mut self, now: &Self, start: &Self) {
+                #( #merges )*
+            }
+
+            fn visit(&self, visitor: &mut dyn crate::memory::cells::CellVisitor) {
+                #( #visits )*
+            }
         }
     }
 }

@@ -243,8 +243,7 @@ pub(super) fn car_lights_on_point(
                             race_work, blocks, n as usize,
                         )?,
                     )
-                    .marks_count
-                    .get(),
+                    .marks_count,
                 light_tables,
                 object_light,
             )?;

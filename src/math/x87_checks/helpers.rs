@@ -192,7 +192,7 @@ pub(super) fn turned_place_less(
     k: impl Flt,
     d: impl Flt,
     lift: impl Flt,
-    m: &(impl crate::math::cells::Cells + ?Sized),
+    m: &(impl crate::math::cells::Words + ?Sized),
 ) -> [u32; 4] {
     turned_place_less_f32(t.map(f32::from_bits), k, d, lift, m).map(f32::to_bits)
 }
@@ -206,7 +206,7 @@ pub(super) fn times_over_int(a: u32, k: u32, n: i32) -> u32 {
 pub fn turned_place(
     p: [u32; 3],
     lift: impl Flt,
-    m: &(impl crate::math::cells::Cells + ?Sized),
+    m: &(impl crate::math::cells::Words + ?Sized),
 ) -> [u32; 4] {
     turned_place_f32(p.map(f32::from_bits), lift, m).map(f32::to_bits)
 }

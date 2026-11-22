@@ -46,8 +46,8 @@ pub struct RaceShared {
     /// its car, `ViewScratch::car`).
     pub car_blocks: DrawShared<CarBlocks>,
     /// What the drawing keeps of each car (`race::car_parts_store`), written by the game's thread
-    /// before a frame's views are drawn and only read by the drawing parts.
-    pub car_parts: DrawShared<crate::race::car_parts_store::CarParts>,
+    /// before a frame's views are drawn and only read by the drawing parts (lent as an `Arc`).
+    pub car_parts: crate::memory::session::DrawArc<crate::race::car_parts_store::CarParts>,
     /// The replay files' names.
     pub replay_templates: Templates,
     /// The turn the race's sounds are placed by.
@@ -87,7 +87,9 @@ impl RaceShared {
             physics_tables: DrawShared::new(PhysicsTables::new()),
             car: GameThread::new(Car::new()),
             car_blocks: DrawShared::new(CarBlocks::new()),
-            car_parts: DrawShared::new(crate::race::car_parts_store::CarParts::new()),
+            car_parts: crate::memory::session::DrawArc::new(
+                crate::race::car_parts_store::CarParts::new,
+            ),
             replay_templates: Templates::new(),
             heard_turn: GameThread::new(crate::race::heard_turn::HeardTurn::new()),
             every_car_heard: std::sync::atomic::AtomicBool::new(false),
@@ -121,8 +123,13 @@ impl RaceShared {
 
     /// The cars' drawing state, on the game's thread outside a drawing scope (a drawing part reads
     /// it through its `scene::workers::DrawReads`).
-    pub fn car_parts(&self) -> &crate::race::car_parts_store::CarParts {
-        self.car_parts.get()
+    pub fn car_parts(&self) -> std::cell::Ref<'_, crate::race::car_parts_store::CarParts> {
+        self.car_parts.borrow()
+    }
+
+    /// The cars' drawing state, to write, on the game's thread outside a drawing scope.
+    pub fn car_parts_mut(&self) -> std::cell::RefMut<'_, crate::race::car_parts_store::CarParts> {
+        self.car_parts.borrow_mut()
     }
 
     /// The race's clocks and input words, read: no write borrow may be held.

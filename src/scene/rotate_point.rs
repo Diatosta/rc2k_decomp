@@ -5,12 +5,12 @@
 //! 80-bit values (exact for what `X` holds). The tests compare against recorded vectors
 //! (`reference_vectors`). Refuses a null matrix.
 
-use crate::math::cells::{Cells, load};
+use crate::math::cells::{Words, load};
 use crate::math::x87_float::{Rounds, at_rounding};
 use crate::math::x87_mem::{Base, fld_with, fld80_with, fstp80_with};
 
 /// `p` the point's three 80-bit values, the result the same way.
-pub fn rotate_point(m: &(impl Cells + ?Sized), p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
+pub fn rotate_point(m: &(impl Words + ?Sized), p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
     let mut out = [[0u8; 10]; 3];
     let m: [u32; 15] = load(m);
     rotate(

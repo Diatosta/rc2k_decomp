@@ -120,7 +120,7 @@ pub struct Lent<'s> {
     panel: crate::memory::session::PlainRead<crate::race::panel_store::Panel>,
     // The cars' blocks and the view variables.
     car_blocks: crate::memory::session::PhaseRead<'s, crate::race::blocks_store::CarBlocks>,
-    car_parts: crate::memory::session::PhaseRead<'s, crate::race::car_parts_store::CarParts>,
+    car_parts: crate::memory::session::ArcRead<crate::race::car_parts_store::CarParts>,
     view_and_records:
         crate::memory::session::PhaseRead<'s, crate::race::groups_store::ViewAndRecords>,
     // The system's screen.
@@ -186,7 +186,7 @@ impl<'s> Lent<'s> {
             panel: crate::memory::session::PlainRead::lend(&race.frame.panel, scope),
             // The cars' blocks and the view variables.
             car_blocks: PhaseRead::lend(&race.shared.car_blocks, scope),
-            car_parts: PhaseRead::lend(&race.shared.car_parts, scope),
+            car_parts: crate::memory::session::ArcRead::lend(&race.shared.car_parts, scope),
             view_and_records: PhaseRead::lend(&race.frame.view_and_records, scope),
             // The system's screen.
             screen: PhaseRead::lend(&system.session.screen, scope),
@@ -249,7 +249,7 @@ impl<'s> Lent<'s> {
             panel: (&self.panel).into(),
             // The cars' blocks and the view variables.
             car_blocks: &self.car_blocks,
-            car_parts: &self.car_parts,
+            car_parts: (&self.car_parts).into(),
             view_and_records: &self.view_and_records,
             // The system's screen.
             screen: &self.screen,
@@ -325,7 +325,8 @@ pub struct DrawReads<'a> {
     /// The cars' blocks (`race::owner_replay::Replay::car_blocks`).
     pub car_blocks: &'a crate::race::blocks_store::CarBlocks,
     /// What the drawing keeps of each car (`race::owner_shared::RaceShared::car_parts`).
-    pub car_parts: &'a crate::race::car_parts_store::CarParts,
+    pub car_parts:
+        crate::memory::drawn_table::DrawnTable<'a, crate::race::car_parts_store::CarParts>,
     /// The shared view variables and the view records
     /// (`race::owner_frame::Frame::view_and_records`).
     pub view_and_records: &'a crate::race::groups_store::ViewAndRecords,
@@ -446,7 +447,7 @@ impl<'a> DrawReads<'a> {
             panel: (&race.frame.panel).into(),
             // The cars' blocks and the view variables.
             car_blocks: race.shared.car_blocks.get(),
-            car_parts: race.shared.car_parts.get(),
+            car_parts: crate::memory::drawn_table::DrawnTable::Store(&race.shared.car_parts),
             view_and_records: race.frame.view_and_records.get(),
             // The system's screen.
             screen: system.session.screen.get(),

@@ -1204,7 +1204,7 @@ pub fn sim_hash_step(race: &Race) {
     }
     let mut groups = crate::drive::sim_hash::car_blocks_groups(
         race.shared.car_blocks.get(),
-        race.shared.car_parts.get(),
+        &race.shared.car_parts(),
     );
     let staging = race.replay.staging();
     let bytes = staging.to_bytes();
@@ -1213,7 +1213,7 @@ pub fn sim_hash_step(race: &Race) {
     if std::env::var_os("RC2K_SIM_FIELDS").is_some() && tick < 40 {
         crate::drive::sim_hash::log_fields(
             race.shared.car_blocks.get(),
-            race.shared.car_parts.get(),
+            &race.shared.car_parts(),
             tick,
         );
     }

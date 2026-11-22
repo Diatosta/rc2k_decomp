@@ -81,7 +81,7 @@ pub fn car_number_textures(
     marks: &crate::scene::car_marks::CarMarks,
 ) -> Result<(), BadInput> {
     let cars = reads.frame_cars;
-    let (parts, numbers) = (reads.car_parts, reads.numbers);
+    let (part, numbers) = (reads.car_parts.car(car), reads.numbers);
     let (vars, work) = (reads.vars, reads.work);
     // `shown_engine_speed` is rounded as the x87 does, under the game's control word.
     use rc2k_core::race::car_marks::{
@@ -98,7 +98,7 @@ pub fn car_number_textures(
         marks.mark(2).set(side);
         marks.mark(3).set(side);
         let name = cars.car(car)?.car_kind.get().wrapping_mul(0x30);
-        let n = crate::math::x87::to_int(&parts.cars[car].shown_engine_speed);
+        let n = crate::math::x87::to_int(part.shown_engine_speed);
         let (place, _) = letter_place(n);
         let letter = letter_number(number_name_byte(work, name.wrapping_add(place))?) as u32;
         marks.mark(5).set(letter);
@@ -112,7 +112,7 @@ pub fn car_number_textures(
             .set(work.number_tens_textures[tens as usize].get());
         if decals_shown(float(&block.electrics_damage), numbers.hundred.get()) {
             for k in 0..0x11u32 {
-                let byte = parts.cars[car].part_switches.get(k as usize) as u32;
+                let byte = u32::from(part.part_switches[k as usize]);
                 let to = crate::race::frame_store::CAR_DECAL_PLACES[k as usize] as usize;
                 if to >= crate::scene::car_marks::MARKS {
                     return Err(BadInput("a decal place past the car's marks"));
@@ -240,15 +240,14 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
         marks: &marks,
         ..*ctx
     };
-    let c = &ctx.reads.car_parts.cars[car];
-    let kept = &c.part_matrices;
+    let c = ctx.reads.car_parts.car(car);
     {
         let mut cars = ctx.view.cars.borrow_mut();
-        cars.part_matrices = kept.get();
+        cars.part_matrices = c.part_matrices;
         cars.car_turn = matrix_of(&c.place_matrix);
     }
     ctx.view.matrices.borrow_mut().body_turn_matrix = matrix_of(&c.body_matrix);
-    ctx.view.cars.borrow_mut().groups_which = ctx.reads.car_parts.cars[car].mode_on.get();
+    ctx.view.cars.borrow_mut().groups_which = c.mode_on;
     let model = ctx.reads.frame_cars.car(car)?.car_kind.get();
     ctx.view.matrices.borrow_mut().known_object = model;
     set_group_masks(ctx.reads.light_records, &ctx.view.cars, model)?;

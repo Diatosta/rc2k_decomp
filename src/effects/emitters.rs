@@ -56,6 +56,13 @@ pub(super) trait MatrixWords {
     fn word(&self, n: usize) -> Option<u32>;
 }
 
+/// A plain row of floats, read as their bits.
+impl<const N: usize> MatrixWords for [f32; N] {
+    fn word(&self, n: usize) -> Option<u32> {
+        self.get(n).map(|f| f.to_bits())
+    }
+}
+
 impl<C: crate::memory::session::Cell32> MatrixWords for [C] {
     fn word(&self, n: usize) -> Option<u32> {
         self.get(n).map(C::bits)

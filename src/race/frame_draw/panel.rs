@@ -245,7 +245,7 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
     // Each write is its own short borrow: the network helpers below borrow the panel too.
     let put = |k: usize, value: u32| put_shown(&mut race.frame.panel.borrow_mut(), first, k, value);
     // The shown engine speed is the drawing's own (`race::car_parts`), in the block.
-    let whole = shown_whole(race.car_parts().cars[car].shown_engine_speed.get());
+    let whole = shown_whole(race.car_parts().cars[car].shown_engine_speed);
     let car = race.frame.cars.car(car)?;
     put(0, whole as u32);
     put(1, car.engine_sound_speed_int.get());

@@ -753,10 +753,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.shared.car_blocks.get()),
         ),
         listed!(
-            "owners.race.shared.car_parts",
-            on_game(o.race.shared.car_parts.get()),
-        ),
-        listed!(
             "owners.race.shared.replay_file.replays_on",
             on_game(&o.race.shared.replay_file().replays_on),
         ),

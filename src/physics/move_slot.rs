@@ -49,10 +49,13 @@ fn copy_held_matrix(from: &[PlainDword], to: &[PlainFloat; 16]) {
 /// The three dwords the spin's axis is made of: the spin's length and the two after it.
 struct SpinAxis([u32; 3]);
 
-impl crate::math::cells::Cells for SpinAxis {
+impl crate::math::cells::Words for SpinAxis {
     fn bits(&self, n: usize) -> u32 {
         self.0[n]
     }
+}
+
+impl crate::math::cells::Cells for SpinAxis {
     fn set_bits(&self, _: usize, _: u32) {
         unreachable!("the spin axis is only read")
     }

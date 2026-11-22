@@ -87,8 +87,7 @@ pub fn add_car_lights(
                 let marks = reads
                     .car_blocks
                     .parts_of(reads.car_parts, block)
-                    .marks_count
-                    .get();
+                    .marks_count;
                 add(
                     reads
                         .frame_cars

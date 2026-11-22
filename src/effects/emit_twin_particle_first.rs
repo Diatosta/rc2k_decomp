@@ -113,11 +113,11 @@ pub(super) fn emit_twin(
     let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, set.kind)?;
     let slot = crate::effects::ring_entries::Slot::new(ring, e);
     let car = emitting_car(effects)?;
-    let cells = car.whole(effects.car_parts()?)?;
+    let cells = &car.whole(&*effects.car_parts()?)?;
     let [x, y, y_less, z] = x87::turned_place_f32(
         particles.twin_state.borrow().point,
         tuning.lift,
-        car.whole(effects.car_parts()?)?,
+        &car.whole(&*effects.car_parts()?)?,
     );
     slot.put(|en| &mut en.place[0], x)?;
     slot.put(|en| &mut en.place[1], y)?;

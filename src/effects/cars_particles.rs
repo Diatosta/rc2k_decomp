@@ -86,7 +86,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
             bh::to_int(bh::int(n as i32) * bh::int(tag_k)) as u32;
         let car = &effects.settings()?.cars[n as usize];
         effects.kinds.emitter.borrow_mut().car = car_handle(n as usize);
-        let whole = car.whole(effects.car_parts()?)?;
+        let whole = &car.whole(&*effects.car_parts()?)?;
         adjugate_matrix(whole, &car.matrix);
         for (to, from) in [(3, 2), (2, 1), (1, 0)] {
             for k in 0..3 {
@@ -123,7 +123,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
             }
             car.pace.set(0);
         }
-        let parts = car.parts(effects.car_parts()?)?;
+        let parts = &car.parts(&*effects.car_parts()?)?;
         let up = effects.kinds.emitter.borrow().up.map(f32::to_bits);
         let across = [
             x87::product_difference(
@@ -150,8 +150,8 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
         effects.kinds.emitter.borrow_mut().across = across.map(f32::from_bits);
         let b = x87::crossed_turned(
             across,
-            car.parts(effects.car_parts()?)?,
-            car.whole(effects.car_parts()?)?,
+            &car.parts(&*effects.car_parts()?)?,
+            &car.whole(&*effects.car_parts()?)?,
         );
         effects.kinds.emitter.borrow_mut().side_b = b.map(f32::from_bits);
         let a = [

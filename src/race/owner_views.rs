@@ -23,8 +23,13 @@ impl Race {
     }
 
     /// The cars' drawing state.
-    pub fn car_parts(&self) -> &crate::race::car_parts_store::CarParts {
-        self.shared.car_parts.get()
+    pub fn car_parts(&self) -> std::cell::Ref<'_, crate::race::car_parts_store::CarParts> {
+        self.shared.car_parts()
+    }
+
+    /// The cars' drawing state, to write.
+    pub fn car_parts_mut(&self) -> std::cell::RefMut<'_, crate::race::car_parts_store::CarParts> {
+        self.shared.car_parts_mut()
     }
 
     /// Car record `n` (`car_records[n]`, the name of one of the effects' car records).

@@ -47,7 +47,7 @@ pub const TURN_Z_BASE: Matrix = ones_at(&[10, 15]);
 pub const PLACED_BASE: Matrix = ones_at(&[0, 5, 10, 15]);
 
 /// The sixteen floats `cells` hold.
-pub fn matrix_of(cells: &(impl Cells + ?Sized)) -> Matrix {
+pub fn matrix_of(cells: &(impl crate::math::cells::Words + ?Sized)) -> Matrix {
     std::array::from_fn(|n| cells.float(n))
 }
 

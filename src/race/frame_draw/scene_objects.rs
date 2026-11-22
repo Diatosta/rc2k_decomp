@@ -318,13 +318,13 @@ pub(super) fn light_pair(
     right: u32,
 ) -> Result<(), BadInput> {
     // The bytes are the car's `part_switches`.
-    let switches = &ctx.reads.car_parts.cars[car].part_switches;
+    let switches = ctx.reads.car_parts.car(car).part_switches;
     let byte = |o: u32| -> Result<u32, BadInput> {
         let n = o.wrapping_sub(PART_SWITCHES) as usize;
         if n >= crate::race::car_parts_store::PART_SWITCHES_LEN {
             return Err(BadInput("a light byte past the part switches"));
         }
-        Ok(u32::from(switches.get(n)))
+        Ok(u32::from(switches[n]))
     };
     ctx.view.cars.borrow_mut().light_left = 0u32;
     ctx.view.cars.borrow_mut().light_right = 0u32;

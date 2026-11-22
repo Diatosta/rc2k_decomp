@@ -39,7 +39,7 @@ pub fn car_blocks_groups(
     let mut hasher = GroupHasher::default();
     blocks.visit(&mut hasher);
     // The drawing's own fields of each car were once in its block: the same paths.
-    parts.visit(&mut hasher);
+    crate::memory::plain_record::PlainRecord::visit(parts, &mut hasher);
     #[cfg(any(test, feature = "remote"))]
     hasher.add_removed_fields();
     hasher.groups
@@ -84,7 +84,7 @@ pub fn log_fields(blocks: &CarBlocks, parts: &crate::race::car_parts_store::CarP
         tick,
     };
     blocks.visit(&mut each);
-    parts.visit(&mut each);
+    crate::memory::plain_record::PlainRecord::visit(parts, &mut each);
 }
 
 /// The hash of one whole record by field path and value (the cars' hash for any other store):
@@ -259,7 +259,8 @@ mod tests {
 
     #[test]
     fn a_field_changes_the_hash() {
-        let (blocks, parts) = (&CarBlocks::new(), &CarParts::new());
+        let (blocks, mut parts) = (&CarBlocks::new(), CarParts::new());
+        let parts = &mut parts;
         let first = total(&car_blocks_groups(blocks, parts));
         assert_eq!(first, total(&car_blocks_groups(blocks, parts)));
         use crate::test_support::paths::set_u32;
@@ -267,7 +268,7 @@ mod tests {
         assert_ne!(first, total(&car_blocks_groups(blocks, parts)));
         // A field of the drawing's state counts as one of the car's.
         let before = total(&car_blocks_groups(blocks, parts));
-        parts.cars[5].mode_on.set(1);
+        parts.cars[5].mode_on = 1;
         assert_ne!(before, total(&car_blocks_groups(blocks, parts)));
         let groups = car_blocks_groups(blocks, parts);
         assert_eq!(groups.len(), 8);

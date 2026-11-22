@@ -13,7 +13,7 @@ use crate::math::x87_float as bh;
 use crate::physics::figures::GROUND_DROP;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
-use crate::scene::matrix::{Matrix, matrix_of, product};
+use crate::scene::matrix::{Matrix, product};
 use rc2k_core::drive::listener;
 use rc2k_core::net::net_race::NetRace;
 
@@ -93,9 +93,11 @@ pub fn set_listener(
     let place: [u32; 3] = s.position.bits();
     let strength: u32 = race
         .car_blocks()
-        .parts_of(race.car_parts(), s)
-        .marks_count
-        .get();
+        .parts_of(
+            crate::memory::drawn_table::DrawnTable::Store(&race.shared.car_parts),
+            s,
+        )
+        .marks_count;
     race.effects_settings().listener_car_place[2].set(x87::from_int(place[2] as i32));
     race.effects_settings().listener_car_place[1].set(x87::from_int(place[1] as i32));
     race.effects_settings().listener_car_place[0].set(x87::from_int(place[0] as i32));
@@ -125,9 +127,13 @@ pub fn set_listener(
         physics.camera_mut().listener_points[k] = v as u32;
     }
     // The car block 0's body matrix, turned by the car's turn and then by the view's matrix.
-    let own_parts = race.car_blocks().parts_of(race.car_parts(), car);
-    let turned = matrix_of(&own_parts.body_matrix);
-    let place_matrix = matrix_of(&own_parts.place_matrix);
+    let (turned, place_matrix) = {
+        let own_parts = race.car_blocks().parts_of(
+            crate::memory::drawn_table::DrawnTable::Store(&race.shared.car_parts),
+            car,
+        );
+        (own_parts.body_matrix, own_parts.place_matrix)
+    };
     let view_matrix = view.view_matrix;
     let made = {
         let mut kept = race.frame.matrices.borrow_mut();
