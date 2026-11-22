@@ -118,8 +118,10 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   the simulation's 100 ticks a second (it showed as dark squares).
 - **Helmets** on the in-race options page are textured.
 - A **loading bar** is shown while a stage loads, and the loading picture is shown once.
-- **Screenshots and snapshots are PNG files**, not PCX ([Screenshots](Screenshots)); the numbering
-  and folders are as before.
+- **Screenshots and snapshots are PNG files**, not PCX, and **all go into `savedata/snapshot/`**
+  (the screenshot key's too, which the original put in the game's folder), each numbered one past
+  the highest already there, so a new session no longer writes over the last one's pictures
+  ([Screenshots](Screenshots)).
 - The rectangle fill the original never drew at 32 bits works, so message boxes have backs and
   the installer's percentage and the tyre change's texts are cleared before they are redrawn.
 - The 3D resolution and screen options only change how a frame is drawn: the simulation, and so

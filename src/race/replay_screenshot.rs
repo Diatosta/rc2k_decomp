@@ -45,15 +45,7 @@ pub fn replay_screenshot(
     // unlocked.
     crate::gfx::with_locked_surface::with_locked_surface(
         crate::gfx::with_locked_surface::lock(gfx, system),
-        || {
-            crate::gfx::write_screen_pcx::write_screen_pcx(
-                &gfx.shots,
-                Some(&name),
-                false,
-                gfx,
-                system,
-            )
-        },
+        || crate::gfx::write_screen_pcx::write_screen_pcx(Some(&name), false, gfx, system),
     )?;
     clock
         .clock

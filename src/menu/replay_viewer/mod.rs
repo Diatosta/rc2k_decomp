@@ -4,8 +4,7 @@
 //! the mode, `viewer_slot` the replay, `hold_car_revs` 1 while it runs.
 //!
 //! Then the replay is opened (`race::open_viewed_replay`; failing: the end), with no camera edit,
-//! `last_race_viewed` whether it is the last race's, the snapshots' number found
-//! (`race::find_snapshot_number`), the stage loaded (`race::viewer_load_stage`), the list set up
+//! `last_race_viewed` whether it is the last race's, the stage loaded (`race::viewer_load_stage`), the list set up
 //! (`viewer_list`: no sound, shown, not leaving, the clocks, item 6), the pending key dropped and
 //! the items marked (`menu::replay_viewer::mark_items`). Each frame after (shown by `screens::run_frame`
 //! with `menu::replay_viewer::frame`): the clocks, a key (`menu::list_take_key`); the game quitting ends
@@ -221,8 +220,7 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
     let session = &system.session;
     let replay = &race.replay;
     use crate::race::{
-        find_snapshot_number, open_viewed_replay, save_last_replay, step_viewed_replay,
-        viewer_load_stage,
+        open_viewed_replay, save_last_replay, step_viewed_replay, viewer_load_stage,
     };
     let (mode, launched) = match start {
         Start::Menu(mode) => (mode, None),
@@ -272,7 +270,6 @@ fn view(race: &'static Race, o: Owners<'static>, start: Start) -> Result<Viewed,
     }
     race.viewer_buffers().camera_edit.set(0);
     replay.replay_view().last_race_viewed.set(slot == LAST_RACE);
-    find_snapshot_number::find_snapshot_number(&race.replay)?;
     viewer_load_stage::viewer_load_stage(race, o)?;
     let list = &o.race.replay.replay_view().viewer_list;
     race.shared.replay_file().viewer_sound.set(0);
