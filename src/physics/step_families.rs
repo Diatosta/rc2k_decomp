@@ -6,7 +6,6 @@
 use crate::memory::session::DrawArc;
 use crate::memory::session::DrawPlain;
 use crate::physics::camera_store::CameraWork;
-use crate::physics::car_store::Car;
 use crate::physics::contact_store::{ContactWork, ProbeLists};
 use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::ground_query::GroundSearch;
@@ -30,9 +29,9 @@ use std::cell::RefCell;
 /// matrices that turn the place, the contact's speed, the current car.
 #[derive(Clone, Copy)]
 pub struct SoundInputs<'a> {
-    pub car: &'a Car,
-    /// The car whose camera the sounds are placed against (`race::heard_cars::listener`).
-    pub listener: &'a Car,
+    /// The camera place the sounds are placed against when it is not the work car's
+    /// (`race::heard_cars::listener_place`).
+    pub listener: Option<[f32; 3]>,
     pub numbers: &'a Numbers,
     pub work: &'a DrawArc<RaceWork>,
     pub frame_work: &'a FrameWorkStore,
@@ -48,7 +47,6 @@ pub struct SoundInputs<'a> {
 /// What the ground search and the probe points read.
 #[derive(Clone, Copy)]
 pub struct GroundInputs<'a> {
-    pub car: &'a Car,
     pub numbers: &'a Numbers,
     pub tables: &'a DrawArc<PhysicsTables>,
     pub course: &'a Course,
@@ -63,7 +61,6 @@ pub struct GroundInputs<'a> {
 /// probe, the camera variables.
 #[derive(Clone, Copy)]
 pub struct CameraGroundInputs<'a> {
-    pub car: &'a Car,
     pub course: &'a Course,
     pub camera: &'a RefCell<CameraWork>,
     pub search: &'a RefCell<GroundSearch>,
@@ -74,7 +71,6 @@ pub struct CameraGroundInputs<'a> {
 /// light and view tables, the replay's frames, and the camera's ground checks.
 #[derive(Clone, Copy)]
 pub struct CameraInputs<'a> {
-    pub car: &'a Car,
     pub course: &'a Course,
     pub numbers: &'a Numbers,
     pub tables: &'a DrawArc<PhysicsTables>,
@@ -96,7 +92,6 @@ pub struct CameraInputs<'a> {
 /// What the contact, wall and ground-touch steps read.
 #[derive(Clone, Copy)]
 pub struct ContactInputs<'a> {
-    pub car: &'a Car,
     pub numbers: &'a Numbers,
     pub tables: &'a DrawArc<PhysicsTables>,
     pub course: &'a Course,
@@ -116,7 +111,6 @@ pub struct ContactInputs<'a> {
 #[derive(Clone, Copy)]
 pub struct ResetInputs<'a> {
     pub physics: &'a Physics,
-    pub car: &'a Car,
     pub numbers: &'a Numbers,
     pub tables: &'a DrawArc<PhysicsTables>,
     pub course: &'a Course,
@@ -126,7 +120,6 @@ pub struct ResetInputs<'a> {
     pub view: &'a RaceView,
     /// The finish state's "no place" switch.
     pub no_place: u32,
-    pub car_blocks: &'a crate::race::blocks_store::CarBlocks,
     pub matrices: &'a DrawPlain<SceneMatrices>,
     pub ground: GroundInputs<'a>,
 }
@@ -157,7 +150,6 @@ pub struct CheckpointInputs<'a> {
     pub course: &'a Course,
     pub numbers: &'a Numbers,
     pub shared: &'a RaceShared,
-    pub car: &'a Car,
     pub tables: &'a DrawArc<PhysicsTables>,
     pub work: &'a DrawArc<RaceWork>,
     pub vars: &'a RaceVars,
@@ -171,7 +163,6 @@ pub struct CheckpointInputs<'a> {
 /// and the scene switch.
 #[derive(Clone, Copy)]
 pub struct LightingInputs<'a> {
-    pub car: &'a Car,
     pub course: &'a Course,
     pub search: &'a RefCell<GroundSearch>,
     pub probe: &'a RefCell<GroundProbe>,
@@ -183,7 +174,6 @@ pub struct LightingInputs<'a> {
 /// the surface kinds and the mud scale. `shared` is for the x87 steps, which take the whole.
 #[derive(Clone, Copy)]
 pub struct WheelInputs<'a> {
-    pub car: &'a Car,
     pub numbers: &'a Numbers,
     pub tables: &'a DrawArc<PhysicsTables>,
     pub course: &'a Course,
@@ -209,7 +199,6 @@ pub struct SlotInputs<'a> {
 impl<'a> StepInputs<'a> {
     pub fn camera(&self) -> CameraInputs<'a> {
         CameraInputs {
-            car: self.car,
             course: self.course,
             numbers: self.numbers,
             tables: self.tables,
@@ -232,7 +221,6 @@ impl<'a> StepInputs<'a> {
 
     pub fn camera_ground(&self) -> CameraGroundInputs<'a> {
         CameraGroundInputs {
-            car: self.car,
             course: self.course,
             camera: self.physics.camera_cell(),
             search: self.physics.ground_search(),
@@ -242,8 +230,7 @@ impl<'a> StepInputs<'a> {
 
     pub fn sound(&self, owner: &'a crate::sound::owner::Sound) -> SoundInputs<'a> {
         SoundInputs {
-            car: self.car,
-            listener: crate::race::heard_cars::listener(self.shared, self.car),
+            listener: crate::race::heard_cars::listener_place(self.shared),
             numbers: self.numbers,
             work: self.work,
             frame_work: &self.frame.frame_work,
@@ -258,7 +245,6 @@ impl<'a> StepInputs<'a> {
 
     pub fn ground(&self) -> GroundInputs<'a> {
         GroundInputs {
-            car: self.car,
             numbers: self.numbers,
             tables: self.tables,
             course: self.course,
@@ -272,7 +258,6 @@ impl<'a> StepInputs<'a> {
 
     pub fn contact(&self, sound: &'a crate::sound::owner::Sound) -> ContactInputs<'a> {
         ContactInputs {
-            car: self.car,
             numbers: self.numbers,
             tables: self.tables,
             course: self.course,
@@ -289,7 +274,6 @@ impl<'a> StepInputs<'a> {
     pub fn reset(&self) -> ResetInputs<'a> {
         ResetInputs {
             physics: self.physics,
-            car: self.car,
             numbers: self.numbers,
             tables: self.tables,
             course: self.course,
@@ -298,7 +282,6 @@ impl<'a> StepInputs<'a> {
             vars: self.vars,
             view: self.view,
             no_place: self.replay.no_place(),
-            car_blocks: self.shared.car_blocks.get(),
             matrices: &self.frame.matrices,
             ground: self.ground(),
         }
@@ -326,7 +309,6 @@ impl<'a> StepInputs<'a> {
             course: self.course,
             numbers: self.numbers,
             shared: self.shared,
-            car: self.car,
             tables: self.tables,
             work: self.work,
             vars: self.vars,
@@ -338,7 +320,6 @@ impl<'a> StepInputs<'a> {
 
     pub fn lighting(&self) -> LightingInputs<'a> {
         LightingInputs {
-            car: self.car,
             course: self.course,
             search: self.physics.ground_search(),
             probe: self.physics.ground_probe(),
@@ -349,7 +330,6 @@ impl<'a> StepInputs<'a> {
 
     pub fn wheels(&self) -> WheelInputs<'a> {
         WheelInputs {
-            car: self.car,
             numbers: self.numbers,
             tables: self.tables,
             course: self.course,

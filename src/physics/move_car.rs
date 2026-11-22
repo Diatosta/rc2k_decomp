@@ -4,12 +4,14 @@
 //! Returns y's move.
 
 use crate::math::x87::mul2_to_int;
+use crate::memory::plain_floats::FloatRow;
+use crate::memory::plain_floats::FloatRowMut;
 use crate::physics::car_store::Car;
 use crate::race::numbers_store::Numbers;
 
 /// The exact version, for `physics::car_physics_step` and `physics::apply_wheel_torques`: the last
 /// move.
-pub(super) fn move_car(car: &Car, numbers: &Numbers) -> u32 {
+pub(super) fn move_car(car: &mut Car, numbers: &Numbers) -> u32 {
     let k65536 = numbers.k65536.get();
     let dt = numbers.step_time.get();
     let mut last = 0;

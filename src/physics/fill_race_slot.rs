@@ -10,6 +10,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::{ext_to_int, int_80, int_mul_add};
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::race::numbers_store::Numbers;
 use crate::race::work_store::RaceWork;
@@ -46,9 +47,9 @@ pub fn fill_race_slot(
         scene.object_work_mut().object_position[k] = n;
         slot.place[k] = n.wrapping_add(car.position.bits_at(k));
     }
-    slot.car_word = car.probe_point_face[4].get();
-    slot.age = car.step_clock.get();
-    slot.matrix = car.crash_matrix.get();
+    slot.car_word = car.probe_point_face[4];
+    slot.age = car.step_clock;
+    slot.matrix = car.crash_matrix;
     slot.motion[0] = int_mul_add(
         scene.object_work().object_position[0] as i32,
         k,

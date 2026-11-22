@@ -5,6 +5,7 @@ use crate::math::x87;
 pub use crate::math::x87::{c0, c3};
 use crate::math::x87_float as bh;
 use crate::math::x87_float::{compare, ld, stf};
+use crate::memory::plain_floats::FloatRow;
 use crate::memory::session::{Dword, Float, PlainDword, PlainFloat};
 
 /// The bits of 0.0. The game keeps one such constant in `race.course.numbers.zero`
@@ -28,17 +29,6 @@ impl FloatView for Float {
 }
 
 impl FloatView for PlainFloat {
-    fn float(&self) -> f32 {
-        self.get()
-    }
-    fn set_float(&self, x: f32) {
-        self.set(x);
-    }
-}
-
-/// A dword cell used for a float as well as for whole numbers (the scratch
-/// cells, the work vectors): its bits read and written as the float.
-impl FloatView for crate::memory::plain_floats::FloatAt<'_> {
     fn float(&self) -> f32 {
         self.get()
     }
@@ -71,6 +61,31 @@ impl<T: FloatView + ?Sized> FloatView for &T {
     }
     fn set_float(&self, x: f32) {
         (**self).set_float(x);
+    }
+}
+
+/// A float place the holds and eases write: a float cell (by reference), or a plain float of a
+/// record (by mutable reference).
+pub trait FloatPlace {
+    fn float(&self) -> f32;
+    fn set_float(&mut self, x: f32);
+}
+
+impl<T: FloatView + ?Sized> FloatPlace for &T {
+    fn float(&self) -> f32 {
+        FloatView::float(*self)
+    }
+    fn set_float(&mut self, x: f32) {
+        FloatView::set_float(*self, x);
+    }
+}
+
+impl FloatPlace for &mut f32 {
+    fn float(&self) -> f32 {
+        **self
+    }
+    fn set_float(&mut self, x: f32) {
+        **self = x;
     }
 }
 
@@ -109,14 +124,43 @@ impl FloatRead for crate::memory::session::ConstFloat {
     }
 }
 
-/// The game's dword in the cell `x`.
-pub fn g(x: &impl crate::memory::session::Cell32) -> u32 {
-    x.bits()
+/// A word as its bits: a cell, or a plain `u32`, `i32` or `f32` of a record.
+pub trait Bits {
+    fn word_bits(&self) -> u32;
 }
 
-/// The whole number held in the cell `x` (a float variable that holds a count).
-pub fn whole(x: &impl crate::memory::session::Cell32) -> i32 {
-    x.bits() as i32
+impl<C: crate::memory::session::Cell32 + ?Sized> Bits for C {
+    fn word_bits(&self) -> u32 {
+        self.bits()
+    }
+}
+
+impl Bits for u32 {
+    fn word_bits(&self) -> u32 {
+        *self
+    }
+}
+
+impl Bits for i32 {
+    fn word_bits(&self) -> u32 {
+        *self as u32
+    }
+}
+
+impl Bits for f32 {
+    fn word_bits(&self) -> u32 {
+        self.to_bits()
+    }
+}
+
+/// The game's dword in the word `x`.
+pub fn g(x: &impl Bits) -> u32 {
+    x.word_bits()
+}
+
+/// The whole number held in the word `x` (a float variable that holds a count).
+pub fn whole(x: &impl Bits) -> i32 {
+    x.word_bits() as i32
 }
 
 /// The float `a` is below `b`, or one of them is not a number (the x87's C0 after
@@ -137,29 +181,29 @@ pub fn abs_below_or_unordered(a: impl x87::Flt, b: impl x87::Flt) -> bool {
 }
 
 /// `v` raised to `lim` when below it (or unordered).
-pub fn hold_low(v: &impl FloatView, lim: &impl FloatRead) {
+pub fn hold_low(v: impl FloatPlace, lim: &impl FloatRead) {
     hold_low_to(v, lim.read_float());
 }
 
 /// `hold_low` against a limit given as a value.
-pub(super) fn hold_low_to(v: &impl FloatView, lim: f32) {
+pub(super) fn hold_low_to(mut v: impl FloatPlace, lim: f32) {
     if c0(v.float(), lim) {
         v.set_float(x87::loaded(lim));
     }
 }
 
 /// `hold_low` against a limit given as its bits.
-pub(super) fn hold_low_bits(v: &impl FloatView, lim: u32) {
+pub(super) fn hold_low_bits(v: impl FloatPlace, lim: u32) {
     hold_low_to(v, f32::from_bits(lim));
 }
 
 /// `v` lowered to `lim` unless below it (or unordered).
-pub fn hold_high(v: &impl FloatView, lim: &impl FloatRead) {
+pub fn hold_high(v: impl FloatPlace, lim: &impl FloatRead) {
     hold_high_to(v, lim.read_float());
 }
 
 /// `hold_high` against a limit given as a value.
-pub(super) fn hold_high_to(v: &impl FloatView, lim: f32) {
+pub(super) fn hold_high_to(mut v: impl FloatPlace, lim: f32) {
     if !c0(v.float(), lim) {
         v.set_float(x87::loaded(lim));
     }
@@ -180,7 +224,7 @@ pub fn hold_high_plain(v: &mut f32, lim: f32) {
 }
 
 /// `v` negated in place.
-pub fn negate(v: &impl FloatView) {
+pub fn negate(mut v: impl FloatPlace) {
     v.set_float(negated(v.float()));
 }
 
@@ -196,7 +240,7 @@ pub fn negated(x: f32) -> f32 {
 
 /// The value at `v` brought toward 0 by the step at `step`, never past it; 0 (either
 /// sign) or unordered left alone.
-pub(super) fn ease_zero(v: &impl FloatView, step: f32) {
+pub(super) fn ease_zero(mut v: impl FloatPlace, step: f32) {
     let x = v.float();
     if c3(x, 0.0) {
         return;

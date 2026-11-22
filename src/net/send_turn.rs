@@ -17,7 +17,7 @@ pub(super) fn send_turn(race: &Race, net: &Net) -> Result<(), Refused> {
     ];
     // The logic is in `rc2k_core::net::race::Kind::due`.
     for (kind, send) in SENT.into_iter().zip(sends) {
-        if kind.due(race.shared.car().step_clock.get()).0 {
+        if kind.due(race.shared.car().step_clock).0 {
             send(race, net)?;
         }
     }

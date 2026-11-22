@@ -8,53 +8,55 @@
 
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit;
 use crate::race::numbers_store::Numbers;
 use crate::race::work_store::RaceWork;
 use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
 
-/// The four tests' timers.
-type Timers = crate::memory::plain_floats::PlainFloats<4>;
-
-/// The shared steps (`rc2k_core::physics::parts::hit_tests`): `act` the bit's step (given the bit).
-pub fn hit_tests(
-    car: &Car,
+/// The test that acts (`rc2k_core::physics::parts::hit_tests`): the first whose bit of the car's
+/// flags is set and whose timer is not below 100 (and whose part is still on): its number in
+/// `tests`.
+pub fn hit_pick(
+    noise_word: u32,
+    parts_present: u32,
     numbers: &Numbers,
     tests: &[HitTest; 4],
-    timers: &Timers,
-    act: &mut dyn FnMut(u32) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    let word = car.noise_word.get();
+    timers: &[f32; 4],
+) -> Option<usize> {
     let (_, hit) = parts::hit_tests(
         tests,
-        word,
+        noise_word,
         |k| timers.at(k),
         || numbers.hundred.get(),
-        || car.parts_present.get(),
+        || parts_present,
     );
-    if let Hit::Act(k) = hit {
-        act(tests[k].1)?;
-        timers.float_at(k).set(x87::loaded(numbers.k256));
+    match hit {
+        Hit::Act(k) => Some(k),
+        _ => None,
     }
-    Ok(())
 }
 
 // Core: `rc2k_core::physics::parts::{hit_tests, DROP_TESTS}`.
 pub(super) fn drop_hit_parts(
     numbers: &Numbers,
     work: &mut RaceWork,
-    car: &Car,
+    car: &mut Car,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    if car.car_kind.get() >= 0x17 {
+    if car.car_kind >= 0x17 {
         return Ok(());
     }
-    hit_tests(
-        car,
+    if let Some(k) = hit_pick(
+        car.noise_word,
+        car.parts_present,
         numbers,
         &DROP_TESTS,
         &car.wheel_hit_damage,
-        &mut |bit| fill_slot_on_bit(numbers, work, car, bit, scene),
-    )
+    ) {
+        fill_slot_on_bit(numbers, work, car, DROP_TESTS[k].1, scene)?;
+        car.wheel_hit_damage[k] = x87::loaded(numbers.k256);
+    }
+    Ok(())
 }

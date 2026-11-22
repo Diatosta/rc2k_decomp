@@ -53,23 +53,24 @@ pub fn car_input_words(
         race_owner.shared.run_mut().input_words = HELD_WORDS;
     }
     if let Some(net_race) = net.race_slot.get() {
-        let block = race_owner
+        let mut block = race_owner
             .shared
-            .race_car_or(car as usize, "a car's block")?;
+            .race_car_or_mut(car as usize, "a car's block")?;
         // The kept throttle, key bits, steering and brake words.
+        let block = &mut *block;
         let kept = [
-            &block.kept_throttle_word,
-            &block.kept_keys_word,
-            &block.kept_steering_word,
-            &block.kept_brake_word,
+            &mut block.kept_throttle_word,
+            &mut block.kept_keys_word,
+            &mut block.kept_steering_word,
+            &mut block.kept_brake_word,
         ];
         for (k, at) in kept.into_iter().enumerate() {
             match replay_words(car, net_race.player) {
                 ReplayWords::FromBlock => {
-                    race_owner.shared.run_mut().input_words[k] = at.get();
+                    race_owner.shared.run_mut().input_words[k] = *at;
                 }
                 ReplayWords::IntoBlock => {
-                    at.set(race_owner.shared.run().input_words[k]);
+                    *at = race_owner.shared.run().input_words[k];
                 }
             }
         }

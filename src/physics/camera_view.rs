@@ -19,17 +19,13 @@ pub fn record(
     view_records: &DrawArc<ViewAndRecords>,
     car: &Car,
 ) -> Result<ViewRecord, crate::errors::BadInput> {
-    let mode = rc2k_core::physics::camera_view::mode_index(car.camera_view.get());
+    let mode = rc2k_core::physics::camera_view::mode_index(car.camera_view);
     ViewVars::record_of(&view_records.borrow(), mode as usize).copied()
 }
 
 /// The share done (the time held).
-pub fn share_done(shared: &RaceShared, record: &ViewRecord) -> u32 {
-    let mut time_held = shared
-        .car()
-        .step_clock
-        .get()
-        .wrapping_sub(shared.car().camera_switch_clock.get());
+pub fn share_done(shared: &RaceShared, car: &Car, record: &ViewRecord) -> u32 {
+    let mut time_held = car.step_clock.wrapping_sub(car.camera_switch_clock);
     if (time_held as i32) < 0 {
         time_held = 0;
     }

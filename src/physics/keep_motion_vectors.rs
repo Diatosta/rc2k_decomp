@@ -2,6 +2,7 @@
 //! `physics::store_motion_length` measures) go as bits into `kept_vectors`, and those of `spin`
 //! into the following three.
 
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 

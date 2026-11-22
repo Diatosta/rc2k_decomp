@@ -84,6 +84,12 @@ impl Flt for i32 {
     }
 }
 
+impl Flt for &i32 {
+    fn bits(&self) -> u32 {
+        **self as u32
+    }
+}
+
 impl Flt for crate::memory::session::ConstFloat {
     fn bits(&self) -> u32 {
         crate::memory::session::ConstFloat::bits(self)

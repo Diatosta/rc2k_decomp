@@ -2,6 +2,8 @@
 
 use super::*;
 use crate::errors::{BadInput, Refused};
+use crate::memory::plain_floats::FloatRow;
+use crate::memory::plain_floats::FloatRowMut;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::view_state::ViewState;
@@ -33,7 +35,7 @@ pub fn draw_distance_settings(course: &Course) {
 /// result shifted left 8 is returned.
 pub fn sample_noise(
     tables: crate::math::engine_tables::EngineTablesRef,
-    car: &crate::physics::car_store::Car<impl crate::memory::session::CellKind>,
+    car: &crate::physics::car_store::Car,
     map: usize,
 ) -> Result<u32, BadInput> {
     let (px, pz) = (
@@ -172,7 +174,7 @@ pub fn place_view(
         }
     };
     if course.stage_prefs.read(|p| p.flat_depth) != 0 {
-        let place = &view.car.camera_position;
+        let place = &mut view.car.borrow_mut().camera_position;
         place.set_bits_at(
             1,
             place
@@ -304,7 +306,7 @@ pub fn view_matrices(
         course,
         m,
         *view.state.borrow(),
-        &view.car,
+        &mut view.car.borrow_mut(),
         view.polygon.scalars.borrow().view_mirrored != 0,
     )
 }
@@ -327,7 +329,7 @@ fn view_own_matrices(
     course: crate::race::owner_course::CourseReads<'_>,
     m: &ViewMatrices,
     state: ViewState,
-    car: &crate::physics::car_store::ViewCar,
+    car: &mut crate::physics::car_store::ViewCar,
     mirrored: bool,
 ) -> Result<(), BadInput> {
     use crate::scene::matrix::{matrix_of, multiply_matrices};
@@ -339,7 +341,7 @@ fn view_own_matrices(
         }
         return view_place_tail(course, m, state);
     }
-    let view: u32 = car.camera_view.get();
+    let view: u32 = car.camera_view;
     if view <= 3 {
         m.borrow_mut().view_turn_matrix = inverted_turn(course, &matrix_of(&car.crash_matrix));
     } else {
@@ -383,7 +385,7 @@ fn view_own_matrices(
 /// The angle views 1 and 2 roll by: the car's speed and steering eased into the camera roll.
 fn rolled_angle(
     numbers: &crate::race::numbers_store::Numbers,
-    car: &crate::physics::car_store::ViewCar,
+    car: &mut crate::physics::car_store::ViewCar,
 ) -> u32 {
     use crate::math::x87::{below_or_unordered, eased_roll};
     let mut v = crate::math::x87::div(car.local_velocity.bits_at(2), numbers.ten);
@@ -394,15 +396,15 @@ fn rolled_angle(
         v = numbers.one.get();
     }
     let roll = eased_roll(
-        car.steering_raw.get() as i32,
+        car.steering_raw as i32,
         numbers.k65536.get(),
         numbers.one_over_two_pi.get(),
         v,
         numbers.tenth.get(),
-        car.camera_roll.get(),
+        car.camera_roll,
         numbers.half.get(),
     );
-    car.camera_roll.set(roll);
+    car.camera_roll = roll;
     (crate::math::x87::mul3_to_int(
         roll,
         numbers.k65536.get(),
@@ -435,11 +437,12 @@ pub fn camera_view(
         let mut own = view.state.borrow_mut();
         own.view_place = vars.view_place;
         own.view_angles = vars.view_angles;
-        own.view_car_flag_a_bits = view.car.camera_switch_share.get().to_bits();
-        own.view_car_stage = view.car.camera_view.get();
-        vars.view_car_flag_b = view.car.camera_mode_is_2_or_3.get();
-        vars.view_car_flag_a = view.car.camera_switch_share.get();
-        vars.view_car_stage = view.car.camera_view.get();
+        let car = view.car.borrow();
+        own.view_car_flag_a_bits = car.camera_switch_share.to_bits();
+        own.view_car_stage = car.camera_view;
+        vars.view_car_flag_b = car.camera_mode_is_2_or_3;
+        vars.view_car_flag_a = car.camera_switch_share;
+        vars.view_car_stage = car.camera_view;
     }
     if reads.switches.scene_set_up() == 0 {
         place_view(reads.engine_tables, reads.course(), view)?;
@@ -447,38 +450,43 @@ pub fn camera_view(
         return Ok(());
     }
     let place: [u32; 3] = if view.polygon.scalars.borrow().view_mirrored == 0 {
-        view.vars.borrow_mut().view_scale = view.car.camera_zoom.get();
+        view.vars.borrow_mut().view_scale = view.car.borrow().camera_zoom;
         for (from, to) in [
-            (view.car.camera_heading.get(), 0usize),
-            (view.car.camera_pitch.get(), 1),
-            (view.car.camera_roll_turn.get(), 2),
-            (view.car.camera_offset_turns.bits_at(1), 3),
-            (view.car.camera_offset_turns.bits_at(0), 4),
-            (view.car.camera_offset_turns.bits_at(2), 5),
+            (view.car.borrow().camera_heading, 0usize),
+            (view.car.borrow().camera_pitch, 1),
+            (view.car.borrow().camera_roll_turn, 2),
+            (view.car.borrow().camera_offset_turns.bits_at(1), 3),
+            (view.car.borrow().camera_offset_turns.bits_at(0), 4),
+            (view.car.borrow().camera_offset_turns.bits_at(2), 5),
         ] {
             view.vars.borrow_mut().view_angles[to] = from;
             view.state.borrow_mut().view_angles[to] = from;
         }
-        view.car.camera_position.bits()
+        view.car.borrow().camera_position.map(f32::to_bits)
     } else {
         let mut kept = m.borrow_mut();
         kept.turned_matrix = crate::scene::matrix::product(
             &crate::race::matrices_store::mirror_work_matrix(),
-            &crate::scene::matrix::matrix_of(&view.car.crash_matrix),
+            &crate::scene::matrix::matrix_of(&view.car.borrow().crash_matrix),
             kept.turned_matrix,
         );
         kept.view_turn_copy =
             crate::scene::view_matrix::inverted_turn(reads.course(), &kept.turned_matrix);
         drop(kept);
-        let kept = &view.car.kept_focus_point;
-        kept[0].set(view.car.position.bits_at(0));
-        kept[1].set(view.car.position.bits_at(1).wrapping_add(0x8000));
-        kept[2].set(view.car.position.bits_at(2));
+        let place = {
+            let mut car = view.car.borrow_mut();
+            let car = &mut *car;
+            let kept = &mut car.kept_focus_point;
+            kept[0] = car.position.bits_at(0);
+            kept[1] = car.position.bits_at(1).wrapping_add(0x8000);
+            kept[2] = car.position.bits_at(2);
+            [kept[0], kept[1], kept[2]]
+        };
         view.vars.borrow_mut().view_scale = crate::race::view_vars_store::VIEW_SCALE_FIRST.get();
-        [kept[0].get(), kept[1].get(), kept[2].get()]
+        place
     };
     for (k, &p) in place.iter().enumerate() {
-        view.car.kept_view_place.set_bits_at(k, p);
+        view.car.borrow_mut().kept_view_place.set_bits_at(k, p);
     }
     {
         let mut vars = view.vars.borrow_mut();

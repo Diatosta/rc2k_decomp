@@ -18,10 +18,10 @@ fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refuse
     let block = race.shared.work().car_block(slot);
     race.shared.work_mut().work_block = block;
     crate::drive::load_car::load_car(&race.shared)?;
-    if race.shared.car().driver_kind.get() != 0 {
+    if race.shared.car().driver_kind != 0 {
         crate::drive::read_car_controls::read_car_controls(race, scene, o.net)?;
         crate::physics::gear_input_rules::gear_input_rules(
-            race.shared.car(),
+            &mut race.shared.car_mut(),
             &mut race.shared.run_mut().gear_inputs,
             race.shared.vars.get(),
         );

@@ -11,3 +11,8 @@ pub(super) fn scale_vector(v: &(impl Cells + ?Sized), factor: [u8; 10]) {
         v.set_bits(n, bits);
     }
 }
+
+/// The vector `v` of plain floats times the 80-bit `factor`.
+pub(super) fn scale_vector_plain(v: &mut [f32; 3], factor: [u8; 10]) {
+    *v = scale_by_80(load(&*v), factor).map(f32::from_bits);
+}

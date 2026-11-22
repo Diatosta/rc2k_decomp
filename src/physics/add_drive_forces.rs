@@ -14,7 +14,7 @@ use std::cell::RefCell;
 /// The forces' step.
 pub fn add_drive_forces(car: &Car, tables: &PhysicsTables, work: &RefCell<WheelWork>) {
     let mut factor = DRIVE_FORCE_FACTOR[0];
-    if car.drive_kind.get() != 0 {
+    if car.drive_kind != 0 {
         factor = DRIVE_FORCE_FACTOR[1];
     }
     let loads = &tables.wheel_loads;

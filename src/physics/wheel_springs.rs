@@ -38,34 +38,32 @@ pub fn wheel_springs(
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
 ) {
-    let (c, ph) = (shared.car(), shared.physics_tables());
+    let (mut c, ph) = (shared.car_mut(), shared.physics_tables());
+    let c = &mut *c;
     let mut spring_forces = [0.0f32; 4];
     for k in 0..4 {
-        let q = &c.wheel_squeeze[k];
-        let old = x87::loaded(q);
+        let q = &mut c.wheel_squeeze[k];
+        let old = x87::loaded(*q);
         scene.draw_work_mut().work_dword = old.to_bits();
-        c.wheel_squeeze_last[k].set(old);
+        c.wheel_squeeze_last[k] = old;
         let squeeze_distance = probes.probe_height[k].wrapping_neg();
-        q.set(ext_div2(
+        *q = ext_div2(
             int_80(squeeze_distance as i32, false),
             numbers.k65536,
             ph.handling[3],
-        ));
-        if below(q.get(), 0.0) {
-            q.set(x87::loaded(ZERO));
+        );
+        if below(*q, 0.0) {
+            *q = x87::loaded(ZERO);
         }
-        if !below(q.get(), numbers.one.get()) {
-            q.set(x87::loaded(numbers.one));
+        if !below(*q, numbers.one.get()) {
+            *q = x87::loaded(numbers.one);
         }
-        let mut force = negated(mul2(q, SPRING_FORCE_SCALE, ph.forces[0].force[1]));
-        let mut damping = x87::sub_mul(q, scene.draw_work().work_dword, ph.handling[5]);
+        let mut force = negated(mul2(*q, SPRING_FORCE_SCALE, ph.forces[0].force[1]));
+        let mut damping = x87::sub_mul(*q, scene.draw_work().work_dword, ph.handling[5]);
         if below(damping, 0.0) {
             damping = x87::mul(damping, ph.handling[0]);
         }
-        let zero_or_none = q
-            .get()
-            .partial_cmp(&0.0)
-            .is_none_or(|o| o == Ordering::Equal);
+        let zero_or_none = (*q).partial_cmp(&0.0).is_none_or(|o| o == Ordering::Equal);
         if !zero_or_none {
             force = x87::add(damping, force);
         }
@@ -73,15 +71,15 @@ pub fn wheel_springs(
     }
     for k in 0..4 {
         let v = wheel_int([
-            car_blocks.cars[0].probe_point_y[6].get(),
+            car_blocks.cars[0].probe_point_y[6],
             ph.handling[2],
             SPRING_SHARE,
-            c.wheel_squeeze[k].get(),
+            c.wheel_squeeze[k],
             PROBE_SHARE,
             ph.handling[3],
             numbers.k65536.get(),
         ]);
-        c.wheel_spring_force[k].set(v as u32);
+        c.wheel_spring_force[k] = v as u32;
     }
     drop(ph);
     let ph = &mut *shared.physics_tables_mut();

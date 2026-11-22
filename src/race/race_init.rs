@@ -6,7 +6,6 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
@@ -17,24 +16,24 @@ use rc2k_core::race::cars::BlockWord;
 /// The car blocks `car_blocks` lists (all eight, whatever the race's count).
 pub const BLOCKS: u32 = 8;
 /// Car block n (`car_blocks`[n]).
-pub fn block(shared: &RaceShared, n: u32) -> Result<&Car, BadInput> {
-    shared.race_car(n as usize)
+pub fn block(shared: &RaceShared, n: u32) -> Result<std::cell::RefMut<'_, Car>, BadInput> {
+    shared.race_car_mut(n as usize)
 }
 
 /// The car block's dword the core's race state and overlay tables name.
-pub(super) fn block_word(car: &Car, word: BlockWord) -> Result<&PlainDword, BadInput> {
+pub(super) fn block_word(car: &mut Car, word: BlockWord) -> Result<&mut u32, BadInput> {
     const OUT: BadInput = BadInput("a car block entry the race state does not have");
     Ok(match word {
-        BlockWord::NoticeId => &car.notice_id,
-        BlockWord::NoticeCounter => &car.notice_counter,
-        BlockWord::NoticeLast => &car.notice_last,
-        BlockWord::NoticeShown => &car.notice_shown,
-        BlockWord::NoticeTime => &car.notice_time,
-        BlockWord::NoticeTimeB => &car.notice_time_b,
-        BlockWord::SplitGap(n) => car.split_gaps.get(n).ok_or(OUT)?,
-        BlockWord::EventCode(n) => car.car_event_codes.get(n).ok_or(OUT)?,
-        BlockWord::EventCount => &car.car_event_count,
-        BlockWord::EventPosition => &car.car_event_position,
+        BlockWord::NoticeId => &mut car.notice_id,
+        BlockWord::NoticeCounter => &mut car.notice_counter,
+        BlockWord::NoticeLast => &mut car.notice_last,
+        BlockWord::NoticeShown => &mut car.notice_shown,
+        BlockWord::NoticeTime => &mut car.notice_time,
+        BlockWord::NoticeTimeB => &mut car.notice_time_b,
+        BlockWord::SplitGap(n) => car.split_gaps.get_mut(n).ok_or(OUT)?,
+        BlockWord::EventCode(n) => car.car_event_codes.get_mut(n).ok_or(OUT)?,
+        BlockWord::EventCount => &mut car.car_event_count,
+        BlockWord::EventPosition => &mut car.car_event_position,
     })
 }
 
@@ -52,10 +51,10 @@ pub fn reset_car_starts(shared: &RaceShared) -> Result<(), BadInput> {
     let value = rc2k_core::race::cars::start_value(shared.work().in_credits != 0);
     for n in 0..BLOCKS {
         {
-            block(shared, n)?.run_ticks.set(value);
-            block(shared, n)?.step_clock.set(value);
-            block(shared, n)?.start_in_gear.set(0);
-            block(shared, n)?.false_start_count.set(0);
+            block(shared, n)?.run_ticks = value;
+            block(shared, n)?.step_clock = value;
+            block(shared, n)?.start_in_gear = 0;
+            block(shared, n)?.false_start_count = 0;
         }
     }
     Ok(())
@@ -67,8 +66,8 @@ pub fn seed_car_randoms(shared: &RaceShared) -> Result<(), BadInput> {
     let seeds = shared.random.with_random(rc2k_core::race::cars::car_seeds);
     for (n, &seed) in seeds.iter().enumerate() {
         {
-            block(shared, n as u32)?.car_flags.set(seed);
-            block(shared, n as u32)?.noise_word.set(seed);
+            block(shared, n as u32)?.car_flags = seed;
+            block(shared, n as u32)?.noise_word = seed;
         }
     }
     Ok(())
@@ -84,7 +83,7 @@ pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
     use rc2k_core::race::cars::{BLANK_TEXT, RACE_STATE, UNSET_TEXT};
     for n in 0..BLOCKS {
         for (word, v) in RACE_STATE {
-            block_word(block(shared, n)?, word)?.set(v);
+            *block_word(&mut *block(shared, n)?, word)? = v;
         }
     }
     // `label_behind` and `label_ahead`: four dwords of spaces.
@@ -127,45 +126,44 @@ mod tests {
     /// fields, the split gaps and the panel's marks.
     #[test]
     fn block_words_are_the_old_fields() {
-        let car = Box::new(Car::new());
-        let state = [
-            &car.notice_time_b,
-            &car.notice_time,
-            &car.notice_last,
-            &car.notice_id,
-            &car.notice_counter,
-            &car.notice_shown,
-            &car.split_gaps[0],
-            &car.split_gaps[1],
-            &car.split_gaps[2],
-            &car.split_gaps[3],
-            &car.split_gaps[4],
+        let mut car = Car::new();
+        // Each word is written through its name and read back from the field it is.
+        let state: [fn(&Car) -> u32; 11] = [
+            |c| c.notice_time_b,
+            |c| c.notice_time,
+            |c| c.notice_last,
+            |c| c.notice_id,
+            |c| c.notice_counter,
+            |c| c.notice_shown,
+            |c| c.split_gaps[0],
+            |c| c.split_gaps[1],
+            |c| c.split_gaps[2],
+            |c| c.split_gaps[3],
+            |c| c.split_gaps[4],
         ];
-        for ((word, _), field) in RACE_STATE.into_iter().zip(state) {
-            assert!(
-                core::ptr::eq(block_word(&car, word).unwrap(), field),
-                "{word:?}"
-            );
+        for (k, ((word, _), field)) in RACE_STATE.into_iter().zip(state).enumerate() {
+            let marker = 0x100 + k as u32;
+            *block_word(&mut car, word).unwrap() = marker;
+            assert_eq!(field(&car), marker, "{word:?}");
         }
-        let overlay = [
-            &car.car_event_codes[0],
-            &car.car_event_codes[1],
-            &car.car_event_codes[2],
-            &car.car_event_codes[3],
-            &car.car_event_codes[4],
-            &car.car_event_codes[5],
-            &car.car_event_codes[6],
-            &car.car_event_codes[7],
-            &car.car_event_count,
-            &car.car_event_position,
+        let overlay: [fn(&Car) -> u32; 10] = [
+            |c| c.car_event_codes[0],
+            |c| c.car_event_codes[1],
+            |c| c.car_event_codes[2],
+            |c| c.car_event_codes[3],
+            |c| c.car_event_codes[4],
+            |c| c.car_event_codes[5],
+            |c| c.car_event_codes[6],
+            |c| c.car_event_codes[7],
+            |c| c.car_event_count,
+            |c| c.car_event_position,
         ];
-        for (word, field) in OVERLAY_CLEARED.into_iter().zip(overlay) {
-            assert!(
-                core::ptr::eq(block_word(&car, word).unwrap(), field),
-                "{word:?}"
-            );
+        for (k, (word, field)) in OVERLAY_CLEARED.into_iter().zip(overlay).enumerate() {
+            let marker = 0x200 + k as u32;
+            *block_word(&mut car, word).unwrap() = marker;
+            assert_eq!(field(&car), marker, "{word:?}");
         }
-        assert!(block_word(&car, BlockWord::SplitGap(7)).is_err());
-        assert!(block_word(&car, BlockWord::EventCode(8)).is_err());
+        assert!(block_word(&mut car, BlockWord::SplitGap(7)).is_err());
+        assert!(block_word(&mut car, BlockWord::EventCode(8)).is_err());
     }
 }

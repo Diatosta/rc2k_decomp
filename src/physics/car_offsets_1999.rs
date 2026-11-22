@@ -4,7 +4,7 @@
 //! vectors' are mapped to fields here, and nowhere else.
 
 use crate::physics::car_store::Car;
-use crate::test_support::paths::{bytes, first_addr, get_u32, set_bytes, set_u32};
+use crate::test_support::plain_paths::{flat_bytes, flat_offset, get_u32, set_flat_bytes, set_u32};
 
 /// The size of the 1999 record.
 pub(super) const SIZE_1999: usize = 0xFE0;
@@ -265,29 +265,40 @@ const FIELDS: [(&str, usize, usize); 253] = [
     ("kept_brake_word", 0xfdc, 4),
 ];
 
-/// Where each field of `FIELDS` starts inside a `Car` (its address less the car's own), found by
-/// path once: every car keeps its fields in the same places.
+/// Where each field of `FIELDS` starts in the flat bytes of a car's walk, found once (every car
+/// walks its fields in the same order).
 fn field_places() -> &'static [usize; FIELDS.len()] {
     static PLACES: std::sync::OnceLock<[usize; FIELDS.len()]> = std::sync::OnceLock::new();
     PLACES.get_or_init(|| {
         let car = Car::new();
-        let base = std::ptr::from_ref(&car).addr();
-        FIELDS.map(|(name, _, _)| {
-            first_addr(&car, &format!(".{name}")).expect("a field of the car") - base
-        })
+        FIELDS
+            .map(|(name, _, _)| flat_offset(&car, &format!(".{name}")).expect("a field of the car"))
     })
 }
 
-/// The 1999 offset of the byte at address `addr` of `car`, which lies in one of its fields.
-pub fn offset_1999(car: &Car, addr: usize) -> usize {
-    let base = std::ptr::from_ref(car).addr();
+/// The 1999 offset of the byte at the flat offset `flat` of a car's walk.
+fn offset_of_flat(flat: usize) -> usize {
     for ((_, start, len), place) in FIELDS.iter().zip(field_places()) {
-        let first = base + place;
-        if (first..first + len).contains(&addr) {
-            return start + addr - first;
+        if (*place..place + len).contains(&flat) {
+            return start + flat - place;
         }
     }
-    panic!("{addr:#x} is in no field of the car");
+    panic!("flat byte {flat} is in no field of the car");
+}
+
+/// The 1999 offset of the first dword `change` alters in a zeroed car: how the tests find where
+/// a table of fields (a selector that puts a marker into the word it names) points.
+pub fn offset_changed_by(change: impl FnOnce(&mut Car)) -> usize {
+    let mut car = Car::new();
+    let before = flat_bytes(&car);
+    change(&mut car);
+    let after = flat_bytes(&car);
+    let flat = before
+        .iter()
+        .zip(&after)
+        .position(|(a, b)| a != b)
+        .expect("the change altered no byte");
+    offset_of_flat(flat)
 }
 
 /// The path of the dword cell the 1999 offset `offset` names.
@@ -310,12 +321,16 @@ fn cell_path(offset: usize) -> String {
 
 /// The dword at the 1999 offset `offset`.
 pub fn load_1999(car: &Car, offset: usize) -> u32 {
-    get_u32(car, &cell_path(offset)).expect("a dword cell")
+    {
+        let path = cell_path(offset);
+        get_u32(car, &path).unwrap_or_else(|| panic!("no word at {path}"))
+    }
 }
 
 /// Sets the dword at the 1999 offset `offset`.
-pub fn store_1999(car: &Car, offset: usize, value: u32) {
-    assert!(set_u32(car, &cell_path(offset), value));
+pub fn store_1999(car: &mut Car, offset: usize, value: u32) {
+    let path = cell_path(offset);
+    assert!(set_u32(car, &path, value), "no word at {path}");
 }
 
 /// Whether each dword of the 1999 record (by its offset / 4) lies in a field of `FIELDS`.
@@ -332,12 +347,17 @@ fn covered_offsets() -> &'static [bool; SIZE_1999 / 4] {
     })
 }
 
-/// The 1999 offset of cell `n` of the table `cells` of `car`, running on past the table's end
-/// into what followed it, as the record's fields do now: the places no code read (not in
-/// `FIELDS`) are stepped over, as the closed-up record has no bytes there.
-fn run_on(car: &Car, cells: &[impl crate::memory::session::Cell32], n: usize) -> usize {
+/// The 1999 offset of word `n` of the table that starts at the field `field` (by name), running on
+/// past the table's end into what followed it, as the record's fields do now: the places no code
+/// read (not in `FIELDS`) are stepped over, as the closed-up record has no bytes there.
+fn run_on(field: &str, n: usize) -> usize {
     let covered = |offset: usize| covered_offsets()[offset / 4];
-    let mut offset = offset_1999(car, cells.as_ptr().addr());
+    let (_, start, _) = FIELDS
+        .iter()
+        .copied()
+        .find(|(name, _, _)| *name == field)
+        .expect("a field of the car");
+    let mut offset = start;
     for _ in 0..n {
         offset += 4;
         while offset < SIZE_1999 && !covered(offset) {
@@ -347,35 +367,32 @@ fn run_on(car: &Car, cells: &[impl crate::memory::session::Cell32], n: usize) ->
     offset
 }
 
-/// Sets cell `n` of the table `cells` of `car` as the 1999 layout writes it, running on past the
-/// table's end into the fields that follow it (`run_on`).
-pub(super) fn write_on_1999<C: crate::memory::session::Cell32>(
-    car: &Car,
-    cells: &[C],
-    n: usize,
-    value: u32,
-) {
-    store_1999(car, run_on(car, cells, n), value);
+/// Sets word `n` of the table starting at the field `field` as the 1999 layout writes it, running
+/// on past the table's end into the fields that follow it (`run_on`).
+pub(super) fn write_on_1999(car: &mut Car, field: &str, n: usize, value: u32) {
+    store_1999(car, run_on(field, n), value);
 }
 
 /// The record as the 1999 bytes (`SIZE_1999` of them; the unused places are zero).
 pub fn bytes_1999(car: &Car) -> Vec<u8> {
+    let flat = flat_bytes(car);
     let mut out = vec![0; SIZE_1999];
-    for (name, start, len) in FIELDS {
-        let field = bytes(car, &format!(".{name}")).expect("a field of the car");
-        assert_eq!(field.len(), len, "{name}");
-        out[start..start + len].copy_from_slice(&field);
+    for ((_, start, len), place) in FIELDS.iter().zip(field_places()) {
+        out[*start..start + len].copy_from_slice(&flat[*place..place + len]);
     }
     out
 }
 
 /// A car whose byte at the 1999 offset `n` is `fill(n)` (the unused places have no byte).
 pub fn car_with_1999_bytes(fill: impl Fn(usize) -> u8) -> Car {
-    let car = Car::new();
-    for (name, start, len) in FIELDS {
-        let field: Vec<u8> = (start..start + len).map(&fill).collect();
-        assert!(set_bytes(&car, &format!(".{name}"), &field), "{name}");
+    let mut car = Car::new();
+    let mut flat = flat_bytes(&car);
+    for ((_, start, len), place) in FIELDS.iter().zip(field_places()) {
+        for k in 0..*len {
+            flat[place + k] = fill(start + k);
+        }
     }
+    set_flat_bytes(&mut car, &flat);
     car
 }
 
@@ -395,7 +412,7 @@ mod tests {
         }
         let missing: usize = covered.iter().filter(|&&b| !b).count();
         assert_eq!(missing, 64 + 4 + 8 + 8 + 4 + 480);
-        let flat = crate::test_support::paths::field_bytes(&Car::new(), "").len();
+        let flat = crate::test_support::plain_paths::flat_bytes(&Car::new()).len();
         assert_eq!(flat, SIZE_1999 - missing);
     }
 }

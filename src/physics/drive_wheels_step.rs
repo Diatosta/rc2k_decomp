@@ -20,13 +20,13 @@ use crate::math::x87_float::compare;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::{X, st, stf};
-use crate::memory::session::PlainFloat;
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::physics::flow::FloatView;
 use crate::physics::flow::{
     ZERO_BITS as ZERO, c0, ease_zero, hold_high_plain, hold_low_bits, hold_low_plain,
 };
-use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
+use crate::physics::gearing::revs_from_wheels_at;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::wheel_work::WheelWork;
 use crate::race::numbers_store::Numbers;
@@ -39,38 +39,48 @@ fn abs_below(x: impl x87::Flt, y: impl x87::Flt) -> bool {
     status_below(abs_status([x.bits(), y.bits()]))
 }
 
-/// Where one axle's slip step works: its drive speed, its place in `axle_slip_limits` and the two
-/// force records whose third parts it sets.
+/// Where one axle's slip step works: the axle (its drive speed, its place in `axle_slip_limits`)
+/// and the two force records whose third parts it sets.
 #[derive(Clone, Copy)]
-struct SlipPlaces<'a> {
-    drive: &'a PlainFloat,
+struct SlipPlaces {
     axle: usize,
     forces: [usize; 2],
+}
+
+/// The drive speed of axle `axle`: the front's (`drive_speed_a`) or the rear's (`drive_speed_b`).
+fn drive_speed(car: &mut Car, axle: usize) -> &mut f32 {
+    if axle == 0 {
+        &mut car.drive_speed_a
+    } else {
+        &mut car.drive_speed_b
+    }
 }
 
 /// The slip `slip` signed by the slip ratio's sign (returned), the drive speed (`drive`) less it
 /// x (`spec_wheel` less 1), and the two force records' parts at `forces`.
 fn settle_slip(
-    car: &Car,
+    car: &mut Car,
     tables: &mut PhysicsTables,
     numbers: &Numbers,
     at: &SlipPlaces,
     slip: u32,
 ) -> u32 {
-    let SlipPlaces {
-        drive,
-        axle,
-        forces,
-    } = *at;
+    let SlipPlaces { axle, forces } = *at;
     let wheel = tables.spec_wheel;
-    slip_ratio(car, wheel, drive, &mut tables.axle_slip_limits[axle]);
+    let local_z = car.local_velocity[2];
+    slip_ratio(
+        local_z,
+        wheel,
+        *drive_speed(car, axle),
+        &mut tables.axle_slip_limits[axle],
+    );
     let s = abs_of(slip);
     let signed = if c0(tables.axle_slip_limits[axle], ZERO) {
         neg_rounded(extended(s))
     } else {
         s
     };
-    let share = apply_slip_to_drive(wheel, numbers, drive, signed.to_bits());
+    let share = apply_slip_to_drive(wheel, numbers, drive_speed(car, axle), signed.to_bits());
     tables.forces[forces[0]].force[2].st(share);
     tables.forces[forces[1]].force[2].st(share);
     signed.to_bits()
@@ -78,16 +88,10 @@ fn settle_slip(
 
 /// The slip's first limit: |drive - speed| / `spec_wheel` into the axle's `axle_slip_limits`; the
 /// slip is the lesser of it and `force` (returned).
-fn slip_limit(
-    car: &Car,
-    tables: &mut PhysicsTables,
-    drive: &PlainFloat,
-    axle: usize,
-    force: u32,
-) -> u32 {
+fn slip_limit(car: &mut Car, tables: &mut PhysicsTables, axle: usize, force: u32) -> u32 {
     let wheel = tables.spec_wheel;
     let ratio = &mut tables.axle_slip_limits[axle];
-    slip_ratio_size(car, wheel, drive, ratio);
+    slip_ratio_size(car.local_velocity[2], wheel, *drive_speed(car, axle), ratio);
     let pick = if c0(*ratio, force) {
         ratio.to_bits()
     } else {
@@ -114,12 +118,12 @@ fn steps(
     vars: &RaceVars,
     physics_tables: &mut PhysicsTables,
     work: &RefCell<WheelWork>,
-    car: &Car,
+    car: &mut Car,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     // The work value the drive steps pass through; each is stored before it is read.
     let scratch = crate::memory::session::PlainDword::new(0);
-    let gear = car.gear.get();
+    let gear = car.gear;
     one_less_abs(
         &course.numbers,
         car.crash_matrix.ld(1),
@@ -152,19 +156,19 @@ fn steps(
         &mut physics_tables.drive_shares[2],
         course.numbers.one.get(),
     );
-    if car.driven_wheels_off.get() == 0 {
+    if car.driven_wheels_off == 0 {
         if gear == 0 {
             physics_tables.drive_torque = 0.0;
         }
         crate::physics::cap_drive_speed::cap_drive_speed(car, physics_tables);
         // the grips of `wheel_grips`, or, braking, `wheel_grips_b`
-        let grips = if car.brake.get() != 0 {
+        let grips = if car.brake != 0 {
             physics_tables.wheel_grips_b
         } else {
             physics_tables.wheel_grips
         };
         drive_forces_from_grips(car, &course.numbers, physics_tables, work, &grips);
-        scratch.set(car.throttle.get().wrapping_add(0x100));
+        scratch.set(car.throttle.wrapping_add(0x100));
         throttle_drive_limit(car, physics_tables, &course.numbers, &scratch);
         hold_high_plain(
             &mut physics_tables.drive_limits[1],
@@ -179,7 +183,7 @@ fn steps(
             physics_tables.drive_limits[1]
         };
         physics_tables.drive_limits[2] = x87::loaded(pick);
-        let kind = car.drive_kind.get();
+        let kind = car.drive_kind;
         if gear != 0 && kind == 1 {
             push_both_drive_speeds(car, physics_tables, &course.numbers);
         }
@@ -189,17 +193,17 @@ fn steps(
         revs(car, physics_tables, &course.numbers)?;
         // The wheels' drag on each drive speed.
         brake_step_for_a(car, physics_tables, &course.numbers);
-        ease_zero(&car.drive_speed_a, physics_tables.wheel_speed_step);
+        ease_zero(&mut car.drive_speed_a, physics_tables.wheel_speed_step);
         brake_step_for_b(car, physics_tables, &course.numbers);
-        ease_zero(&car.drive_speed_b, physics_tables.wheel_speed_step);
+        ease_zero(&mut car.drive_speed_b, physics_tables.wheel_speed_step);
         handbrake_step_for_b(car, physics_tables, &course.numbers);
-        ease_zero(&car.drive_speed_b, physics_tables.wheel_speed_step);
-        if car.handbrake.get() != 0 {
+        ease_zero(&mut car.drive_speed_b, physics_tables.wheel_speed_step);
+        if car.handbrake != 0 {
             let status =
-                handbrake_stop_status(&car.drive_speed_a, &car.drive_speed_b, course.numbers.one);
+                handbrake_stop_status(car.drive_speed_a, car.drive_speed_b, course.numbers.one);
             if status_below(status) {
-                car.drive_speed_a.set(0.0);
-                car.drive_speed_b.set(0.0);
+                car.drive_speed_a = 0.0;
+                car.drive_speed_b = 0.0;
             }
         }
         revs(car, physics_tables, &course.numbers)?;
@@ -209,31 +213,21 @@ fn steps(
         crate::physics::ease_low_speed_forces::ease_low_speed_forces(car, physics_tables, work);
 
         scale_axle_forces(physics_tables, work);
-        if car.parts_state.get() != 0 {
+        if car.parts_state != 0 {
             let half = course.numbers.half.get();
             let mut work = work.borrow_mut();
             for force in &mut work.drive_forces {
                 *force = x87::mul(*force, half).to_bits();
             }
         }
-        for (axle, (drive, forces)) in [
-            (&car.drive_speed_a, [15, 16]),
-            (&car.drive_speed_b, [17, 18]),
-        ]
-        .into_iter()
-        .enumerate()
-        {
+        for (axle, forces) in [[15, 16], [17, 18]].into_iter().enumerate() {
             let force = work.borrow().drive_forces[axle];
-            let slip = slip_limit(car, physics_tables, drive, axle, force);
+            let slip = slip_limit(car, physics_tables, axle, force);
             let slip = settle_slip(
                 car,
                 physics_tables,
                 &course.numbers,
-                &SlipPlaces {
-                    drive,
-                    axle,
-                    forces,
-                },
+                &SlipPlaces { axle, forces },
                 slip,
             );
             work.borrow_mut().axle_slips[axle] = slip;
@@ -257,9 +251,9 @@ fn steps(
         if status_above(status) {
             rolling_drag_forces(car, physics_tables, &scratch);
         }
-        if vars.run_kind.get() != 1 && (car.run_ticks.get().wrapping_sub(0x320) as i32) < 0 {
-            car.drive_speed_a.set(0.0);
-            car.drive_speed_b.set(0.0);
+        if vars.run_kind.get() != 1 && (car.run_ticks.wrapping_sub(0x320) as i32) < 0 {
+            car.drive_speed_a = 0.0;
+            car.drive_speed_b = 0.0;
         }
         share_wheel_forces(physics_tables, &course.numbers);
         physics_tables.forces[19].force[0] = 0.0;
@@ -287,8 +281,8 @@ fn hold_work_float(
 }
 
 /// `revs_from_wheels` (the gear checked before).
-fn revs(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<(), Refused> {
-    { revs_from_wheels_at(numbers, &GearPlaces::game(car, tables)) }?;
+fn revs(car: &mut Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<(), Refused> {
+    { revs_from_wheels_at(numbers, car, &tables.gear_ratios) }?;
     Ok(())
 }
 
@@ -297,10 +291,10 @@ pub fn drive_wheels_step(
     vars: &RaceVars,
     physics_tables: &mut PhysicsTables,
     work: &RefCell<WheelWork>,
-    car: &Car,
+    car: &mut Car,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let gear = car.gear.get();
+    let gear = car.gear;
     if gear != 0 && !(-1..=7).contains(&gear) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
@@ -332,9 +326,9 @@ fn abs_status(v: [u32; 2]) -> u16 {
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn slip_ratio(car: &Car, spec_wheel: f32, d: &PlainFloat, r: &mut f32) {
+fn slip_ratio(local_z: f32, spec_wheel: f32, d: f32, r: &mut f32) {
     let t0 = d.ld();
-    let t1 = car.local_velocity.ld(2);
+    let t1 = local_z.ld();
     let t2 = t0 - t1;
     let t3 = spec_wheel.ld();
     let t4 = t2 / t3;
@@ -345,7 +339,7 @@ fn slip_ratio(car: &Car, spec_wheel: f32, d: &PlainFloat, r: &mut f32) {
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[d + 0] = [d + 0] - (([spec_wheel] - [one]) * [s + 0])`
 /// and the share `([s + 0] / [step_time]) * [half]` returned, for the two force records' parts.
-fn apply_slip_to_drive(spec_wheel: f32, numbers: &Numbers, d: &PlainFloat, s: u32) -> X {
+fn apply_slip_to_drive(spec_wheel: f32, numbers: &Numbers, d: &mut f32, s: u32) -> X {
     let t0 = d.ld();
     let t1 = spec_wheel.ld();
     let t2 = numbers.one.ld();
@@ -362,9 +356,9 @@ fn apply_slip_to_drive(spec_wheel: f32, numbers: &Numbers, d: &PlainFloat, s: u3
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn slip_ratio_size(car: &Car, spec_wheel: f32, d: &PlainFloat, r: &mut f32) {
+fn slip_ratio_size(local_z: f32, spec_wheel: f32, d: f32, r: &mut f32) {
     let t0 = d.ld();
-    let t1 = car.local_velocity.ld(2);
+    let t1 = local_z.ld();
     let t2 = t0 - t1;
     let t3 = spec_wheel.ld();
     let t4 = t2 / t3;
@@ -385,7 +379,7 @@ fn signed_share(tables: &mut PhysicsTables, numbers: &Numbers) {
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// A long formula, covered by the tests.
 fn drive_forces_from_grips(
-    car: &Car,
+    car: &mut Car,
     numbers: &Numbers,
     tables: &mut PhysicsTables,
     work: &RefCell<WheelWork>,
@@ -440,7 +434,7 @@ fn drive_forces_from_grips(
 
 /// One straight x87 run as plain Rust over `X`.
 fn throttle_drive_limit(
-    car: &Car,
+    car: &mut Car,
     tables: &mut PhysicsTables,
     numbers: &Numbers,
     scratch: &crate::memory::session::PlainDword,
@@ -466,7 +460,7 @@ fn throttle_drive_limit(
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[drive_speed_a] = ((([drive_torque] * [half]) * [step_time]) * [spec_wheel]) + [drive_speed_a]`
 /// `[drive_speed_b] = ((([drive_torque] * [half]) * [step_time]) * [spec_wheel]) + [drive_speed_b]`
-fn push_both_drive_speeds(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
+fn push_both_drive_speeds(car: &mut Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = tables.drive_torque.ld();
     let t1 = numbers.half.ld();
     let t2 = t0 * t1;
@@ -492,7 +486,7 @@ fn push_both_drive_speeds(car: &Car, tables: &PhysicsTables, numbers: &Numbers) 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[drive_speed_a] = (([drive_torque] * [step_time]) * [spec_wheel]) + [drive_speed_a]`
-fn push_drive_speed_a(car: &Car, numbers: &Numbers, tables: &PhysicsTables) {
+fn push_drive_speed_a(car: &mut Car, numbers: &Numbers, tables: &PhysicsTables) {
     let t0 = tables.drive_torque.ld();
     let t1 = numbers.step_time.ld();
     let t2 = t0 * t1;
@@ -506,13 +500,13 @@ fn push_drive_speed_a(car: &Car, numbers: &Numbers, tables: &PhysicsTables) {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// A long formula, covered by the tests.
-fn brake_step_for_a(car: &Car, tables: &mut PhysicsTables, numbers: &Numbers) {
+fn brake_step_for_a(car: &mut Car, tables: &mut PhysicsTables, numbers: &Numbers) {
     let t0 = X(1.0);
     let t1 = tables.handling[1].ld();
     let t2 = t0 - t1;
     let t3 = tables.spec_drive[1].ld();
     let t4 = t2 * t3;
-    let t5 = int(car.brake.get() as i32);
+    let t5 = int(car.brake as i32);
     let t6 = t4 * t5;
     let t7 = numbers.k256.ld();
     let t8 = t6 / t7;
@@ -528,11 +522,11 @@ fn brake_step_for_a(car: &Car, tables: &mut PhysicsTables, numbers: &Numbers) {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// A long formula, covered by the tests.
-fn brake_step_for_b(car: &Car, tables: &mut PhysicsTables, numbers: &Numbers) {
+fn brake_step_for_b(car: &mut Car, tables: &mut PhysicsTables, numbers: &Numbers) {
     let t0 = tables.handling[1].ld();
     let t1 = tables.spec_drive[1].ld();
     let t2 = t0 * t1;
-    let t3 = int(car.brake.get() as i32);
+    let t3 = int(car.brake as i32);
     let t4 = t2 * t3;
     let t5 = numbers.k256.ld();
     let t6 = t4 / t5;
@@ -549,9 +543,9 @@ fn brake_step_for_b(car: &Car, tables: &mut PhysicsTables, numbers: &Numbers) {
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[wheel_speed_step] = (((([spec_drive] * int [handbrake]) / [k256]) * [step_time]) *
 ///  [spec_wheel]) * [weight]`
-fn handbrake_step_for_b(car: &Car, tables: &mut PhysicsTables, numbers: &Numbers) {
+fn handbrake_step_for_b(car: &mut Car, tables: &mut PhysicsTables, numbers: &Numbers) {
     let t0 = tables.spec_drive[0].ld();
-    let t1 = int(car.handbrake.get() as i32);
+    let t1 = int(car.handbrake as i32);
     let t2 = t0 * t1;
     let t3 = numbers.k256.ld();
     let t4 = t2 / t3;
@@ -577,7 +571,7 @@ fn handbrake_stop_status(a: impl x87::Flt, b: impl x87::Flt, limit: impl x87::Fl
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn slip_gaps(car: &Car, work: &RefCell<WheelWork>) {
+fn slip_gaps(car: &mut Car, work: &RefCell<WheelWork>) {
     let t0 = car.drive_speed_b.ld();
     let t1 = car.local_velocity.ld(2);
     let t2 = t0 - t1;
@@ -610,7 +604,7 @@ fn scale_axle_forces(tables: &mut PhysicsTables, work: &RefCell<WheelWork>) {
 
 /// One straight x87 run as plain Rust over `X`.
 fn side_slip_forces(
-    car: &Car,
+    car: &mut Car,
     tables: &mut PhysicsTables,
     work: &RefCell<WheelWork>,
     numbers: &Numbers,
@@ -661,7 +655,7 @@ fn spin_push_b(numbers: &Numbers, tables: &mut PhysicsTables) {
 
 /// One straight x87 run as plain Rust over `X`.
 fn speed_over_ground(
-    car: &Car,
+    car: &mut Car,
     tables: &PhysicsTables,
     scratch: &crate::memory::session::PlainDword,
 ) -> u16 {
@@ -678,7 +672,7 @@ fn speed_over_ground(
 
 /// One straight x87 run as plain Rust over `X`.
 fn rolling_drag_forces(
-    car: &Car,
+    car: &mut Car,
     tables: &mut PhysicsTables,
     scratch: &crate::memory::session::PlainDword,
 ) {
@@ -727,7 +721,7 @@ fn share_wheel_forces(tables: &mut PhysicsTables, numbers: &Numbers) {
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn slip_figure_a(car: &Car, numbers: &Numbers, scene: &crate::scene::owner::Scene) {
+fn slip_figure_a(car: &mut Car, numbers: &Numbers, scene: &crate::scene::owner::Scene) {
     let t0 = car.drive_speed_a.ld();
     let t1 = car.local_velocity.ld(2);
     let t2 = t0 - t1;
@@ -741,7 +735,7 @@ fn slip_figure_a(car: &Car, numbers: &Numbers, scene: &crate::scene::owner::Scen
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[work_float_b] = |[local_velocity]| - [wheel_speed_margin]`
-fn slip_figure_b(car: &Car, numbers: &Numbers, scene: &crate::scene::owner::Scene) {
+fn slip_figure_b(car: &mut Car, numbers: &Numbers, scene: &crate::scene::owner::Scene) {
     let t0 = car.local_velocity.ld(0);
     let t1 = t0.abs();
     let t2 = numbers.wheel_speed_margin.ld();
@@ -750,7 +744,7 @@ fn slip_figure_b(car: &Car, numbers: &Numbers, scene: &crate::scene::owner::Scen
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn slip_lengths(car: &Car, scene: &crate::scene::owner::Scene) {
+fn slip_lengths(car: &mut Car, scene: &crate::scene::owner::Scene) {
     let t0 = ld(scene.draw_work().work_float_a);
     let t1 = t0 * t0;
     let t2 = ld(scene.draw_work().work_float_b);

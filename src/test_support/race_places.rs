@@ -837,6 +837,10 @@ pub fn numbers() -> crate::race::numbers_store::Numbers {
 /// The physics' tables (a plain record): their registry name.
 const PHYSICS_TABLES: &str = "owners.race.shared.physics_tables";
 
+/// The work car and the cars' blocks (plain records): their registry names.
+const CAR: &str = "owners.race.shared.car";
+const CAR_BLOCKS: &str = "owners.race.shared.car_blocks";
+
 /// The engine tables (plain arrays, not cells): their registry name.
 const ENGINE_TABLES: &str = "owners.race.shared.buffers.engine_tables";
 
@@ -931,6 +935,12 @@ fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
                 .to_vec(),
         );
     }
+    if name == CAR {
+        return super::plain_paths::bytes(&*super::own::race().shared.car(), path);
+    }
+    if name == CAR_BLOCKS {
+        return super::plain_paths::bytes(&*super::own::race().shared.car_blocks(), path);
+    }
     if name == CAMERA {
         let (get, _) = camera_field(path)?;
         return Some(
@@ -944,6 +954,20 @@ fn store_bytes(name: &str, path: &str) -> Option<Vec<u8>> {
 
 /// `bytes` put into the field at `path` in the store `name`; false when it is not there.
 fn set_store_bytes(name: &str, path: &str, bytes: &[u8]) -> bool {
+    if name == CAR {
+        return super::plain_paths::set_bytes(
+            &mut *super::own::race().shared.car_mut(),
+            path,
+            bytes,
+        );
+    }
+    if name == CAR_BLOCKS {
+        return super::plain_paths::set_bytes(
+            &mut *super::own::race().shared.car_blocks_mut(),
+            path,
+            bytes,
+        );
+    }
     if name == CONTACT {
         let Ok(word) = <[u8; 4]>::try_from(bytes) else {
             return false;

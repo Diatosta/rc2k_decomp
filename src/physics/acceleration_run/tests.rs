@@ -43,7 +43,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |_| {
                 let drag = x87_2(
-                    race().shared.car(),
+                    &mut race().shared.car_mut(),
                     &race().shared.physics_tables(),
                     &crate::test_support::race_places::numbers(),
                 );
@@ -67,7 +67,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |_| {
                 x87_3(
-                    race().shared.car(),
+                    &race().shared.car(),
                     race().gear(),
                     &crate::test_support::race_places::numbers(),
                 );

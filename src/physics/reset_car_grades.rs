@@ -5,92 +5,78 @@
 //! setup's percentages, by the look of it); `steering_efficiency` .. `lost_gear_bits` and one more
 //! run zeroed; `parts_present` = -1. A reading: the block's grades and values.
 
-use core::slice::from_ref;
-
-use crate::memory::plain_floats::{PlainFloats, WordRef};
-use crate::memory::session::{Cell32, PlainDword};
+use crate::memory::plain_place::WordMut;
 use crate::physics::car_store::Car;
 use crate::race::numbers_store::Numbers;
 use rc2k_core::physics::grades::{Field, percentage, reset_writes};
 
-/// The damage gauges in the order they lie in the block, `damage_failed` first and `tyre_wear`
-/// last.
-fn gauges(car: &Car) -> Vec<WordRef<'_>> {
-    fn run<'a, C: Cell32>(list: &mut Vec<WordRef<'a>>, cells: &'a [C]) {
-        list.extend(cells.iter().map(|c| WordRef::Cell(c)));
-    }
-    fn row<'a, const N: usize>(list: &mut Vec<WordRef<'a>>, floats: &'a PlainFloats<N>) {
-        list.extend((0..N).map(|k| WordRef::Element(floats.cell_at(k))));
-    }
-    let mut g: Vec<WordRef<'_>> = Vec::with_capacity(51);
-    run(&mut g, from_ref(&car.damage_failed));
-    run(&mut g, from_ref(&car.brake_fade));
-    row(&mut g, &car.damper_wear);
-    row(&mut g, &car.brake_heat);
-    run(&mut g, from_ref(&car.engine_heat));
-    run(&mut g, from_ref(&car.engine_damage));
-    run(&mut g, from_ref(&car.exhaust_damage));
-    run(&mut g, from_ref(&car.turbo_damage));
-    run(&mut g, from_ref(&car.cooling_damage));
-    run(&mut g, from_ref(&car.clutch_damage));
-    run(&mut g, from_ref(&car.differential_damage));
-    row(&mut g, &car.gear_wear);
-    run(&mut g, from_ref(&car.gearbox_damage));
-    row(&mut g, &car.wheel_hit_damage);
-    run(&mut g, from_ref(&car.body_hit_damage));
-    run(&mut g, from_ref(&car.body_damage));
-    run(&mut g, from_ref(&car.electrics_damage));
-    row(&mut g, &car.light_damage);
-    run(&mut g, from_ref(&car.lights_damage));
-    run(&mut g, from_ref(&car.steering_damage));
-    row(&mut g, &car.suspension_damage);
-    run(&mut g, from_ref(&car.overall_suspension_damage));
-    run(&mut g, from_ref(&car.brake_wear_a));
-    run(&mut g, from_ref(&car.brake_wear_b));
-    run(&mut g, from_ref(&car.brake_damage));
-    row(&mut g, &car.tyre_wears);
-    run(&mut g, from_ref(&car.tyre_wear));
-    g
-}
-
-/// The cell the block keeps `field` in (`gauges` are the block's, from `gauges`).
-fn cell<'a>(car: &'a Car, gauges: &[WordRef<'a>], field: Field) -> WordRef<'a> {
-    match field {
-        Field::Gauge(k) => gauges[k as usize],
-        Field::Efficiency(0) => WordRef::Cell(&car.engine_power_factor),
-        Field::Efficiency(k @ 1..=2) => {
-            WordRef::Element(car.brake_efficiency.cell_at(k as usize - 1))
-        }
-        Field::Efficiency(k) => WordRef::Element(car.drive_efficiency.cell_at(k as usize - 3)),
-        Field::StiffnessMean => WordRef::Cell(&car.stiffness_mean),
-        Field::WheelStiffness(k) => WordRef::Element(car.wheel_stiffness.cell_at(k as usize)),
-        Field::RideHeightMean => WordRef::Cell(&car.ride_height_mean),
-        Field::WheelRideHeight(k) => WordRef::Element(car.wheel_ride_height.cell_at(k as usize)),
-        Field::Failure(0) => WordRef::Cell(&car.steering_efficiency),
-        Field::Failure(k @ 1..=7) => WordRef::Cell(&car.electrical_failures[k as usize - 1]),
-        Field::Failure(8) => WordRef::Cell(&car.handbrake_failed),
-        Field::Failure(9) => WordRef::Cell(&car.gear_change_blocked),
-        Field::Failure(10) => WordRef::Cell(&car.forced_neutral),
-        Field::Failure(_) => WordRef::Cell(&car.lost_gear_bits),
-        Field::ImpactMark(k) => WordRef::Element(car.impact_octant_marks.cell_at(k as usize)),
-        Field::PartsPresent => WordRef::Cell(&car.parts_present),
-    }
-}
-
 /// The block's fields written as `reset_writes` lists them.
-fn write_all(car: &Car, writes: Vec<(Field, u32)>) {
-    let gauges = gauges(car);
+fn write_all(car: &mut Car, writes: Vec<(Field, u32)>) {
+    // The damage gauges in the order they lie in the block, `damage_failed` first and
+    // `tyre_wear` last.
+    let mut gauges: Vec<WordMut<'_>> = Vec::with_capacity(51);
+    gauges.push((&mut car.damage_failed).into());
+    gauges.push((&mut car.brake_fade).into());
+    gauges.extend(car.damper_wear.iter_mut().map(WordMut::from));
+    gauges.extend(car.brake_heat.iter_mut().map(WordMut::from));
+    gauges.push((&mut car.engine_heat).into());
+    gauges.push((&mut car.engine_damage).into());
+    gauges.push((&mut car.exhaust_damage).into());
+    gauges.push((&mut car.turbo_damage).into());
+    gauges.push((&mut car.cooling_damage).into());
+    gauges.push((&mut car.clutch_damage).into());
+    gauges.push((&mut car.differential_damage).into());
+    gauges.extend(car.gear_wear.iter_mut().map(WordMut::from));
+    gauges.push((&mut car.gearbox_damage).into());
+    gauges.extend(car.wheel_hit_damage.iter_mut().map(WordMut::from));
+    gauges.push((&mut car.body_hit_damage).into());
+    gauges.push((&mut car.body_damage).into());
+    gauges.push((&mut car.electrics_damage).into());
+    gauges.extend(car.light_damage.iter_mut().map(WordMut::from));
+    gauges.push((&mut car.lights_damage).into());
+    gauges.push((&mut car.steering_damage).into());
+    gauges.extend(car.suspension_damage.iter_mut().map(WordMut::from));
+    gauges.push((&mut car.overall_suspension_damage).into());
+    gauges.push((&mut car.brake_wear_a).into());
+    gauges.push((&mut car.brake_wear_b).into());
+    gauges.push((&mut car.brake_damage).into());
+    gauges.extend(car.tyre_wears.iter_mut().map(WordMut::from));
+    gauges.push((&mut car.tyre_wear).into());
+    for &(field, v) in &writes {
+        if let Field::Gauge(k) = field {
+            gauges[k as usize].set_bits(v);
+        }
+    }
+    drop(gauges);
     for (field, v) in writes {
-        cell(car, &gauges, field).set_bits(v);
+        let mut word: WordMut<'_> = match field {
+            Field::Gauge(_) => continue,
+            Field::Efficiency(0) => (&mut car.engine_power_factor).into(),
+            Field::Efficiency(k @ 1..=2) => (&mut car.brake_efficiency[k as usize - 1]).into(),
+            Field::Efficiency(k) => (&mut car.drive_efficiency[k as usize - 3]).into(),
+            Field::StiffnessMean => (&mut car.stiffness_mean).into(),
+            Field::WheelStiffness(k) => (&mut car.wheel_stiffness[k as usize]).into(),
+            Field::RideHeightMean => (&mut car.ride_height_mean).into(),
+            Field::WheelRideHeight(k) => (&mut car.wheel_ride_height[k as usize]).into(),
+            Field::Failure(0) => (&mut car.steering_efficiency).into(),
+            Field::Failure(k @ 1..=7) => (&mut car.electrical_failures[k as usize - 1]).into(),
+            Field::Failure(8) => (&mut car.handbrake_failed).into(),
+            Field::Failure(9) => (&mut car.gear_change_blocked).into(),
+            Field::Failure(10) => (&mut car.forced_neutral).into(),
+            Field::Failure(_) => (&mut car.lost_gear_bits).into(),
+            Field::ImpactMark(k) => (&mut car.impact_octant_marks[k as usize]).into(),
+            Field::PartsPresent => (&mut car.parts_present).into(),
+        };
+        word.set_bits(v);
     }
 }
 
 /// The block `car`, the two settings read at `s0c`, `s08` (the same at any precision).
 // Core: `rc2k_core::physics::grades::{percentage, reset_writes}`.
-pub(super) fn reset_grades_at(numbers: &Numbers, car: &Car, s0c: &PlainDword, s08: &PlainDword) {
+pub(super) fn reset_grades_at(numbers: &Numbers, car: &mut Car, s0c: u32, s08: u32) {
     let (k256, k100) = (numbers.k256.get(), numbers.hundred.get());
-    let a = percentage(s0c.get() as i32, k256, k100);
-    let c = percentage(s08.get() as i32, k256, k100);
+    let a = percentage(s0c as i32, k256, k100);
+    let c = percentage(s08 as i32, k256, k100);
     write_all(car, reset_writes(numbers.one.get(), a, c));
 }
 
@@ -118,13 +104,13 @@ mod tests {
         use crate::physics::car_offsets_1999::{bytes_1999, car_with_1999_bytes, store_1999};
         let writes = reset_writes(1.0, 50.0, 25.0);
         let pattern = |n: usize| (n * 13 + 5) as u8;
-        let named = car_with_1999_bytes(pattern);
-        let by_offset = car_with_1999_bytes(pattern);
+        let mut named = car_with_1999_bytes(pattern);
+        let mut by_offset = car_with_1999_bytes(pattern);
         let before = bytes_1999(&named);
         for &(field, v) in &writes {
-            store_1999(&by_offset, old_offsets(field), v);
+            store_1999(&mut by_offset, old_offsets(field), v);
         }
-        write_all(&named, writes);
+        write_all(&mut named, writes);
         assert!(
             bytes_1999(&named) == bytes_1999(&by_offset),
             "the named fields wrote other bytes than the offsets"

@@ -8,6 +8,8 @@
 
 use crate::errors::Refused;
 use crate::math::x87::{ext_div2, int_80};
+use crate::memory::plain_floats::FloatRow;
+use crate::physics::car_store::Car;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::RaceShared;
@@ -21,17 +23,19 @@ pub(super) fn find_car_checkpoint(
     physics: &Physics,
     course: &Course,
     shared: &RaceShared,
+    car: &Car,
     scene: &crate::scene::owner::Scene,
 ) -> Result<u32, Refused> {
+    let at = (car.position.bits_at(0), car.position.bits_at(2));
     {
         let mut search = physics.ground_search().borrow_mut();
-        search.x = shared.car().position.bits_at(0);
-        search.z = shared.car().position.bits_at(2);
+        search.x = at.0;
+        search.z = at.1;
     }
     if shared.vars.get().checkpoint_count.get() == 0 {
         return Ok(0);
     }
-    let (from, to) = progress::near_window(shared.car().checkpoint.get());
+    let (from, to) = progress::near_window(car.checkpoint);
     let near =
         crate::race::start_place::nearest_checkpoint_in(physics, course, shared, from, to, scene)?;
     // The nearest checkpoint's distance.
@@ -41,7 +45,7 @@ pub(super) fn find_car_checkpoint(
         0x3F80_0000,
     );
     if progress::search_all(near.distance) {
-        return crate::race::start_place::nearest_checkpoint(physics, course, shared, scene);
+        return crate::race::start_place::nearest_checkpoint_at(physics, course, shared, at, scene);
     }
     Ok(near.checkpoint)
 }

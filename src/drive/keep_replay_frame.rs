@@ -12,7 +12,7 @@ pub fn keep_replay_frame(race: &Race) -> Result<(), BadInput> {
     race.replay.replay_frames_mut().frame = 0;
     race.replay.replay_frames_mut().tenth = 0;
     if race.course.replay_mode() != PLAYING {
-        let (frame, tenth) = frame_and_tenth(race.car_blocks().cars[0].step_clock.get());
+        let (frame, tenth) = frame_and_tenth(race.car_blocks().cars[0].step_clock);
         race.replay.replay_frames_mut().frame = frame;
         race.replay.replay_frames_mut().tenth = tenth;
     }

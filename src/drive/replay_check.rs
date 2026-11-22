@@ -13,6 +13,7 @@ use crate::drive::replay_state::{
     FRAME_HEAD_AT, GEAR_CHANGE_PENDING_AT, LAST_PACE_CALL_AT, OPTION_BITS_AT,
 };
 use crate::errors::BadInput;
+use crate::memory::plain_floats::FloatRow;
 use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::{PLAYING, RECORDING};
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
@@ -60,7 +61,7 @@ pub fn note(race: &Race) -> Result<(), BadInput> {
         PLAYING => "playing",
         _ => return Ok(()),
     };
-    let clock = race.car_blocks().cars[0].step_clock.get();
+    let clock = race.car_blocks().cars[0].step_clock;
     if mode == "playing" {
         crate::remote::replay_tick(clock);
     }
@@ -82,7 +83,7 @@ pub fn note(race: &Race) -> Result<(), BadInput> {
     {
         let h = hash(kept_car.iter().copied());
         let speed = block.local_velocity.at(2); // the car's speed
-        let gear = block.gear.get();
+        let gear = block.gear;
         line += &format!(" car {car} {h:08x} speed {speed:.3} gear {gear};");
     }
     crate::program_log::log(&line);
@@ -100,7 +101,7 @@ fn piece_name(piece: StartPiece) -> String {
 /// At a whole frame of a replay played, before its recorded state is loaded.
 pub(super) fn compare_frame(race: &Race) -> Result<(), BadInput> {
     let staging = race.replay.staging();
-    let clock = race.car_blocks().cars[0].step_clock.get();
+    let clock = race.car_blocks().cars[0].step_clock;
     if staging.start_word(2)? != clock {
         SKIPPED.fetch_add(1, Relaxed);
         return Ok(());

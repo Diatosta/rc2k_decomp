@@ -63,13 +63,13 @@ pub fn update(race: &Race, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> 
         return Ok(());
     }
     for n in 0..(PLAYERS as usize).min(4) {
-        let car = race
+        let mut car = race
             .shared
-            .race_car_or(n, "an overview map's car without its block")?;
-        crate::race::map_scroll::place_on_map(race, car)?;
+            .race_car_or_mut(n, "an overview map's car without its block")?;
+        crate::race::map_scroll::place_on_map(race, &mut car)?;
         let mut panel = race.frame.panel.borrow_mut();
         for (cell, place) in panel.overview_cars[n].iter_mut().zip(&car.map_place) {
-            *cell = place.get() as i32 as f32 / 65536.0;
+            *cell = *place as i32 as f32 / 65536.0;
         }
     }
     if race.frame.panel.borrow().overview_drawn == 0 {

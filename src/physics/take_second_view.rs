@@ -26,10 +26,10 @@ pub fn take_second_view(
         ],
         [&mut camera.view_b_aux, &mut camera.view_b_aux_2],
     );
-    camera.view_b_heading = car.car_heading.get();
+    camera.view_b_heading = car.car_heading;
     let [pitch, roll] = rc2k_core::physics::camera_view::view_turns(
-        [car.car_pitch.get(), car.car_roll.get()],
-        !matches!(car.camera_blend_view.get(), 1..=3),
+        [car.car_pitch, car.car_roll],
+        !matches!(car.camera_blend_view, 1..=3),
     );
     camera.view_b_pitch = pitch as i32;
     camera.view_b_roll = roll as i32;

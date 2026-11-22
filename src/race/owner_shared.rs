@@ -2,7 +2,7 @@
 //! network and the audio side read too.
 
 use crate::errors::BadInput;
-use crate::memory::session::{DrawArc, DrawPlain, DrawShared, GameThread};
+use crate::memory::session::{DrawArc, DrawPlain, GameThread};
 use crate::physics::car_store::Car;
 use crate::physics::run_store::PhysicsRun;
 use crate::physics::tables_store::PhysicsTables;
@@ -41,10 +41,10 @@ pub struct RaceShared {
     pub physics_tables: crate::memory::session::DrawArc<PhysicsTables>,
     /// The work car. One copy: the drawing does not read it, so the drawing threads need none of
     /// their own.
-    car: GameThread<Car>,
+    car: GameThread<RefCell<Car>>,
     /// The cars' blocks. One copy: no drawing part writes them (each view draws its own copy of
     /// its car, `ViewScratch::car`).
-    pub car_blocks: DrawShared<CarBlocks>,
+    pub car_blocks: DrawArc<CarBlocks>,
     /// What the drawing keeps of each car (`race::car_parts_store`), written by the game's thread
     /// before a frame's views are drawn and only read by the drawing parts (lent as an `Arc`).
     pub car_parts: crate::memory::session::DrawArc<crate::race::car_parts_store::CarParts>,
@@ -84,9 +84,9 @@ impl RaceShared {
             vars: crate::memory::session::GameThread::new(RaceVars::new()),
             view: GameThread::new(RaceView::new()),
             switches: DrawPlain::new(FrameSwitches::new()),
-            physics_tables: crate::memory::session::DrawArc::new(PhysicsTables::new),
-            car: GameThread::new(Car::new()),
-            car_blocks: DrawShared::new(CarBlocks::new()),
+            physics_tables: DrawArc::new(PhysicsTables::new),
+            car: GameThread::new(RefCell::new(Car::new())),
+            car_blocks: DrawArc::new(CarBlocks::new),
             car_parts: crate::memory::session::DrawArc::new(
                 crate::race::car_parts_store::CarParts::new,
             ),
@@ -111,14 +111,25 @@ impl RaceShared {
     }
 
     /// The work car (`CAR`): the game thread's.
-    pub fn car(&self) -> &Car {
-        self.car.get()
+    pub fn car(&self) -> Ref<'_, Car> {
+        self.car.get().borrow()
+    }
+
+    /// The work car, to write: no other borrow may be held.
+    pub fn car_mut(&self) -> RefMut<'_, Car> {
+        self.car.get().borrow_mut()
     }
 
     /// The cars' blocks, on the game's thread outside a drawing scope (a drawing part
     /// reads them through its `scene::workers::DrawReads`).
-    pub fn car_blocks(&self) -> &CarBlocks {
-        self.car_blocks.get()
+    pub fn car_blocks(&self) -> Ref<'_, CarBlocks> {
+        self.car_blocks.borrow()
+    }
+
+    /// The cars' blocks, to write, on the game's thread outside a drawing scope: no other borrow
+    /// may be held.
+    pub fn car_blocks_mut(&self) -> RefMut<'_, CarBlocks> {
+        self.car_blocks.borrow_mut()
     }
 
     /// The physics' tables and work variables, read, on the game's thread outside a drawing scope
@@ -193,10 +204,56 @@ impl RaceShared {
         &self.main.get().viewer
     }
 
+    /// The number of car `n`'s block, refused for a value that names no block (see
+    /// `RaceWork::car_block` for the read past the eight).
+    fn race_index_in(work: &RaceWork, n: usize) -> Result<usize, BadInput> {
+        use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG};
+        if let Some(cell) = work.car_blocks.get(n) {
+            let k = (*cell ^ BLOCK_TAG) as usize;
+            if k < BLOCK_COUNT {
+                return Ok(k);
+            }
+        }
+        CarBlocks::named_index(work.car_block(n))
+    }
+
+    /// The number of car `n`'s block, or the refusal `what` for none; a handle that names no block
+    /// ends the program, as `RaceWork::car_block`.
+    fn race_index_or_in(work: &RaceWork, n: usize, what: &'static str) -> Result<usize, BadInput> {
+        match work.car_blocks.get(n) {
+            Some(cell) if *cell == 0 => Err(BadInput(what)),
+            Some(_) => Self::race_index_in(work, n),
+            None => CarBlocks::index_at(work.car_block(n), what),
+        }
+    }
+
+    /// The number of car `n`'s block; a null block or one that is none of the eight ends the
+    /// program.
+    fn race_index_or_end_in(work: &RaceWork, n: usize) -> usize {
+        let block = work.car_block(n);
+        match work.car_blocks.get(n) {
+            Some(_) if block != 0 => Self::race_index_in(work, n),
+            _ => CarBlocks::named_index(block),
+        }
+        .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e))
+    }
+
+    /// The number of car `n`'s block, or the refusal `what` for none (as `race_car_or`).
+    pub fn race_index_or_in_pub(&self, n: usize, what: &'static str) -> Result<usize, BadInput> {
+        Self::race_index_or_in(&self.work(), n, what)
+    }
+
     /// Car `n`'s block (`car_blocks[n]`), refused for a value that names no block (see
     /// `RaceWork::car_block` for the read past the eight).
-    pub fn race_car(&self, n: usize) -> Result<&Car, BadInput> {
-        Self::race_car_in(&self.work(), self.car_blocks(), n)
+    pub fn race_car(&self, n: usize) -> Result<Ref<'_, Car>, BadInput> {
+        let k = Self::race_index_in(&self.work(), n)?;
+        Ok(Ref::map(self.car_blocks(), |b| &b.cars[k]))
+    }
+
+    /// `race_car` to write: no other borrow of the blocks may be held.
+    pub fn race_car_mut(&self, n: usize) -> Result<RefMut<'_, Car>, BadInput> {
+        let k = Self::race_index_in(&self.work(), n)?;
+        Ok(RefMut::map(self.car_blocks_mut(), |b| &mut b.cars[k]))
     }
 
     /// `race_car` in the blocks `blocks` (a drawing part's, `scene::workers::DrawReads`).
@@ -205,20 +262,24 @@ impl RaceShared {
         blocks: &'b CarBlocks,
         n: usize,
     ) -> Result<&'b Car, BadInput> {
-        use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG};
-        if let Some(&handle) = work.car_blocks.get(n) {
-            let k = (handle ^ BLOCK_TAG) as usize;
-            if k < BLOCK_COUNT {
-                return Ok(&blocks.cars[k]);
-            }
-        }
-        blocks.named(work.car_block(n))
+        Ok(&blocks.cars[Self::race_index_in(work, n)?])
     }
 
     /// Car `n`'s block, or the refusal `what` for none. A handle that names no block ends the
     /// program, as `RaceWork::car_block`.
-    pub fn race_car_or(&self, n: usize, what: &'static str) -> Result<&Car, BadInput> {
-        Self::race_car_or_in(&self.work(), self.car_blocks(), n, what)
+    pub fn race_car_or(&self, n: usize, what: &'static str) -> Result<Ref<'_, Car>, BadInput> {
+        let k = Self::race_index_or_in(&self.work(), n, what)?;
+        Ok(Ref::map(self.car_blocks(), |b| &b.cars[k]))
+    }
+
+    /// `race_car_or` to write.
+    pub fn race_car_or_mut(
+        &self,
+        n: usize,
+        what: &'static str,
+    ) -> Result<RefMut<'_, Car>, BadInput> {
+        let k = Self::race_index_or_in(&self.work(), n, what)?;
+        Ok(RefMut::map(self.car_blocks_mut(), |b| &mut b.cars[k]))
     }
 
     /// `race_car_or` in the blocks `blocks` (a drawing part's, `scene::workers::DrawReads`).
@@ -228,43 +289,57 @@ impl RaceShared {
         n: usize,
         what: &'static str,
     ) -> Result<&'b Car, BadInput> {
-        match work.car_blocks.get(n) {
-            Some(0) => Err(BadInput(what)),
-            Some(_) => Self::race_car_in(work, blocks, n),
-            None => blocks.at(work.car_block(n), what),
-        }
+        Ok(&blocks.cars[Self::race_index_or_in(work, n, what)?])
     }
 
     /// Car `n`'s block; a null block or one that is none of the eight ends the program.
-    pub fn race_car_or_end(&self, n: usize) -> &Car {
-        Self::race_car_or_end_in(&self.work(), self.car_blocks(), n)
+    pub fn race_car_or_end(&self, n: usize) -> Ref<'_, Car> {
+        let k = Self::race_index_or_end_in(&self.work(), n);
+        Ref::map(self.car_blocks(), |b| &b.cars[k])
+    }
+
+    /// The number of car `n`'s block; a null block or one that is none of the eight ends the
+    /// program.
+    pub fn race_index_or_end(&self, n: usize) -> usize {
+        Self::race_index_or_end_in(&self.work(), n)
+    }
+
+    /// `race_car_or_end` to write.
+    pub fn race_car_or_end_mut(&self, n: usize) -> RefMut<'_, Car> {
+        let k = Self::race_index_or_end_in(&self.work(), n);
+        RefMut::map(self.car_blocks_mut(), |b| &mut b.cars[k])
     }
 
     /// `race_car_or_end` in the blocks `blocks` (a drawing part's, `scene::workers::DrawReads`).
     pub fn race_car_or_end_in<'b>(work: &RaceWork, blocks: &'b CarBlocks, n: usize) -> &'b Car {
-        let block = work.car_block(n);
-        match work.car_blocks.get(n) {
-            Some(_) if block != 0 => Self::race_car_in(work, blocks, n),
-            _ => blocks.named(block),
-        }
-        .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e))
+        &blocks.cars[Self::race_index_or_end_in(work, n)]
     }
 
-    /// View `n`'s car block (None for none).
-    pub fn view_car(&self, n: usize) -> Option<&Car> {
+    /// The number of view `n`'s block (None for none).
+    pub fn view_index(&self, n: usize) -> Option<usize> {
         match self.view.get().view_blocks.get(n) {
-            Some(block) => self.car_blocks().of(block.get()),
+            Some(block) => CarBlocks::index_of(block.get()),
             // The further views of a split screen show their own player's car.
-            None if n < 4 => self
-                .car_blocks()
-                .of(crate::race::blocks_store::block_handle(n)),
+            None if n < 4 => CarBlocks::index_of(crate::race::blocks_store::block_handle(n)),
             None => None,
         }
     }
 
-    /// View `n`'s car block, or the end of the program for none (as `Car::at` on its address).
-    pub(super) fn view_car_or_end(&self, n: usize) -> &Car {
-        self.view_car(n).unwrap_or_else(|| {
+    /// View `n`'s car block (None for none).
+    pub fn view_car(&self, n: usize) -> Option<Ref<'_, Car>> {
+        let k = self.view_index(n)?;
+        Some(Ref::map(self.car_blocks(), |b| &b.cars[k]))
+    }
+
+    /// View `n`'s car block to write (None for none).
+    pub fn view_car_mut(&self, n: usize) -> Option<RefMut<'_, Car>> {
+        let k = self.view_index(n)?;
+        Some(RefMut::map(self.car_blocks_mut(), |b| &mut b.cars[k]))
+    }
+
+    /// View `n`'s car block to write, or the end of the program for none.
+    pub(super) fn view_car_or_end_mut(&self, n: usize) -> RefMut<'_, Car> {
+        self.view_car_mut(n).unwrap_or_else(|| {
             crate::fatal::raise::end(
                 "physics::Car::at",
                 BadInput("a car block at no car's place"),
@@ -284,7 +359,14 @@ impl RaceShared {
     }
 
     /// `own_car_number`'s block.
-    pub fn own_car(&self, net_race: Option<NetRace>) -> &Car {
-        &self.car_blocks().cars[self.own_car_number(net_race)]
+    pub fn own_car(&self, net_race: Option<NetRace>) -> Ref<'_, Car> {
+        let n = self.own_car_number(net_race);
+        Ref::map(self.car_blocks(), |b| &b.cars[n])
+    }
+
+    /// `own_car` to write.
+    pub fn own_car_mut(&self, net_race: Option<NetRace>) -> RefMut<'_, Car> {
+        let n = self.own_car_number(net_race);
+        RefMut::map(self.car_blocks_mut(), |b| &mut b.cars[n])
     }
 }

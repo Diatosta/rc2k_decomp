@@ -4,10 +4,8 @@
 //! names the fields of the live record (`Car`, `RaceSlot`, `RaceWork`) at the file's offsets, so
 //! the file does not depend on how those records lie in memory.
 
-use crate::memory::cells::{ByteView, load_cells, store_cells};
 use crate::physics::car_store::Car;
 use crate::race::work_store::{RaceSlot, RaceWork};
-use core::mem::size_of;
 use rc2k_core::drive::replay_frames::{CAR_DWORDS, ReplayFrame, SLOT_DWORDS, START_DWORDS};
 use rc2k_core::race::replay_v2::{CarState, HEAD_CARS, STATE_AT, TAIL_CARS};
 
@@ -35,58 +33,49 @@ const EXTRA_UNUSED: [(usize, usize); 4] = [(0x80, 4), (0x12c, 12), (0x2c4, 16), 
 /// The byte the unused places of a frame hold.
 const UNUSED_BYTE: u8 = 0;
 
-/// A plain value (a word, a float, an array of them) moved to and from the file's little-endian
-/// bytes; floats by their bits.
-trait PlainField {
-    /// The field's size in the file.
-    const SIZE: usize;
-    /// The field's bytes put into `out` (`SIZE` long).
-    fn put(&self, out: &mut [u8]);
-    /// The field set from `bytes` (`SIZE` long).
-    fn take(&mut self, bytes: &[u8]);
+/// A plain value (or array of them) read from and written to the file's little-endian bytes.
+trait LeView {
+    /// The bytes the value takes in the file.
+    const BYTES: usize;
+    /// The value's bytes into `out` (`BYTES` long).
+    fn load(&self, out: &mut [u8]);
+    /// The value from `bytes` (`BYTES` long).
+    fn store(&mut self, bytes: &[u8]);
 }
 
-impl PlainField for u32 {
-    const SIZE: usize = 4;
-    fn put(&self, out: &mut [u8]) {
-        out.copy_from_slice(&self.to_le_bytes());
-    }
-    fn take(&mut self, bytes: &[u8]) {
-        *self = u32::from_le_bytes(bytes.try_into().expect("a word"));
-    }
+macro_rules! le_view {
+    ($($t:ty),*) => {$(
+        impl LeView for $t {
+            const BYTES: usize = 4;
+            fn load(&self, out: &mut [u8]) {
+                out.copy_from_slice(&self.to_le_bytes());
+            }
+            fn store(&mut self, bytes: &[u8]) {
+                *self = <$t>::from_le_bytes(bytes.try_into().expect("a word"));
+            }
+        }
+    )*};
 }
+le_view!(u32, i32, f32);
 
-impl PlainField for f32 {
-    const SIZE: usize = 4;
-    fn put(&self, out: &mut [u8]) {
-        out.copy_from_slice(&self.to_bits().to_le_bytes());
-    }
-    fn take(&mut self, bytes: &[u8]) {
-        *self = f32::from_bits(u32::from_le_bytes(bytes.try_into().expect("a word")));
-    }
-}
-
-impl<T: PlainField, const N: usize> PlainField for [T; N] {
-    const SIZE: usize = N * T::SIZE;
-    fn put(&self, out: &mut [u8]) {
-        for (value, bytes) in self.iter().zip(out.chunks_exact_mut(T::SIZE)) {
-            value.put(bytes);
+impl<T: LeView, const N: usize> LeView for [T; N] {
+    const BYTES: usize = N * T::BYTES;
+    fn load(&self, out: &mut [u8]) {
+        for (value, bytes) in self.iter().zip(out.chunks_exact_mut(T::BYTES)) {
+            value.load(bytes);
         }
     }
-    fn take(&mut self, bytes: &[u8]) {
-        for (value, bytes) in self.iter_mut().zip(bytes.chunks_exact(T::SIZE)) {
-            value.take(bytes);
+    fn store(&mut self, bytes: &[u8]) {
+        for (value, bytes) in self.iter_mut().zip(bytes.chunks_exact(T::BYTES)) {
+            value.store(bytes);
         }
     }
 }
 
 /// Moves one field between a record and the file's bytes.
 trait Move {
-    /// The field at byte `at` of the piece being moved.
-    fn field<T: ByteView>(&mut self, at: usize, field: &T);
-
     /// The plain field at byte `at` of the piece being moved.
-    fn plain<T: PlainField>(&mut self, at: usize, field: &mut T);
+    fn plain<T: LeView>(&mut self, at: usize, field: &mut T);
 
     /// `len` bytes at `at` that no record holds: written as `UNUSED_BYTE`, ignored when read.
     fn unused(&mut self, at: usize, len: usize);
@@ -99,15 +88,9 @@ struct Gather<'a> {
 }
 
 impl Move for Gather<'_> {
-    fn field<T: ByteView>(&mut self, at: usize, field: &T) {
+    fn plain<T: LeView>(&mut self, at: usize, field: &mut T) {
         let from = self.base + at;
-        load_cells(field, 0, &mut self.bytes[from..from + size_of::<T>()])
-            .expect("a field inside the file's bytes");
-    }
-
-    fn plain<T: PlainField>(&mut self, at: usize, field: &mut T) {
-        let from = self.base + at;
-        field.put(&mut self.bytes[from..from + T::SIZE]);
+        field.load(&mut self.bytes[from..from + T::BYTES]);
     }
 
     fn unused(&mut self, at: usize, len: usize) {
@@ -123,187 +106,181 @@ struct Scatter<'a> {
 }
 
 impl Move for Scatter<'_> {
-    fn field<T: ByteView>(&mut self, at: usize, field: &T) {
+    fn plain<T: LeView>(&mut self, at: usize, field: &mut T) {
         let from = self.base + at;
-        store_cells(field, 0, &self.bytes[from..from + size_of::<T>()])
-            .expect("a field inside the file's bytes");
-    }
-
-    fn plain<T: PlainField>(&mut self, at: usize, field: &mut T) {
-        let from = self.base + at;
-        field.take(&self.bytes[from..from + T::SIZE]);
+        field.store(&self.bytes[from..from + T::BYTES]);
     }
 
     fn unused(&mut self, _at: usize, _len: usize) {}
 }
 
 /// A car's first 0x684 bytes (everything before its camera mode), in the car's order.
-fn car_fields(car: &Car, m: &mut impl Move) {
-    m.field(FRAME_HEAD_AT, &car.frame_head);
-    m.field(0x8, &car.step_clock);
-    m.field(0xc, &car.noise_word);
-    m.field(0x10, &car.car_flags);
-    m.field(0x14, &car.run_ticks);
-    m.field(0x18, &car.start_in_gear);
-    m.field(0x1c, &car.false_start_count);
-    m.field(0x20, &car.brake_balance);
-    m.field(0x24, &car.car_kind);
-    m.field(0x28, &car.gear_ratio_setting);
-    m.field(0x2c, &car.tyre_kind);
-    m.field(0x30, &car.ride_height);
-    m.field(0x34, &car.suspension_stiffness);
-    m.field(0x38, &car.gearbox_kind);
-    m.field(0x3c, &car.steering_sensitivity);
-    m.field(0x40, &car.drive_kind);
-    m.field(0x44, &car.reserved_44);
-    m.field(0x48, &car.part_woken);
-    m.field(0x60, &car.ground_bump_scale);
-    m.field(0x64, &car.impact_octant_marks);
-    m.field(0x84, &car.lights_on);
-    m.field(0x88, &car.stage_time);
-    m.field(0x8c, &car.time_left);
-    m.field(0x90, &car.splits_passed);
-    m.field(0x94, &car.reset_checkpoint);
-    m.field(0x98, &car.checkpoint);
-    m.field(LAST_PACE_CALL_AT, &car.last_pace_call);
-    m.field(0xa0, &car.started_stand_timer);
-    m.field(0xa4, &car.go_stand_timer);
-    m.field(0xa8, &car.finish_flag);
-    m.field(0xac, &car.splits_recorded);
-    m.field(0xb0, &car.stop_state);
-    m.field(0xb4, &car.crash_matrix);
-    m.field(0x134, &car.position);
-    m.field(0x140, &car.split_times);
-    m.field(0x180, &car.drive_slip_speed);
-    m.field(0x184, &car.spin);
-    m.field(0x194, &car.spin_length);
-    m.field(0x198, &car.velocity);
-    m.field(0x1a4, &car.local_velocity);
-    m.field(0x1b8, &car.drive_speed_a);
-    m.field(0x1bc, &car.drive_speed_b);
-    m.field(0x1c0, &car.mean_drive_speed);
-    m.field(0x1c4, &car.speed);
-    m.field(0x1c8, &car.side_speed_held);
-    m.field(0x1cc, &car.gear_change_hold);
-    m.field(0x1d0, &car.drive_cut_steps);
-    m.field(0x1d4, &car.gear);
-    m.field(0x1d8, &car.engine_speed);
-    m.field(0x1dc, &car.engine_speed_limit);
-    m.field(0x1e0, &car.spec_scale_copy);
-    m.field(0x1e4, &car.engine_sound_revs);
-    m.field(0x1e8, &car.stuck_count);
-    m.field(0x1ec, &car.position_message_word);
-    m.field(0x1f0, &car.rev_cut_count);
-    m.field(0x1f4, &car.wall_hit_timer);
-    m.field(0x1f8, &car.driven_wheel_turns);
-    m.field(0x200, &car.eased_yaw_spin);
-    m.field(0x204, &car.grip_force_sum);
-    m.field(0x208, &car.steer_trim);
-    m.field(0x20c, &car.reserved_20c);
-    m.field(0x210, &car.grip_forces);
-    m.field(OPTION_BITS_AT, &car.option_bits);
-    m.field(0x224, &car.contact_point);
-    m.field(0x230, &car.contact_depth);
-    m.field(0x234, &car.contact_flag);
-    m.field(0x238, &car.gear_changed);
-    m.field(GEAR_CHANGE_PENDING_AT, &car.gear_change_pending);
-    m.field(0x240, &car.light_colour);
-    m.field(0x244, &car.light_level);
-    m.field(0x248, &car.front_wheels_off);
-    m.field(0x24c, &car.rear_wheels_off);
-    m.field(0x250, &car.driven_wheels_off);
-    m.field(0x254, &car.all_wheels_off);
-    m.field(0x258, &car.hard_ground_count);
-    m.field(0x25c, &car.driver_kind);
-    m.field(0x260, &car.probe_count);
-    m.field(0x264, &car.reset_key_count);
-    m.field(0x268, &car.stopped_steps);
-    m.field(0x26c, &car.tyre_change_state);
-    m.field(0x270, &car.off_line_steps);
-    m.field(0x274, &car.turned_steps);
-    m.field(0x278, &car.off_line_cue_time);
-    m.field(0x27c, &car.turned_cue_time);
-    m.field(0x280, &car.surface_blend);
-    m.field(0x284, &car.parts_state);
-    m.field(0x288, &car.slip_speed);
-    m.field(0x28c, &car.sound_slip_share);
-    m.field(0x290, &car.sound_level);
-    m.field(0x294, &car.sound_speed);
-    m.field(0x298, &car.parts_present);
-    m.field(0x29c, &car.damage_failed);
-    m.field(0x2a0, &car.brake_fade);
-    m.field(0x2a4, &car.damper_wear);
-    m.field(0x2ac, &car.brake_heat);
-    m.field(0x2b4, &car.engine_heat);
-    m.field(0x2b8, &car.engine_damage);
-    m.field(0x2bc, &car.exhaust_damage);
-    m.field(0x2c0, &car.turbo_damage);
-    m.field(0x2c4, &car.cooling_damage);
-    m.field(0x2c8, &car.clutch_damage);
-    m.field(0x2cc, &car.differential_damage);
-    m.field(0x2d0, &car.gear_wear);
-    m.field(0x2f4, &car.gearbox_damage);
-    m.field(0x2f8, &car.wheel_hit_damage);
-    m.field(0x308, &car.body_hit_damage);
-    m.field(0x30c, &car.body_damage);
-    m.field(0x310, &car.electrics_damage);
-    m.field(0x314, &car.light_damage);
-    m.field(0x32c, &car.lights_damage);
-    m.field(0x330, &car.steering_damage);
-    m.field(0x334, &car.suspension_damage);
-    m.field(0x344, &car.overall_suspension_damage);
-    m.field(0x348, &car.brake_wear_a);
-    m.field(0x34c, &car.brake_wear_b);
-    m.field(0x350, &car.brake_damage);
-    m.field(0x354, &car.tyre_wears);
-    m.field(0x364, &car.tyre_wear);
-    m.field(0x368, &car.damage_levels);
-    m.field(0x3f4, &car.engine_power_factor);
-    m.field(0x3f8, &car.brake_efficiency);
-    m.field(0x400, &car.drive_efficiency);
-    m.field(0x408, &car.steering_efficiency);
-    m.field(0x40c, &car.electrical_failures);
-    m.field(0x428, &car.handbrake_failed);
-    m.field(0x42c, &car.gear_change_blocked);
-    m.field(0x430, &car.forced_neutral);
-    m.field(0x434, &car.lost_gear_bits);
-    m.field(0x438, &car.wheel_ride_height);
-    m.field(0x448, &car.wheel_stiffness);
-    m.field(0x458, &car.stiffness_mean);
-    m.field(0x45c, &car.ride_height_mean);
-    m.field(0x460, &car.hit_cooldown);
-    m.field(0x464, &car.input_throttle);
-    m.field(0x468, &car.input_keys);
-    m.field(0x46c, &car.input_steering);
-    m.field(0x470, &car.input_brake);
-    m.field(0x474, &car.keys_pressed);
-    m.field(0x478, &car.notice_count);
-    m.field(0x47c, &car.notice_ids);
-    m.field(0x4fc, &car.notice_values);
-    m.field(0x57c, &car.notice_ranks);
-    m.field(0x5fc, &car.top_speed);
-    m.field(0x600, &car.wheel_squeeze);
-    m.field(0x610, &car.wheel_squeeze_last);
-    m.field(0x620, &car.checkpoint_offset);
-    m.field(0x628, &car.pace_gaps);
-    m.field(0x630, &car.pace_gaps_eased);
-    m.field(0x638, &car.throttle);
-    m.field(0x63c, &car.brake);
-    m.field(0x640, &car.handbrake);
-    m.field(0x644, &car.steering);
-    m.field(0x648, &car.steering_raw);
-    m.field(0x64c, &car.steer_angle);
-    m.field(0x650, &car.steer_angle_visual);
-    m.field(0x654, &car.mode2_place);
-    m.field(0x658, &car.mode2_behind);
-    m.field(0x65c, &car.pace_cars);
-    m.field(0x664, &car.pace_starts);
-    m.field(0x66c, &car.pace_placed);
-    m.field(0x670, &car.pace_apart);
-    m.field(0x674, &car.pace_push);
-    m.field(0x678, &car.start_share);
-    m.field(0x67c, &car.start_blend_share);
-    m.field(0x680, &car.start_blend);
+fn car_fields(car: &mut Car, m: &mut impl Move) {
+    m.plain(FRAME_HEAD_AT, &mut car.frame_head);
+    m.plain(0x8, &mut car.step_clock);
+    m.plain(0xc, &mut car.noise_word);
+    m.plain(0x10, &mut car.car_flags);
+    m.plain(0x14, &mut car.run_ticks);
+    m.plain(0x18, &mut car.start_in_gear);
+    m.plain(0x1c, &mut car.false_start_count);
+    m.plain(0x20, &mut car.brake_balance);
+    m.plain(0x24, &mut car.car_kind);
+    m.plain(0x28, &mut car.gear_ratio_setting);
+    m.plain(0x2c, &mut car.tyre_kind);
+    m.plain(0x30, &mut car.ride_height);
+    m.plain(0x34, &mut car.suspension_stiffness);
+    m.plain(0x38, &mut car.gearbox_kind);
+    m.plain(0x3c, &mut car.steering_sensitivity);
+    m.plain(0x40, &mut car.drive_kind);
+    m.plain(0x44, &mut car.reserved_44);
+    m.plain(0x48, &mut car.part_woken);
+    m.plain(0x60, &mut car.ground_bump_scale);
+    m.plain(0x64, &mut car.impact_octant_marks);
+    m.plain(0x84, &mut car.lights_on);
+    m.plain(0x88, &mut car.stage_time);
+    m.plain(0x8c, &mut car.time_left);
+    m.plain(0x90, &mut car.splits_passed);
+    m.plain(0x94, &mut car.reset_checkpoint);
+    m.plain(0x98, &mut car.checkpoint);
+    m.plain(LAST_PACE_CALL_AT, &mut car.last_pace_call);
+    m.plain(0xa0, &mut car.started_stand_timer);
+    m.plain(0xa4, &mut car.go_stand_timer);
+    m.plain(0xa8, &mut car.finish_flag);
+    m.plain(0xac, &mut car.splits_recorded);
+    m.plain(0xb0, &mut car.stop_state);
+    m.plain(0xb4, &mut car.crash_matrix);
+    m.plain(0x134, &mut car.position);
+    m.plain(0x140, &mut car.split_times);
+    m.plain(0x180, &mut car.drive_slip_speed);
+    m.plain(0x184, &mut car.spin);
+    m.plain(0x194, &mut car.spin_length);
+    m.plain(0x198, &mut car.velocity);
+    m.plain(0x1a4, &mut car.local_velocity);
+    m.plain(0x1b8, &mut car.drive_speed_a);
+    m.plain(0x1bc, &mut car.drive_speed_b);
+    m.plain(0x1c0, &mut car.mean_drive_speed);
+    m.plain(0x1c4, &mut car.speed);
+    m.plain(0x1c8, &mut car.side_speed_held);
+    m.plain(0x1cc, &mut car.gear_change_hold);
+    m.plain(0x1d0, &mut car.drive_cut_steps);
+    m.plain(0x1d4, &mut car.gear);
+    m.plain(0x1d8, &mut car.engine_speed);
+    m.plain(0x1dc, &mut car.engine_speed_limit);
+    m.plain(0x1e0, &mut car.spec_scale_copy);
+    m.plain(0x1e4, &mut car.engine_sound_revs);
+    m.plain(0x1e8, &mut car.stuck_count);
+    m.plain(0x1ec, &mut car.position_message_word);
+    m.plain(0x1f0, &mut car.rev_cut_count);
+    m.plain(0x1f4, &mut car.wall_hit_timer);
+    m.plain(0x1f8, &mut car.driven_wheel_turns);
+    m.plain(0x200, &mut car.eased_yaw_spin);
+    m.plain(0x204, &mut car.grip_force_sum);
+    m.plain(0x208, &mut car.steer_trim);
+    m.plain(0x20c, &mut car.reserved_20c);
+    m.plain(0x210, &mut car.grip_forces);
+    m.plain(OPTION_BITS_AT, &mut car.option_bits);
+    m.plain(0x224, &mut car.contact_point);
+    m.plain(0x230, &mut car.contact_depth);
+    m.plain(0x234, &mut car.contact_flag);
+    m.plain(0x238, &mut car.gear_changed);
+    m.plain(GEAR_CHANGE_PENDING_AT, &mut car.gear_change_pending);
+    m.plain(0x240, &mut car.light_colour);
+    m.plain(0x244, &mut car.light_level);
+    m.plain(0x248, &mut car.front_wheels_off);
+    m.plain(0x24c, &mut car.rear_wheels_off);
+    m.plain(0x250, &mut car.driven_wheels_off);
+    m.plain(0x254, &mut car.all_wheels_off);
+    m.plain(0x258, &mut car.hard_ground_count);
+    m.plain(0x25c, &mut car.driver_kind);
+    m.plain(0x260, &mut car.probe_count);
+    m.plain(0x264, &mut car.reset_key_count);
+    m.plain(0x268, &mut car.stopped_steps);
+    m.plain(0x26c, &mut car.tyre_change_state);
+    m.plain(0x270, &mut car.off_line_steps);
+    m.plain(0x274, &mut car.turned_steps);
+    m.plain(0x278, &mut car.off_line_cue_time);
+    m.plain(0x27c, &mut car.turned_cue_time);
+    m.plain(0x280, &mut car.surface_blend);
+    m.plain(0x284, &mut car.parts_state);
+    m.plain(0x288, &mut car.slip_speed);
+    m.plain(0x28c, &mut car.sound_slip_share);
+    m.plain(0x290, &mut car.sound_level);
+    m.plain(0x294, &mut car.sound_speed);
+    m.plain(0x298, &mut car.parts_present);
+    m.plain(0x29c, &mut car.damage_failed);
+    m.plain(0x2a0, &mut car.brake_fade);
+    m.plain(0x2a4, &mut car.damper_wear);
+    m.plain(0x2ac, &mut car.brake_heat);
+    m.plain(0x2b4, &mut car.engine_heat);
+    m.plain(0x2b8, &mut car.engine_damage);
+    m.plain(0x2bc, &mut car.exhaust_damage);
+    m.plain(0x2c0, &mut car.turbo_damage);
+    m.plain(0x2c4, &mut car.cooling_damage);
+    m.plain(0x2c8, &mut car.clutch_damage);
+    m.plain(0x2cc, &mut car.differential_damage);
+    m.plain(0x2d0, &mut car.gear_wear);
+    m.plain(0x2f4, &mut car.gearbox_damage);
+    m.plain(0x2f8, &mut car.wheel_hit_damage);
+    m.plain(0x308, &mut car.body_hit_damage);
+    m.plain(0x30c, &mut car.body_damage);
+    m.plain(0x310, &mut car.electrics_damage);
+    m.plain(0x314, &mut car.light_damage);
+    m.plain(0x32c, &mut car.lights_damage);
+    m.plain(0x330, &mut car.steering_damage);
+    m.plain(0x334, &mut car.suspension_damage);
+    m.plain(0x344, &mut car.overall_suspension_damage);
+    m.plain(0x348, &mut car.brake_wear_a);
+    m.plain(0x34c, &mut car.brake_wear_b);
+    m.plain(0x350, &mut car.brake_damage);
+    m.plain(0x354, &mut car.tyre_wears);
+    m.plain(0x364, &mut car.tyre_wear);
+    m.plain(0x368, &mut car.damage_levels);
+    m.plain(0x3f4, &mut car.engine_power_factor);
+    m.plain(0x3f8, &mut car.brake_efficiency);
+    m.plain(0x400, &mut car.drive_efficiency);
+    m.plain(0x408, &mut car.steering_efficiency);
+    m.plain(0x40c, &mut car.electrical_failures);
+    m.plain(0x428, &mut car.handbrake_failed);
+    m.plain(0x42c, &mut car.gear_change_blocked);
+    m.plain(0x430, &mut car.forced_neutral);
+    m.plain(0x434, &mut car.lost_gear_bits);
+    m.plain(0x438, &mut car.wheel_ride_height);
+    m.plain(0x448, &mut car.wheel_stiffness);
+    m.plain(0x458, &mut car.stiffness_mean);
+    m.plain(0x45c, &mut car.ride_height_mean);
+    m.plain(0x460, &mut car.hit_cooldown);
+    m.plain(0x464, &mut car.input_throttle);
+    m.plain(0x468, &mut car.input_keys);
+    m.plain(0x46c, &mut car.input_steering);
+    m.plain(0x470, &mut car.input_brake);
+    m.plain(0x474, &mut car.keys_pressed);
+    m.plain(0x478, &mut car.notice_count);
+    m.plain(0x47c, &mut car.notice_ids);
+    m.plain(0x4fc, &mut car.notice_values);
+    m.plain(0x57c, &mut car.notice_ranks);
+    m.plain(0x5fc, &mut car.top_speed);
+    m.plain(0x600, &mut car.wheel_squeeze);
+    m.plain(0x610, &mut car.wheel_squeeze_last);
+    m.plain(0x620, &mut car.checkpoint_offset);
+    m.plain(0x628, &mut car.pace_gaps);
+    m.plain(0x630, &mut car.pace_gaps_eased);
+    m.plain(0x638, &mut car.throttle);
+    m.plain(0x63c, &mut car.brake);
+    m.plain(0x640, &mut car.handbrake);
+    m.plain(0x644, &mut car.steering);
+    m.plain(0x648, &mut car.steering_raw);
+    m.plain(0x64c, &mut car.steer_angle);
+    m.plain(0x650, &mut car.steer_angle_visual);
+    m.plain(0x654, &mut car.mode2_place);
+    m.plain(0x658, &mut car.mode2_behind);
+    m.plain(0x65c, &mut car.pace_cars);
+    m.plain(0x664, &mut car.pace_starts);
+    m.plain(0x66c, &mut car.pace_placed);
+    m.plain(0x670, &mut car.pace_apart);
+    m.plain(0x674, &mut car.pace_push);
+    m.plain(0x678, &mut car.start_share);
+    m.plain(0x67c, &mut car.start_blend_share);
+    m.plain(0x680, &mut car.start_blend);
     for (at, len) in CAR_UNUSED {
         m.unused(at, len);
     }
@@ -368,8 +345,8 @@ fn extra_fields(work: &mut RaceWork, m: &mut impl Move) {
     }
 }
 
-fn pieces(cars: &[Car], work: &mut RaceWork, m: &mut dyn FnMut(usize, Piece)) {
-    for (k, car) in cars.iter().take(4).enumerate() {
+fn pieces(cars: &mut [Car], work: &mut RaceWork, m: &mut dyn FnMut(usize, Piece)) {
+    for (k, car) in cars.iter_mut().take(4).enumerate() {
         m(k * CAR_BYTES, Piece::Car(car));
     }
     for (i, slot) in work.race_slots.iter_mut().enumerate() {
@@ -379,7 +356,7 @@ fn pieces(cars: &[Car], work: &mut RaceWork, m: &mut dyn FnMut(usize, Piece)) {
 }
 
 enum Piece<'a> {
-    Car(&'a Car),
+    Car(&'a mut Car),
     Slot(&'a mut RaceSlot),
     Extra(&'a mut RaceWork),
 }
@@ -396,9 +373,10 @@ fn move_piece(piece: Piece, m: &mut impl Move) {
 /// tape zero), as a replay frame.
 pub fn gather(cars: &[Car], work: &RaceWork) -> ReplayFrame {
     let mut bytes = vec![0u8; 4 * START_DWORDS];
-    // The fields are moved through `&mut`: a copy of the work variables is walked.
+    // The fields are moved through `&mut`: copies of the cars and the work variables are walked.
+    let mut head: Vec<Car> = cars.iter().take(4).cloned().collect();
     let mut work = work.clone();
-    pieces(cars, &mut work, &mut |base, piece| {
+    pieces(&mut head, &mut work, &mut |base, piece| {
         move_piece(
             piece,
             &mut Gather {
@@ -412,7 +390,7 @@ pub fn gather(cars: &[Car], work: &RaceWork) -> ReplayFrame {
 
 /// A replay frame's starting state put into the first four cars, the loose parts and the
 /// driver's state.
-pub(super) fn scatter(frame: &ReplayFrame, cars: &[Car], work: &mut RaceWork) {
+pub(super) fn scatter(frame: &ReplayFrame, cars: &mut [Car], work: &mut RaceWork) {
     let bytes = frame.start_bytes();
     pieces(cars, work, &mut |base, piece| {
         move_piece(
@@ -429,7 +407,7 @@ pub(super) fn scatter(frame: &ReplayFrame, cars: &[Car], work: &mut RaceWork) {
 pub(super) fn gather_car(car: &Car) -> [u32; CAR_DWORDS] {
     let mut bytes = vec![0u8; CAR_BYTES];
     car_fields(
-        car,
+        &mut car.clone(),
         &mut Gather {
             bytes: &mut bytes,
             base: 0,
@@ -439,7 +417,7 @@ pub(super) fn gather_car(car: &Car) -> [u32; CAR_DWORDS] {
 }
 
 /// A car's fields put from its dwords in the file's layout.
-fn scatter_car(words: &[u32; CAR_DWORDS], car: &Car) {
+fn scatter_car(words: &[u32; CAR_DWORDS], car: &mut Car) {
     let bytes: Vec<u8> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
     car_fields(
         car,
@@ -456,22 +434,17 @@ struct ScatterState<'a> {
 }
 
 impl Move for ScatterState<'_> {
-    fn field<T: ByteView>(&mut self, at: usize, field: &T) {
+    fn plain<T: LeView>(&mut self, at: usize, field: &mut T) {
         if STATE_AT.contains(&(at / 4)) {
-            store_cells(field, 0, &self.bytes[at..at + size_of::<T>()])
-                .expect("a field inside the file's bytes");
+            field.store(&self.bytes[at..at + T::BYTES]);
         }
-    }
-
-    fn plain<T: PlainField>(&mut self, _at: usize, _field: &mut T) {
-        unreachable!("a car has no plain fields");
     }
 
     fn unused(&mut self, _at: usize, _len: usize) {}
 }
 
 /// A car's recorded state put into it, the car's other fields left as they are.
-pub(super) fn scatter_state(state: &CarState, car: &Car) {
+pub(super) fn scatter_state(state: &CarState, car: &mut Car) {
     let mut words = [0u32; CAR_DWORDS];
     state.put(&mut words);
     let bytes: Vec<u8> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
@@ -484,10 +457,10 @@ pub(super) fn gather_tail(cars: &[Car]) -> [[u32; CAR_DWORDS]; TAIL_CARS] {
 }
 
 /// The tail's keyframes put into cars 4 .. 7, as far as the race has cars (`count` cars).
-pub(super) fn scatter_tail(keys: &[[u32; CAR_DWORDS]; TAIL_CARS], cars: &[Car], count: usize) {
+pub(super) fn scatter_tail(keys: &[[u32; CAR_DWORDS]; TAIL_CARS], cars: &mut [Car], count: usize) {
     for (k, words) in keys.iter().enumerate() {
         if HEAD_CARS + k < count
-            && let Some(car) = cars.get(HEAD_CARS + k)
+            && let Some(car) = cars.get_mut(HEAD_CARS + k)
         {
             scatter_car(words, car);
         }
@@ -582,9 +555,9 @@ mod tests {
     fn scatter_puts_every_field_at_the_files_offset() {
         let bytes = with_unused_places((0..FRAME_BYTES).map(|n| pattern(n + 3)).collect());
         let frame = ReplayFrame::from_bytes(&bytes).unwrap();
-        let cars = cars_of(|_| 0);
+        let mut cars = cars_of(|_| 0);
         let mut work = RaceWork::new();
-        scatter(&frame, &cars, &mut work);
+        scatter(&frame, &mut cars, &mut work);
         for (k, car) in cars.iter().enumerate() {
             let mut file = crate::physics::car_offsets_1999::bytes_1999(car);
             file.truncate(CAR_BYTES);
@@ -605,10 +578,10 @@ mod tests {
     fn scatter_writes_only_the_starting_state() {
         let bytes = with_unused_places((0..FRAME_BYTES).map(|n| pattern(n + 5)).collect());
         let frame = ReplayFrame::from_bytes(&bytes).unwrap();
-        let cars = cars_of(|_| 0);
+        let mut cars = cars_of(|_| 0);
         let mut work = RaceWork::new();
         let before = work_bytes(&work);
-        scatter(&frame, &cars, &mut work);
+        scatter(&frame, &mut cars, &mut work);
         assert_eq!(gather(&cars, &work).start_bytes(), frame.start_bytes());
         for car in &cars {
             let file = crate::physics::car_offsets_1999::bytes_1999(car);
@@ -628,9 +601,9 @@ mod tests {
     fn a_synthetic_frame_round_trips() {
         let bytes = with_unused_places((0..FRAME_BYTES).map(|n| pattern(n + 7)).collect());
         let frame = ReplayFrame::from_bytes(&bytes).unwrap();
-        let cars = cars_of(|_| 0);
+        let mut cars = cars_of(|_| 0);
         let mut work = RaceWork::new();
-        scatter(&frame, &cars, &mut work);
+        scatter(&frame, &mut cars, &mut work);
         let back = gather(&cars, &work);
         assert_eq!(back.start_bytes(), bytes[..4 * START_DWORDS]);
     }
@@ -647,7 +620,7 @@ mod tests {
         let Ok(files) = std::fs::read_dir(dir) else {
             return;
         };
-        let cars = cars_of(|_| 0);
+        let mut cars = cars_of(|_| 0);
         let mut work = RaceWork::new();
         let mut frames = 0;
         for file in files.flatten() {
@@ -657,7 +630,7 @@ mod tests {
             for block in file_blocks(&data) {
                 let frame = ReplayFrame::from_bytes(&block).expect("a whole frame");
                 assert_eq!(frame.to_bytes(), block);
-                scatter(&frame, &cars, &mut work);
+                scatter(&frame, &mut cars, &mut work);
                 assert_eq!(
                     gather(&cars, &work).start_bytes(),
                     block[..4 * START_DWORDS],

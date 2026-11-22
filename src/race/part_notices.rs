@@ -14,9 +14,9 @@ use rc2k_core::race::view::Split;
 const TOP: i32 = 132;
 
 /// The block of the car part `view` shows.
-fn car_of(race: &Race, view: usize) -> Option<&crate::physics::car_store::Car> {
+fn car_of(race: &Race, view: usize) -> Option<usize> {
     let number = race.shared.view.get().view_number(view).ok()?;
-    race.car_blocks().cars.get(number)
+    (number < race.car_blocks().cars.len()).then_some(number)
 }
 
 /// Takes the notice the third and fourth players' cars ask for, as the banner's own update does for
@@ -31,14 +31,16 @@ pub(super) fn take_asked(race: &Race) {
         let Some(car) = car_of(race, view) else {
             continue;
         };
-        let asked = car.notice_id.get();
+        let asked = race.car_blocks().cars[car].notice_id;
         if asked == 0 {
             continue;
         }
-        car.notice_last.set(asked);
-        car.notice_id.set(0);
-        car.notice_counter.set(1);
-        car.notice_shown.set(1);
+        let mut blocks = race.car_blocks_mut();
+        let car = &mut blocks.cars[car];
+        car.notice_last = asked;
+        car.notice_id = 0;
+        car.notice_counter = 1;
+        car.notice_shown = 1;
     }
 }
 
@@ -60,14 +62,16 @@ pub fn draw(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
         let Some(car) = car_of(race, view as usize) else {
             continue;
         };
+        let blocks = race.car_blocks();
+        let car = &blocks.cars[car];
         let shown = rc2k_core::hud::strips::strip(
-            car.view_covered.get(),
-            car.notice_shown.get(),
-            car.notice_time.get(),
-            car.notice_time_b.get(),
+            car.view_covered,
+            car.notice_shown,
+            car.notice_time,
+            car.notice_time_b,
         )
         .shown();
-        let id = car.notice_last.get();
+        let id = car.notice_last;
         if !shown || id == 0 {
             continue;
         }

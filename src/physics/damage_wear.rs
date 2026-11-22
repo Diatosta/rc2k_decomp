@@ -17,19 +17,19 @@ use crate::physics::store::DamageModel;
 
 /// The wear of this step: the gauges raised or lowered by their rates times the shares,
 /// the lerps of the speed shares, and the hit figures.
-pub fn steps(car: &Car, damage: &mut DamageModel) -> Result<(), BadInput> {
-    damage.clock = car.noise_word.get();
+pub fn steps(car: &mut Car, damage: &mut DamageModel) -> Result<(), BadInput> {
+    damage.clock = car.noise_word;
     damage.engine_speed_wear_factor = lerp_table(
         damage.engine_speed_share,
         &damage.lerp_tables[0],
         damage.gauge_low,
     );
-    for item in car.brake_heat.floats().iter().take(2) {
+    for item in car.brake_heat.iter_mut().take(2) {
         raise(damage, item, |g| {
             add_wear(damage, damage.wear_rates[3], damage.brake_share, g)
         });
     }
-    for item in car.brake_heat.floats().iter().take(2) {
+    for item in car.brake_heat.iter_mut().take(2) {
         raise(damage, item, |g| {
             subtract_rate(damage, damage.wear_rates[4], g)
         });
@@ -38,55 +38,52 @@ pub fn steps(car: &Car, damage: &mut DamageModel) -> Result<(), BadInput> {
         damage.drive_a_extrapolated_share,
         damage.drive_b_extrapolated_share,
     ];
-    for (damper, share) in car.damper_wear.floats().iter().zip(extrapolated) {
+    for (damper, share) in car.damper_wear.iter_mut().zip(extrapolated) {
         raise(damage, damper, |g| {
             add_wear(damage, damage.wear_rates[5], share, g)
         });
     }
-    for item in car.damper_wear.floats().iter().take(2) {
+    for item in car.damper_wear.iter_mut().take(2) {
         raise(damage, item, |g| {
             subtract_rate(damage, damage.wear_rates[6], g)
         });
     }
-    raise(damage, &car.brake_fade, |g| {
+    raise(damage, &mut car.brake_fade, |g| {
         add_wear(damage, damage.wear_rates[7], damage.on_surface_5, g)
     });
-    raise(damage, &car.brake_fade, |g| {
+    raise(damage, &mut car.brake_fade, |g| {
         subtract_rate(damage, damage.wear_rates[8], g)
     });
-    raise(damage, &car.brake_fade, |g| {
+    raise(damage, &mut car.brake_fade, |g| {
         subtract_wear(damage, damage.wear_rates[9], damage.brake_share, g)
     });
-    damage.cooling_capacity = lerp_table(
-        car.cooling_damage.get(),
-        &damage.lerp_tables[1],
-        damage.gauge_low,
-    );
+    damage.cooling_capacity =
+        lerp_table(car.cooling_damage, &damage.lerp_tables[1], damage.gauge_low);
     lerp_gap(damage);
     held_low(&mut damage.overheat_excess, damage.gauge_low);
-    raise(damage, &car.engine_heat, |g| {
+    raise(damage, &mut car.engine_heat, |g| {
         add_wear(damage, damage.wear_rates[0], damage.overheat_excess, g)
     });
-    raise(damage, &car.engine_heat, |g| {
+    raise(damage, &mut car.engine_heat, |g| {
         subtract_rate(damage, damage.wear_rates[1], g)
     });
-    raise(damage, &car.engine_heat, |g| {
+    raise(damage, &mut car.engine_heat, |g| {
         subtract_wear(damage, damage.wear_rates[2], damage.speed_share, g)
     });
     damage.stiffness_body_factor = lerp_table(
-        car.stiffness_mean.get(),
+        car.stiffness_mean,
         &damage.lerp_tables_b[2],
         damage.gauge_low,
     );
     square_into(&mut damage.stiffness_body_factor);
     damage.stiffness_suspension_factor = lerp_table(
-        car.stiffness_mean.get(),
+        car.stiffness_mean,
         &damage.lerp_tables_b[0],
         damage.gauge_low,
     );
     square_into(&mut damage.stiffness_suspension_factor);
     damage.ride_height_body_factor = lerp_table(
-        car.ride_height_mean.get(),
+        car.ride_height_mean,
         &damage.lerp_tables_b[1],
         damage.gauge_low,
     );

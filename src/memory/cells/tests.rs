@@ -118,12 +118,10 @@ macro_rules! cells_stores {
 #[test]
 fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
     let menus = crate::test_support::own::menus();
-    let race = crate::test_support::own::race();
+    let _race = crate::test_support::own::race();
     let _lock = crate::test_support::test_lock();
     cells_stores! {
-        *race.shared.car(),
         menus.play.slots.pointers,
-        *race.shared.car_blocks.get(),
     }
 }
 

@@ -3,6 +3,7 @@
 
 use crate::math::x87;
 use crate::math::x87::{abs_of, compare_full, square_times_over};
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::tables_store::PhysicsTables;

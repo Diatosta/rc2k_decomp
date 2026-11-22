@@ -117,7 +117,7 @@ pub fn mirror_view_window(
         reads.stage_prefs,
         fog,
         poly,
-        car,
+        &car.borrow(),
         part,
     )?;
     // `draw_mode` is not written here either: see `full_view_window`.
@@ -332,14 +332,8 @@ pub(super) fn forget_view_textures(
     // (the switch, the slot's variable) of each.
     let slot_of = |n: usize| textures.kinds.borrow().kind_first_slots[n];
     let source = |f: Forget| match f {
-        Forget::Changing(v) => (
-            field(blocks[v], |car| car.map_redrawn.get()),
-            slot_of(198 + v),
-        ),
-        Forget::Counted(v) => (
-            field(blocks[v], |car| car.notice_counter.get()),
-            slot_of(196 + v),
-        ),
+        Forget::Changing(v) => (field(blocks[v], |car| car.map_redrawn), slot_of(198 + v)),
+        Forget::Counted(v) => (field(blocks[v], |car| car.notice_counter), slot_of(196 + v)),
         Forget::Extra(n) => (frame.overlay().forget_flags[n], slot_of(220 + n)),
     };
     let mirror = mirror_on(
@@ -372,8 +366,8 @@ pub(super) fn forget_view_textures(
         frame.panel.borrow_mut().texture_changes = value;
         frame.frame_work.borrow_mut().view_textures_forgotten |= bit;
         if let Forget::Counted(v) = f {
-            let counter = &race.car_blocks().cars[blocks[v]].notice_counter;
-            counter.set(counter.get().wrapping_sub(1));
+            let counter = &mut race.car_blocks_mut().cars[blocks[v]].notice_counter;
+            *counter = counter.wrapping_sub(1);
         }
     }
     if !mirror {

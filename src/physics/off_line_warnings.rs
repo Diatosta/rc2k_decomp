@@ -21,34 +21,20 @@ use rc2k_core::physics::progress::{
 };
 use rc2k_core::physics::x87::below as x87_below;
 
-/// The counters: off, turned, their times.
-fn counters(car: &Car) -> [&crate::memory::session::PlainDword; 4] {
-    [
-        &car.off_line_steps,
-        &car.turned_steps,
-        &car.off_line_cue_time,
-        &car.turned_cue_time,
-    ]
-}
-
 fn load(car: &Car) -> Warnings {
-    let [off, turned, off_time, turned_time] =
-        counters(car).map(crate::memory::session::PlainDword::get);
     Warnings {
-        off,
-        turned,
-        off_time,
-        turned_time,
+        off: car.off_line_steps,
+        turned: car.turned_steps,
+        off_time: car.off_line_cue_time,
+        turned_time: car.turned_cue_time,
     }
 }
 
-fn store(car: &Car, w: &Warnings) {
-    for (c, v) in counters(car)
-        .into_iter()
-        .zip([w.off, w.turned, w.off_time, w.turned_time])
-    {
-        c.set(v);
-    }
+fn store(car: &mut Car, w: &Warnings) {
+    car.off_line_steps = w.off;
+    car.turned_steps = w.turned;
+    car.off_line_cue_time = w.off_time;
+    car.turned_cue_time = w.turned_time;
 }
 
 /// The steps.
@@ -63,14 +49,14 @@ pub fn off_line_warnings(
     replay_file: &ReplayFileBlock,
     physics_tables: &PhysicsTables,
     checkpoints: crate::race::checkpoints_store::CheckpointsRef,
-    car: &Car,
+    car: &mut Car,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
-    if car.finish_flag.get() != 0 || car.go_stand_timer.get() != 0 {
+    if car.finish_flag != 0 || car.go_stand_timer != 0 {
         return Ok(());
     }
-    let cp = car.checkpoint.get();
+    let cp = car.checkpoint;
     if cp > LAST_CHECKPOINT {
         return Err(BadInput("a checkpoint past 0x1418").into());
     }
@@ -79,10 +65,10 @@ pub fn off_line_warnings(
         OFF_LINE_DISTANCE as f64,
     );
     let mut w = load(car);
-    w.count_off(off_line(near, || spread(cp, car.reset_checkpoint.get())));
+    w.count_off(off_line(near, || spread(cp, car.reset_checkpoint)));
     w.count_turned(
         spread(
-            car.car_heading.get(),
+            car.car_heading,
             crate::race::checkpoints_store::angle_run_on(checkpoints, cp as usize),
         ),
         OFF_LINE_WORD,
@@ -92,11 +78,11 @@ pub fn off_line_warnings(
         return Ok(());
     }
     for (count, time, cue) in [
-        (&car.turned_steps, &car.turned_cue_time, TURNED_CUE),
-        (&car.off_line_steps, &car.off_line_cue_time, OFF_LINE_CUE),
+        (car.turned_steps, &mut car.turned_cue_time, TURNED_CUE),
+        (car.off_line_steps, &mut car.off_line_cue_time, OFF_LINE_CUE),
     ] {
-        if let Some(next) = cue_due(count.get(), time.get()) {
-            time.set(next);
+        if let Some(next) = cue_due(count, *time) {
+            *time = next;
             crate::physics::cue_listed_car_sound::cue_listed_car_sound(
                 frame_work, work, cue, sound, audio,
             )?;

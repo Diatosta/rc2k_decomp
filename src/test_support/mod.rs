@@ -4,6 +4,7 @@
 pub(crate) mod frozen;
 pub(crate) mod own;
 pub(crate) mod paths;
+pub(crate) mod plain_paths;
 pub(crate) mod race_places;
 pub(crate) mod race_vectors;
 mod registry;

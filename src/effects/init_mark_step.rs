@@ -66,11 +66,11 @@ pub fn init_mark_step(
         race.effects_settings().object_count.set(1);
         let file = crate::race::mud::car_file_number(
             race.kind_tables(),
-            race.shared.own_car(net.race_slot.get()).car_kind.get(),
+            race.shared.own_car(net.race_slot.get()).car_kind,
         );
         race.effects_settings().mark_car_file_number.set(file);
         for n in 0..count {
-            let kind = race.shared.race_car_or_end(n as usize).car_kind.get() as i32;
+            let kind = race.shared.race_car_or_end(n as usize).car_kind as i32;
             let bad = crate::effects::Sticky::default();
             let fields = race::car_fields(n, |group| {
                 bad.take(kind_row_word(race.light_records(), kind, group))

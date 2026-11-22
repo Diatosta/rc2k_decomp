@@ -8,7 +8,7 @@ use crate::race::numbers_store::Numbers;
 const COUNT: usize = 7;
 
 pub(super) fn apply_contact_forces(
-    car: &Car,
+    car: &mut Car,
     numbers: &Numbers,
     tables: &PhysicsTables,
 ) -> Result<(), Refused> {

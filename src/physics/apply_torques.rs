@@ -15,7 +15,7 @@ use std::cell::RefCell;
 pub(super) fn apply_torques(
     numbers: &Numbers,
     contact: &RefCell<ContactWork>,
-    car: &Car,
+    car: &mut Car,
     records: &[ForceRecord],
 ) -> Result<(), Refused> {
     for rec in records {

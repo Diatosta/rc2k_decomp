@@ -26,12 +26,12 @@
 //! what `find_ground` refuses on any point.
 
 use crate::errors::{BadInput, Refused};
-use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::PlainX87;
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::math::x87::less_plus_less_product_80;
 use crate::math::x87_float as bh;
-use crate::memory::session::{CellKind, DwordLike, FloatLike};
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ProbeLists;
 use crate::physics::figures::{PROBE_LIFT, PROBE_SHARE};
@@ -78,12 +78,12 @@ impl<'a> ProbeInputs<'a> {
 // bump's scaling stay x87).
 pub(super) fn probe_ground_at(
     c: &ProbeInputs<'_>,
-    car: &Car<impl CellKind>,
+    car: &mut Car,
     q: &mut GroundSearch,
     points: &OwnPoints,
     work: &mut ProbeLists,
 ) -> Result<(), Refused> {
-    let n = car.probe_count.get();
+    let n = car.probe_count;
     if n < 1 {
         return Ok(());
     }
@@ -96,7 +96,7 @@ pub(super) fn probe_ground_at(
 
 fn probe_points(
     c: &ProbeInputs<'_>,
-    car: &Car<impl CellKind>,
+    car: &mut Car,
     n: u32,
     q: &mut GroundSearch,
     points: &OwnPoints,
@@ -108,15 +108,15 @@ fn probe_points(
     work.crossed_probe = u32::MAX;
     for b in 0..n {
         let i = b as usize;
-        let z = car.probe_point_z[i].get();
-        let y = car.probe_point_y[i].get();
+        let z = car.probe_point_z[i];
+        let y = car.probe_point_y[i];
         let y = if b < 4 {
             // The point's height goes through the scratch dword (a float's bits).
             scratch.set(x87::loaded(y).to_bits());
             let add;
-            (add, _) = ground::wheel_lifted(car.parts_present.get(), b);
+            (add, _) = ground::wheel_lifted(car.parts_present, b);
             less_plus_less_product_80(
-                &car.probe_point_y[6],
+                car.probe_point_y[6],
                 c.handling[0],
                 add.then_some(PROBE_LIFT),
                 PROBE_SHARE,
@@ -125,7 +125,7 @@ fn probe_points(
         } else {
             extended(y)
         };
-        let x = extended(car.probe_point_x[b as usize].get());
+        let x = extended(car.probe_point_x[b as usize]);
         let out = rotate_point(&car.crash_matrix, [x, y, extended(z)]);
         let [ox, oy, oz] = out.map(rounded_value);
         work.probe_turned_x[i] = ox;
@@ -142,7 +142,7 @@ fn probe_points(
         q.x = work.probe_x[i];
         q.z = work.probe_z[i];
         // The search tries this face first.
-        q.last = car.probe_point_face[b as usize].get();
+        q.last = car.probe_point_face[b as usize];
         let env = GroundEnv {
             course: c.course,
             points,
@@ -191,12 +191,12 @@ fn probe_points(
             }
             work.probe_height[i] = x87::int_times_to_int(d as i32, scratch.get()) as u32;
         }
-        car.probe_point_face[b as usize].set(q.slot);
+        car.probe_point_face[b as usize] = q.slot;
     }
     for i in 0..4 {
-        car.wheel_ground_x[i].set(work.probe_x[i]);
-        car.wheel_ground_height[i].set(work.probe_ground_height[i]);
-        car.wheel_ground_z[i].set(work.probe_z[i]);
+        car.wheel_ground_x[i] = work.probe_x[i];
+        car.wheel_ground_height[i] = work.probe_ground_height[i];
+        car.wheel_ground_z[i] = work.probe_z[i];
     }
     Ok(())
 }
@@ -204,8 +204,8 @@ fn probe_points(
 /// `car` is the work car in the race's ticks (the view's copy of its car in the drawing,
 /// `probe_ground_in_view`). The mark the searches were made with is kept in the probe, where
 /// the drawing parts read it.
-pub fn probe_ground(c: &GroundInputs<'_>, car: &Car) -> Result<(), Refused> {
-    if (1..=MOST_POINTS).contains(&car.probe_count.get()) {
+pub fn probe_ground(c: &GroundInputs<'_>, car: &mut Car) -> Result<(), Refused> {
+    if (1..=MOST_POINTS).contains(&car.probe_count) {
         c.probe.borrow_mut().settle_mark = SETTLE_MARK;
     }
     probe_ground_at(
@@ -222,7 +222,7 @@ pub fn probe_ground(c: &GroundInputs<'_>, car: &Car) -> Result<(), Refused> {
 /// drawing does reads them after), the scene points through the drawing part's `points`.
 pub fn probe_ground_in_view(
     c: &ProbeInputs<'_>,
-    car: &Car<impl CellKind>,
+    car: &mut Car,
     points: &OwnPoints,
 ) -> Result<(), Refused> {
     probe_ground_at(

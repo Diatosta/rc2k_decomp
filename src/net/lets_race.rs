@@ -10,8 +10,8 @@ pub fn lets_race(o: Owners<'static>) -> Result<(u32, u32), Refused> {
     let race = o.race;
     race.shared.view.get().after_credits.set(0);
     // The eight stored cars' `stop_state` (out).
-    for car in &race.car_blocks().cars[..8] {
-        car.stop_state.set(0);
+    for car in &mut race.car_blocks_mut().cars[..8] {
+        car.stop_state = 0;
     }
     crate::net::set_hud_options::set_hud_options(race, o.net, o.gfx)?;
     // The race is recorded as a single race is: every car's inputs, the cars' state each frame.
@@ -31,7 +31,7 @@ pub fn lets_race(o: Owners<'static>) -> Result<(u32, u32), Refused> {
         .race_car(race.shared.view.get().local_car.get() as usize)?;
     // The logic is in `rc2k_core::net::record::not_finished`.
     Ok((
-        block.stage_time.get(),
-        rc2k_core::net::record::not_finished(block.stop_state.get()),
+        block.stage_time,
+        rc2k_core::net::record::not_finished(block.stop_state),
     ))
 }

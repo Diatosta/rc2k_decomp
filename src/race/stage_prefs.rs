@@ -45,10 +45,8 @@ pub(super) fn load_prefs(race: &Race) -> Result<(), Refused> {
 }
 
 /// `race::reset_skid_slots`: sets the object's four skid slots to -1.
-fn reset_skid_slots(object: &crate::physics::car_store::Car) {
-    for slot in &object.skid_slots {
-        slot.set(u32::MAX);
-    }
+fn reset_skid_slots(object: &mut crate::physics::car_store::Car) {
+    object.skid_slots.fill(u32::MAX);
 }
 
 /// `race::init_skidmarks`: resets the two skid objects' slots, sets the 0x400 links' first two
@@ -58,7 +56,7 @@ pub fn init_skidmarks(race: &Race) -> Result<(), BadInput> {
     {
         // The skid objects are car blocks 0 and 1.
         for n in 0..2 {
-            reset_skid_slots(&race.car_blocks().cars[n]);
+            reset_skid_slots(&mut race.car_blocks_mut().cars[n]);
         }
         let mut skids = frame.shadow_skids.borrow_mut();
         for n in 0..0x400 {
@@ -110,18 +108,14 @@ pub(super) fn load_lights_data(race: &Race) -> Result<(), Refused> {
 pub fn get_mat_crash(
     engine_tables: crate::math::engine_tables::EngineTablesRef,
     matrices: &DrawPlain<SceneMatrices>,
-    car: &Car,
+    car: &mut Car,
     scene: &crate::scene::owner::Scene,
 ) {
     use crate::scene::matrix::{
-        TURN_X_BASE, TURN_Y_BASE, TURN_Z_BASE, matrix_of, product, store_matrix, turned_x,
-        turned_y, turned_z_16,
+        TURN_X_BASE, TURN_Y_BASE, TURN_Z_BASE, matrix_of, product, turned_x, turned_y, turned_z_16,
     };
-    let turns = rc2k_core::race::stage_objects::crash_turns([
-        car.car_heading.get(),
-        car.car_pitch.get(),
-        car.car_roll.get(),
-    ]);
+    let turns =
+        rc2k_core::race::stage_objects::crash_turns([car.car_heading, car.car_pitch, car.car_roll]);
     scene.object_work_mut().angles = turns;
     let (turn_x, _) = turned_x(engine_tables, TURN_X_BASE, turns[0]);
     let (turn_y, _) = turned_y(engine_tables, TURN_Y_BASE, turns[1]);
@@ -132,5 +126,5 @@ pub fn get_mat_crash(
         kept.lit_matrix
     };
     let crash = product(&lit, &turn_y, matrix_of(&car.crash_matrix));
-    store_matrix(&car.crash_matrix, &crash);
+    car.crash_matrix = crash;
 }

@@ -14,19 +14,19 @@ use crate::physics::car_store::Car;
 use crate::physics::vector_length::vector_length;
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner_course::Course;
-use crate::scene::matrix::{matrix_of, product, store_matrix};
+use crate::scene::matrix::{matrix_of, product};
 use crate::scene::view_matrix::{square_matrix, unit_vector};
 
-pub fn spin_matrix(course: &Course, matrices: &DrawPlain<SceneMatrices>, car: &Car) {
-    car.spin_length.set(rounded_value(vector_length(&car.spin)));
+pub fn spin_matrix(course: &Course, matrices: &DrawPlain<SceneMatrices>, car: &mut Car) {
+    car.spin_length = rounded_value(vector_length(&car.spin));
     // Tested as a dword: any bit set (a NaN too) means a spin.
-    if car.spin_length.get().to_bits() != 0 {
+    if car.spin_length.to_bits() != 0 {
         let lists = course.turn_work();
         let turn = &lists.turn_matrix;
         unit_vector(course.reads(), &car.spin, &lists.spin_axis);
         lists
             .spin_angle
-            .set(x87::mul(&car.spin_length, course.numbers.step_time.get()));
+            .set(x87::mul(car.spin_length, course.numbers.step_time.get()));
         axis_turn_matrix(course, turn);
         square_matrix(course.reads(), turn);
         let crash = matrix_of(&car.crash_matrix);
@@ -36,7 +36,9 @@ pub fn spin_matrix(course: &Course, matrices: &DrawPlain<SceneMatrices>, car: &C
         let crashed = product(&crash, &turn_now, kept.turned_matrix);
         kept.turned_matrix = crashed;
         drop(kept);
-        store_matrix(&car.crash_matrix, &crashed);
+        car.crash_matrix = crashed;
     }
-    square_matrix(course.reads(), &car.crash_matrix);
+    crate::math::cells::via_cells(&mut car.crash_matrix, |cells| {
+        square_matrix(course.reads(), cells)
+    });
 }

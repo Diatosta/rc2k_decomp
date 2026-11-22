@@ -152,7 +152,7 @@ fn draw_probes(race: &Race, system: &crate::system::owner::System, ui: &Ui) {
     };
     let list = ui.get_foreground_draw_list();
     let size = ui.current_font_size() / 4.0;
-    for n in 0..race.shared.car().probe_count.get().min(0x40) as usize {
+    for n in 0..race.shared.car().probe_count.min(0x40) as usize {
         let (x, y, z) = (
             wk.probe_x[n] as i32,
             wk.probe_y[n] as i32,

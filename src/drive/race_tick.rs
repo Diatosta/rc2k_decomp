@@ -7,7 +7,7 @@ use crate::errors::{FatalError, Refused};
 use crate::race::owner::Race;
 
 pub fn race_tick(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
-    if race.car_blocks().cars[0].probe_count.get() == 0 {
+    if race.car_blocks().cars[0].probe_count == 0 {
         return Err(FatalError {
             code: rc2k_core::drive::race_ticks::NO_CAR_FATAL,
             message: "",

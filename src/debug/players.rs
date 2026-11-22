@@ -3,7 +3,6 @@
 //! them); the other a car block's state, of "car1" and "car2", which were both the first block
 //! (a slip in the dump; here every car). The button writes the same to the log.
 
-use crate::memory::session::PlainDword;
 use crate::menu::owner::Menus;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
@@ -68,17 +67,17 @@ const PLAYER_ROWS: [(&str, usize); 51] = [
 const CARS: usize = crate::race::blocks_store::BLOCK_COUNT;
 
 /// A car block's cell.
-type CarField = fn(&Car) -> &PlainDword;
+type CarField = fn(&Car) -> u32;
 
 /// The car dump's labels and fields (it shows `racefinished` twice).
 const CAR_ROWS: [(&str, CarField); 7] = [
-    ("driver", |c| &c.driver_kind),
-    ("racefinished", |c| &c.finish_flag),
-    ("currsegment", |c| &c.splits_passed),
-    ("nextcheckpoint", |c| &c.splits_recorded),
-    ("timetaken", |c| &c.stage_time),
-    ("outoftime", |c| &c.go_stand_timer),
-    ("gameoverflag", |c| &c.stop_state),
+    ("driver", |c| c.driver_kind),
+    ("racefinished", |c| c.finish_flag),
+    ("currsegment", |c| c.splits_passed),
+    ("nextcheckpoint", |c| c.splits_recorded),
+    ("timetaken", |c| c.stage_time),
+    ("outoftime", |c| c.go_stand_timer),
+    ("gameoverflag", |c| c.stop_state),
 ];
 
 fn figure(word: u32) -> String {
@@ -90,7 +89,7 @@ fn player_figure(menus: &Menus, player: usize, offset: usize) -> String {
 }
 
 fn car_figure(race: &Race, car: usize, field: CarField) -> String {
-    figure(field(&race.car_blocks().cars[car]).get())
+    figure(field(&race.car_blocks().cars[car]))
 }
 
 /// The player's name, to its NUL.

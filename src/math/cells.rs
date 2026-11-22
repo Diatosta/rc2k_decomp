@@ -178,6 +178,20 @@ impl<T: Cells + ?Sized> Cells for Off<'_, T> {
     }
 }
 
+/// `work` run on the floats of a plain row held in cells (for the helpers written over cells),
+/// the row taking back what it left there.
+pub fn via_cells<const N: usize, R>(
+    row: &mut [f32; N],
+    work: impl FnOnce(&[crate::memory::session::PlainFloat; N]) -> R,
+) -> R {
+    let cells = crate::memory::session::PlainFloat::array(*row);
+    let result = work(&cells);
+    *row = cells
+        .each_ref()
+        .map(crate::memory::session::PlainFloat::get);
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

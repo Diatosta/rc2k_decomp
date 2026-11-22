@@ -17,7 +17,7 @@ pub fn apply_torque(
     numbers: &Numbers,
     contact: &RefCell<ContactWork>,
     rec: &ForceRecord,
-    car: &Car,
+    car: &mut Car,
 ) {
     let mut work = turn(&car.car_inverse_matrix, bits_of(&car.spin));
     let cross = cross(bits_of(&rec.force), bits_of(&rec.point));
@@ -26,7 +26,7 @@ pub fn apply_torque(
         work[k] = neg_product2_plus(cross[k], step, numbers.inertia[k], work[k]).to_bits();
     }
     work = turn(&car.crash_matrix, work);
-    car.spin.set_bits(work);
+    car.spin = (work).map(f32::from_bits);
     // The turn speed is the step's work place: it ends as the car's new spin.
     contact.borrow_mut().contact_turn_speed = work;
 }

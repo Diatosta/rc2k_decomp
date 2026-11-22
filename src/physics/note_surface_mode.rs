@@ -4,7 +4,6 @@ use crate::physics::car_store::Car;
 use rc2k_core::physics::ground::surface_flag;
 
 // Core: `rc2k_core::physics::ground::surface_flag`.
-pub(super) fn note_surface_mode(car: &Car) {
-    car.camera_mode_is_2_or_3
-        .set(surface_flag(car.camera_view.get()));
+pub(super) fn note_surface_mode(car: &mut Car) {
+    car.camera_mode_is_2_or_3 = surface_flag(car.camera_view);
 }

@@ -51,7 +51,7 @@ fn blocks() -> Vec<Block> {
                         .physics
                         .contact()
                         .borrow_mut(),
-                    crate::test_support::own::race().shared.car(),
+                    &crate::test_support::own::race().shared.car(),
                     &crate::test_support::race_places::numbers(),
                 );
             },

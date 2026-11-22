@@ -4,7 +4,7 @@
 //! `car_roll` is `clamped_asin` of the y over the cosine of the pitch (80 bits). A reading: the
 //! car's heading, pitch and roll.
 
-use crate::math::cells::Cells;
+use crate::math::cells::Words;
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87::{neg_rounded, over_cos_80, patan};
 use crate::memory::session::PlainFloat;
@@ -13,7 +13,7 @@ use crate::race::owner_course::Course;
 use crate::scene::rotate_point::rotate_point;
 
 /// `rotate_point` of the unit vector `unit` by `m`, stored as floats in the turned vector.
-fn turn_unit(m: &(impl Cells + ?Sized), turned: &[&PlainFloat; 3], unit: [f32; 3]) {
+fn turn_unit(m: &(impl Words + ?Sized), turned: &[&PlainFloat; 3], unit: [f32; 3]) {
     let out = rotate_point(m, unit.map(extended));
     for (cell, e) in turned.iter().zip(out) {
         cell.set(rounded_value(e));
@@ -21,7 +21,7 @@ fn turn_unit(m: &(impl Cells + ?Sized), turned: &[&PlainFloat; 3], unit: [f32; 3
 }
 
 /// On the matrix `m`; the angles go into the course's turn work (`car_heading`, `car_pitch`, `car_roll`).
-pub fn matrix_angles(course: &Course, m: &(impl Cells + ?Sized)) {
+pub fn matrix_angles(course: &Course, m: &(impl Words + ?Sized)) {
     let l = course.turn_work();
     let turned = [&l.turned_x, &l.turned_y, &l.turned_z];
     turn_unit(m, &turned, [0.0, 0.0, 1.0]);

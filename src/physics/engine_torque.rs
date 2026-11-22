@@ -7,7 +7,7 @@
 //!
 //! Returns i on the curve's path.
 
-use crate::math::cell_x87::{CellX87, PlainX87};
+use crate::math::cell_x87::PlainX87;
 use crate::math::x87;
 use crate::math::x87::{lerp_table, trunc_mul_to_int};
 use crate::physics::figures::TORQUE_EASE;
@@ -29,8 +29,8 @@ pub fn below(a: impl crate::math::x87::Flt, b: impl crate::math::x87::Flt) -> bo
 pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene::owner::Scene) {
     let shared_store = shared;
     let s = x87::div(
-        &shared_store.car().engine_speed,
-        &shared_store.car().engine_speed_limit,
+        shared_store.car().engine_speed,
+        shared_store.car().engine_speed_limit,
     );
     if below(s, course.numbers.one.get()) && !below(s, ZERO) {
         let i = trunc_mul_to_int(s, course.numbers.eight.get()) as u32;
@@ -55,9 +55,9 @@ pub fn engine_torque(course: &Course, shared: &RaceShared, scene: &crate::scene:
             shared_store.car().engine_speed.ld() / shared_store.car().engine_speed_limit.ld()
                 * crate::math::x87_float::ld(TORQUE_EASE),
         );
-    let force = x87::mul(
+    let value = x87::mul(
         shared_store.physics_tables().engine_force,
-        &shared_store.car().engine_power_factor,
+        shared_store.car().engine_power_factor,
     );
-    shared_store.physics_tables_mut().engine_force = force;
+    shared_store.physics_tables_mut().engine_force = value;
 }

@@ -78,8 +78,7 @@ pub fn panel_players(race: &Race) -> Result<(), BadInput> {
             Ok(shared
                 .view_car(n)
                 .ok_or(BadInput("a view without its car block"))?
-                .two_car_place
-                .get())
+                .two_car_place)
         };
         frame.panel.borrow_mut().view_a.place = field(0)?;
         frame.panel.borrow_mut().view_b.place = field(1)?;
@@ -136,7 +135,7 @@ pub fn view_value(
 
 /// The value into the view's block `eased_target` (`view_value`).
 pub fn store_view_value(race: &Race, block: usize, value: u32) -> Result<(), Refused> {
-    race.car_blocks().cars[block].eased_target.set(value);
+    race.car_blocks_mut().cars[block].eased_target = value;
     Ok(())
 }
 
@@ -327,14 +326,14 @@ fn network_disc_cars(race: &Race) {
     if count > 1 && race.shared.vars.get().checkpoint_count.get() >= 2 {
         let at = |n: usize| {
             let car = race.shared.race_car(n).ok()?;
-            crate::race::map_scroll::map_position(race, car).ok()
+            crate::race::map_scroll::map_position(race, &car).ok()
         };
         if let Some(from) = at(own) {
             for n in (0..count).filter(|&n| n != own) {
                 let in_race = race
                     .shared
                     .race_car(n)
-                    .is_ok_and(|car| car.driver_kind.get() != 0);
+                    .is_ok_and(|car| car.driver_kind != 0);
                 let Some(place) = at(n).filter(|_| in_race) else {
                     continue;
                 };
@@ -370,7 +369,7 @@ fn split_disc_cars(race: &Race) -> Result<(), BadInput> {
     }
     let at = |car: usize| {
         let car = race.shared.race_car(car).ok()?;
-        crate::race::map_scroll::map_position(race, car).ok()
+        crate::race::map_scroll::map_position(race, &car).ok()
     };
     let enough = race.shared.vars.get().checkpoint_count.get() >= 2;
     let cars = (0..players)
@@ -484,25 +483,26 @@ pub fn wake_part_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Resu
     }
     let current: u32 = shared.work().current_car;
     // The plan: (block slot to set, whether to wake the object) by car.
-    let mut plan: Vec<&dyn crate::memory::session::DwordLike> = Vec::new();
+    let mut plan: Vec<(usize, usize)> = Vec::new();
     let mut woken: Vec<&crate::sound::store::SoundObjectCell> = Vec::new();
     for car in 0..cars {
         let object = crate::sound::store::SoundObject::of(sound, car & 7)?;
         let mut wake = false;
-        let block = shared.race_car_or(car as usize, "a null car block")?;
+        let block_number = shared.race_index_or_in_pub(car as usize, "a null car block")?;
+        let block = std::cell::Ref::map(shared.car_blocks(), |blocks| &blocks.cars[block_number]);
         // Every flag set: each slot is `Left` whatever its count, nothing to plan (the flags only
         // go 0 -> 1, `part_woken` has no other writer).
-        if block.part_woken.iter().all(|flag| flag.get() != 0) {
+        if block.part_woken.iter().all(|flag| *flag != 0) {
             continue;
         }
         for slot in 0..6usize {
             use rc2k_core::race::lights::{PartWake, part_wake};
-            let count = block.part_wake_counts[slot].get();
-            let part = part_wake(block.part_woken[slot].get(), count);
+            let count = block.part_wake_counts[slot];
+            let part = part_wake(block.part_woken[slot], count);
             if part == PartWake::Left {
                 continue;
             }
-            plan.push(&block.part_woken[slot]);
+            plan.push((block_number, slot));
             if part != PartWake::WokenNow {
                 continue;
             }
@@ -518,8 +518,8 @@ pub fn wake_part_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Resu
             woken.push(object);
         }
     }
-    for cell in plan {
-        cell.set(1);
+    for (block, slot) in plan {
+        shared.car_blocks_mut().cars[block].part_woken[slot] = 1;
     }
     for object in woken {
         let mut object = object.borrow_mut();
@@ -597,8 +597,8 @@ pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
             let b = race.shared.view.get().view_number(view)?;
             let car = &race.car_blocks().cars[b];
             let mut out = [0; 3];
-            out[0] = motion(car.map_picture_place[0].get() as i32, half, small).to_bits();
-            out[1] = motion(car.map_picture_place[1].get() as i32, half, small).to_bits();
+            out[0] = motion(car.map_picture_place[0] as i32, half, small).to_bits();
+            out[1] = motion(car.map_picture_place[1] as i32, half, small).to_bits();
             let turn = heading_turn(race.frame.cars.car(b)?.car_heading.get());
             out[2] = heading(turn as i32, half, big).to_bits();
             let mut panel = race.frame.panel.borrow_mut();
@@ -613,8 +613,8 @@ pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
         for n in 2..players.min(4) {
             let car = &race.car_blocks().cars[race.shared.view.get().view_number(n)?];
             let mut out = [0; 3];
-            out[0] = motion(car.map_picture_place[0].get() as i32, half, small).to_bits();
-            out[1] = motion(car.map_picture_place[1].get() as i32, half, small).to_bits();
+            out[0] = motion(car.map_picture_place[0] as i32, half, small).to_bits();
+            out[1] = motion(car.map_picture_place[1] as i32, half, small).to_bits();
             let turn = heading_turn(race.frame.cars.car(n)?.car_heading.get());
             out[2] = heading(turn as i32, half, big).to_bits();
             race.frame.panel.borrow_mut().parts[n].motion = out;

@@ -70,7 +70,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 load_figures_and_shift_points(
-                    race().shared.car(),
+                    &mut race().shared.car_mut(),
                     &mut race().shared.physics_tables_mut(),
                     &crate::test_support::race_places::numbers(),
                     race().gear(),

@@ -4,25 +4,20 @@ use crate::physics::damage_model::proof::prove;
 #[test]
 fn wear_additions_and_subtractions() {
     prove("add_wear", |s| {
-        let (d, g) = (&s.damage, &s.car.brake_heat.float_at(0));
-        g.set(add_wear(d, d.wear_rates[3], d.brake_share, g.get()));
+        let (d, g) = (&s.damage, &mut s.car.brake_heat[0]);
+        *g = add_wear(d, d.wear_rates[3], d.brake_share, *g);
     });
     prove("add_wear into another cell", |s| {
         let d = &mut s.damage;
-        d.scratch = add_wear(
-            d,
-            d.wear_rates[0],
-            d.overheat_excess,
-            s.car.engine_heat.get(),
-        );
+        d.scratch = add_wear(d, d.wear_rates[0], d.overheat_excess, s.car.engine_heat);
     });
     prove("subtract_rate", |s| {
-        let (d, g) = (&s.damage, &s.car.engine_heat);
-        g.set(subtract_rate(d, d.wear_rates[1], g.get()));
+        let (d, g) = (&s.damage, &mut s.car.engine_heat);
+        *g = subtract_rate(d, d.wear_rates[1], *g);
     });
     prove("subtract_wear", |s| {
-        let (d, g) = (&s.damage, &s.car.brake_fade);
-        g.set(subtract_wear(d, d.wear_rates[9], d.brake_share, g.get()));
+        let (d, g) = (&s.damage, &mut s.car.brake_fade);
+        *g = subtract_wear(d, d.wear_rates[9], d.brake_share, *g);
     });
 }
 

@@ -14,13 +14,13 @@ pub(super) fn engine_torque_or_cut(
     scene: &crate::scene::owner::Scene,
 ) {
     let Some(cut) = torque_cut(
-        shared.car().engine_speed.get(),
-        shared.car().engine_speed_limit.get(),
-        shared.car().rev_cut_count.get(),
+        shared.car().engine_speed,
+        shared.car().engine_speed_limit,
+        shared.car().rev_cut_count,
     ) else {
         engine_torque(course, shared, scene);
         return;
     };
-    shared.car().rev_cut_count.set(cut);
+    shared.car_mut().rev_cut_count = cut;
     shared.physics_tables_mut().engine_force = 0.0;
 }

@@ -30,7 +30,7 @@ pub struct Vars<'a> {
     /// objects and devices 2 and 3.
     pub players: u32,
     /// The car blocks the view blocks name.
-    pub car_blocks: &'a crate::race::blocks_store::CarBlocks,
+    pub car_blocks: &'a crate::memory::session::DrawArc<crate::race::blocks_store::CarBlocks>,
 }
 
 impl<'a> Vars<'a> {
@@ -45,7 +45,7 @@ impl<'a> Vars<'a> {
             objects: sound.race.objects.get(),
             two_devices: &input.devices.two_devices_one_player,
             players: race.shared.view.get().players.get(),
-            car_blocks: race.car_blocks(),
+            car_blocks: &race.shared.car_blocks,
         }
     }
 }
@@ -81,8 +81,8 @@ fn update_effects_with(input: &Input, system: &System, v: &Vars<'_>) -> Result<(
                 .ok_or(BadInput("a car past the sound objects' table"))?;
             let device = device_of(&input.devices, load.device)
                 .ok_or(BadInput("a load on a null device"))?;
-            let view = v
-                .car_blocks
+            let blocks = v.car_blocks.borrow();
+            let view = blocks
                 .of(load.view)
                 .ok_or(BadInput("a load on no view block"))?;
             // The player's switch is the profile of the race device (the slot the handle is in).
@@ -115,7 +115,7 @@ fn update_effects_with(input: &Input, system: &System, v: &Vars<'_>) -> Result<(
             .ok_or(BadInput("a car past the sound objects' table"))?;
         crate::input::update_car_effects::update_car_effects(
             &input.force_feedback,
-            &v.car_blocks.cars[n],
+            &v.car_blocks.borrow().cars[n],
             object,
             device,
             crate::input::profiles::race_engine_vibration(input, n),

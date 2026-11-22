@@ -4,6 +4,8 @@
 
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
+use crate::memory::plain_floats::FloatRow;
+use crate::memory::plain_floats::FloatRowMut;
 use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use crate::physics::flow::FloatView;
@@ -14,7 +16,7 @@ use crate::race::numbers_store::Numbers;
 use crate::scene::rotate_point::rotate_point;
 
 /// The exact version, for `physics::apply_forces`: `rec` on the car block `car`.
-pub fn apply_force(car: &Car, numbers: &Numbers, rec: &ForceRecord) {
+pub fn apply_force(car: &mut Car, numbers: &Numbers, rec: &ForceRecord) {
     // The push in the car's frame, worked out on the spot (the fourth dword stays 0).
     let work = [const { PlainDword::new(0) }; 4];
     for (k, w) in work[..3].iter().enumerate() {
@@ -27,7 +29,7 @@ pub fn apply_force(car: &Car, numbers: &Numbers, rec: &ForceRecord) {
     for (k, w) in work.into_iter().take(3).enumerate() {
         car.velocity.set_at(k, x87::add(w, car.velocity.bits_at(k)));
     }
-    let p = car.velocity.get().map(extended);
+    let p = car.velocity.map(extended);
     let out = rotate_point(&car.car_inverse_matrix, p);
     for (k, e) in out.into_iter().enumerate() {
         car.local_velocity.set_at(k, rounded_value(e));

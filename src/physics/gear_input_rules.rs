@@ -15,21 +15,17 @@ use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 
 /// The rules on the car's inputs and gear.
 // Core: `rc2k_core::physics::gearbox::GearInputs::apply_rules`.
-pub fn gear_input_rules(car: &Car, inputs: &mut GearInputs, vars: &RaceVars) {
+pub fn gear_input_rules(car: &mut Car, inputs: &mut GearInputs, vars: &RaceVars) {
     let state = GearCar {
-        state: car.tyre_change_state.get(),
-        box_mode: car.gearbox_kind.get(),
-        timer: car.run_ticks.get(),
+        state: car.tyre_change_state,
+        box_mode: car.gearbox_kind,
+        timer: car.run_ticks,
         race_mode: vars.run_kind.get(),
-        switches: [
-            car.go_stand_timer.get(),
-            car.started_stand_timer.get(),
-            car.finish_flag.get(),
-        ],
+        switches: [car.go_stand_timer, car.started_stand_timer, car.finish_flag],
     };
-    let mut gear = car.gear.get();
+    let mut gear = car.gear;
     inputs.apply_rules(&mut gear, &state);
-    if gear != car.gear.get() {
-        car.gear.set(gear);
+    if gear != car.gear {
+        car.gear = gear;
     }
 }

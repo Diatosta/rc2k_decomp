@@ -92,7 +92,6 @@ impl SortLists {
 /// lists (`copy_drawing_from`, `merge_drawing`).
 macro_rules! for_each_part {
     ($f:ident, $to:expr, $from:expr $(, $start:expr)?) => {{
-        use crate::memory::cells::Cells;
         let (to, from) = ($to, $from);
         to.fog.$f(&from.fog $(, &$start.fog)?);
         to.object.$f(&from.object $(, &$start.object)?);
@@ -106,7 +105,6 @@ macro_rules! for_each_part {
         to.quad.$f(&from.quad $(, &$start.quad)?);
         to.lamps.$f(&from.lamps $(, &$start.lamps)?);
         to.state.$f(&from.state $(, &$start.state)?);
-        to.car.$f(&from.car $(, &$start.car)?);
         to.hand_off.$f(&from.hand_off $(, &$start.hand_off)?);
         to.vars.$f(&from.vars $(, &$start.vars)?);
         to.vars_taken.$f(&from.vars_taken $(, &$start.vars_taken)?);
@@ -145,7 +143,7 @@ pub struct ViewScratch {
     pub state: PlainSlot<crate::race::view_state::ViewState>,
     /// The view's car: a copy of its block that the view's camera, matrices, course and lights read
     /// (`race::frame::load_view_car`); the physics' work car and `current_car` are not touched.
-    pub car: crate::physics::car_store::ViewCar,
+    pub car: std::cell::RefCell<crate::physics::car_store::ViewCar>,
     /// What the view's scene left its overlays (`race::scene_hand_off`).
     pub hand_off: crate::race::scene_hand_off::SceneHandOff,
     /// The view variables as the view's drawing has them: taken from the shared ones
@@ -173,7 +171,7 @@ impl ViewScratch {
             quad: PlainSlot::new(crate::race::quad_work::QuadWork::new()),
             lamps: PlainSlot::new(crate::race::lamp_work::LampValues::new()),
             state: PlainSlot::new(crate::race::view_state::ViewState::new()),
-            car: crate::physics::car_store::ViewCar::new(),
+            car: std::cell::RefCell::new(crate::physics::car_store::ViewCar::new()),
             hand_off: crate::race::scene_hand_off::SceneHandOff::new(),
             vars: PlainSlot::new(crate::race::view_vars_store::ViewVarsCopy::new()),
             vars_taken: PlainSlot::new(crate::race::view_vars_store::ViewVarsCopy::new()),
@@ -248,12 +246,17 @@ impl ViewScratch {
     pub fn copy_drawing_from(&self, other: &ViewScratch) {
         self.slot.set(other.slot.get());
         for_each_part!(copy_from, self, other);
+        *self.car.borrow_mut() = other.car.borrow().clone();
     }
 
     /// What `now` (a copy, `copy_drawing_from`) changed since it was `start` put into this
     /// view, part by part but the sort lists: the copy's drawing put after this view's own.
     pub(super) fn merge_drawing(&self, now: &ViewScratch, start: &ViewScratch) {
         for_each_part!(merge_changes, self, now, start);
+        use crate::memory::plain_record::PlainRecord;
+        self.car
+            .borrow_mut()
+            .merge_changes(&now.car.borrow(), &start.car.borrow());
     }
 
     /// The view drawn (`RaceView::drawn_view`): the player whose view or mirror the slot is; the

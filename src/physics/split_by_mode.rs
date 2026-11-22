@@ -23,13 +23,17 @@ pub(super) fn split_by_mode(
 ) -> Result<(), Refused> {
     match split_figure(shared.vars.get().run_kind.get()) {
         SplitFigure::Place => {
-            shared.car().split_gaps[0].set(car_blocks.cars[0].mode2_place.get());
+            shared.car_mut().split_gaps[0] = car_blocks.cars[0].mode2_place;
             Ok(())
         }
         SplitFigure::Rank => rank_split_time(o, split_tables, overlay, shared),
-        SplitFigure::Compare => {
-            compare_split_times(o, league, &shared.work(), &shared.state, shared.car())
-        }
+        SplitFigure::Compare => compare_split_times(
+            o,
+            league,
+            &shared.work(),
+            &shared.state,
+            &mut shared.car_mut(),
+        ),
         SplitFigure::Nothing => Ok(()),
     }
 }

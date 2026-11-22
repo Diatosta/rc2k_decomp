@@ -13,6 +13,8 @@
 //! is put back).
 
 use crate::errors::Refused;
+use crate::memory::plain_floats::FloatRow;
+use crate::memory::plain_floats::FloatRowMut;
 use crate::physics::car_store::Car;
 use crate::physics::step_families::ContactInputs;
 use crate::physics::wall_edge_contact::WallFaces;
@@ -27,27 +29,31 @@ fn word(course: &Course, face: u32) -> Result<u32, Refused> {
     )?))
 }
 
-fn after(c: &ContactInputs<'_>) -> Result<(), Refused> {
-    c.car.contact_flag.set(1);
-    c.car.wall_hit_timer.set(0x32);
+fn after(c: &ContactInputs<'_>, car: &mut Car) -> Result<(), Refused> {
+    car.contact_flag = 1;
+    car.wall_hit_timer = 0x32;
     {
         crate::physics::restore_saved_car::restore_saved_car(
-            c.car,
+            car,
             &mut c.tables.borrow_mut(),
             &c.ground.probes.borrow(),
         )
     }?;
-    crate::physics::feel_ground::feel_ground(&c.ground)
+    crate::physics::feel_ground::feel_ground(&c.ground, car)
 }
 
 /// The steps, not guarded (`check` before).
 // Core: `rc2k_core::physics::walls::walk`.
-pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn steps(
+    c: &ContactInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+    car: &mut Car,
+) -> Result<(), Refused> {
     // The faces of the probe point looked at last: the met one's when a wall is met.
     let faces = std::cell::Cell::new(WallFaces { before: 0, now: 0 });
-    let walked = walls::walk(c.car.probe_count.get(), |k| {
+    let walked = walls::walk(car.probe_count, |k| {
         let k = k as usize;
-        let now = c.car.probe_point_face[k].get();
+        let now = car.probe_point_face[k];
         faces.set(WallFaces { now, ..faces.get() });
         let now_word = word(c.course, now)?;
         let before = c.ground.probes.borrow().probe_saved_faces[k];
@@ -66,40 +72,41 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
         walls::Walk::Met { probe, .. } => {
             // A wall met.
             let k = probe as usize;
-            c.car.contact_point.set_at(0, c.car.probe_point_x[k].get());
-            c.car.contact_point.set_at(1, c.car.probe_point_y[k].get());
-            c.car.contact_point.set_at(2, c.car.probe_point_z[k].get());
-            crate::physics::wall_edge_contact::steps(c, scene, faces.get(), probe)?;
+            car.contact_point.set_at(0, car.probe_point_x[k]);
+            car.contact_point.set_at(1, car.probe_point_y[k]);
+            car.contact_point.set_at(2, car.probe_point_z[k]);
+            crate::physics::wall_edge_contact::steps(c, scene, faces.get(), probe, car)?;
             if let Some(hit) = rc2k_core::physics::walls::raised_hit(
                 f32::from_bits(c.contact.borrow().contact_speed_length),
-                c.car.contact_depth.get(),
+                car.contact_depth,
             ) {
-                c.car.contact_depth.set(hit);
+                car.contact_depth = hit;
             }
-            after(c)
+            after(c, car)
         }
         walls::Walk::Clear { bits } => {
             if bits != walls::WALL_BITS {
                 return Ok(());
             }
-            c.car.contact_point.set_at(0, c.car.local_velocity.at(0));
-            c.car.contact_point.set_at(1, c.car.local_velocity.at(1));
-            c.car.contact_point.set_at(2, c.car.local_velocity.at(2));
-            crate::physics::wall_push_back::steps(c, scene)?;
-            after(c)
+            car.contact_point.set_at(0, car.local_velocity.at(0));
+            car.contact_point.set_at(1, car.local_velocity.at(1));
+            car.contact_point.set_at(2, car.local_velocity.at(2));
+            crate::physics::wall_push_back::steps(c, scene, car)?;
+            after(c, car)
         }
     }
 }
 
 /// The probe count checked: 0 or past 0x40 refused.
 pub fn check(car: &Car) -> Result<(), Refused> {
-    Ok(walls::check_probe_count(car.probe_count.get())?)
+    Ok(walls::check_probe_count(car.probe_count)?)
 }
 
 pub fn wall_contacts(
     c: &ContactInputs<'_>,
     scene: &crate::scene::owner::Scene,
+    car: &mut Car,
 ) -> Result<(), Refused> {
-    check(c.car)?;
-    steps(c, scene)
+    check(car)?;
+    steps(c, scene, car)
 }

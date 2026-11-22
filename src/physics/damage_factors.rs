@@ -8,7 +8,7 @@
 //! past its limit); the copies of the gear, tyre kind and surface; the side hit
 //! (`DamageModel.hit_side`, 1 .. 4) and its size; the four wheels' loads; and the hit time.
 
-use crate::memory::session::{FloatLike, PlainFloat};
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::physics::damage_model::{
     figure, figure_is_set, held_high, held_low, is_set, lerp_table, store, value, whole,
@@ -20,26 +20,26 @@ use crate::physics::store::DamageModel;
 use core::cmp::Ordering;
 
 /// The damage model's figures for this step.
-pub fn steps(car: &Car, damage: &mut DamageModel) {
+pub fn steps(car: &mut Car, damage: &mut DamageModel) {
     scale_car_figures(car, damage);
     // Per wheel: the stiffness and ride height follow the suspension damage; at the top
     // of the gauge the wheel is worn out.
     for wheel in 0..4 {
-        let suspension = &car.suspension_damage.float_at(wheel);
-        let stiffness = &car.wheel_stiffness.float_at(wheel);
-        let ride_height = &car.wheel_ride_height.float_at(wheel);
-        let lerp = lerp_table(suspension.get(), &damage.lerp_tables[2], damage.gauge_low);
+        let suspension = car.suspension_damage[wheel];
+        let stiffness = &mut car.wheel_stiffness[wheel];
+        let ride_height = &mut car.wheel_ride_height[wheel];
+        let lerp = lerp_table(suspension, &damage.lerp_tables[2], damage.gauge_low);
         damage.wheel_stiffness_lerp[wheel] = lerp;
         wheel_stiffness_from_share(damage, lerp, stiffness);
-        hold_low_to(stiffness, damage.gauge_low);
-        hold_high_to(stiffness, damage.gauge_top);
+        hold_low_to(&mut *stiffness, damage.gauge_low);
+        hold_high_to(&mut *stiffness, damage.gauge_top);
         wheel_ride_height_from_share(damage, ride_height);
         if equal_or_unordered(suspension, damage.gauge_top) {
             fail_wheel(damage, stiffness, ride_height);
         }
     }
     means_and_engine_speed(car, damage);
-    held_high(&mut damage.scratch, car.engine_speed_limit.get());
+    held_high(&mut damage.scratch, car.engine_speed_limit);
     engine_speed_share_step(car, damage);
     // The speed gaps are each held to `speed_range` before their share is taken.
     held_high(&mut damage.scratch, damage.speed_range);
@@ -54,12 +54,12 @@ pub fn steps(car: &Car, damage: &mut DamageModel) {
         drive_extrapolation_step(car, damage, &car.drive_speed_b, &car.drive_speed_b);
     held_high(&mut damage.scratch, damage.speed_range);
     finish_shares(damage);
-    if car.all_wheels_off.get() == 0 {
+    if car.all_wheels_off == 0 {
         damage.wheels_down = 1.0;
     }
     damage.brake_share = 0.0;
     if !abs_below_or_unordered(car.local_velocity.bits_at(2), damage.grade_high)
-        && (car.brake.get().wrapping_sub(0x10) as i32) >= 0
+        && (car.brake.wrapping_sub(0x10) as i32) >= 0
     {
         brake_share_step(car, damage);
     }
@@ -69,16 +69,16 @@ pub fn steps(car: &Car, damage: &mut DamageModel) {
     } else {
         0.0
     };
-    damage.gear_changed = car.gear_changed.get();
-    damage.gear = car.gear.get();
-    damage.tyre_kind = car.tyre_kind.get();
-    let surface = car.wheel_surface_a[4].get();
+    damage.gear_changed = car.gear_changed;
+    damage.gear = car.gear;
+    damage.tyre_kind = car.tyre_kind;
+    let surface = car.wheel_surface_a[4];
     damage.surface = surface;
     damage.on_surface_5 = 0.0;
     if surface == 5 {
         damage.on_surface_5 = 1.0;
     }
-    damage.surface_blend = car.surface_blend.get();
+    damage.surface_blend = car.surface_blend;
     damage.hit_side = side_hit(car, damage);
     hit_size_and_dive(car, damage);
     held_low(&mut damage.scratch, damage.gauge_low);
@@ -94,9 +94,9 @@ pub fn steps(car: &Car, damage: &mut DamageModel) {
         }
     }
     blend_wheel_loads(damage);
-    if figure_is_set(damage.hit_size) && car.hit_cooldown.get() != 0 {
+    if figure_is_set(damage.hit_size) && car.hit_cooldown != 0 {
         damage.hit_size = 0.0;
-        car.hit_cooldown.set(0x64);
+        car.hit_cooldown = 0x64;
     }
 }
 
@@ -128,7 +128,7 @@ fn scale_car_figures(car: &Car, m: &mut DamageModel) {
 
 /// A wheel's stiffness: the stiffness share times the top of the gauge, less the lerp of its
 /// suspension damage.
-fn wheel_stiffness_from_share(m: &DamageModel, lerp: f32, stiffness: &impl FloatLike) {
+fn wheel_stiffness_from_share(m: &DamageModel, lerp: f32, stiffness: &mut f32) {
     store(
         stiffness,
         figure(m.stiffness_share) * figure(m.gauge_top) - figure(lerp),
@@ -136,7 +136,7 @@ fn wheel_stiffness_from_share(m: &DamageModel, lerp: f32, stiffness: &impl Float
 }
 
 /// A wheel's ride height: the ride height share times the top of the gauge.
-fn wheel_ride_height_from_share(m: &DamageModel, ride_height: &impl FloatLike) {
+fn wheel_ride_height_from_share(m: &DamageModel, ride_height: &mut f32) {
     store(
         ride_height,
         figure(m.ride_height_share) * figure(m.gauge_top),
@@ -144,27 +144,27 @@ fn wheel_ride_height_from_share(m: &DamageModel, ride_height: &impl FloatLike) {
 }
 
 /// A worn-out wheel: full stiffness, no ride height.
-fn fail_wheel(m: &DamageModel, stiffness: &impl FloatLike, ride_height: &impl FloatLike) {
+fn fail_wheel(m: &DamageModel, stiffness: &mut f32, ride_height: &mut f32) {
     store(stiffness, figure(m.gauge_top));
     store(ride_height, figure(m.gauge_low));
 }
 
 /// The means of the wheels' ride heights and stiffnesses, the drive kind, and the engine's
 /// speed made positive (into `scratch`).
-fn means_and_engine_speed(car: &Car, m: &mut DamageModel) {
+fn means_and_engine_speed(car: &mut Car, m: &mut DamageModel) {
     let quarter = figure(m.quarter);
-    let [h0, h1, h2, h3] = &car.wheel_ride_height.floats();
+    let [h0, h1, h2, h3] = &car.wheel_ride_height;
     store(
-        &car.ride_height_mean,
+        &mut car.ride_height_mean,
         (value(h0) + value(h1) + value(h2) + value(h3)) * quarter,
     );
-    let [s0, s1, s2, s3] = &car.wheel_stiffness.floats();
+    let [s0, s1, s2, s3] = &car.wheel_stiffness;
     store(
-        &car.stiffness_mean,
+        &mut car.stiffness_mean,
         (value(s0) + value(s1) + value(s2) + value(s3)) * quarter,
     );
     // The car's whole number passes through the x87 as a float, which gives back the same bits.
-    m.drive_kind = car.drive_kind.get();
+    m.drive_kind = car.drive_kind;
     m.scratch = value(&car.engine_speed).abs() as f32;
 }
 
@@ -196,8 +196,8 @@ fn drive_a_slip_step(car: &Car, m: &mut DamageModel) {
 fn drive_extrapolation_step(
     car: &Car,
     m: &mut DamageModel,
-    drive_speed: &PlainFloat,
-    carried: &PlainFloat,
+    drive_speed: &f32,
+    carried: &f32,
 ) -> f32 {
     let share = (figure(m.scratch) / figure(m.speed_range)) as f32;
     m.scratch = ((value(drive_speed) - f64::from(car.local_velocity.at(2))) * figure(m.figures[31])

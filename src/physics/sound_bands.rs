@@ -2,6 +2,7 @@
 //! the contact, object, bump and crash sounds.
 
 use crate::math::x87;
+use crate::physics::car_store::Car;
 use crate::physics::step_families::SoundInputs;
 use rc2k_core::physics::sound_bands::sound_band;
 
@@ -14,21 +15,21 @@ const CRASH_BAND_SCALE: f32 = 50.0;
 
 /// What a band is made of.
 pub struct Band {
-    pub value: fn(&SoundInputs<'_>) -> f32,
+    pub value: fn(&SoundInputs<'_>, &Car) -> f32,
     pub factor: fn(&SoundInputs<'_>) -> f32,
     pub step: u32,
 }
 
 /// The wall and ground contacts' band: the contact's speed.
 pub const CONTACT_BAND: Band = Band {
-    value: |c| f32::from_bits(c.contact.borrow().contact_speed_length),
+    value: |c, _| f32::from_bits(c.contact.borrow().contact_speed_length),
     factor: |_| CONTACT_BAND_SCALE,
     step: 1,
 };
 
 /// A hit object's band: the car's speed.
 pub const OBJECT_BAND: Band = Band {
-    value: |c| c.car.speed.get(),
+    value: |_, car| car.speed,
     factor: |_| CONTACT_BAND_SCALE,
     step: 10,
 };
@@ -38,7 +39,7 @@ const BUMP_BAND_STEP: u32 = 10;
 
 /// A crash: the car's speed.
 pub const CRASH_BAND: Band = Band {
-    value: |c| c.car.speed.get(),
+    value: |_, car| car.speed,
     factor: |_| CRASH_BAND_SCALE,
     step: 1,
 };
@@ -57,8 +58,8 @@ fn band_at(value: f32, factor: f32, step: u32) -> u32 {
 }
 
 /// The band on the game's variables (the exact x87 version).
-pub(super) fn band_value(c: &SoundInputs<'_>, band: &Band) -> u32 {
-    band_at((band.value)(c), (band.factor)(c), band.step)
+pub(super) fn band_value(c: &SoundInputs<'_>, band: &Band, car: &Car) -> u32 {
+    band_at((band.value)(c, car), (band.factor)(c), band.step)
 }
 
 /// The converted version (`rc2k_core::physics::sound_bands`, plain floats).
@@ -68,8 +69,8 @@ fn band_at_plain(value: f32, factor: f32, step: u32) -> u32 {
 }
 
 /// The converted band on the game's variables.
-pub(super) fn band_value_plain(c: &SoundInputs<'_>, band: &Band) -> u32 {
-    band_at_plain((band.value)(c), (band.factor)(c), band.step)
+pub(super) fn band_value_plain(c: &SoundInputs<'_>, band: &Band, car: &Car) -> u32 {
+    band_at_plain((band.value)(c, car), (band.factor)(c), band.step)
 }
 
 /// The converted band of a bump between cars: the bump's speed.

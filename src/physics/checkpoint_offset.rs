@@ -7,6 +7,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::rotate_point_about_y::rotate_point_about_y;
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::race::owner_course::Course;
 use crate::race::vars_store::RaceVars;
@@ -19,12 +20,12 @@ pub fn checkpoint_offset(
     course: &Course,
     vars: &RaceVars,
     checkpoints: crate::race::checkpoints_store::CheckpointsRef,
-    car: &Car,
+    car: &mut Car,
 ) -> Result<(), Refused> {
-    let c = car.checkpoint.get();
+    let c = car.checkpoint;
     if checkpoint_ahead(c, vars.checkpoint_count.get())?.is_none() {
-        car.checkpoint_offset[0].set(0);
-        car.checkpoint_offset[1].set(0);
+        car.checkpoint_offset[0] = 0;
+        car.checkpoint_offset[1] = 0;
         return Ok(());
     }
     if !crate::race::course_places::held(&course.stage.course)
@@ -60,7 +61,7 @@ pub fn checkpoint_offset(
         z as i32,
         angle.wrapping_neg(),
     );
-    car.checkpoint_offset[0].set(x2);
-    car.checkpoint_offset[1].set(z2);
+    car.checkpoint_offset[0] = x2;
+    car.checkpoint_offset[1] = z2;
     Ok(())
 }

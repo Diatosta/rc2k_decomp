@@ -29,7 +29,7 @@ pub fn queue_pace_note(
     frame_work: &FrameWorkStore,
     work: &RaceWork,
     scene_clock: u32,
-    car: &Car,
+    car: &mut Car,
     checkpoint: u32,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,

@@ -44,13 +44,13 @@ fn blocked(
 
 // Core: `rc2k_core::physics::line_places::reset_offsets`.
 pub fn reset_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    scene.line_and_shake_mut().line_place = c.car.reset_checkpoint.get();
+    scene.line_and_shake_mut().line_place = c.shared.car().reset_checkpoint;
     scene.line_and_shake_mut().line_fraction = 0;
     if c.vars.run_kind.get() == 2 {
         let mut free = false;
         for offset in reset_offsets() {
             c.tables.borrow_mut().reset_offset = offset;
-            if !blocked(c.vars, c.tables, c.car_blocks, scene) {
+            if !blocked(c.vars, c.tables, &c.shared.car_blocks(), scene) {
                 free = true;
                 break;
             }
@@ -59,15 +59,14 @@ pub fn reset_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Res
             c.tables.borrow_mut().reset_offset = RESET_TRIES;
             // The log line, level 1.
             crate::logfile::log_write::log_nul(&NOWHERE_TEXT, true, 1);
-            c.car
-                .stuck_count
-                .set(c.car.stuck_count.get().wrapping_sub(100));
+            let mut car = c.shared.car_mut();
+            car.stuck_count = car.stuck_count.wrapping_sub(100);
             return Ok(());
         }
         scene.line_and_shake_mut().line_place = c.tables.borrow().reset_candidate;
     }
     crate::race::start_place::place_car_on_line(c.shared, c.course, scene)?;
     crate::physics::reset_car_on_line::reset_car_on_line(c, scene)?;
-    c.car.reset_marker.set(10);
+    c.shared.car_mut().reset_marker = 10;
     Ok(())
 }

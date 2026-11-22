@@ -10,7 +10,7 @@ use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::physics::queue_car_event::{load, store};
 
-pub(super) fn expire_car_events(car: &Car, scene_clock: u32) -> Result<(), Refused> {
+pub(super) fn expire_car_events(car: &mut Car, scene_clock: u32) -> Result<(), Refused> {
     let was = load(car);
     let mut q = was;
     q.expire(scene_clock)?;

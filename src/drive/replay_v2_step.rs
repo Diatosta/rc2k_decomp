@@ -25,15 +25,15 @@ pub fn after_step(race: &Race) -> Result<(), BadInput> {
     if v2.state_mask() >> car & 1 == 0 {
         return Ok(());
     }
-    let Some(block) = race.car_blocks().cars.get(car) else {
+    if car >= race.car_blocks().cars.len() {
         return Ok(());
-    };
+    }
     if mode == RECORDING {
         let step = race.replay.replay_frames().tenth as usize;
         if step >= STEPS {
             return Err(BadInput("a replay step past the second's hundred"));
         }
-        let state = CarState::of(&gather_car(block));
+        let state = CarState::of(&gather_car(&race.car_blocks().cars[car]));
         if v2.tail.states.len() <= step {
             v2.tail.states.resize(step + 1, [None; MAX_CARS]);
         }
@@ -41,7 +41,7 @@ pub fn after_step(race: &Race) -> Result<(), BadInput> {
     } else {
         let step = race.replay.replay_frames().step_frame as usize;
         if let Some(state) = v2.tail.states.get(step).and_then(|tick| tick[car]) {
-            scatter_state(&state, block);
+            scatter_state(&state, &mut race.car_blocks_mut().cars[car]);
         }
     }
     Ok(())

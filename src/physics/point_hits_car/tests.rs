@@ -58,7 +58,7 @@ fn blocks() -> Vec<Block> {
                 x87_3(
                     &crate::test_support::own::race().physics.contact().borrow(),
                     &crate::test_support::race_places::numbers(),
-                    crate::test_support::own::race().shared.car(),
+                    &mut crate::test_support::own::race().shared.car_mut(),
                 );
             },
         },

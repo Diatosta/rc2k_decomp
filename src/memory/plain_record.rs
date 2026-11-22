@@ -29,6 +29,11 @@ pub trait PlainRecord: Clone {
     )]
     fn merge_changes(&mut self, now: &Self, start: &Self);
 
+    /// Every field set from `bytes` from `at` on, in the order `visit` reports them (a test's
+    /// way to write a field it found by path), `at` moved past what was taken.
+    #[cfg(test)]
+    fn fill(&mut self, bytes: &[u8], at: &mut usize);
+
     /// Every primitive run of the record handed to `visitor`, with the field names and array
     /// indices on the way, as `Cells::visit` reports a record of cells of the same shape.
     fn visit(&self, visitor: &mut dyn CellVisitor);
@@ -49,6 +54,13 @@ macro_rules! primitive {
                 if !same(now, start) {
                     *self = *now;
                 }
+            }
+
+            #[cfg(test)]
+            fn fill(&mut self, bytes: &[u8], at: &mut usize) {
+                let n = size_of::<$t>();
+                *self = <$t>::from_le_bytes(bytes[*at..*at + n].try_into().expect("a word"));
+                *at += n;
             }
 
             fn visit(&self, visitor: &mut dyn CellVisitor) {
@@ -80,6 +92,13 @@ impl<T: PlainRecord, const N: usize> PlainRecord for [T; N] {
     fn merge_changes(&mut self, now: &Self, start: &Self) {
         for ((to, now), start) in self.iter_mut().zip(now).zip(start) {
             to.merge_changes(now, start);
+        }
+    }
+
+    #[cfg(test)]
+    fn fill(&mut self, bytes: &[u8], at: &mut usize) {
+        for element in self.iter_mut() {
+            element.fill(bytes, at);
         }
     }
 

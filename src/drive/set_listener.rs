@@ -21,7 +21,7 @@ use rc2k_core::net::net_race::NetRace;
 fn figures(race: &Race, net_race: Option<NetRace>, viewed: u32) -> Result<[i32; 6], Refused> {
     let shared = &race.shared;
     listener::check_viewed(viewed, || shared.work().has_car_block(viewed as usize))?;
-    let n = car_file_number(race.kind_tables(), shared.own_car(net_race).car_kind.get());
+    let n = car_file_number(race.kind_tables(), shared.own_car(net_race).car_kind);
     rc2k_core::drive::sharing::check_light_record(n)?;
     let mut out = [0i32; 6];
     for (k, o) in out.iter_mut().enumerate() {
@@ -88,14 +88,15 @@ pub fn set_listener(
     let s = race
         .shared
         .race_car_or(view.drawn_view as usize, "a car's block")?;
-    let place: [u32; 3] = s.position.bits();
+    let place: [u32; 3] = s.position.map(f32::to_bits);
     let strength: u32 = race
         .car_blocks()
         .parts_of(
             crate::memory::drawn_table::DrawnTable::Store(&race.shared.car_parts),
-            s,
+            &s,
         )
         .marks_count;
+    drop(s);
     race.effects_settings().listener_car_place[2].set(x87::from_int(place[2] as i32));
     race.effects_settings().listener_car_place[1].set(x87::from_int(place[1] as i32));
     race.effects_settings().listener_car_place[0].set(x87::from_int(place[0] as i32));
@@ -128,7 +129,7 @@ pub fn set_listener(
     let (turned, place_matrix) = {
         let own_parts = race.car_blocks().parts_of(
             crate::memory::drawn_table::DrawnTable::Store(&race.shared.car_parts),
-            car,
+            &car,
         );
         (own_parts.body_matrix, own_parts.place_matrix)
     };
@@ -159,8 +160,8 @@ pub fn set_listener(
     }
     let switches = listener::switches(
         race.frame.frame_work.borrow().mirror_wanted,
-        car.surface_noise_a.get(),
-        car.surface_noise_b.get(),
+        car.surface_noise_a,
+        car.surface_noise_b,
     );
     for (cell, v) in [
         &race.effects_settings().windscreen_drops_rate_factor,
@@ -177,24 +178,31 @@ pub fn set_listener(
     {
         cell.set(v);
     }
-    let old = car.gear_change_pending.get();
+    let (old, handbrake, steer_angle_visual, engine_speed, engine_speed_scaled) = (
+        car.gear_change_pending,
+        car.handbrake,
+        car.steer_angle_visual,
+        car.engine_speed,
+        car.engine_speed_scaled,
+    );
+    drop(car);
     if old != 0 {
         race.effects_settings().spline_gear_changed.set(old);
     }
-    car.gear_change_pending.set(0);
+    race.shared.own_car_mut(net_race).gear_change_pending = 0;
     race.effects_settings()
         .spline_handbrake
-        .set(u32::from(car.handbrake.get() != 0));
+        .set(u32::from(handbrake != 0));
     race.effects_settings().listener_scale.set(bh::stf(
-        bh::int(car.steer_angle_visual.get() as i32) / bh::int(0x2000_0000)
+        bh::int(steer_angle_visual as i32) / bh::int(0x2000_0000)
             + bh::ld(scene.line_and_shake().camera_shake_listener),
     ));
     race.effects_settings()
         .engine_speed_copy
-        .set(x87::loaded(&car.engine_speed));
+        .set(x87::loaded(engine_speed));
     race.effects_settings()
         .engine_speed_scaled_copy
-        .set(x87::loaded(&car.engine_speed_scaled));
+        .set(x87::loaded(engine_speed_scaled));
     if physics.split_tables().still != 0 {
         race.effects_settings().spline_handbrake.set(0);
         race.effects_settings().spline_gear_changed.set(0);

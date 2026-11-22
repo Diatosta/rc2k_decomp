@@ -82,7 +82,7 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
         // The door number is the low byte of the first dword of `after_header`.
         let door = race.replay_work().after_header[0] & 0xFF;
         shared.state.settings.cars[0].race_number.set(door);
-        race.car_blocks().cars[0].start_slot_value.set(door);
+        race.car_blocks_mut().cars[0].start_slot_value = door;
         crate::logfile::log_write::log_nul(&DOOR_TEXT, false, 1);
         crate::logfile::log_int::log_int(door as i32, true, 1);
 

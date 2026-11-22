@@ -8,6 +8,7 @@
 //! is put back first).
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::plain_floats::FloatRow;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
@@ -178,7 +179,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         let mut search = race.physics.ground_search().borrow_mut();
                         search.x = ground_x;
                         search.z = ground_z;
-                        search.last = race.car_blocks().cars[0].probe_point_face[4].get();
+                        search.last = race.car_blocks().cars[0].probe_point_face[4];
                     }
                     crate::physics::find_ground::find_ground(
                         race.physics.ground_probe(),

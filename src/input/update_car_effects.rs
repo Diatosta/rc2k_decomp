@@ -11,6 +11,7 @@ use crate::input::store::ForceFeedback;
 use crate::input::types::InputDevice;
 use crate::math::x87::mul_to_int;
 use crate::math::x87_float::{Loadable, ld, st, to_int};
+use crate::memory::plain_floats::FloatRow;
 use crate::system::owner::System;
 use rc2k_core::input::feedback::surface_effect;
 
@@ -81,11 +82,11 @@ fn update_car_effects_with(
         device,
         last_strength: 0,
     };
-    o.borrow_mut().flag_ac = view.front_wheels_off.get();
+    o.borrow_mut().flag_ac = view.front_wheels_off;
     let ten = effects.effect_ten.get();
     o.borrow_mut().effect_in[0] = mul_to_int(view.local_velocity.bits_at(0), ten) as u32;
     o.borrow_mut().effect_in[1] =
-        sub_mul_to_int(view.drive_speed_a.get(), view.local_velocity.at(2), ten) as u32;
+        sub_mul_to_int(view.drive_speed_a, view.local_velocity.at(2), ten) as u32;
     o.borrow_mut().effect_in[2] = mul_to_int(view.local_velocity.bits_at(0), ten) as u32;
     o.borrow_mut().effect_in[3] = mul_to_int(view.local_velocity.bits_at(2), ten) as u32;
     // The knock's force from its inputs (angle from y = `knock_in[2]`, x = `knock_in[0]`).

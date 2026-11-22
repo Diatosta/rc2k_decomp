@@ -5,6 +5,7 @@
 //! `course_face_count`, and what `face_contact` refuses (what was written is put back).
 
 use crate::errors::Refused;
+use crate::physics::car_store::Car;
 use crate::physics::face_contact;
 use crate::physics::step_families::ContactInputs;
 use crate::race::owner_course::Course;
@@ -22,13 +23,14 @@ pub fn steps(
     c: &ContactInputs<'_>,
     record: u32,
     scene: &crate::scene::owner::Scene,
+    car: &mut Car,
 ) -> Result<(), Refused> {
     let (first, last) = record_faces(c.course, record)?;
     ground_search::each_face(
         first,
         last,
         c.course.course.borrow().course_face_count,
-        |number| face_contact::steps(c, number, scene),
+        |number| face_contact::steps(c, number, scene, car),
     )?;
     Ok(())
 }

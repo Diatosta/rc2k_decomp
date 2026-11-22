@@ -48,21 +48,12 @@ mod tests {
     fn a_second_race_holds_its_own_car_blocks() {
         // The value is large: it is built and kept on the heap by a thread with room for it.
         let first = crate::test_support::own::race();
-        let first_car = core::ptr::from_ref(&first.shared.car_blocks().cars[0]).addr();
         let second =
             crate::owners::on_big_stack(3 * size_of::<Race>() + (1 << 20), || -> &'static Race {
                 Box::leak(Box::new(Race::new()))
             });
-        let second_car = &second.shared.car_blocks().cars[0];
-        assert_ne!(core::ptr::from_ref(second_car).addr(), first_car);
-        second_car.step_clock.set(0x5EC0_4D01);
-        assert_ne!(
-            first.shared.car_blocks().cars[0].step_clock.get(),
-            0x5EC0_4D01
-        );
-        assert!(std::ptr::eq(
-            second.car_blocks(),
-            second.shared.car_blocks()
-        ));
+        second.shared.car_blocks_mut().cars[0].step_clock = 0x5EC0_4D01;
+        assert_ne!(first.shared.car_blocks().cars[0].step_clock, 0x5EC0_4D01);
+        assert_eq!(second.car_blocks().cars[0].step_clock, 0x5EC0_4D01);
     }
 }

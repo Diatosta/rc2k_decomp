@@ -31,12 +31,12 @@ pub fn step_replay_cars(o: crate::owners::Owners<'static>, race: &Race) -> Resul
             .car_block(car_block(shared.work().current_car) as usize);
         shared.work_mut().work_block = block;
         load_car::load_car(shared)?;
-        if car_runs(shared.car().driver_kind.get()) {
+        if car_runs(shared.car().driver_kind) {
             for step in RUN_STEPS {
                 match step {
                     RunStep::Controls => read_car_controls::read_car_controls(race, scene, o.net)?,
                     RunStep::GearRules => crate::physics::gear_input_rules::gear_input_rules(
-                        race.shared.car(),
+                        &mut race.shared.car_mut(),
                         &mut race.shared.run_mut().gear_inputs,
                         race.shared.vars.get(),
                     ),
@@ -50,9 +50,9 @@ pub fn step_replay_cars(o: crate::owners::Owners<'static>, race: &Race) -> Resul
                     }
                 }
             }
-            for clock in [&shared.car().step_clock, &shared.car().run_ticks] {
-                clock.set(clock.get().wrapping_add(1));
-            }
+            let mut car = shared.car_mut();
+            car.step_clock = car.step_clock.wrapping_add(1);
+            car.run_ticks = car.run_ticks.wrapping_add(1);
         }
         store_car::store_car(shared)?;
         replay_v2_step::after_step(race)?;

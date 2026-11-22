@@ -25,19 +25,19 @@ pub(super) fn gearbox_step(
 ) -> Result<(), Refused> {
     use rc2k_core::physics::gearbox::{GearboxTurn, gearbox_turn};
     let turn = gearbox_turn(
-        shared.car().finish_flag.get(),
+        shared.car().finish_flag,
         || shared.vars.get().run_kind.get(),
-        || shared.car().run_ticks.get(),
-        || shared.car().driver_kind.get(),
-        || shared.car().input_keys.get(),
-        || shared.car().gearbox_kind.get(),
+        || shared.car().run_ticks,
+        || shared.car().driver_kind,
+        || shared.car().input_keys,
+        || shared.car().gearbox_kind,
     );
     // Nothing in the step writes the inputs (the rules run before it).
     let inputs = shared.run().gear_inputs;
     match turn {
         GearboxTurn::Idle => {}
         GearboxTurn::Manual => manual_gearbox(
-            shared.car(),
+            &mut shared.car_mut(),
             &mut shared.physics_tables_mut(),
             &inputs,
             numbers,
@@ -48,18 +48,16 @@ pub(super) fn gearbox_step(
             return Ok(());
         }
         GearboxTurn::Auto => auto_gearbox(
-            shared.car(),
+            &mut shared.car_mut(),
             &mut shared.physics_tables_mut(),
             &inputs,
             numbers,
             gear_figures,
         )?,
     }
-    if shared.car().gear_changed.get() == 1 {
-        shared
-            .car()
-            .engine_speed
-            .set(x87::mul(&shared.car().engine_speed, ENGINE_EASE));
+    if shared.car().gear_changed == 1 {
+        let value = x87::mul(shared.car().engine_speed, ENGINE_EASE);
+        shared.car_mut().engine_speed = value;
     }
-    wheels(shared.car(), &shared.physics_tables())
+    wheels(&mut shared.car_mut(), &shared.physics_tables())
 }

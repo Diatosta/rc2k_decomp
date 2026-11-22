@@ -6,7 +6,9 @@
 
 use crate::errors::Refused;
 use crate::math::rotate_point_about_y::rotate_point_about_y;
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::camera_ground::probe_at;
+use crate::physics::car_store::Car;
 use crate::physics::step_families::CameraGroundInputs;
 use rc2k_core::physics::camera_ground::SIDES;
 
@@ -15,24 +17,25 @@ use rc2k_core::physics::camera_ground::SIDES;
 pub(super) fn camera_over_ground(
     engine_tables: crate::math::engine_tables::EngineTablesRef,
     c: &CameraGroundInputs<'_>,
+    car: &mut Car,
 ) -> Result<bool, Refused> {
     if !probe_at(
         c,
-        c.car.camera_position.bits_at(0),
-        c.car.camera_position.bits_at(2),
-        &c.car.camera_ground_faces[0],
+        car.camera_position.bits_at(0),
+        car.camera_position.bits_at(2),
+        &mut car.camera_ground_faces[0],
     )? {
         return Ok(false);
     }
-    for (side, slot) in SIDES.into_iter().zip(&c.car.camera_ground_faces[1..]) {
-        c.search.borrow_mut().last = slot.get();
+    for (side, slot) in SIDES.into_iter().zip(&mut car.camera_ground_faces[1..]) {
+        c.search.borrow_mut().last = *slot;
         // The y only goes through the scratch point, which nothing reads after: 0 here.
         let [x, _, z, _] =
-            rotate_point_about_y(engine_tables, side as i32, 0, 0, c.car.camera_heading.get());
+            rotate_point_about_y(engine_tables, side as i32, 0, 0, car.camera_heading);
         if !probe_at(
             c,
-            x.wrapping_add(c.car.camera_position.bits_at(0)),
-            z.wrapping_add(c.car.camera_position.bits_at(2)),
+            x.wrapping_add(car.camera_position.bits_at(0)),
+            z.wrapping_add(car.camera_position.bits_at(2)),
             slot,
         )? {
             return Ok(false);

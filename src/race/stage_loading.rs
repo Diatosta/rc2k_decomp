@@ -108,11 +108,11 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     race.shared.run_mut().race_clock_base = clock;
     race.frame.panel.borrow_mut().lights[0].lit = u32::MAX;
     race.frame.panel.borrow_mut().lights[1].lit = u32::MAX;
-    for car in &race.car_blocks().cars[..8] {
-        car.light_hold_steps.set(3);
+    for car in &mut race.car_blocks_mut().cars[..8] {
+        car.light_hold_steps = 3;
     }
-    for car in &race.car_blocks().cars[..8] {
-        car.value_jump_steps.set(8);
+    for car in &mut race.car_blocks_mut().cars[..8] {
+        car.value_jump_steps = 8;
     }
     race.shared.switches.borrow_mut().scene_set_up = 1;
     race.shared.switches.borrow_mut().view_marks_on = 1;

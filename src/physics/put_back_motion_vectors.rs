@@ -8,10 +8,14 @@ use crate::physics::tables_store::PhysicsTables;
 
 /// The kept motion (`kept_vectors` 0 .. 2) and spin (4 .. 6) back, the motion turned into the car's
 /// frame.
-pub(super) fn put_back_motion_vectors(car: &Car, tables: &PhysicsTables) {
+pub(super) fn put_back_motion_vectors(car: &mut Car, tables: &PhysicsTables) {
     for k in 0..3 {
-        car.velocity.set_at(k, tables.kept_vectors[k]);
-        car.spin.set_at(k, tables.kept_vectors[4 + k]);
+        car.velocity[k] = tables.kept_vectors[k];
+        car.spin[k] = tables.kept_vectors[4 + k];
     }
-    car_frame_motion(&car.velocity, &car.car_inverse_matrix, &car.local_velocity);
+    car_frame_motion(
+        &car.velocity,
+        &car.car_inverse_matrix,
+        &mut car.local_velocity,
+    );
 }

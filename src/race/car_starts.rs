@@ -6,8 +6,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::session::DrawPlain;
-use crate::memory::session::DwordLike;
-use crate::memory::session::PlainDword;
+use crate::physics::car_store::Car;
 use crate::physics::contact_store::ProbeLists;
 use crate::physics::step_families::{GroundInputs, ResetInputs};
 use crate::race::best_line::MOST_CHECKS;
@@ -18,16 +17,6 @@ use crate::race::owner_shared::RaceShared;
 
 /// The most cars `car_blocks` has.
 pub const MOST_CARS: u32 = 8;
-
-fn add(cell: &impl DwordLike, by: u32) {
-    cell.set(cell.get().wrapping_add(by));
-}
-
-fn zero(cells: &[&PlainDword]) {
-    for cell in cells {
-        cell.set(0);
-    }
-}
 
 fn wheels(probes: &ProbeLists) -> [u32; 4] {
     [
@@ -40,12 +29,12 @@ fn wheels(probes: &ProbeLists) -> [u32; 4] {
 
 /// One bisection step of `settle_car`: `angle` moved by `step` towards the higher pair (down when
 /// `low` - `high` is negative), the step halved.
-fn settle_step(low: u32, high: u32, angle: &impl DwordLike, step: &mut u32) {
+fn settle_step(low: u32, high: u32, angle: &mut u32, step: &mut u32) {
     let s = *step;
     if (low.wrapping_sub(high) as i32) < 0 {
-        angle.set(angle.get().wrapping_sub(s));
+        *angle = angle.wrapping_sub(s);
     } else {
-        add(angle, s);
+        *angle = angle.wrapping_add(s);
     }
     *step = s >> 1;
 }
@@ -56,9 +45,10 @@ fn matrix_and_wheels(
     ground: &GroundInputs<'_>,
     matrices: &DrawPlain<SceneMatrices>,
     scene: &crate::scene::owner::Scene,
+    car: &mut Car,
 ) -> Result<[u32; 4], Refused> {
-    crate::race::stage_prefs::get_mat_crash(engine_tables, matrices, ground.car, scene);
-    crate::physics::probe_ground::probe_ground(ground, ground.car)?;
+    crate::race::stage_prefs::get_mat_crash(engine_tables, matrices, car, scene);
+    crate::physics::probe_ground::probe_ground(ground, car)?;
     Ok(wheels(&ground.probes.borrow()))
 }
 
@@ -72,37 +62,49 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     let physics = c.physics;
     let shared = c.shared;
     crate::physics::set_handling::set_handling(&mut c.physics.damage_mut(), c.numbers, c.shared)?;
-    shared.car().car_pitch.set(0);
-    shared.car().car_roll.set(0);
+    shared.car_mut().car_pitch = 0;
+    shared.car_mut().car_roll = 0;
     shared.physics_tables_mut().settle_steps[0] = 0x2000_0000u32;
     shared.physics_tables_mut().settle_steps[1] = 0x2000_0000u32;
     physics.ground_probe().borrow_mut().settle_mark = 0x80;
     for _ in 0..8 {
-        let w = matrix_and_wheels(shared.buffers.engine_tables(), &c.ground, c.matrices, scene)?;
+        let w = matrix_and_wheels(
+            shared.buffers.engine_tables(),
+            &c.ground,
+            c.matrices,
+            scene,
+            &mut shared.car_mut(),
+        )?;
         settle_step(
             w[0].wrapping_add(w[2]),
             w[1].wrapping_add(w[3]),
-            &shared.car().car_roll,
+            &mut shared.car_mut().car_roll,
             &mut shared.physics_tables_mut().settle_steps[1],
         );
         settle_step(
             w[0].wrapping_add(w[1]),
             w[2].wrapping_add(w[3]),
-            &shared.car().car_pitch,
+            &mut shared.car_mut().car_pitch,
             &mut shared.physics_tables_mut().settle_steps[0],
         );
     }
-    let w = matrix_and_wheels(shared.buffers.engine_tables(), &c.ground, c.matrices, scene)?;
+    let w = matrix_and_wheels(
+        shared.buffers.engine_tables(),
+        &c.ground,
+        c.matrices,
+        scene,
+        &mut shared.car_mut(),
+    )?;
     let mut lowest = 0x64_0000u32;
     for &h in &w {
         if (h.wrapping_sub(lowest) as i32) < 0 {
             lowest = h;
         }
     }
-    shared
-        .car()
-        .position
-        .set_bits_at(1, shared.car().position.bits_at(1).wrapping_sub(lowest));
+    {
+        let mut car = shared.car_mut();
+        car.position[1] = f32::from_bits(car.position[1].to_bits().wrapping_sub(lowest));
+    }
     // `probe_height` .. 20: the four wheels' heights (made by `physics::probe_ground`).
     let mut probes = physics.probes().borrow_mut();
     for (k, h) in w.iter().enumerate() {
@@ -128,34 +130,33 @@ pub fn reset_car_motion(
     let shared = c.shared;
     let physics = c.physics;
     settle_car(c, scene)?;
-    crate::race::start_place::invert_car_matrix(c.course, c.car, scene);
-    shared.car().velocity.set([0.0; 3]);
-    shared.car().local_velocity.set_at(0, 1.0);
-    shared.car().local_velocity.set_at(1, 0.0);
-    shared.car().local_velocity.set_at(2, 0.0);
-    shared.car().spin.set([0.0; 3]);
-    let heading = shared.car().car_heading.get();
+    crate::race::start_place::invert_car_matrix(c.course, &mut shared.car_mut(), scene);
+    let mut car = shared.car_mut();
+    car.velocity = [0.0; 3];
+    car.local_velocity = [1.0, 0.0, 0.0];
+    car.spin = [0.0; 3];
+    let heading = car.car_heading;
     physics.camera_mut().start_heading = heading;
-    shared.car().camera_heading.set(heading);
-    let pitch = shared.car().car_pitch.get();
+    car.camera_heading = heading;
+    let pitch = car.car_pitch;
     physics.camera_mut().start_pitch = pitch;
-    shared.car().camera_pitch.set(pitch);
-    let roll = shared.car().car_roll.get();
+    car.camera_pitch = pitch;
+    let roll = car.car_roll;
     physics.camera_mut().start_roll = roll;
-    shared.car().camera_roll_turn.set(roll);
-    shared.car().stuck_count.set(0);
-    shared.car().drive_speed_a.set(0.0);
-    shared.car().drive_speed_b.set(0.0);
-    shared.car().gear.set(0);
-    shared.car().eased_yaw_spin.set(0.0);
-    shared.car().grip_force_sum.set(0.0);
-    shared.car().speed.set(0.0);
-    shared.car().wall_hit_timer.set(0);
-    let pending = shared.car().camera_view_return.get();
+    car.camera_roll_turn = roll;
+    car.stuck_count = 0;
+    car.drive_speed_a = 0.0;
+    car.drive_speed_b = 0.0;
+    car.gear = 0;
+    car.eased_yaw_spin = 0.0;
+    car.grip_force_sum = 0.0;
+    car.speed = 0.0;
+    car.wall_hit_timer = 0;
+    let pending = car.camera_view_return;
     if pending != 0 {
-        shared.car().camera_blend_view.set(pending - 1);
-        shared.car().camera_view.set(pending - 1);
-        shared.car().camera_view_return.set(0);
+        car.camera_blend_view = pending - 1;
+        car.camera_view = pending - 1;
+        car.camera_view_return = 0;
     }
     Ok(())
 }
@@ -171,9 +172,9 @@ fn move_turned(course: &Course, shared: &RaceShared, x: u32, z: u32) {
         z as i32,
         course.course.borrow().place_heading,
     );
-    let position = &shared.car().position;
-    position.set_bits_at(0, position.bits_at(0).wrapping_add(x));
-    position.set_bits_at(2, position.bits_at(2).wrapping_add(z));
+    let position = &mut shared.car_mut().position;
+    position[0] = f32::from_bits(position[0].to_bits().wrapping_add(x));
+    position[2] = f32::from_bits(position[2].to_bits().wrapping_add(z));
 }
 
 /// Sets the work car's start: `notice_count`, `camera_switch_active` 0, `map_corner` 0x80000000,
@@ -192,20 +193,22 @@ pub fn start_car(
     net_race: &rc2k_core::net::net_race::NetRaceSlot,
 ) -> Result<(), Refused> {
     let course = &c.course;
-    c.car.notice_count.set(0);
-    c.car.camera_switch_active.set(0);
-    c.car.map_corner[0].set(0x8000_0000);
-    c.car.map_corner[1].set(0x8000_0000);
-    c.car.engine_sound_revs.set(0);
-    c.car.engine_speed.set(0.0);
-    c.car.gear.set(0);
-    zero(&[
-        &c.car.steering,
-        &c.car.steering_raw,
-        &c.car.steer_angle,
-        &c.car.steer_angle_visual,
-    ]);
-    zero(&[&c.car.throttle, &c.car.brake, &c.car.handbrake]);
+    {
+        let mut car = c.shared.car_mut();
+        car.notice_count = 0;
+        car.camera_switch_active = 0;
+        car.map_corner = [0x8000_0000; 2];
+        car.engine_sound_revs = 0;
+        car.engine_speed = 0.0;
+        car.gear = 0;
+        car.steering = 0;
+        car.steering_raw = 0;
+        car.steer_angle = 0;
+        car.steer_angle_visual = 0;
+        car.throttle = 0;
+        car.brake = 0;
+        car.handbrake = 0;
+    }
     if c.vars.run_kind.get() != 4 || crate::debug::screens::free_play_placed() {
         // The start's pure parts are in `rc2k_core::race::start`.
         use rc2k_core::race::start::{side_offset, start_checkpoint, starts_aside};
@@ -238,9 +241,12 @@ pub fn start_car(
     }
     let nearest =
         crate::race::start_place::nearest_checkpoint(c.physics, c.course, c.shared, scene)?;
-    c.car.checkpoint.set(nearest);
-    c.car.reset_checkpoint.set(nearest);
-    c.car.last_pace_call.set(nearest);
+    {
+        let mut car = c.shared.car_mut();
+        car.checkpoint = nearest;
+        car.reset_checkpoint = nearest;
+        car.last_pace_call = nearest;
+    }
     if nearest >= MOST_CHECKS {
         return Err(BadInput("a nearest checkpoint past the lists").into());
     }
@@ -248,14 +254,16 @@ pub fn start_car(
         c.shared.checkpoints(),
         nearest as usize,
     ));
-    c.car.splits_passed.set(checks);
-    c.car.splits_recorded.set(checks);
+    {
+        let mut car = c.shared.car_mut();
+        car.splits_passed = checks;
+        car.splits_recorded = checks;
+    }
     reset_car_motion(c, scene)?;
-    zero(&[
-        &c.car.reset_key_count,
-        &c.car.stopped_steps,
-        &c.car.tyre_change_state,
-    ]);
+    let mut car = c.shared.car_mut();
+    car.reset_key_count = 0;
+    car.stopped_steps = 0;
+    car.tyre_change_state = 0;
     Ok(())
 }
 
@@ -281,13 +289,10 @@ pub fn start_cars(
             net_race,
         )?;
         // Clears the damage limits and the first 18 saved point figures.
-        for cell in shared
-            .car()
-            .part_damage_limits
-            .iter()
-            .chain(&shared.car().saved_point_figures[..18])
         {
-            cell.set(0);
+            let mut car = shared.car_mut();
+            car.part_damage_limits = [0; 7];
+            car.saved_point_figures[..18].fill(0);
         }
         crate::drive::store_car::store_car(shared)?;
     }

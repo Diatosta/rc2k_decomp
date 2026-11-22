@@ -89,7 +89,7 @@ fn load_car(
 ) -> Result<(), Refused> {
     crate::race::frame::load_view_car(
         &race.shared.work(),
-        race.shared.car_blocks(),
+        crate::memory::drawn_table::DrawnTable::Store(&race.shared.car_blocks),
         race.shared.view.get().into(),
         car,
         scratch.main_view(car),

@@ -36,8 +36,8 @@ pub(super) fn make_gear_ratios(
     let figures = &gear_figures.figures;
     let (k, d) = (&numbers.quarter, &numbers.two_and_a_quarter);
     let one = numbers.one.get();
-    let i = car.gear_ratio_setting.get() as i32;
-    let limit = car.engine_speed_limit.get();
+    let i = car.gear_ratio_setting as i32;
+    let limit = car.engine_speed_limit;
     let top = n as i32;
     ratios[at(top)] = lerp_int_over2(figures[3].get(), figures[1].get(), k, i, d, limit);
     ratios[at(1)] = lerp_int_over2(figures[2].get(), figures[0].get(), k, i, d, limit);

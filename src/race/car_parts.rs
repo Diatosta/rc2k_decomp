@@ -42,7 +42,7 @@ fn car_part_matrices(
     use rc2k_core::race::car_parts::{PartState, mark_switches, marks_bytes, steering};
     // `c` is the block (the shown steering, the marks on), `part` the car's drawing state (the shown
     // speed, the switches, the marks), `p` the car as the drawing sees it (`frame_view`).
-    let c = race.shared.race_car(car)?;
+    let mut c = race.shared.race_car_mut(car)?;
     let block_number = race.shared.work().block_number(car)?;
     let p = race.frame.cars.car(block_number)?;
     let Some(ax) = axles(race, p.car_kind.get())? else {
@@ -63,7 +63,7 @@ fn car_part_matrices(
         broken: std::array::from_fn(|k| p.electrical_failures[1 + k].get()),
         flags: p.parts_present.get(),
     });
-    c.marks_on.set(s.marks_on);
+    c.marks_on = s.marks_on;
     let slow = below_or_unordered(p.electrics_damage.get(), race.course.numbers.hundred.get());
     {
         let mut parts = race.car_parts_mut();
@@ -73,7 +73,7 @@ fn car_part_matrices(
         part.part_switches[..s.bytes.len()].copy_from_slice(&s.bytes);
         part.marks_count = marks_bytes(s.count, slow, on);
     }
-    c.shown_steering.set(steering(p.steer_angle_visual.get()));
+    c.shown_steering = steering(p.steer_angle_visual.get());
     let [front, rear_lift, height, front_z, _] = ax;
     {
         let mut camera = race.physics.camera_mut();
@@ -83,7 +83,7 @@ fn car_part_matrices(
         camera.axle_height = height;
         camera.axle_front_z = front_z;
     }
-    scene.object_work_mut().part_values[2] = c.shown_steering.get();
+    scene.object_work_mut().part_values[2] = c.shown_steering;
     scene.object_work_mut().part_values[0] = p.driven_wheel_turns[0].get();
     scene.object_work_mut().part_values[1] = p.driven_wheel_turns[1].get();
     race.frame.matrices.borrow_mut().body_turn_matrix = matrix_of(&p.crash_matrix);

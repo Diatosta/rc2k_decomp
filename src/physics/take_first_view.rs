@@ -30,9 +30,9 @@ pub fn take_first_view(
         ],
         [&mut camera.view_a_aux, &mut camera.view_a_aux_2],
     );
-    camera.view_a_heading = car.car_heading.get();
+    camera.view_a_heading = car.car_heading;
     let [pitch, roll] = rc2k_core::physics::camera_view::view_turns(
-        [car.car_pitch.get(), car.car_roll.get()],
+        [car.car_pitch, car.car_roll],
         record(view_records, car)?.halve_tilt != 0,
     );
     camera.view_a_pitch = pitch as i32;

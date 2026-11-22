@@ -8,6 +8,7 @@
 use crate::errors::Refused;
 use crate::math::matrix3::rounded_value;
 use crate::math::x87::{ext_times, ints_diff_80};
+use crate::memory::plain_floats::FloatRow;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix::Matrix;
@@ -23,20 +24,12 @@ pub(super) fn place_car_sound(
     let so = crate::sound::store::current_object(sound, &shared.work());
     so.borrow_mut().slot_b.start = 1;
     let d = |a: u32, b: u32| ints_diff_80(a as i32, b as i32);
-    let listener = crate::race::heard_cars::listener(shared, shared.car());
+    let listener = crate::race::heard_cars::listener_place(shared)
+        .unwrap_or_else(|| shared.car().camera_position);
     let p = [
-        d(
-            shared.car().position.bits_at(0),
-            listener.camera_position.bits_at(0),
-        ),
-        d(
-            shared.car().position.bits_at(1),
-            listener.camera_position.bits_at(1),
-        ),
-        d(
-            shared.car().position.bits_at(2),
-            listener.camera_position.bits_at(2),
-        ),
+        d(shared.car().position.bits_at(0), listener.bits_at(0)),
+        d(shared.car().position.bits_at(1), listener.bits_at(1)),
+        d(shared.car().position.bits_at(2), listener.bits_at(2)),
     ];
     let out = rotate_point_by(&shared.heard_turn.get().turn(view_turn), p);
     let k = numbers.one_over_65536.get();

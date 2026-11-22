@@ -5,6 +5,7 @@
 use crate::math::cell_x87::PlainX87;
 use crate::math::x87;
 use crate::math::x87::abs_compare;
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::physics::figures::{LOW_SPEED_ADD, LOW_SPEED_LIMIT, LOW_SPEED_SCALE};
 use crate::physics::tables_store::PhysicsTables;

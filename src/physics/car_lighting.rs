@@ -12,6 +12,8 @@
 //! back.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::plain_floats::FloatRow;
+use crate::physics::car_store::Car;
 use crate::physics::ground_query::GroundSearch;
 use crate::physics::step_families::LightingInputs;
 use rc2k_core::physics::lighting;
@@ -26,14 +28,15 @@ fn corners(ground: &GroundSearch, corner_lights: [u32; 4]) -> u32 {
 pub fn car_lighting(
     c: &LightingInputs<'_>,
     scene: &crate::scene::owner::Scene,
+    car: &mut Car,
 ) -> Result<(), Refused> {
     {
         let mut search = c.search.borrow_mut();
-        search.x = c.car.position.bits_at(0);
-        search.z = c.car.position.bits_at(2);
-        search.last = c.car.probe_point_face[4].get();
+        search.x = car.position.bits_at(0);
+        search.z = car.position.bits_at(2);
+        search.last = car.probe_point_face[4];
     }
-    let light_kept = c.car.light_level.get();
+    let light_kept = car.light_level;
     { crate::physics::find_ground::find_ground(c.probe, c.search, c.course) }?;
     let face = c.search.borrow().slot;
     if face == u32::MAX {
@@ -66,17 +69,17 @@ pub fn car_lighting(
         }
     }
     let light = corners(&c.search.borrow(), corner_lights);
-    c.car.light_level.set(light);
-    if c.car.light_hold_steps.get() != 0 {
+    car.light_level = light;
+    if car.light_hold_steps != 0 {
         let held = lighting::hold_change(light, light_kept, c.vars.scene_switch.get() != 0);
-        c.car.light_level.set(held.light);
+        car.light_level = held.light;
     }
-    let light = c.car.light_level.get();
+    let light = car.light_level;
     if light >= lighting::TABLE {
         return Err(BadInput("a light index past 0xFF").into());
     }
     let colour = scene.light_tables.borrow().light_table[light as usize];
-    c.car.light_colour.set(colour);
+    car.light_colour = colour;
     if face_byte(2)? & 4 == 0 {
         return Ok(());
     }
@@ -94,9 +97,7 @@ pub fn car_lighting(
             return Err(BadInput("a colour index past 0xFF").into());
         }
         let colour = table[i as usize];
-        c.car
-            .light_colour
-            .set(lighting::add_colour(colour, c.car.light_colour.get()));
+        car.light_colour = lighting::add_colour(colour, car.light_colour);
     }
     Ok(())
 }

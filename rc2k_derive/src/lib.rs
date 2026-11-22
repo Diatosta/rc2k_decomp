@@ -457,10 +457,32 @@ fn expand_plain_record(input: Tokens) -> Tokens {
             }
         })
         .collect();
+    let fills: Vec<_> = names
+        .iter()
+        .zip(&bytes)
+        .map(|(n, is_bytes)| {
+            if *is_bytes {
+                quote! {
+                    {
+                        let len = self.#n.len();
+                        self.#n.copy_from_slice(&bytes[*at..*at + len]);
+                        *at += len;
+                    }
+                }
+            } else {
+                quote! { crate::memory::plain_record::PlainRecord::fill(&mut self.#n, bytes, at); }
+            }
+        })
+        .collect();
     quote! {
         impl #with crate::memory::plain_record::PlainRecord for #name #of #clause {
             fn merge_changes(&mut self, now: &Self, start: &Self) {
                 #( #merges )*
+            }
+
+            #[cfg(test)]
+            fn fill(&mut self, bytes: &[u8], at: &mut usize) {
+                #( #fills )*
             }
 
             fn visit(&self, visitor: &mut dyn crate::memory::cells::CellVisitor) {

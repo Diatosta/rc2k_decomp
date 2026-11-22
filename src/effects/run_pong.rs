@@ -33,11 +33,7 @@ pub(super) fn run_pong(
             return Ok(());
         }
         crate::effects::pong_setup::pong_setup(buffer, pong, fl, scene);
-        let steer = race
-            .shared
-            .race_car_or(0, "player 1's car")?
-            .input_steering
-            .get() as i32;
+        let steer = race.shared.race_car_or(0, "player 1's car")?.input_steering as i32;
         move_pong_bat(pong, effects, steer);
         let steps = pong.state.borrow().steps as i32;
         for _ in 0..steps.max(0) {

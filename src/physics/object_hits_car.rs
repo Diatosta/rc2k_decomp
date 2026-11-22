@@ -9,6 +9,7 @@
 
 use crate::errors::Refused;
 use crate::math::x87::{ext_to_int, int_80};
+use crate::physics::car_store::Car;
 use crate::physics::object_turn_matrix::object_turn_matrix;
 use crate::physics::point_hits_car::point_hits_car;
 use crate::physics::step_families::ContactInputs;
@@ -22,6 +23,7 @@ pub fn object_hits_car(
     point: u32,
     face: u32,
     scene: &crate::scene::owner::Scene,
+    car: &mut Car,
 ) -> Result<bool, Refused> {
     let objects = &scene.objects;
     let number = c.contact.borrow().face_object;
@@ -85,7 +87,7 @@ pub fn object_hits_car(
                     return false;
                 }
             };
-            match point_hits_car(c, place, face) {
+            match point_hits_car(c, place, face, car) {
                 Ok(inside) => inside,
                 Err(e) => {
                     refused.set(Some(e));

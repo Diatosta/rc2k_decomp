@@ -9,6 +9,7 @@
 
 use crate::errors::Refused;
 use crate::physics::car_sounds::{cue_plain, listed, object};
+use crate::physics::car_store::Car;
 use crate::physics::sound_bands::{OBJECT_BAND, band_value_plain};
 use crate::physics::step_families::SoundInputs;
 use rc2k_core::physics::sound_places::{FIRST, object_sound};
@@ -22,6 +23,7 @@ const OBJECT_KIND_SOUNDS: [u32; 16] = [
 pub fn place_sound_object(
     c: &SoundInputs<'_>,
     scene: &crate::scene::owner::Scene,
+    car: &mut Car,
 ) -> Result<(), Refused> {
     if !listed(c.frame_work, c.work.borrow().current_car)? {
         return Ok(());
@@ -42,11 +44,11 @@ pub fn place_sound_object(
         |n| OBJECT_KIND_SOUNDS[n as usize],
     )?;
     trap.finish()?;
-    let b = band_value_plain(c, &OBJECT_BAND);
+    let b = band_value_plain(c, &OBJECT_BAND, car);
     if b == 0 {
         return Ok(());
     }
     let offset = Some(c.contact.borrow().object_point_offset);
-    cue_plain(c, object(c), FIRST, sound, b, offset)?;
+    cue_plain(c, object(c), FIRST, sound, b, offset, car)?;
     Ok(())
 }

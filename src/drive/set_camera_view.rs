@@ -5,20 +5,19 @@
 //! from `read_car_controls`) sets the wanted `camera_blend_view` and calls this, `race::race_keys` too.
 
 use crate::errors::BadInput;
-use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
 use rc2k_core::drive::camera_views::CameraView;
 
-pub(super) fn set_view_at(car: &Car, step: &PlainDword) -> Result<(), BadInput> {
+pub(super) fn set_view_at(car: &mut Car, step: u32) -> Result<(), BadInput> {
     let mut v = CameraView {
-        wanted: car.camera_blend_view.get(),
+        wanted: car.camera_blend_view,
         ..CameraView::default()
     };
-    v.take_wanted(step.get());
-    car.camera_view.set(v.view);
-    car.camera_switch_active.set(v.held);
-    car.camera_switch_share.set(v.switch_share);
-    car.camera_switch_length.set(v.w698);
-    car.camera_switch_clock.set(v.taken_at);
+    v.take_wanted(step);
+    car.camera_view = v.view;
+    car.camera_switch_active = v.held;
+    car.camera_switch_share = v.switch_share;
+    car.camera_switch_length = v.w698;
+    car.camera_switch_clock = v.taken_at;
     Ok(())
 }

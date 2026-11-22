@@ -41,13 +41,14 @@ fn texture_set(
             |object| reads.object_tables.object_kind(object),
             |car| {
                 reads.work.has_car_block(car as usize).then(|| {
-                    crate::race::owner_shared::RaceShared::race_car_or_end_in(
-                        &reads.work.borrow(),
-                        reads.car_blocks,
-                        car as usize,
-                    )
-                    .car_kind
-                    .get()
+                    reads.car_blocks.read(|blocks| {
+                        crate::race::owner_shared::RaceShared::race_car_or_end_in(
+                            &reads.work.borrow(),
+                            blocks,
+                            car as usize,
+                        )
+                        .car_kind
+                    })
                 })
             },
         )

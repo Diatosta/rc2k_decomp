@@ -7,25 +7,28 @@
 //! Refuses what `update_camera` refuses (everything written is put back).
 
 use crate::errors::Refused;
-use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::PlainX87;
 use crate::math::x87_float::{int, ld, st};
 use crate::memory::session::PlainDword;
+use crate::physics::car_store::Car;
 use crate::physics::figures::CAMERA_FRAME_LIMIT;
 use crate::physics::flow::{hold_high_to, hold_low_to, negated};
 use crate::physics::step_families::CameraInputs;
 use crate::race::numbers_store::Numbers;
-use crate::race::owner_shared::RaceShared;
 
 // Core: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
-fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+fn steps(
+    c: &CameraInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+    car: &mut Car,
+) -> Result<(), Refused> {
     {
         let mut shake = scene.line_and_shake_mut();
         shake.camera_shake_listener = 0;
         shake.camera_shake_y = 0;
     }
-    if rc2k_core::physics::camera_view::shakes(c.car.camera_view.get(), c.car.all_wheels_off.get())
-    {
-        x87_1(c.numbers, c.shared, scene);
+    if rc2k_core::physics::camera_view::shakes(car.camera_view, car.all_wheels_off) {
+        x87_1(c.numbers, car, scene);
         // The holds work on a dword the shake's bits are copied into and out of.
         let y = PlainDword::new(scene.line_and_shake().camera_shake_y);
         hold_high_to(&y, CAMERA_FRAME_LIMIT);
@@ -39,14 +42,15 @@ fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(),
             shake.camera_shake_listener = 0;
         }
     }
-    crate::physics::update_camera::steps(c, scene)
+    crate::physics::update_camera::steps(c, scene, car)
 }
 
 pub fn camera_frame(
     c: &CameraInputs<'_>,
     scene: &crate::scene::owner::Scene,
+    car: &mut Car,
 ) -> Result<(), Refused> {
-    steps(c, scene)
+    steps(c, scene, car)
 }
 
 // ---- the x87 arithmetic ----
@@ -54,8 +58,8 @@ pub fn camera_frame(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[camera_shake_y] = [vertical_speed_change] * [camera_frame_scale]`
-fn x87_1(numbers: &Numbers, shared: &RaceShared, scene: &crate::scene::owner::Scene) {
-    let t0 = shared.car().vertical_speed_change.ld();
+fn x87_1(numbers: &Numbers, car: &Car, scene: &crate::scene::owner::Scene) {
+    let t0 = car.vertical_speed_change.ld();
     let t1 = numbers.camera_frame_scale.ld();
     let t2 = t0 * t1;
     scene.line_and_shake_mut().camera_shake_y = st(t2);
@@ -96,7 +100,7 @@ mod reference_vectors {
                 plain: |_| {
                     x87_1(
                         &crate::test_support::race_places::numbers(),
-                        &race().shared,
+                        &race().shared.car(),
                         crate::test_support::own::scene(),
                     );
                 },

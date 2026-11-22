@@ -19,18 +19,16 @@ fn pause_down(
     shared: &RaceShared,
     view: &crate::memory::session::PlainDword,
 ) -> Result<bool, BadInput> {
-    let car = shared
-        .car_blocks()
-        .of(view.get())
-        .ok_or(BadInput("a view's block"))?;
-    Ok(car.input_keys.get() & 0x40 != 0)
+    let blocks = shared.car_blocks();
+    let car = blocks.of(view.get()).ok_or(BadInput("a view's block"))?;
+    Ok(car.input_keys & 0x40 != 0)
 }
 
 /// Whether the third or fourth player's pause binding is down (a split screen of three or four
 /// players: their cars' blocks; the first two are the views').
 fn more_players_pause_down(race: &Race) -> bool {
     let players = race.shared.view.get().players.get().min(4) as usize;
-    (2..players).any(|n| race.car_blocks().cars[n].input_keys.get() & 0x40 != 0)
+    (2..players).any(|n| race.car_blocks().cars[n].input_keys & 0x40 != 0)
 }
 
 /// A view's pause binding going down asks the quit question once: the binding must be let go
@@ -72,28 +70,29 @@ impl PauseBinding {
 pub(crate) fn net_player_car(
     net_race: NetRace,
     shared: &RaceShared,
-) -> Result<&crate::physics::car_store::Car, BadInput> {
+) -> Result<std::cell::RefMut<'_, crate::physics::car_store::Car>, BadInput> {
     let handle = *shared
         .work()
         .car_blocks
         .get(net_race.player as usize)
         .ok_or(BadInput("the network player's car"))?;
-    shared
-        .car_blocks()
-        .of(handle)
-        .ok_or(BadInput("the network player's car"))
+    let index = crate::race::blocks_store::CarBlocks::index_of(handle)
+        .ok_or(BadInput("the network player's car"))?;
+    Ok(std::cell::RefMut::map(shared.car_blocks_mut(), |blocks| {
+        &mut blocks.cars[index]
+    }))
 }
 
 fn put_answer(race: &Race, net: &crate::net::owner::Net, answer: u32) -> Result<(), BadInput> {
     let shared = &race.shared;
     if let Some(net_race) = net.race_slot.get() {
-        net_player_car(net_race, shared)?.stop_state.set(answer);
+        net_player_car(net_race, shared)?.stop_state = answer;
         return Ok(());
     }
     let players = shared.view.get().players.get();
     let seats = crate::race::race_cars::seats(race);
     for car in 0..seats {
-        race.car_blocks().cars[car].stop_state.set(answer);
+        race.car_blocks_mut().cars[car].stop_state = answer;
     }
     // One player's race (and no race of more than four) stays as asked; a car that has
     // finished keeps its finish.
@@ -101,8 +100,8 @@ fn put_answer(race: &Race, net: &crate::net::owner::Net, answer: u32) -> Result<
         return Ok(());
     }
     for car in 0..seats {
-        if race.car_blocks().cars[car].finish_flag.get() != 0 {
-            race.car_blocks().cars[car].stop_state.set(2);
+        if race.car_blocks().cars[car].finish_flag != 0 {
+            race.car_blocks_mut().cars[car].stop_state = 2;
         }
     }
     Ok(())
@@ -125,7 +124,7 @@ pub(crate) fn step_while_paused(
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
     if let Some(net_race) = o.net.race_slot.get() {
-        net_player_car(net_race, &race.shared)?.input_keys.set(0);
+        net_player_car(net_race, &race.shared)?.input_keys = 0;
     }
     let held = &crate::drive::car_input_words::HELD;
     held.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -139,7 +138,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     let (input, system) = (o.input, o.system);
     let devices = &input.devices;
     for c in 0..8 {
-        race.car_blocks().cars[c as usize].reset_marker.set(10);
+        race.car_blocks_mut().cars[c as usize].reset_marker = 10;
     }
     system.window_loop().paused.set(0);
     race.shared.vars.get().scene_switch.set(0);
@@ -237,9 +236,8 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             // quit it (the car did not finish).
             if crate::net::left::session_ended() {
                 race.shared
-                    .race_car(race.shared.view.get().local_car.get() as usize)?
-                    .stop_state
-                    .set(u32::MAX);
+                    .race_car_mut(race.shared.view.get().local_car.get() as usize)?
+                    .stop_state = u32::MAX;
                 return Ok(());
             }
             let begun = crate::debug::timing::start();
@@ -261,7 +259,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             continue;
         }
         if let Some(net_race) = o.net.race_slot.get() {
-            net_player_car(net_race, &race.shared)?.input_keys.set(0);
+            net_player_car(net_race, &race.shared)?.input_keys = 0;
         } else {
             { crate::drive::pause_until_key::pause_until_key(race, o) }?;
         }

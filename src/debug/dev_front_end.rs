@@ -71,11 +71,11 @@ fn set_up_race(race: &Race) -> Result<(), Refused> {
     shared.vars.get().race_car_kinds[1].set((car + 1) % 0x17);
     // The two blocks' start slots. The set-up figures and tyres stay the player's
     // (`copy_settings_in`; the developers' front end set defaults here).
-    for (block, slot) in race.car_blocks().cars[..2].iter().zip([1, 2]) {
-        block.start_slot_value.set(slot);
+    for (block, slot) in race.car_blocks_mut().cars[..2].iter_mut().zip([1, 2]) {
+        block.start_slot_value = slot;
     }
-    for block in &race.car_blocks().cars[..2] {
-        block.camera_view.set(4);
+    for block in &mut race.car_blocks_mut().cars[..2] {
+        block.camera_view = 4;
     }
     shared.vars.get().car_colours[0].set(gears);
     shared.vars.get().car_colours[1].set(gears);
@@ -88,9 +88,9 @@ fn set_up_race(race: &Race) -> Result<(), Refused> {
     shared.vars.get().race_stage.set(s.stage.load(Relaxed));
     // What a race's start had left of the last, in both blocks: the damage and wear gauges
     // (the neutral gear's wear too, which the network race's clearing leaves).
-    for block in &race.car_blocks().cars[..2] {
+    for block in &mut race.car_blocks_mut().cars[..2] {
         crate::net::clear_car_state::clear_car_state(block)?;
-        block.gear_wear.float_at(1).set(0.0);
+        block.gear_wear[1] = 0.0;
     }
     Ok(())
 }

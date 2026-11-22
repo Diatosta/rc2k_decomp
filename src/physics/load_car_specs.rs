@@ -37,7 +37,7 @@ fn below(a: f32, b: f32) -> bool {
 
 /// The record of the work car's kind (`record_of` holds it to the last).
 fn record<'a>(car_specs: &'a CarSpecs, car: &Car) -> &'a CarSpec {
-    &car_specs.cars[record_of(car.car_kind.get()) as usize]
+    &car_specs.cars[record_of(car.car_kind) as usize]
 }
 
 /// The whole-number steps both versions share, after the floats: the torque curve, the
@@ -60,17 +60,16 @@ pub fn load_car_specs(
     car_specs: &CarSpecs,
     course: &Course,
     physics_tables: &mut PhysicsTables,
-    car: &Car,
+    car: &mut Car,
     gear_figures: &GearFigures,
 ) -> Result<(), Refused> {
-    let kind = car.car_kind.get();
+    let kind = car.car_kind;
     let spec = record(car_specs, car);
     let drive = check_drive(spec.drive_kind)?;
-    car.drive_kind.set(drive);
+    car.drive_kind = drive;
     load_figures_and_shift_points(car, physics_tables, &course.numbers, gear_figures, spec);
-    if below(car.engine_speed_limit.get(), course.numbers.thousand.get()) {
-        car.engine_speed_limit
-            .set(x87::loaded(course.numbers.thousand));
+    if below(car.engine_speed_limit, course.numbers.thousand.get()) {
+        car.engine_speed_limit = x87::loaded(course.numbers.thousand);
     }
     for figure in &gear_figures.figures {
         if below(figure.get(), course.numbers.eight.get()) {
@@ -94,7 +93,7 @@ pub fn load_car_specs(
 
 /// One straight x87 run as plain Rust over `X`.
 fn load_figures_and_shift_points(
-    car: &Car,
+    car: &mut Car,
     tables: &mut PhysicsTables,
     numbers: &Numbers,
     gear_figures: &GearFigures,

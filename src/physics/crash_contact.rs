@@ -20,6 +20,8 @@ use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87::neg_rounded;
 use crate::math::x87::{loaded, mul};
 use crate::math::x87_float::st;
+use crate::memory::plain_floats::FloatRow;
+use crate::memory::plain_floats::FloatRowMut;
 use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
 use crate::physics::contact_force::contact_force;
@@ -56,7 +58,7 @@ pub(super) fn take_contact(
     car: &Car,
     n: usize,
 ) -> Result<(), Refused> {
-    let face = car.probe_point_face[n].get();
+    let face = car.probe_point_face[n];
     let parts = contacts::normal_offsets(probes.probe_face_flip[n]);
     let mut normal = [0; 3];
     for (k, &o) in parts.iter().enumerate() {
@@ -84,14 +86,14 @@ pub fn point_number(contact: &RefCell<ContactWork>) -> Result<usize, Refused> {
 
 // Core: `rc2k_core::physics::contacts::{touches, normal_offsets, check_body_point}`
 // (the x87 steps stay).
-fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
-    c.car.contact_found.set(0);
-    { lowest_body_point(c.car, c.numbers, c.contact, &c.ground.probes.borrow()) }?;
+fn steps(c: &ContactInputs<'_>, car: &mut Car) -> Result<(), Refused> {
+    car.contact_found = 0;
+    { lowest_body_point(car, c.numbers, c.contact, &c.ground.probes.borrow()) }?;
     let depth = c.contact.borrow().lowest_depth;
     if !contacts::touches(
         depth,
         crate::physics::figures::CRASH_DEPTH,
-        c.car.all_wheels_off.get() != 0,
+        car.all_wheels_off != 0,
     ) {
         { sound_cue_e5(c.sound.frame_work, &c.work.borrow(), c.sound.owner) }?;
         return Ok(());
@@ -99,17 +101,15 @@ fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     let n = point_number(c.contact)?;
     {
         let probes = c.ground.probes.borrow();
-        c.car.contact_point_x.set(probes.probe_x[n]);
-        c.car
-            .contact_point_ground
-            .set(probes.probe_ground_height[n]);
-        c.car.contact_point_z.set(probes.probe_z[n]);
-        c.car.contact_found.set(1);
-        take_contact(c.contact, &probes, c.course, c.car, n)?;
+        car.contact_point_x = probes.probe_x[n];
+        car.contact_point_ground = probes.probe_ground_height[n];
+        car.contact_point_z = probes.probe_z[n];
+        car.contact_found = 1;
+        take_contact(c.contact, &probes, c.course, car, n)?;
     }
     let up = {
         rotate_point(
-            &c.car.crash_matrix,
+            &car.crash_matrix,
             [extended(0), extended(0x3F80_0000), extended(0)],
         )
     };
@@ -128,23 +128,21 @@ fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
         c.contact,
         c.numbers,
         &mut c.tables.borrow_mut(),
-        c.car,
+        car,
         RecordAt::Force(21),
     );
-    { place_sound_e5(&c.sound) }?;
+    { place_sound_e5(&c.sound, car) }?;
     c.tables.borrow_mut().forces[21].point = [0.0; 3];
-    x87_2(&ground_scale, c.car, c.numbers);
+    x87_2(&ground_scale, car, c.numbers);
     hold_high(&ground_scale, &c.numbers.one);
-    c.car
-        .spin
-        .set_at(1, mul(&ground_scale, c.car.spin.bits_at(1)));
+    car.spin.set_at(1, mul(&ground_scale, car.spin.bits_at(1)));
     let contact_value = c.contact.borrow().contact_value;
-    c.car.contact_value.set_bits(contact_value);
+    car.contact_value = contact_value;
     Ok(())
 }
 
-pub fn crash_contact(c: &ContactInputs<'_>) -> Result<(), Refused> {
-    steps(c)
+pub fn crash_contact(c: &ContactInputs<'_>, car: &mut Car) -> Result<(), Refused> {
+    steps(c, car)
 }
 
 // ---- the x87 arithmetic ----
@@ -241,7 +239,7 @@ mod reference_vectors {
                 plain: |a| {
                     x87_2(
                         crate::math::x87_mem::view::<PlainFloat>(a[1], 0),
-                        crate::test_support::own::race().shared.car(),
+                        &crate::test_support::own::race().shared.car(),
                         &crate::test_support::race_places::numbers(),
                     );
                 },

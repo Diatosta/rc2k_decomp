@@ -50,7 +50,7 @@ fn blocks() -> Vec<Block> {
                 with_object(a[1], |so| {
                     x87_2(
                         &crate::test_support::race_places::numbers(),
-                        race().shared.car(),
+                        &race().shared.car(),
                         so,
                     );
                 });

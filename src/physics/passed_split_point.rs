@@ -16,6 +16,7 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::cell_x87::PlainX87;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::physics::figures::SPLIT_DISTANCE;
 use crate::physics::ground_query::GroundSearch;
@@ -60,7 +61,7 @@ fn point(
     checkpoints: crate::race::checkpoints_store::CheckpointsRef,
     car: &Car,
 ) -> Result<(u32, u32), Refused> {
-    let split = car.splits_passed.get();
+    let split = car.splits_passed;
     let cp = progress::check_split_point(split, || split_tables.checkpoints[1 + split as usize])?;
     let face = crate::race::checkpoints_store::face_run_on(checkpoints, cp as usize);
     if !progress::face_known(face, course.course.borrow().course_face_count) {
@@ -83,11 +84,11 @@ fn point(
 /// Whether the car has passed the split's point.
 // Core: `rc2k_core::physics::progress::{check_split_point, face_known, passed_point}` (the distance
 // and the angle stay x87).
-pub fn passed_split_point(c: &CheckpointInputs<'_>) -> Result<bool, Refused> {
+pub fn passed_split_point(c: &CheckpointInputs<'_>, car: &mut Car) -> Result<bool, Refused> {
     if c.no_place != 0 {
         return Ok(false);
     }
-    let (cp, pt) = point(&c.physics.split_tables(), c.course, c.checkpoints, c.car)?;
+    let (cp, pt) = point(&c.physics.split_tables(), c.course, c.checkpoints, car)?;
     // The point read from `race::scene_points`; the x87 runs read a copy.
     let pt = crate::race::scene_points::point_number(
         c.course.reads(),
@@ -96,8 +97,8 @@ pub fn passed_split_point(c: &CheckpointInputs<'_>) -> Result<bool, Refused> {
     )?;
     {
         let mut search = c.physics.ground_search().borrow_mut();
-        search.x = c.car.position.bits_at(0);
-        search.z = c.car.position.bits_at(2);
+        search.x = car.position.bits_at(0);
+        search.z = car.position.bits_at(2);
     }
     distance(
         &mut c.tables.borrow_mut(),

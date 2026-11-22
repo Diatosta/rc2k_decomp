@@ -38,8 +38,8 @@ fn copied_words(race: &Race) -> [&PlainDword; 5] {
 pub(super) fn own_block(
     shared: &RaceShared,
     player: u32,
-) -> Result<&crate::physics::car_store::Car, crate::errors::BadInput> {
-    shared.race_car(player as usize)
+) -> Result<std::cell::RefMut<'_, crate::physics::car_store::Car>, crate::errors::BadInput> {
+    shared.race_car_mut(player as usize)
 }
 pub(super) fn set_hud_options(
     race: &Race,
@@ -51,11 +51,9 @@ pub(super) fn set_hud_options(
     if bits == cars::NOT_KEPT {
         bits = cars::hud_bits(switches(race).map(PlainDword::get));
     }
-    let block = own_block(&race.shared, net.race_slot.player())?;
-    block.option_bits.set(bits);
-    block
-        .camera_view
-        .set(race.shared.state.settings.cars[0].view.get());
+    let mut block = own_block(&race.shared, net.race_slot.player())?;
+    block.option_bits = bits;
+    block.camera_view = race.shared.state.settings.cars[0].view.get();
     race.shared
         .vars
         .get()

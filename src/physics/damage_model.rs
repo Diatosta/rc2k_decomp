@@ -8,17 +8,21 @@
 //!
 //! This file holds the regions and the shared test.
 
-use crate::memory::session::{FloatLike, PlainDword};
-
 /// The value of a float cell as the model's arithmetic holds it: a float loaded and worked at
 /// double precision.
-pub fn value(cell: &impl FloatLike) -> f64 {
-    f64::from(cell.get())
+pub fn value(cell: &f32) -> f64 {
+    f64::from(*cell)
 }
 
 /// A result of that arithmetic stored into a float cell, rounded to a float.
-pub fn store(cell: &impl FloatLike, result: f64) {
-    cell.set(result as f32);
+pub fn store(cell: &mut f32, result: f64) {
+    *cell = result as f32;
+}
+
+/// A gauge replaced by a function of its value (as the model's arithmetic holds it), rounded to
+/// a float.
+pub fn update(cell: &mut f32, f: impl FnOnce(f64) -> f64) {
+    *cell = f(f64::from(*cell)) as f32;
 }
 
 /// The value of a model figure as the model's arithmetic holds it.
@@ -52,13 +56,13 @@ pub fn lerp_table(x: f32, table: &[f32; 4], zero: f32) -> f32 {
 
 /// A word test on a float cell: true unless every bit is zero, so a -0.0 counts as set and a
 /// NaN as set, as a compare of the float would not.
-pub fn is_set(cell: &impl FloatLike) -> bool {
-    cell.bits() != 0
+pub fn is_set(cell: &f32) -> bool {
+    cell.to_bits() != 0
 }
 
 /// The same figure for a whole number held in a cell.
-pub fn whole(cell: &PlainDword) -> f64 {
-    f64::from(cell.get() as i32)
+pub fn whole(cell: &impl crate::physics::flow::Bits) -> f64 {
+    f64::from(cell.word_bits() as i32)
 }
 
 /// Proofs that the plain versions of the model's arithmetic give what the versions over `X`

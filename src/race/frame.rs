@@ -16,9 +16,8 @@ pub fn players_all_out(
     use rc2k_core::race::cars::{Players, players_all_out};
     {
         let trap = crate::race::trap::Trap::new();
-        let out = |n: u32| {
-            trap.keep_read(shared.race_car(n as usize).map(|car| car.stop_state.get())) != 0
-        };
+        let out =
+            |n: u32| trap.keep_read(shared.race_car(n as usize).map(|car| car.stop_state)) != 0;
         let players = if let Some(net_race) = net_race.get() {
             Players::Chosen(net_race.player)
         } else {
@@ -31,16 +30,16 @@ pub fn players_all_out(
 }
 
 /// Writes a car block's message in the order `notice_id`, `notice_time_b`, `notice_time`.
-fn set_car_counter(car: &Car, value: u32) {
+fn set_car_counter(car: &mut Car, value: u32) {
     let m = rc2k_core::race::cars::Message::new(value);
-    car.notice_id.set(m.id);
-    car.notice_time_b.set(m.age);
-    car.notice_time.set(m.time_left);
+    car.notice_id = m.id;
+    car.notice_time_b = m.age;
+    car.notice_time = m.time_left;
 }
 
 /// Calls `set_car_counter` on the first two blocks, each with the same value.
 fn set_both_counters(race: &Race, value: u32) {
-    for car in &race.car_blocks().cars[..2] {
+    for car in &mut race.car_blocks_mut().cars[..2] {
         set_car_counter(car, value);
     }
 }
@@ -62,7 +61,7 @@ pub fn view_car(
 /// `view`'s car (`ViewScratch::car`). Refused: a null block, before anything.
 pub(super) fn load_view_car(
     work: &crate::race::work_store::RaceWork,
-    blocks: &crate::race::blocks_store::CarBlocks,
+    blocks: crate::memory::drawn_table::DrawnTable<'_, crate::race::blocks_store::CarBlocks>,
     race_view: crate::race::view_store::DrawnViewRef<'_>,
     n: usize,
     view: &crate::race::view_scratch::ViewScratch,
@@ -70,13 +69,10 @@ pub(super) fn load_view_car(
     use rc2k_core::drive::work_car::{car_block, car_slot};
     let slot = car_slot(race_view.view_car_number(n)?);
     car_block(u32::from(work.has_car_block(slot as usize)))?;
-    use crate::memory::cells::Cells;
-    view.car
-        .copy_from(crate::race::owner_shared::RaceShared::race_car_in(
-            work,
-            blocks,
-            slot as usize,
-        )?);
+    let block = blocks.read(|blocks| {
+        crate::race::owner_shared::RaceShared::race_car_in(work, blocks, slot as usize).cloned()
+    })?;
+    *view.car.borrow_mut() = block;
     Ok(())
 }
 
@@ -104,7 +100,7 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     let shared = &race.shared;
     crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
     let second = devices.keys_now.get(VIEW_MODE_KEY) != 0;
-    let view = shared.view_car_or_end(usize::from(second));
+    let mut view = shared.view_car_or_end_mut(usize::from(second));
     use rc2k_core::race::keys::{
         BIT_KEYS as BITS, COUNTED_VIEWS, Key, SHARED_BIT, first_key, flip_bit, split_flip,
         volume_key, volume_step,
@@ -123,17 +119,17 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
         )
     });
     // The view block's `option_bits` with `bit` flipped; gives the counter.
-    let flip = |view: &Car, bit: (u32, u32, u32)| -> u32 {
-        let (now, counter) = flip_bit(view.option_bits.get(), bit);
-        view.option_bits.set(now);
+    let flip = |view: &mut Car, bit: (u32, u32, u32)| -> u32 {
+        let (now, counter) = flip_bit(view.option_bits, bit);
+        view.option_bits = now;
         counter
     };
     match key {
         Some(Key::NextView) => {
-            crate::drive::next_camera_view::next_camera_view(race, view)?;
-            let camera = view.camera_blend_view.get();
+            crate::drive::next_camera_view::next_camera_view(race, &mut view)?;
+            let camera = view.camera_blend_view;
             if camera < COUNTED_VIEWS {
-                set_car_counter(view, shared.run().view_counters[camera as usize]);
+                set_car_counter(&mut view, shared.run().view_counters[camera as usize]);
             }
         }
         Some(Key::Split) => {
@@ -148,11 +144,13 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             }
             let (split, counter) = split_flip(shared.vars.get().split.get());
             shared.vars.get().split.set(split);
+            drop(view);
             set_both_counters(race, counter);
         }
         Some(k @ (Key::VolumeDown | Key::VolumeUp)) => {
             let up = k == Key::VolumeUp;
             let (step, counter) = volume_key(up, second);
+            drop(view);
             set_both_counters(race, counter);
             if second {
                 let from = sound.menu.options.race_music_volume.get();
@@ -167,11 +165,12 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             }
         }
         Some(Key::Bit(n)) => {
-            let counter = flip(view, BITS[n]);
-            set_car_counter(view, counter);
+            let counter = flip(&mut view, BITS[n]);
+            set_car_counter(&mut view, counter);
         }
         Some(Key::Shared) => {
-            let counter = flip(shared.view_car_or_end(0), SHARED_BIT);
+            drop(view);
+            let counter = flip(&mut shared.view_car_or_end_mut(0), SHARED_BIT);
             set_both_counters(race, counter);
         }
         None => {}
@@ -191,7 +190,6 @@ pub fn tyre_change(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let textures = &scene.textures;
     use crate::race::tyre_change_gauge::tyre_change_gauge;
     use rc2k_core::scene::texture_levels::TYRE_TITLE_TEXTURE;
-    let car = &race.car_blocks().cars[0];
     {
         let mut tyre = shared.tyre_change_mut();
         tyre.texture = textures.first_textures()[599];
@@ -200,27 +198,31 @@ pub fn tyre_change(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         tyre.title_device_texture =
             textures.kinds.borrow().kind_first_slots[TYRE_TITLE_TEXTURE as usize];
     }
-    if car.parts_present.get() & 0x1E != 0x1E
-        && car.tyre_change_state.get() == 0
-        && car.stopped_steps.get() >= 0x12C
-    {
+    let (present, state, stopped) = {
+        let blocks = race.car_blocks();
+        let car = &blocks.cars[0];
+        (car.parts_present, car.tyre_change_state, car.stopped_steps)
+    };
+    if present & 0x1E != 0x1E && state == 0 && stopped >= 0x12C {
         tyre_change_gauge(o, true, 0)?;
-        car.tyre_change_state.set(1);
+        race.car_blocks_mut().cars[0].tyre_change_state = 1;
     }
-    if car.tyre_change_state.get() != 1 {
+    if race.car_blocks().cars[0].tyre_change_state != 1 {
         return Ok(());
     }
     let time = tyre_change_gauge(o, false, 0)?;
     if time == 0 {
         return Ok(());
     }
-    car.stage_time.set(car.stage_time.get().wrapping_add(time));
-    car.tyre_change_state.set(0xFFFF_FED3);
+    let mut blocks = race.car_blocks_mut();
+    let car = &mut blocks.cars[0];
+    car.stage_time = car.stage_time.wrapping_add(time);
+    car.tyre_change_state = 0xFFFF_FED3;
     for bit in 1..=4 {
-        let bits = car.parts_present.get();
-        car.parts_present.set(bits | 1 << bit);
+        let bits = car.parts_present;
+        car.parts_present = bits | 1 << bit;
         if bits & 1 << bit == 0 {
-            car.tyre_wears.float_at(bit - 1).set(0.0);
+            car.tyre_wears[bit - 1] = 0.0;
         }
     }
     Ok(())

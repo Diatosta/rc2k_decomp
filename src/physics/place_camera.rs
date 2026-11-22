@@ -8,8 +8,11 @@
 
 use crate::math::engine_tables::EngineTablesRef;
 use crate::math::x87_float::{f80, int, ld};
+use crate::memory::plain_floats::FloatRow;
+use crate::memory::plain_floats::FloatRowMut;
 use crate::memory::session::DrawArc;
 use crate::physics::camera_store::CameraWork;
+use crate::physics::car_store::Car;
 use crate::race::frame_store::FrameWorkStore;
 use crate::race::groups_store::ViewAndRecords;
 use crate::race::lights_store::LightsData;
@@ -36,6 +39,7 @@ fn place_with(
     view_records: &DrawArc<ViewAndRecords>,
     frame_work: &FrameWorkStore,
     shared: &RaceShared,
+    car: &mut Car,
     turns: Turns,
     second: &dyn Fn() -> [i32; 3],
 ) {
@@ -65,15 +69,11 @@ fn place_with(
     );
     for (y_turn, z_turn, x_turn) in [
         (
-            shared.car().camera_offset_turns.bits_at(2),
-            shared.car().camera_offset_turns.bits_at(0),
-            shared.car().camera_offset_turns.bits_at(1),
+            car.camera_offset_turns.bits_at(2),
+            car.camera_offset_turns.bits_at(0),
+            car.camera_offset_turns.bits_at(1),
         ),
-        (
-            shared.car().camera_roll_turn.get(),
-            shared.car().camera_pitch.get(),
-            shared.car().camera_heading.get(),
-        ),
+        (car.camera_roll_turn, car.camera_pitch, car.camera_heading),
     ] {
         let i = |v: u32| v as i32;
         let [new_y, new_x, _] =
@@ -89,21 +89,21 @@ fn place_with(
         x = new_x;
         z = new_z;
     }
-    shared.car().camera_position.set_bits_at(0, x);
-    shared.car().camera_position.set_bits_at(1, y);
-    shared.car().camera_position.set_bits_at(2, z);
+    car.camera_position.set_bits_at(0, x);
+    car.camera_position.set_bits_at(1, y);
+    car.camera_position.set_bits_at(2, z);
     // The second offset, turned with the car.
     let whole = second();
-    let car = frame_work.borrow().camera_car;
+    let camera_car = frame_work.borrow().camera_car;
     let place = [
-        shared.car().camera_position.bits_at(0),
-        shared.car().camera_position.bits_at(1),
-        shared.car().camera_position.bits_at(2),
+        car.camera_position.bits_at(0),
+        car.camera_position.bits_at(1),
+        car.camera_position.bits_at(2),
     ];
-    let (_, place) = add_offset(place, whole, car);
-    shared.car().camera_position.set_bits_at(0, place[0]);
-    shared.car().camera_position.set_bits_at(1, place[1]);
-    shared.car().camera_position.set_bits_at(2, place[2]);
+    let (_, place) = add_offset(place, whole, camera_car);
+    car.camera_position.set_bits_at(0, place[0]);
+    car.camera_position.set_bits_at(1, place[1]);
+    car.camera_position.set_bits_at(2, place[2]);
 }
 
 /// The exact version, for `physics::camera_avoid_ground`.
@@ -114,13 +114,14 @@ pub fn place_camera(
     numbers: &Numbers,
     frame_work: &FrameWorkStore,
     shared: &RaceShared,
+    car: &mut Car,
 ) {
     use crate::math::{rotate_point_about_y, rotate_point_about_y_ebx, rotate_point_about_y_ecx};
+    let crash = car.crash_matrix;
     let second = || {
         let turns = [camera.view_turn_x, camera.view_turn_y, camera.view_turn_z];
         let parts = turns.map(|turn| view_turn_part(turn as i32, numbers));
-        let turned =
-            { crate::scene::rotate_point::rotate_point(&shared.car().crash_matrix, parts) };
+        let turned = { crate::scene::rotate_point::rotate_point(&crash, parts) };
         let k = numbers.k65536.get();
         turned.map(|e| crate::math::x87::ext_to_int(crate::math::x87::ext_times(e, k)))
     };
@@ -130,6 +131,7 @@ pub fn place_camera(
         view_records,
         frame_work,
         shared,
+        car,
         (
             rotate_point_about_y_ebx::rotate_point_about_y_ebx,
             rotate_point_about_y_ecx::rotate_point_about_y_ecx,

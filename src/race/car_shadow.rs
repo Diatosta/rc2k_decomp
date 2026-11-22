@@ -9,6 +9,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::cell_x87::CellX87;
+use crate::memory::plain_floats::FloatRow;
 use crate::memory::session::{PlainByte, PlainDword, PlainFloat};
 use crate::physics::car_store::Car;
 use crate::physics::ground_query::{GroundEnv, GroundSearch};
@@ -822,7 +823,7 @@ pub(super) fn shadow_points(
     let mut q = GroundSearch {
         x: car.position.bits_at(0),
         z: car.position.bits_at(2),
-        last: car.probe_point_face[4].get(),
+        last: car.probe_point_face[4],
         ..GroundSearch::default()
     };
     crate::physics::find_ground::find_ground_with(env, &mut q)?;
@@ -842,9 +843,9 @@ pub(super) fn shadow_points(
         let at = point_at(work, k)?;
         let k = k as usize;
         let p = [
-            to_tbyte(&car.probe_point_x[k]),
-            to_tbyte(&car.probe_point_y[k]),
-            to_tbyte(&car.probe_point_z[k]),
+            to_tbyte(car.probe_point_x[k]),
+            to_tbyte(car.probe_point_y[k]),
+            to_tbyte(car.probe_point_z[k]),
         ];
         let t = crate::scene::rotate_point::rotate_point(body_matrix, p);
         let [x, y, z] = t.map(tbyte_to_float);
@@ -933,12 +934,15 @@ pub(super) fn cast_car_shadows(
     work.lift.set(SHADOW_STRENGTH);
     for n in 0..cars {
         // Each car's shadow from its own block.
-        let car = crate::race::owner_shared::RaceShared::race_car_or_in(
-            &ctx.reads.work.borrow(),
-            ctx.reads.car_blocks,
-            n as usize,
-            "a car's block",
-        )?;
+        let car = ctx.reads.car_blocks.read(|blocks| {
+            crate::race::owner_shared::RaceShared::race_car_or_in(
+                &ctx.reads.work.borrow(),
+                blocks,
+                n as usize,
+                "a car's block",
+            )
+            .cloned()
+        })?;
         if !casts_shadow(
             ctx.view
                 .cars
@@ -947,7 +951,7 @@ pub(super) fn cast_car_shadows(
         ) {
             continue;
         }
-        work.point_count.set(car.probe_count.get());
+        work.point_count.set(car.probe_count);
         let body_matrix = ctx
             .reads
             .car_parts
@@ -955,9 +959,9 @@ pub(super) fn cast_car_shadows(
             .body_matrix;
         if first_pass(ctx.reads.vars.settings_word(2)) {
             let sun: u32 = ctx.reads.stage_prefs.read(|p| p.sun_height);
-            cast_car_shadow(ctx, &work, car, &body_matrix, sun)?;
+            cast_car_shadow(ctx, &work, &car, &body_matrix, sun)?;
         }
-        cast_car_shadow(ctx, &work, car, &body_matrix, SUN_PASS)?;
+        cast_car_shadow(ctx, &work, &car, &body_matrix, SUN_PASS)?;
     }
     crate::scene::depth_test_on::depth_test_on(ctx.part);
     Ok(())

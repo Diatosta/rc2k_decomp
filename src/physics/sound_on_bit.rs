@@ -17,11 +17,11 @@ pub(super) fn sound_on_bit(
     cl: u32,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    let (_, cleared) = take_bit(shared.car().parts_present.get(), cl);
+    let (_, cleared) = take_bit(shared.car().parts_present, cl);
     let Some(cleared) = cleared else {
         return Ok(());
     };
-    shared.car().parts_present.set(cleared);
+    shared.car_mut().parts_present = cleared;
     { place_car_sound(numbers, view_turn, shared, sound) }?;
     Ok(())
 }

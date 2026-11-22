@@ -8,12 +8,12 @@ use crate::physics::cells::set_changed;
 use crate::physics::queue_notice::{load, store};
 use rc2k_core::physics::notices::Notice;
 
-pub(super) fn take_notice(car: &Car) {
+pub(super) fn take_notice(car: &mut Car) {
     let was = Notice {
-        id: car.notice_id.get(),
-        shown: car.notice_shown.get(),
-        time: car.notice_time.get(),
-        second_time: car.notice_time_b.get(),
+        id: car.notice_id,
+        shown: car.notice_shown,
+        time: car.notice_time,
+        second_time: car.notice_time_b,
         ..Notice::default()
     };
     let queue = load(car);
@@ -21,8 +21,8 @@ pub(super) fn take_notice(car: &Car) {
     if notice.take(&mut now).is_none() {
         return;
     }
-    set_changed(&car.notice_id, was.id, notice.id);
-    set_changed(&car.notice_time_b, was.second_time, notice.second_time);
-    set_changed(&car.notice_time, was.time, notice.time);
+    set_changed(&mut car.notice_id, was.id, notice.id);
+    set_changed(&mut car.notice_time_b, was.second_time, notice.second_time);
+    set_changed(&mut car.notice_time, was.time, notice.time);
     store(car, &queue, &now);
 }

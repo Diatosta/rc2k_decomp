@@ -10,15 +10,13 @@ use crate::hud::overlay_pass::shown_layout;
 
 /// Whether the strip of the view block `handle` names is shown (see the header).
 fn flashing(shared: &crate::race::owner_shared::RaceShared, handle: u32) -> Result<bool, BadInput> {
-    let car = shared
-        .car_blocks()
-        .of(handle)
-        .ok_or(BadInput("a view's block"))?;
+    let blocks = shared.car_blocks();
+    let car = blocks.of(handle).ok_or(BadInput("a view's block"))?;
     Ok(rc2k_core::hud::strips::strip(
-        car.view_covered.get(),
-        car.notice_shown.get(),
-        car.notice_time.get(),
-        car.notice_time_b.get(),
+        car.view_covered,
+        car.notice_shown,
+        car.notice_time,
+        car.notice_time_b,
     )
     .shown())
 }

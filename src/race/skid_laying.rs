@@ -4,7 +4,6 @@
 //! (`skid_links`, 8 bytes: +0 the next, +2 the previous, +4 the angle, +6 the car's bit).
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 
@@ -29,7 +28,7 @@ fn offsets(
 /// links are cut and it is linked after the last point, which is turned to the new angle (its
 /// own when it starts the strip, else halfway between its previous one and this). The ring's next
 /// point moves on (0x400 points). Refuses (before anything) a point or link outside the ring.
-pub fn add_skid_point(race: &Race, slot: &PlainDword) -> Result<(), Refused> {
+pub fn add_skid_point(race: &Race, slot: &mut u32) -> Result<(), Refused> {
     use rc2k_core::race::skids::{Link, POINTS, Point, Ring, add_skid_point, next_point};
     /// The ring over the race's two tables: an entry is read or written alone.
     struct Tables<'a>(&'a mut crate::race::shadow_skids_store::ShadowSkids);
@@ -72,7 +71,7 @@ pub fn add_skid_point(race: &Race, slot: &PlainDword) -> Result<(), Refused> {
     }
     let mut skids = race.frame.shadow_skids.borrow_mut();
     let n = skids.skid_next;
-    let last = slot.get();
+    let last = *slot;
     let place = skids.skid_place;
     let cars = skids.skid_cars as u16;
     add_skid_point(
@@ -84,7 +83,7 @@ pub fn add_skid_point(race: &Race, slot: &PlainDword) -> Result<(), Refused> {
         |first, second| crate::scene::angle_between::angle_of(&race.course, first, second),
         |angle, y| offsets(race.engine_tables(), angle, y),
     )?;
-    slot.set(n);
+    *slot = n;
     skids.skid_next = next_point(skids.skid_next);
     Ok(())
 }
@@ -121,18 +120,19 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
     for c in 0..count {
         skids.borrow_mut().skid_cars = 1 << (c & 31);
         // The skid slots are the drawing's own (in the block); the wheels, the physics'.
-        let slots = &shared.race_car(c as usize)?.skid_slots;
+        let mut block = shared.race_car_mut(c as usize)?;
+        let slots = &mut block.skid_slots;
         let car = race
             .frame
             .cars
             .car(shared.work().block_number(c as usize)?)?;
         for wheel in 0..4usize {
-            let slot = &slots[wheel];
+            let slot = &mut slots[wheel];
             let on = car.wheel_squeeze[wheel].bits() != 0
                 && !crate::math::x87::below_or_unordered(&car.skid_grip[wheel / 2], grip)
                 && car.parts_present.get() & (1 << (5 + wheel)) != 0;
             if !on {
-                slot.set(u32::MAX);
+                *slot = u32::MAX;
                 continue;
             }
             let place = [
@@ -159,7 +159,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
             }
             // The wheel has not moved since its last point: that point stands for the place, and
             // the strip goes on from it (see `rc2k_core::race::skids::is_repeat`).
-            let last = slot.get();
+            let last = *slot;
             if last < rc2k_core::race::skids::POINTS {
                 let at = 0x18 * last as usize;
                 let (last_point, place) = {

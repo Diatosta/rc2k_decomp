@@ -208,7 +208,7 @@ pub(super) fn car_lights_on_point(
     drawn_view: u32,
 ) -> Result<(), BadInput> {
     let light_tables = reads.light_tables;
-    let blocks = &reads.car_blocks;
+    let blocks = reads.car_blocks;
     let (race_work, race_vars, race_view) = (reads.work, reads.vars, reads.view);
     let cars: u32 = race_view.race_cars();
     let all = race_vars.settings_word(4) == 1;
@@ -236,16 +236,20 @@ pub(super) fn car_lights_on_point(
             car_light_on_point(
                 reads.course(),
                 reads.frame_cars.car(n as usize)?,
-                blocks
-                    .parts_of(
-                        reads.car_parts,
-                        crate::race::owner_shared::RaceShared::race_car_in(
-                            &race_work.borrow(),
-                            blocks,
-                            n as usize,
-                        )?,
+                blocks.read(|blocks| {
+                    Ok::<_, BadInput>(
+                        blocks
+                            .parts_of(
+                                reads.car_parts,
+                                crate::race::owner_shared::RaceShared::race_car_in(
+                                    &race_work.borrow(),
+                                    blocks,
+                                    n as usize,
+                                )?,
+                            )
+                            .marks_count,
                     )
-                    .marks_count,
+                })?,
                 light_tables,
                 object_light,
             )?;
@@ -334,7 +338,7 @@ pub fn view_light(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let (lamps, object_light, car) = (&view.lamps, &view.light, &view.car);
     let drawn_view = view.drawn_view(race);
     check_light_colour(&ctx.reads.work.borrow(), ctx.reads.view, lamps)?;
-    let car_place: [u32; 3] = car.position.bits();
+    let car_place: [u32; 3] = car.borrow().position.map(f32::to_bits);
     object_light.borrow_mut().lit_place = car_place;
     light_colour_at(
         ctx.reads,
@@ -345,6 +349,6 @@ pub fn view_light(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         drawn_view,
     )?;
     let light: u32 = object_light.borrow().light_colour;
-    object_light.borrow_mut().view_light = add_colours(car.light_colour.get(), light);
+    object_light.borrow_mut().view_light = add_colours(car.borrow().light_colour, light);
     Ok(())
 }

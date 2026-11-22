@@ -7,6 +7,7 @@
 //! the four splash amounts.
 
 use crate::math::x87;
+use crate::memory::plain_floats::FloatRow;
 use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
 use crate::physics::flow::ZERO_BITS as ZERO;
@@ -39,12 +40,12 @@ fn add_mud(speed: Option<u32>, f1: &PlainFloat, f2: &PlainFloat, to: &[PlainFloa
 
 /// The exact version, for `physics::car_physics_step`.
 pub fn accumulate_mud(car: &Car, vars: &RaceVars, kinds: &KindTables) {
-    let kind = car.car_kind.get();
+    let kind = car.car_kind;
     if kind >= 0x22 || kinds.kind_gets_mud[kind as usize] == 0 {
         return;
     }
-    let still = car.all_wheels_off.get() != 0;
-    let drive = || x87::loaded(&car.drive_speed_a).to_bits();
+    let still = car.all_wheels_off != 0;
+    let drive = || x87::loaded(car.drive_speed_a).to_bits();
     let v = &vars;
     add_mud(
         (!still).then(drive),
@@ -52,7 +53,7 @@ pub fn accumulate_mud(car: &Car, vars: &RaceVars, kinds: &KindTables) {
         &v.mud_scale_b[0],
         &v.mud_thrown_in,
     );
-    let slip = || x87::sub(&car.drive_speed_a, car.local_velocity.bits_at(2)).to_bits();
+    let slip = || x87::sub(car.drive_speed_a, car.local_velocity.bits_at(2)).to_bits();
     add_mud(
         (!still).then(slip),
         &v.mud_scale_a[1],

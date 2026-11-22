@@ -6,6 +6,8 @@
 //! Refuses what its parts refuse (everything written is put back).
 
 use crate::errors::Refused;
+use crate::memory::plain_floats::FloatRow;
+use crate::memory::plain_floats::FloatRowMut;
 use crate::physics::acceleration_run;
 use crate::physics::gear_store::GearFigures;
 use crate::race::car_specs_store::CarSpecs;
@@ -23,11 +25,11 @@ pub fn acceleration_figures(
         car_specs,
         course,
         &mut shared.physics_tables_mut(),
-        shared.car(),
+        &mut shared.car_mut(),
         gear,
     )?;
     crate::physics::make_gear_ratios::make_gear_ratios(
-        shared.car(),
+        &shared.car(),
         &mut shared.physics_tables_mut(),
         &course.numbers,
         gear,
@@ -35,24 +37,21 @@ pub fn acceleration_figures(
     // The figures kept round the run: the drive speeds, the car's speed, the gear, the
     // engine, the gearbox kind.
     let kept = (
-        shared.car().drive_speed_a.get(),
-        shared.car().drive_speed_b.get(),
+        shared.car().drive_speed_a,
+        shared.car().drive_speed_b,
         shared.car().local_velocity.at(2),
-        shared.car().gear.get(),
-        shared.car().engine_speed.get(),
-        shared.car().gearbox_kind.get(),
+        shared.car().gear,
+        shared.car().engine_speed,
+        shared.car().gearbox_kind,
     );
-    shared
-        .car()
-        .engine_power_factor
-        .set(gear.test_power_factor.get());
+    shared.car_mut().engine_power_factor = gear.test_power_factor.get();
     acceleration_run::acceleration_run(course, shared, gear, scene)?;
     let (a, b, speed, gear, engine, kind) = kept;
-    shared.car().drive_speed_a.set(a);
-    shared.car().drive_speed_b.set(b);
-    shared.car().local_velocity.set_at(2, speed);
-    shared.car().gear.set(gear);
-    shared.car().engine_speed.set(engine);
-    shared.car().gearbox_kind.set(kind);
+    shared.car_mut().drive_speed_a = a;
+    shared.car_mut().drive_speed_b = b;
+    shared.car_mut().local_velocity.set_at(2, speed);
+    shared.car_mut().gear = gear;
+    shared.car_mut().engine_speed = engine;
+    shared.car_mut().gearbox_kind = kind;
     Ok(())
 }

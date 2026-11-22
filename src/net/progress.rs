@@ -62,11 +62,11 @@ pub fn text(share: u8) -> Vec<u8> {
 pub fn send(race: &Race, net: &Net) {
     let car = race.shared.car();
     let share = stage_share(
-        car.checkpoint.get(),
+        car.checkpoint,
         race.shared.vars.get().checkpoint_count.get(),
     );
     let changed = SENT.swap(u32::from(share), Ordering::SeqCst) != u32::from(share);
-    if changed || car.step_clock.get() & REPEAT_MASK == 3 {
+    if changed || car.step_clock & REPEAT_MASK == 3 {
         crate::net::dplay_send::dplay_send(
             &net.link,
             net.link.send_to(),

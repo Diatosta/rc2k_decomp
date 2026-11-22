@@ -9,6 +9,7 @@ use crate::drive::next_camera_view::next_view_at;
 use crate::drive::start_blend::start_blend;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::memory::plain_floats::FloatRow;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, read_keys};
@@ -26,7 +27,7 @@ fn computer(shared: &RaceShared, net: &crate::net::owner::Net) -> bool {
         || computer_drives(
             shared.work().in_credits != 0,
             || shared.vars.get().run_kind.get(),
-            || shared.car().driver_kind.get(),
+            || shared.car().driver_kind,
         )
 }
 
@@ -40,7 +41,7 @@ pub fn read_car_controls(
     let course = &race.course;
     if computer(&race_owner.shared, net)
         && race_owner.shared.vars.get().checkpoint_count.get() == 0
-        && race_owner.shared.car().run_ticks.get() >= 0x320
+        && race_owner.shared.car().run_ticks >= 0x320
     {
         // `drive_computer_car`'s refusal, before anything here is written.
         let reaches = crate::math::x87::compare_full(
@@ -52,40 +53,44 @@ pub fn read_car_controls(
             return Err(BadInput("no checkpoints for the computer's driving").into());
         }
     }
-    let input_keys = race_owner.shared.car().input_keys.get();
+    let input_keys = race_owner.shared.car().input_keys;
     course.lists.borrow_mut().input_keys_mask = input_keys;
-    race_owner.shared.car().input_keys.set(0);
-    race_owner.shared.car().keys_pressed.set(0);
+    race_owner.shared.car_mut().input_keys = 0;
+    race_owner.shared.car_mut().keys_pressed = 0;
     // The four input words (recorded or replayed) into the car's inputs.
-    let words = [
-        &race_owner.shared.car().input_throttle,
-        &race_owner.shared.car().input_keys,
-        &race_owner.shared.car().input_steering,
-        &race_owner.shared.car().input_brake,
-    ];
     let input_words = race_owner.shared.run().input_words;
-    for (to, from) in words.into_iter().zip(input_words) {
-        to.set(from);
+    {
+        let mut car = race_owner.shared.car_mut();
+        let car = &mut *car;
+        let words = [
+            &mut car.input_throttle,
+            &mut car.input_keys,
+            &mut car.input_steering,
+            &mut car.input_brake,
+        ];
+        for (to, from) in words.into_iter().zip(input_words) {
+            *to = from;
+        }
     }
     // A held race (`RC2K_HELD_RACE`) takes no key from the players: a key still held from the
     // menus (the test's Return) would reach the car at a tick that depends on the timing.
     if crate::remote::held_race()
         && race_owner.shared.work().current_car < race_owner.shared.view.get().players.get()
     {
-        race_owner.shared.car().input_keys.set(0);
+        race_owner.shared.car_mut().input_keys = 0;
     }
     let keys = read_keys(
         course.lists.borrow().input_keys_mask,
-        race_owner.shared.car().input_keys.get(),
+        race_owner.shared.car().input_keys,
     );
     let pressed = keys.pressed;
-    race_owner.shared.car().keys_pressed.set(pressed);
+    race_owner.shared.car_mut().keys_pressed = pressed;
     {
         let mut run = race_owner.shared.run_mut();
         let inputs = &mut run.gear_inputs;
-        inputs.first = race_owner.shared.car().input_throttle.get();
-        inputs.steer = race_owner.shared.car().input_steering.get();
-        inputs.second = race_owner.shared.car().input_brake.get();
+        inputs.first = race_owner.shared.car().input_throttle;
+        inputs.steer = race_owner.shared.car().input_steering;
+        inputs.second = race_owner.shared.car().input_brake;
         inputs.hold = keys.hand;
         inputs.gear_up = keys.up;
         inputs.gear_down = keys.down;
@@ -95,20 +100,18 @@ pub fn read_car_controls(
         || race_owner.shared.work().current_car < race_owner.shared.view.get().players.get()
     {
         if pressed & FLIP_BIT != 0 {
-            race_owner
-                .shared
-                .car()
-                .lights_on
-                .set(flipped(race_owner.shared.car().lights_on.get()));
+            let value = flipped(race_owner.shared.car().lights_on);
+            race_owner.shared.car_mut().lights_on = value;
         }
         // A replay's recorded change-view presses stay unplayed: the camera is the viewer's.
         let replay_plays = plays_inputs(race_owner.course.replay_mode());
         if pressed & VIEW_BIT != 0 && !replay_plays {
+            let step = race_owner.shared.car().step_clock;
             next_view_at(
                 race_owner.kind_tables(),
-                race_owner.shared.car(),
+                &mut race_owner.shared.car_mut(),
                 &race_owner.shared.view.get().players,
-                &race_owner.shared.car().step_clock,
+                step,
             )?;
         }
     }
@@ -118,7 +121,7 @@ pub fn read_car_controls(
     let current_car = race_owner.shared.work().current_car;
     race_owner.shared.work_mut().driver_slot = current_car;
     start_blend(race, scene);
-    let blend = x87::loaded(&race_owner.shared.car().start_blend);
+    let blend = x87::loaded(race_owner.shared.car().start_blend);
     race_owner.shared.work_mut().driver_start_blend = blend;
     // A test's switch (`tools/remote.py pilot`): a player's car has no computer's skill
     // (its blend near 0 holds the wanted speed down), so it drives at the full blend.
@@ -144,8 +147,7 @@ pub fn read_car_controls(
     if crate::remote::autodrive()
         && race_owner.shared.work().current_car < race_owner.shared.view.get().players.get()
     {
-        let keys =
-            crate::remote::autodrive_keys(race_owner, race_owner.shared.car().checkpoint.get());
+        let keys = crate::remote::autodrive_keys(race_owner, race_owner.shared.car().checkpoint);
         if keys != 0 {
             // Off the throttle and on the brake while the key is held, as a player would:
             // the reset needs the car slow throughout.
@@ -154,11 +156,8 @@ pub fn read_car_controls(
             run.gear_inputs.second = 0x100;
             run.gear_inputs.steer = 0;
         }
-        race_owner
-            .shared
-            .car()
-            .input_keys
-            .set(race_owner.shared.car().input_keys.get() | keys);
+        let value = race_owner.shared.car().input_keys | keys;
+        race_owner.shared.car_mut().input_keys = value;
     }
     Ok(())
 }

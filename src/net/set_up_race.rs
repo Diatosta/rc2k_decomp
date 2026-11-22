@@ -84,17 +84,17 @@ pub fn set_up_race(
     crate::race::race_cars::set_up_arcade_cars(race)?;
     crate::race::race_shell::set_start_states(race, &o.net.race_slot)?;
     // Each stored block's gearbox kind and start slot value, from the race's tables.
-    for (car, colours) in race.car_blocks().cars[..8]
-        .iter()
+    for (car, colours) in race.car_blocks_mut().cars[..8]
+        .iter_mut()
         .zip(&race.shared.vars.get().car_colours)
     {
-        car.gearbox_kind.set(colours.get());
+        car.gearbox_kind = colours.get();
     }
-    for (car, number) in race.car_blocks().cars[..8]
-        .iter()
+    for (car, number) in race.car_blocks_mut().cars[..8]
+        .iter_mut()
         .zip(&race.shared.vars.get().start_numbers)
     {
-        car.start_slot_value.set(number.get());
+        car.start_slot_value = number.get();
     }
     log_bytes(RULE.to_bytes(), true, 1);
     log_bytes(START.to_bytes(), true, 1);

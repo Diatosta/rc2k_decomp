@@ -134,34 +134,36 @@ pub fn set_up_car_points(
             }
             // Logic in `rc2k_core::race::cars::{point_float, open_two_points}`.
             let scale = race.course.numbers.k65536.get();
-            let car = race.shared.race_car(car_number)?;
-            let lists = [&car.probe_point_x, &car.probe_point_y, &car.probe_point_z];
+            let mut car = race.shared.race_car_mut(car_number)?;
+            let car = &mut *car;
+            let mut lists = [
+                &mut car.probe_point_x,
+                &mut car.probe_point_y,
+                &mut car.probe_point_z,
+            ];
             for n in 0..count {
                 let p = points + n * 12;
-                for (k, list) in lists.into_iter().enumerate() {
+                for (k, list) in lists.iter_mut().enumerate() {
                     // Each value goes through `scratch`.
                     let c = race.course.stage.object_points.word(p + 4 * k as u32)?;
                     scene.draw_work_mut().scratch = c;
-                    list[n as usize].set(rc2k_core::race::cars::point_float(c, scale));
+                    list[n as usize] = rc2k_core::race::cars::point_float(c, scale);
                 }
             }
             race.physics.contact().borrow_mut().car_point_count = count;
-            let mut points = lists.map(crate::memory::session::read_bits);
+            let mut points = [0, 1, 2].map(|k| lists[k].map(f32::to_bits));
             rc2k_core::race::cars::open_two_points(&mut points);
             for (l, p) in lists.into_iter().zip(points) {
-                crate::memory::session::write_bits(l, p);
+                *l = p.map(f32::from_bits);
             }
             race.physics.contact().borrow_mut().car_point_count = count + 2;
         }
         log(c"carnum", false);
-        log_number(race.shared.race_car(car_number)?.car_kind.get(), false);
+        log_number(race.shared.race_car(car_number)?.car_kind, false);
         log(c"numcollpts", false);
         let point_count = race.physics.contact().borrow().car_point_count;
         log_number(point_count, true);
-        race.shared
-            .race_car(car_number)?
-            .probe_count
-            .set(point_count);
+        race.shared.race_car_mut(car_number)?.probe_count = point_count;
     }
     Ok(())
 }
@@ -203,7 +205,7 @@ fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
     let mut slots = car_slot(0);
     for n in 0..cars {
         for (kind, slot) in CAR_KINDS {
-            let car = race.shared.race_car(n as usize)?.car_kind.get();
+            let car = race.shared.race_car(n as usize)?.car_kind;
             let k = match kind {
                 CarKind::Known => crate::scene::known_kind::known_kind(race.kind_tables(), car),
                 CarKind::Table11 => car_table(&race.kind_tables().kind_11_table, car),

@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
 /// Byte `k` of the frame's head (the first car block's start). Asked only for bytes 0 .. 7
 /// (the cars' and the four switches', and the extra cars'), inside the head's 8.
 fn head_byte(race: &Race, k: usize) -> u32 {
-    (race.car_blocks().cars[0].frame_head[k / 4].get() >> (8 * (k % 4))) & 0xFF
+    (race.car_blocks().cars[0].frame_head[k / 4] >> (8 * (k % 4))) & 0xFF
 }
 
 /// `replay_camera_wishes[head byte]`: the table holds 47; the two dwords that follow it in
@@ -43,8 +43,8 @@ fn set_last_frame(race: &Race, c: usize, frame: u32) {
 fn steps(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let replay = &race.replay;
-    replay.replay_frames_mut().camera_word_0 = race.car_blocks().cars[0].frame_head[0].get();
-    replay.replay_frames_mut().camera_word_1 = race.car_blocks().cars[0].frame_head[1].get();
+    replay.replay_frames_mut().camera_word_0 = race.car_blocks().cars[0].frame_head[0];
+    replay.replay_frames_mut().camera_word_1 = race.car_blocks().cars[0].frame_head[1];
     // A replay with the extra tape also names the cameras of cars 2 and 3, in the head's bytes
     // 6 and 7 (zero in every other replay: no wish).
     let cars = if race.viewer_buffers().extra_tape.is_set() {
@@ -53,7 +53,6 @@ fn steps(race: &Race) -> Result<(), Refused> {
         2
     };
     for c in 0..cars {
-        let car = &race.car_blocks().cars[c];
         let byte = if c < 2 { c } else { c + 4 };
         let last = {
             let work = race.replay_work();
@@ -64,27 +63,32 @@ fn steps(race: &Race) -> Result<(), Refused> {
             }
         };
         let wish = wish_of(&race.replay_work(), head_byte(race, byte) as usize)?;
+        let camera_view = race.car_blocks().cars[c].camera_view;
         match wish_step(wish, replay.replay_view().replay_block.get(), last, || {
-            car.camera_view.get()
+            camera_view
         }) {
             WishStep::Draw(_) => {
                 set_last_frame(race, c, replay.replay_view().replay_block.get());
                 // `Draw` comes only for the wishes that draw: the mode is there.
-                if let Some(mode) =
-                    { crate::drive::pick_replay_camera::pick_replay_camera(race, wish) }?
-                {
-                    car.camera_view.set(mode);
+                let mode = { crate::drive::pick_replay_camera::pick_replay_camera(race, wish) }?;
+                let mut blocks = race.car_blocks_mut();
+                let car = &mut blocks.cars[c];
+                if let Some(mode) = mode {
+                    car.camera_view = mode;
                 }
-                car.camera_switch_active.set(0);
-                car.camera_switch_clock.set(car.step_clock.get());
+                car.camera_switch_active = 0;
+                car.camera_switch_clock = car.step_clock;
             }
             WishStep::Nothing(_) => {}
             WishStep::Set => {
-                car.camera_blend_view.set(wish);
-                car.camera_view.set(wish);
-                car.camera_view.set(wish);
-                car.camera_switch_active.set(0);
-                car.camera_switch_clock.set(car.step_clock.get());
+                {
+                    let mut blocks = race.car_blocks_mut();
+                    let car = &mut blocks.cars[c];
+                    car.camera_blend_view = wish;
+                    car.camera_view = wish;
+                    car.camera_switch_active = 0;
+                    car.camera_switch_clock = car.step_clock;
+                }
                 set_last_frame(race, c, 0);
             }
         }
@@ -98,8 +102,8 @@ fn steps(race: &Race) -> Result<(), Refused> {
             shared.view.get().player_options[0].get(),
             shared.view.get().player_options[1].get(),
         ]);
-        race.car_blocks().cars[0].option_bits.set(options[0]);
-        race.car_blocks().cars[1].option_bits.set(options[1]);
+        race.car_blocks_mut().cars[0].option_bits = options[0];
+        race.car_blocks_mut().cars[1].option_bits = options[1];
     }
     // The head's bytes 2 .. 5 into the view switches.
     for (k, to) in [
@@ -162,12 +166,10 @@ mod tests {
     #[test]
     fn head_bytes_as_the_old_read() {
         let race = crate::test_support::own::race();
-        let head = &race.car_blocks().cars[0].frame_head;
-        head[0].set(0x0403_0201);
-        head[1].set(0x0807_0605);
+        race.car_blocks_mut().cars[0].frame_head = [0x0403_0201, 0x0807_0605];
         for k in 0..8 {
-            let old = crate::memory::cells::load_value::<u8>(head, k).map(u32::from);
-            assert_eq!(Ok(head_byte(race, k)), old, "byte {k}");
+            let old = (k as u32 + 1) as u8;
+            assert_eq!(head_byte(race, k), u32::from(old), "byte {k}");
         }
     }
 }

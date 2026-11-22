@@ -9,7 +9,6 @@
 //! Refuses what `start_car` refuses.
 
 use crate::errors::Refused;
-use crate::memory::session::PlainDword;
 use crate::physics::step_families::ResetInputs;
 use rc2k_core::physics::notices::Notice;
 use rc2k_core::physics::start::CarStart;
@@ -21,41 +20,36 @@ pub fn false_start(
     scene: &crate::scene::owner::Scene,
     net_race: &rc2k_core::net::net_race::NetRaceSlot,
 ) -> Result<(), Refused> {
-    let c = inputs.car;
+    let mut car = inputs.shared.car_mut();
+    let c = &*car;
     let was = CarStart {
-        timer: c.run_ticks.get(),
-        held: c.start_in_gear.get(),
-        count: c.false_start_count.get(),
-        time: c.stage_time.get(),
+        timer: c.run_ticks,
+        held: c.start_in_gear,
+        count: c.false_start_count,
+        time: c.stage_time,
         ..CarStart::default()
     };
     let notice_was = Notice {
-        id: c.notice_id.get(),
-        counter: c.notice_counter.get(),
-        last: c.notice_last.get(),
-        shown: c.notice_shown.get(),
-        time: c.notice_time.get(),
-        second_time: c.notice_time_b.get(),
+        id: c.notice_id,
+        counter: c.notice_counter,
+        last: c.notice_last,
+        shown: c.notice_shown,
+        time: c.notice_time,
+        second_time: c.notice_time_b,
     };
-    let (mut car, mut notice) = (was, notice_was);
-    let done = car.false_start(c.gear.get(), &mut notice);
-    let changes: [(&PlainDword, u32, u32); 10] = [
-        (&c.start_in_gear, was.held, car.held),
-        (&c.false_start_count, was.count, car.count),
-        (&c.stage_time, was.time, car.time),
-        (&c.run_ticks, was.timer, car.timer),
-        (&c.notice_id, notice_was.id, notice.id),
-        (&c.notice_counter, notice_was.counter, notice.counter),
-        (&c.notice_last, notice_was.last, notice.last),
-        (&c.notice_shown, notice_was.shown, notice.shown),
-        (&c.notice_time, notice_was.time, notice.time),
-        (&c.notice_time_b, notice_was.second_time, notice.second_time),
-    ];
-    for (at, before, now) in changes {
-        if now != before {
-            at.set(now);
-        }
-    }
+    let (mut start, mut notice) = (was, notice_was);
+    let done = start.false_start(car.gear, &mut notice);
+    car.start_in_gear = start.held;
+    car.false_start_count = start.count;
+    car.stage_time = start.time;
+    car.run_ticks = start.timer;
+    car.notice_id = notice.id;
+    car.notice_counter = notice.counter;
+    car.notice_last = notice.last;
+    car.notice_shown = notice.shown;
+    car.notice_time = notice.time;
+    car.notice_time_b = notice.second_time;
+    drop(car);
     if done.put_back {
         { crate::race::car_starts::start_car(inputs, scene, net_race) }?;
     }

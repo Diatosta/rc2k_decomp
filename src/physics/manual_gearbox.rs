@@ -38,8 +38,8 @@ use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 use rc2k_core::physics::gearbox::GearInputs;
 
 /// Up.
-fn up(car: &Car, tables: &mut PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
-    let gear = car.gear.get();
+fn up(car: &mut Car, tables: &mut PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
+    let gear = car.gear;
     if let Some(shift) = shifts::manual_up(gear, || tables.gear_count) {
         return Ok(shift);
     }
@@ -47,15 +47,15 @@ fn up(car: &Car, tables: &mut PhysicsTables, numbers: &Numbers) -> Result<Shift,
     let Some(to) = { higher_free_gear(car, tables, gear) }? else {
         return Ok(Shift::Done);
     };
-    car.gear.set(to);
+    car.gear = to;
     revs(car, tables, numbers)?;
     settle(car);
     Ok(Shift::Done)
 }
 
 /// Down.
-fn down(car: &Car, tables: &mut PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
-    let gear = car.gear.get();
+fn down(car: &mut Car, tables: &mut PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
+    let gear = car.gear;
     if let Some(shift) = shifts::manual_down(gear) {
         return Ok(shift);
     }
@@ -63,14 +63,14 @@ fn down(car: &Car, tables: &mut PhysicsTables, numbers: &Numbers) -> Result<Shif
     let Some(to) = { lower_free_gear(car, gear) }? else {
         return Ok(Shift::Neutral);
     };
-    car.gear.set(to);
+    car.gear = to;
     revs(car, tables, numbers)?;
-    if !below(&car.engine_speed, tables.rev_limit) {
-        car.gear.set(car.gear.get().wrapping_add(1));
+    if !below(car.engine_speed, tables.rev_limit) {
+        car.gear = car.gear.wrapping_add(1);
         revs(car, tables, numbers)?;
-        car.gear_change_hold.set(shifts::HOLD);
-        car.gear_changed.set(-1);
-        car.gear_change_pending.set(1);
+        car.gear_change_hold = shifts::HOLD;
+        car.gear_changed = -1;
+        car.gear_change_pending = 1;
         return Ok(Shift::Done);
     }
     settle(car);
@@ -80,7 +80,7 @@ fn down(car: &Car, tables: &mut PhysicsTables, numbers: &Numbers) -> Result<Shif
 /// Into reverse (with `quarter` the engine speed x 0.25 first; the automatic's reverse has no such
 /// step).
 pub fn reverse(
-    car: &Car,
+    car: &mut Car,
     tables: &mut PhysicsTables,
     numbers: &Numbers,
     quarter: bool,
@@ -88,10 +88,9 @@ pub fn reverse(
     if bit(car, -1)? {
         return Ok(());
     }
-    car.gear.set(-1);
+    car.gear = -1;
     if quarter {
-        car.engine_speed
-            .set(x87::mul(&car.engine_speed, numbers.quarter));
+        car.engine_speed = x87::mul(car.engine_speed, numbers.quarter);
     }
     wheels(car, tables)?;
     settle(car);
@@ -100,25 +99,25 @@ pub fn reverse(
 
 /// The start-line rules.
 fn start_line(
-    car: &Car,
+    car: &mut Car,
     tables: &mut PhysicsTables,
     inputs: &GearInputs,
     gear_figures: &GearFigures,
 ) -> Result<Shift, Refused> {
-    let gear = car.gear.get();
+    let gear = car.gear;
     if let Some(shift) =
         shifts::start_line_keys(gear, inputs.gear_down != 0, || inputs.gear_up != 0)
     {
         return Ok(shift);
     }
-    if car.all_wheels_off.get() != 0 {
+    if car.all_wheels_off != 0 {
         return Ok(Shift::Done);
     }
     if shifts::forward(gear) {
-        let kept = car.engine_speed.get();
+        let kept = car.engine_speed;
         revs_speed(car, tables)?;
         let over = over_top(car).to_bits();
-        car.engine_speed.set(kept);
+        car.engine_speed = kept;
         if !below(over, gear_figures.shift_up_point.get()) {
             return Ok(Shift::Up);
         }
@@ -134,7 +133,7 @@ fn start_line(
     if mul_div_status(over, rb, rc, &gear_figures.shift_ratio_figure) & 0x100 == 0 {
         return Ok(Shift::Done);
     }
-    let point = if shifts::down_point_clutch(car.brake.get()) {
+    let point = if shifts::down_point_clutch(car.brake) {
         gear_figures.shift_down_clutch_point.get()
     } else {
         gear_figures.shift_down_point.get()
@@ -148,30 +147,29 @@ fn start_line(
 /// The steps on `r`.
 // Core: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
 pub(super) fn manual_gearbox(
-    car: &Car,
+    car: &mut Car,
     tables: &mut PhysicsTables,
     inputs: &GearInputs,
     numbers: &Numbers,
     gear_figures: &GearFigures,
 ) -> Result<(), Refused> {
-    car.gear_changed.set(0);
+    car.gear_changed = 0;
     let mut to = 'first: {
-        if car.driver_kind.get() == 2 {
+        if car.driver_kind == 2 {
             break 'first start_line(car, tables, inputs, gear_figures)?;
         }
-        let gear = car.gear.get();
-        if bit(car, gear)? || car.forced_neutral.get() != 0 {
+        let gear = car.gear;
+        if bit(car, gear)? || car.forced_neutral != 0 {
             break 'first Shift::Neutral;
         }
-        if car.gear_change_hold.get() != 0 {
-            car.gear_change_hold
-                .set(car.gear_change_hold.get().wrapping_sub(1));
+        if car.gear_change_hold != 0 {
+            car.gear_change_hold = car.gear_change_hold.wrapping_sub(1);
             return Ok(());
         }
-        if car.gear_change_blocked.get() != 0 {
+        if car.gear_change_blocked != 0 {
             return Ok(());
         }
-        if car.gearbox_kind.get() != 0 {
+        if car.gearbox_kind != 0 {
             break 'first start_line(car, tables, inputs, gear_figures)?;
         }
         shifts::manual_keys(inputs.gear_up != 0, || inputs.gear_down != 0)

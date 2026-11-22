@@ -24,16 +24,16 @@ pub fn lever_pushes(
     numbers: &Numbers,
     switches: crate::race::switches_store::FrameSwitchesRef<'_>,
     physics_tables: &PhysicsTables,
-    car: &Car,
+    car: &mut Car,
 ) {
-    if switches.levers_on() != 1 || car.all_wheels_off.get() != 0 {
+    if switches.levers_on() != 1 || car.all_wheels_off != 0 {
         return;
     }
     let (share, zero) = lever_share(
-        &car.grip_forces[0],
-        &car.grip_forces[3],
-        &car.grip_forces[1],
-        &car.grip_forces[2],
+        car.grip_forces[0],
+        car.grip_forces[3],
+        car.grip_forces[1],
+        car.grip_forces[2],
         0.0,
     );
     if zero {
@@ -47,9 +47,9 @@ pub fn lever_pushes(
         share_start = x87::loaded(numbers.one);
     }
     let share_left = x87::loaded(share_start);
-    let rear = x87::loaded(&car.probe_point_z[3]).to_bits();
+    let rear = x87::loaded(car.probe_point_z[3]).to_bits();
     lever_push(car, physics_tables, numbers, [0, 0, rear], share_left);
-    let front = x87::loaded(&car.probe_point_z[0]).to_bits();
+    let front = x87::loaded(car.probe_point_z[0]).to_bits();
     lever_push(
         car,
         physics_tables,

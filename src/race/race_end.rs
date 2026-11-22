@@ -7,23 +7,37 @@ use crate::race::owner::Race;
 use crate::race::replay_work_store::ReplayWork;
 use rc2k_core::audio::commands::Command;
 
-/// Where a header setting lives in the race's variables (its first place).
-pub(super) fn setting_cell(
-    race: &Race,
-    s: rc2k_core::race::replay::Setting,
-) -> &dyn crate::memory::session::DwordLike {
+/// The race's variable a header setting lives in (its first place).
+pub(super) fn setting_get(race: &Race, s: rc2k_core::race::replay::Setting) -> u32 {
     let shared = &race.shared;
     use rc2k_core::race::replay::Setting::*;
     match s {
-        Seed => &shared.tables().noise_seed,
-        StartPlace => &shared.tables().start_place,
-        ArcadeCars => &shared.tables().arcade_cars,
-        Stage => &shared.vars.get().stage_number,
-        Mode => &shared.vars.get().run_kind,
-        Players => &shared.view.get().players,
-        Cars => &shared.view.get().race_cars,
-        Kind(n) => &race.car_blocks().cars[n as usize].car_kind,
-        GameOver(n) => &race.car_blocks().cars[n as usize].stop_state,
+        Seed => shared.tables().noise_seed.get(),
+        StartPlace => shared.tables().start_place.get(),
+        ArcadeCars => shared.tables().arcade_cars.get(),
+        Stage => shared.vars.get().stage_number.get(),
+        Mode => shared.vars.get().run_kind.get(),
+        Players => shared.view.get().players.get(),
+        Cars => shared.view.get().race_cars.get(),
+        Kind(n) => race.car_blocks().cars[n as usize].car_kind,
+        GameOver(n) => race.car_blocks().cars[n as usize].stop_state,
+    }
+}
+
+/// A header setting put into the place it lives in.
+pub(super) fn setting_set(race: &Race, s: rc2k_core::race::replay::Setting, value: u32) {
+    let shared = &race.shared;
+    use rc2k_core::race::replay::Setting::*;
+    match s {
+        Seed => shared.tables().noise_seed.set(value),
+        StartPlace => shared.tables().start_place.set(value),
+        ArcadeCars => shared.tables().arcade_cars.set(value),
+        Stage => shared.vars.get().stage_number.set(value),
+        Mode => shared.vars.get().run_kind.set(value),
+        Players => shared.view.get().players.set(value),
+        Cars => shared.view.get().race_cars.set(value),
+        Kind(n) => race.car_blocks_mut().cars[n as usize].car_kind = value,
+        GameOver(n) => race.car_blocks_mut().cars[n as usize].stop_state = value,
     }
 }
 
@@ -77,7 +91,7 @@ pub fn record_replay_header(race: &Race) {
     // Logic in `rc2k_core::race::replay::HEADER_SETTINGS`.
     use rc2k_core::race::replay::HEADER_SETTINGS;
     for s in HEADER_SETTINGS {
-        let value = setting_cell(race, s).get();
+        let value = setting_get(race, s);
         *header_field(&mut race.replay_work_mut(), s) = value;
     }
     for (n, &s) in HEADER_SETTINGS.iter().enumerate() {

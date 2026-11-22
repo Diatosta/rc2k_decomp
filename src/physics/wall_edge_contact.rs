@@ -16,6 +16,7 @@ use crate::math::rotate_float_point_about_y::rotate_float_point_about_y;
 use crate::math::x87::mul;
 use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
+use crate::physics::car_store::Car;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::step_families::ContactInputs;
@@ -79,12 +80,13 @@ pub fn steps(
     scene: &crate::scene::owner::Scene,
     faces: WallFaces,
     probe: u32,
+    car: &mut Car,
 ) -> Result<(), Refused> {
     let face_corners = corners(c.course, faces.now)?;
     let wall_corners = corners(c.course, faces.before)?;
     let (shared, to, from) = walls::shared_edge(|j| wall_corners[j], face_corners);
     if !shared {
-        return crate::physics::wall_push_back::steps(c, scene);
+        return crate::physics::wall_push_back::steps(c, scene, car);
     }
     // Along the edge.
     let n = probe;
@@ -107,8 +109,8 @@ pub fn steps(
     point[1] = mul(point[1], c.numbers.tenth).to_bits();
     {
         let mut work = c.contact.borrow_mut();
-        work.contact_car_speed = bits_of(&c.car.velocity);
-        work.contact_turn_speed = bits_of(&c.car.spin);
+        work.contact_car_speed = bits_of(&car.velocity);
+        work.contact_turn_speed = bits_of(&car.spin);
         work.contact_point = point;
         work.contact_slide_limit = 0;
     }
@@ -116,10 +118,10 @@ pub fn steps(
         c.contact,
         c.numbers,
         &mut c.tables.borrow_mut(),
-        c.car,
+        car,
         RecordAt::Contact(4),
     );
-    { crate::physics::place_sound_e1::place_sound_e1(&c.sound) }?;
+    { crate::physics::place_sound_e1::place_sound_e1(&c.sound, car) }?;
     Ok(())
 }
 

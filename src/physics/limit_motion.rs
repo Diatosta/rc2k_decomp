@@ -8,19 +8,18 @@
 //! The x87 compares are plain Rust over `X` (`math/x87_float.rs`).
 
 use crate::logfile::log_float::log_float;
-use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::PlainX87;
 use crate::math::matrix3::rounded_value;
 use crate::math::x87_float::compare;
-use crate::memory::session::Cell32;
 use crate::physics::car_store::Car;
 use crate::physics::figures::{SPIN_LIMIT, VELOCITY_LIMIT};
-use crate::physics::scale_vector::scale_vector;
+use crate::physics::scale_vector::scale_vector_plain;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::vector_length::vector_length;
 use std::cmp::Ordering;
 
 /// The value at `v` held to +-`limit` (a float's bits).
-fn hold(v: &impl Cell32, limit: u32) {
+fn hold(v: &mut f32, limit: u32) {
     let limit = crate::math::x87_float::ld(limit);
     if compare(v.ld(), limit) & 0x100 == 0 {
         v.st(limit);
@@ -32,27 +31,25 @@ fn hold(v: &impl Cell32, limit: u32) {
 }
 
 /// The exact version, for `physics::car_physics_step` and `physics::find_clear_place`.
-pub fn limit_motion(car: &Car, tables: &PhysicsTables) {
+pub fn limit_motion(car: &mut Car, tables: &PhysicsTables) {
     // Infinity or not a number (the float's exponent bits are tested).
-    let bad = car.velocity.get().iter().any(|item| !item.is_finite());
+    let bad = car.velocity.iter().any(|item| !item.is_finite());
     if bad {
         crate::logfile::log_write::log_nul(&c"*** INFINITY", false, 1);
         crate::logfile::log_write::log_nul(&c"[car0.newxspd] =", false, 1);
-        for (k, value) in car.velocity.get().into_iter().enumerate() {
+        for (k, &value) in car.velocity.iter().enumerate() {
             log_float(value, 5, k == 2, 1);
         }
 
-        for k in 0..3usize {
-            car.velocity.set_at(k, 0.0);
-            car.local_velocity.set_at(k, 0.0);
-            car.spin.set_at(k, 0.0);
-        }
+        car.velocity = [0.0; 3];
+        car.local_velocity = [0.0; 3];
+        car.spin = [0.0; 3];
     }
-    for k in 0..3 {
-        hold(&car.spin.cell_at(k), SPIN_LIMIT.to_bits());
+    for spin in &mut car.spin {
+        hold(spin, SPIN_LIMIT.to_bits());
     }
     for k in [0usize, 2, 1] {
-        hold(&car.velocity.cell_at(k), VELOCITY_LIMIT.to_bits());
+        hold(&mut car.velocity[k], VELOCITY_LIMIT.to_bits());
     }
     let length = rounded_value(vector_length(&car.velocity));
     let top = tables.top_speed;
@@ -60,38 +57,7 @@ pub fn limit_motion(car: &Car, tables: &PhysicsTables) {
         matches!(top.partial_cmp(&length), Some(Ordering::Less)) || top.is_nan() || length.is_nan();
     if past {
         let factor = crate::math::x87::div_80(top, length);
-        scale_vector(&car.velocity, factor);
-        scale_vector(&car.local_velocity, factor);
-    }
-}
-
-#[cfg(test)]
-mod reference_vectors {
-    use super::*;
-    use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
-
-    #[test]
-    fn hold_matches_the_assembly() {
-        let blocks = vec![Block {
-            name: "limit_motion hold",
-            operands: vec![
-                Operand::Buffer {
-                    reads: &[(0, In::F)],
-                    writes: &[(0, Out::F)],
-                },
-                Operand::Buffer {
-                    reads: &[(0, In::F)],
-                    writes: &[(0, Out::F)],
-                },
-            ],
-            ulps: 0,
-            plain: |a| {
-                hold(
-                    &crate::math::x87_mem::HostCell(a[0]),
-                    crate::math::x87_mem::HostCell(a[1]).bits(),
-                );
-            },
-        }];
-        sparse("physics.limit_motion", &blocks, 6000, 201);
+        scale_vector_plain(&mut car.velocity, factor);
+        scale_vector_plain(&mut car.local_velocity, factor);
     }
 }

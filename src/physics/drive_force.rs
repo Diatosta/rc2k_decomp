@@ -20,7 +20,7 @@ pub(super) fn drive_force(
     gear_figures: &GearFigures,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let gear = shared.car().gear.get();
+    let gear = shared.car().gear;
     if !(-1..=7).contains(&gear) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
@@ -30,7 +30,7 @@ pub(super) fn drive_force(
         tables.drive_ratio = sum_times_int_over_minus(
             tables.engine_force,
             tables.engine_torque,
-            shared.car().throttle.get() as i32,
+            shared.car().throttle as i32,
             course.numbers.k256,
         );
         tables.drive_torque = mul_div2(
@@ -39,12 +39,12 @@ pub(super) fn drive_force(
             tables.gear_ratios[(gear + 1) as usize],
             course.numbers.k10000,
         );
-        if shared.car().drive_cut_steps.get() != 0 {
+        if shared.car().drive_cut_steps != 0 {
             tables.drive_torque = 0.0;
         }
     }
     drive_torque_share(
-        shared.car(),
+        &shared.car(),
         &mut shared.physics_tables_mut(),
         &course.numbers,
         scene,

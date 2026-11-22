@@ -5,6 +5,8 @@
 use crate::math::cell_x87::CellX87;
 use crate::math::x87_float::to_int;
 use crate::math::x87_float::{X, ld};
+use crate::memory::plain_floats::FloatRow;
+use crate::memory::plain_floats::FloatRowMut;
 use crate::memory::session::DrawArc;
 use crate::physics::camera_view::record;
 use crate::physics::car_store::Car;
@@ -16,7 +18,7 @@ use crate::race::numbers_store::Numbers;
 pub fn camera_height_bias(
     numbers: &Numbers,
     view_records: &DrawArc<ViewAndRecords>,
-    car: &Car,
+    car: &mut Car,
 ) -> Result<(), crate::errors::BadInput> {
     let scratch = crate::memory::session::PlainDword::new(0);
     let view_record = record(view_records, car)?;

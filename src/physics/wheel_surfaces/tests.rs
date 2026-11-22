@@ -107,7 +107,7 @@ fn blocks() -> Vec<Block> {
                 x87_2(
                     &crate::test_support::own::race().physics.probes().borrow(),
                     &crate::test_support::race_places::numbers(),
-                    crate::test_support::own::race().shared.car(),
+                    &mut crate::test_support::own::race().shared.car_mut(),
                     a[1],
                     crate::test_support::own::scene(),
                 );
@@ -134,7 +134,7 @@ fn blocks() -> Vec<Block> {
                 x87_2(
                     &crate::test_support::own::race().physics.probes().borrow(),
                     &crate::test_support::race_places::numbers(),
-                    crate::test_support::own::race().shared.car(),
+                    &mut crate::test_support::own::race().shared.car_mut(),
                     a[1],
                     crate::test_support::own::scene(),
                 );
@@ -161,7 +161,7 @@ fn blocks() -> Vec<Block> {
                 x87_2(
                     &crate::test_support::own::race().physics.probes().borrow(),
                     &crate::test_support::race_places::numbers(),
-                    crate::test_support::own::race().shared.car(),
+                    &mut crate::test_support::own::race().shared.car_mut(),
                     a[1],
                     crate::test_support::own::scene(),
                 );
@@ -185,7 +185,15 @@ fn blocks() -> Vec<Block> {
                 Operand::Value(0),
             ],
             ulps: 0,
-            plain: |a| x87_3(&race().shared, view(a[0], 0), view(a[1], 0), a[3]),
+            plain: |a| {
+                x87_3(
+                    &race().shared,
+                    &mut race().shared.car_mut(),
+                    view(a[0], 0),
+                    view(a[1], 0),
+                    a[3],
+                );
+            },
         },
         Block {
             name: "wheel_surfaces line 161 idx c=1",
@@ -205,7 +213,15 @@ fn blocks() -> Vec<Block> {
                 Operand::Value(1),
             ],
             ulps: 0,
-            plain: |a| x87_3(&race().shared, view(a[0], 0), view(a[1], 0), a[3]),
+            plain: |a| {
+                x87_3(
+                    &race().shared,
+                    &mut race().shared.car_mut(),
+                    view(a[0], 0),
+                    view(a[1], 0),
+                    a[3],
+                );
+            },
         },
         Block {
             name: "wheel_surfaces line 161 idx c=4",
@@ -225,7 +241,15 @@ fn blocks() -> Vec<Block> {
                 Operand::Value(4),
             ],
             ulps: 0,
-            plain: |a| x87_3(&race().shared, view(a[0], 0), view(a[1], 0), a[3]),
+            plain: |a| {
+                x87_3(
+                    &race().shared,
+                    &mut race().shared.car_mut(),
+                    view(a[0], 0),
+                    view(a[1], 0),
+                    a[3],
+                );
+            },
         },
         Block {
             name: "wheel_surfaces line 178 idx k=0",
@@ -248,6 +272,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 x87_4(
                     &race().shared,
+                    &race().shared.car(),
                     &crate::test_support::race_places::numbers(),
                     table(a[0], a[3]),
                     table(a[2], a[3]),
@@ -276,6 +301,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 x87_4(
                     &race().shared,
+                    &race().shared.car(),
                     &crate::test_support::race_places::numbers(),
                     table(a[0], a[3]),
                     table(a[2], a[3]),
@@ -304,6 +330,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 x87_4(
                     &race().shared,
+                    &race().shared.car(),
                     &crate::test_support::race_places::numbers(),
                     table(a[0], a[3]),
                     table(a[2], a[3]),
@@ -360,7 +387,15 @@ fn blocks() -> Vec<Block> {
                 Operand::Value(0),
             ],
             ulps: 0,
-            plain: |a| x87_5(&race().shared, view(a[0], 0), view(a[2], 0), a[3]),
+            plain: |a| {
+                x87_5(
+                    &race().shared,
+                    &race().shared.car(),
+                    view(a[0], 0),
+                    view(a[2], 0),
+                    a[3],
+                );
+            },
         },
         Block {
             name: "wheel_surfaces line 201 idx c=1",
@@ -411,7 +446,15 @@ fn blocks() -> Vec<Block> {
                 Operand::Value(1),
             ],
             ulps: 0,
-            plain: |a| x87_5(&race().shared, view(a[0], 0), view(a[2], 0), a[3]),
+            plain: |a| {
+                x87_5(
+                    &race().shared,
+                    &race().shared.car(),
+                    view(a[0], 0),
+                    view(a[2], 0),
+                    a[3],
+                );
+            },
         },
         Block {
             name: "wheel_surfaces line 201 idx c=4",
@@ -462,7 +505,15 @@ fn blocks() -> Vec<Block> {
                 Operand::Value(4),
             ],
             ulps: 0,
-            plain: |a| x87_5(&race().shared, view(a[0], 0), view(a[2], 0), a[3]),
+            plain: |a| {
+                x87_5(
+                    &race().shared,
+                    &race().shared.car(),
+                    view(a[0], 0),
+                    view(a[2], 0),
+                    a[3],
+                );
+            },
         },
         Block {
             name: "wheel_surfaces line 258",
@@ -520,6 +571,7 @@ fn blocks() -> Vec<Block> {
                         ..inputs
                     },
                     crate::test_support::own::scene(),
+                    &mut race().shared.car_mut(),
                 );
             },
         },

@@ -18,8 +18,13 @@ use crate::scene::polygon_store::PolygonTablesRef;
 #[allow(dead_code, reason = "the call sites move to it in the M6 rounds")]
 impl Race {
     /// The ten cars' blocks.
-    pub fn car_blocks(&self) -> &CarBlocks {
-        self.shared.car_blocks.get()
+    pub fn car_blocks(&self) -> std::cell::Ref<'_, CarBlocks> {
+        self.shared.car_blocks()
+    }
+
+    /// The ten cars' blocks, to write: no other borrow of them may be held.
+    pub fn car_blocks_mut(&self) -> std::cell::RefMut<'_, CarBlocks> {
+        self.shared.car_blocks_mut()
     }
 
     /// The cars' drawing state.

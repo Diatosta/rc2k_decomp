@@ -8,6 +8,7 @@ use super::*;
 use crate::memory::session::{Dword, DwordLike};
 use crate::test_support::own::race;
 use Step::*;
+use StepOperand::{CarFloatAt, CarWordAt};
 use std::ffi::{CStr, CString};
 
 /// How a value is logged after its word: as a decimal or as eight hex digits.
@@ -277,14 +278,14 @@ pub fn run(race: &Race, fx: &mut impl Effects, steps: &[Step<StepOperand>]) -> R
 
 /// A car block's eight impact marks.
 const IMPACT_MARKS: [CarFloat; 8] = [
-    |c| c.impact_octant_marks.float_at(0).into(),
-    |c| c.impact_octant_marks.float_at(1).into(),
-    |c| c.impact_octant_marks.float_at(2).into(),
-    |c| c.impact_octant_marks.float_at(3).into(),
-    |c| c.impact_octant_marks.float_at(4).into(),
-    |c| c.impact_octant_marks.float_at(5).into(),
-    |c| c.impact_octant_marks.float_at(6).into(),
-    |c| c.impact_octant_marks.float_at(7).into(),
+    |c| &mut c.impact_octant_marks[0],
+    |c| &mut c.impact_octant_marks[1],
+    |c| &mut c.impact_octant_marks[2],
+    |c| &mut c.impact_octant_marks[3],
+    |c| &mut c.impact_octant_marks[4],
+    |c| &mut c.impact_octant_marks[5],
+    |c| &mut c.impact_octant_marks[6],
+    |c| &mut c.impact_octant_marks[7],
 ];
 
 /// The race's settings that are logged after the copy: the log text and the variable.
@@ -357,21 +358,27 @@ impl Builder {
         let mut skip = None;
         for car in 0..2 {
             self.push(Text(Self::car_label(car, "shauncarnum1"), false));
-            self.push(Value(CarCell(car, |c| &c.car_kind), Kind::Int));
+            self.push(Value(CarCell(car, |c| (&mut c.car_kind).into()), Kind::Int));
             self.push(Text(Self::car_label(car, "carpartsleft"), false));
-            self.push(Value(CarCell(car, |c| &c.parts_present), Kind::Hex8));
+            self.push(Value(
+                CarCell(car, |c| (&mut c.parts_present).into()),
+                Kind::Hex8,
+            ));
             self.push(Text(Self::car_label(car, "shauntyretype1"), false));
-            self.push(Value(CarCell(car, |c| &c.tyre_kind), Kind::Int));
+            self.push(Value(
+                CarCell(car, |c| (&mut c.tyre_kind).into()),
+                Kind::Int,
+            ));
             for ((field, _), name) in GAUGES.iter().zip(GAUGE_NAMES) {
                 self.push(Text(Self::car_label(car, name), false));
-                self.push(Float(CarBits(car, *field)));
+                self.push(Float(CarFloatAt(car, *field)));
             }
             for (mark, field) in IMPACT_MARKS.into_iter().enumerate() {
                 self.push(Text(
                     Self::car_label(car, &format!("caroctdamage{mark}")),
                     false,
                 ));
-                self.push(Float(CarBits(car, field)));
+                self.push(Float(CarFloatAt(car, field)));
             }
             if car == 0 {
                 skip = Some(self.here());
@@ -401,17 +408,17 @@ pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
     for car in 0..2 {
         let settings = |f: SettingWord| Setting(car, f);
         for (field, setting) in SETTING_BRAKES {
-            b.push(Brake(CarCell(car, field), settings(setting)));
+            b.push(Brake(CarWordAt(car, field), settings(setting)));
         }
         b.push(Copy(
-            CarCell(car, |c| &c.gear_ratio_setting),
+            CarCell(car, |c| (&mut c.gear_ratio_setting).into()),
             settings(|r| &r.gear_ratio),
         ));
     }
     // The first car's brake balance is turned round: 0x100 less itself.
     b.push(LoadImm(0x100));
-    b.push(SubEax(CarCell(0, |c| &c.brake_balance)));
-    b.push(Store(CarCell(0, |c| &c.brake_balance)));
+    b.push(SubEax(CarCell(0, |c| (&mut c.brake_balance).into())));
+    b.push(Store(CarCell(0, |c| (&mut c.brake_balance).into())));
     for (car, colour) in CAR_COLOURS.into_iter().enumerate() {
         b.push(Load(Cell(
             &shared.state.settings.cars[car].controls.gearing,
@@ -420,14 +427,14 @@ pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
     }
     for car in 0..2 {
         b.push(Copy(
-            CarCell(car, |c| &c.start_slot_value),
+            CarCell(car, |c| (&mut c.start_slot_value).into()),
             Setting(car, |r| &r.race_number),
         ));
     }
     for car in 0..2 {
         b.push(Load(Setting(car, |r| &r.view)));
-        b.push(Store(CarCell(car, |c| &c.camera_view)));
-        b.push(Store(CarCell(car, |c| &c.camera_blend_view)));
+        b.push(Store(CarCell(car, |c| (&mut c.camera_view).into())));
+        b.push(Store(CarCell(car, |c| (&mut c.camera_blend_view).into())));
     }
     let hud_bits = [
         var!(@race shared.state.results.hud_bits_current),
@@ -447,15 +454,15 @@ pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
             b.push(BitIf(Setting(car, field), bit));
         }
         b.0[jump] = JumpIfEaxNot(0xFFFF_FFFF, b.here());
-        b.push(Store(CarCell(car, |c| &c.option_bits)));
+        b.push(Store(CarCell(car, |c| (&mut c.option_bits).into())));
         b.push(Store(RaceVar(PLAYER_OPTIONS[car])));
     }
     for car in 0..2 {
         for (field, setting) in GAUGES {
-            b.push(IntToFloat(CarBits(car, field), Setting(car, setting)));
+            b.push(IntToFloat(CarFloatAt(car, field), Setting(car, setting)));
         }
         for (k, mark) in IMPACT_MARKS.into_iter().enumerate() {
-            b.push(Copy(CarBits(car, mark), ResultMark(car, k)));
+            b.push(Copy(CarFloatAt(car, mark), ResultMark(car, k)));
         }
     }
     for step in FLAGS_IN {
@@ -617,23 +624,23 @@ pub fn shaun_to_graham() -> Vec<Step<StepOperand>> {
     ));
     b.push(Copy(
         var!(@race shared.state.results.hud_bits_current),
-        CarCell(0, |c| &c.option_bits),
+        CarCell(0, |c| (&mut c.option_bits).into()),
     ));
     b.push(Copy(
         var!(@race shared.state.results.hud_bits_first),
-        CarCell(1, |c| &c.option_bits),
+        CarCell(1, |c| (&mut c.option_bits).into()),
     ));
     for car in 0..2 {
         for (field, setting) in GAUGES {
-            b.push(FloatToInt(Setting(car, setting), CarBits(car, field)));
+            b.push(FloatToInt(Setting(car, setting), CarFloatAt(car, field)));
         }
         for (k, mark) in IMPACT_MARKS.into_iter().enumerate() {
-            b.push(Copy(ResultMark(car, k), CarBits(car, mark)));
+            b.push(Copy(ResultMark(car, k), CarFloatAt(car, mark)));
         }
     }
     b.push(Call(routine(Routine::StoreResultsByMode)));
     for car in 0..2 {
-        b.push(Load(CarCell(car, |c| &c.stop_state)));
+        b.push(Load(CarCell(car, |c| (&mut c.stop_state).into())));
         b.push(Store(if car == 0 {
             var!(@race shared.state.results.results[0].result)
         } else {
@@ -643,16 +650,16 @@ pub fn shaun_to_graham() -> Vec<Step<StepOperand>> {
     for car in 0..2 {
         b.push(FloatCopy(
             ResultSecs(car),
-            CarBits(car, |c| (&c.top_speed).into()),
+            CarFloatAt(car, |c| &mut c.top_speed),
         ));
     }
     b.push(Copy(
         var!(@race shared.state.results.flags_current),
-        CarCell(0, |c| &c.parts_present),
+        CarCell(0, |c| (&mut c.parts_present).into()),
     ));
     b.push(Copy(
         var!(@race shared.state.results.flags_first),
-        CarCell(1, |c| &c.parts_present),
+        CarCell(1, |c| (&mut c.parts_present).into()),
     ));
     b.car_logs();
     for step in TAIL_OUT {

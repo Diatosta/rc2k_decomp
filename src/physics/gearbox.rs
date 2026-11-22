@@ -10,9 +10,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::physics::gear_bit::gear_bit;
-use crate::physics::gearing::{
-    GearPlaces, revs_from_speed_at, revs_from_wheels_at, wheels_from_revs_at,
-};
+use crate::physics::gearing::{revs_from_speed_at, revs_from_wheels_at, wheels_from_revs_at};
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use std::cmp::Ordering;
@@ -26,18 +24,16 @@ pub fn below(a: impl crate::math::x87::Flt, b: impl crate::math::x87::Flt) -> bo
 }
 
 /// The common end of a change: `drive_cut_steps` from the tables, the hold 20, both change words 1.
-pub fn settle(car: &Car) {
-    car.drive_cut_steps
-        .set(crate::physics::figures::DRIVE_CUT_STEPS);
-    car.gear_change_hold
-        .set(rc2k_core::physics::gear_shifts::HOLD);
-    car.gear_changed.set(1);
-    car.gear_change_pending.set(1);
+pub fn settle(car: &mut Car) {
+    car.drive_cut_steps = crate::physics::figures::DRIVE_CUT_STEPS;
+    car.gear_change_hold = rc2k_core::physics::gear_shifts::HOLD;
+    car.gear_changed = 1;
+    car.gear_change_pending = 1;
 }
 
 /// Neutral, then `settle`.
-pub fn neutral(car: &Car) {
-    car.gear.set(0);
+pub fn neutral(car: &mut Car) {
+    car.gear = 0;
     settle(car);
 }
 
@@ -47,26 +43,26 @@ pub fn bit(car: &Car, gear: i32) -> Result<bool, Refused> {
 }
 
 /// `wheels_from_revs`.
-pub fn wheels(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
-    { wheels_from_revs_at(&GearPlaces::game(car, tables)) }?;
+pub fn wheels(car: &mut Car, tables: &PhysicsTables) -> Result<(), Refused> {
+    { wheels_from_revs_at(car, &tables.gear_ratios) }?;
     Ok(())
 }
 
 /// `revs_from_wheels`.
-pub fn revs(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<(), Refused> {
-    { revs_from_wheels_at(numbers, &GearPlaces::game(car, tables)) }?;
+pub fn revs(car: &mut Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<(), Refused> {
+    { revs_from_wheels_at(numbers, car, &tables.gear_ratios) }?;
     Ok(())
 }
 
 /// `revs_from_speed`.
-pub(super) fn revs_speed(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
-    { revs_from_speed_at(&GearPlaces::game(car, tables)) }?;
+pub(super) fn revs_speed(car: &mut Car, tables: &PhysicsTables) -> Result<(), Refused> {
+    { revs_from_speed_at(car, &tables.gear_ratios) }?;
     Ok(())
 }
 
 /// The engine speed over its top .
 pub fn over_top(car: &Car) -> f32 {
-    x87::div(&car.engine_speed, &car.engine_speed_limit)
+    x87::div(car.engine_speed, car.engine_speed_limit)
 }
 
 /// A gear's ratio; refused outside -1 ..= 7.

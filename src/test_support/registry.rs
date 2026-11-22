@@ -749,10 +749,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             ),
         ),
         listed!(
-            "owners.race.shared.car_blocks",
-            on_game(o.race.shared.car_blocks.get()),
-        ),
-        listed!(
             "owners.race.shared.replay_file.replays_on",
             on_game(&o.race.shared.replay_file().replays_on),
         ),
@@ -860,7 +856,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.race.shared.vars.mud_scale_a",
             on_game(&o.race.shared.vars.get().mud_scale_a),
         ),
-        listed!("owners.race.shared.car", on_game(o.race.shared.car()),),
         listed!("owners.race.shared.state", &o.race.shared.state,),
         listed!(
             "owners.effects.masks.edge_settings.factor",

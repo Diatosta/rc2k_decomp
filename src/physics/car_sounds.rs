@@ -11,7 +11,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::rounded_value;
 use crate::math::x87::ext_times;
 use crate::math::x87_float::{f80, int};
-use crate::memory::plain_floats::PlainFloats;
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::physics::step_families::SoundInputs;
 use crate::race::frame_store::FrameWorkStore;
@@ -40,7 +40,7 @@ pub fn place(
     view_turn: &Matrix,
     heard_turn: &crate::race::heard_turn::HeardTurn,
     car: &Car,
-    listener: &Car,
+    listener: [f32; 3],
     offset: Option<[u32; 3]>,
 ) -> [f32; 3] {
     // The steps are the x87's (load the offset, add the car's, subtract the listener's; without
@@ -48,7 +48,7 @@ pub fn place(
     // big difference keeps fewer bits at 24.
     let part = |k: usize| {
         let here = car.position.bits_at(k);
-        let listener = listener.camera_position.bits_at(k);
+        let listener = listener.bits_at(k);
         match offset {
             Some(o) => offset_part(o[k], here, listener),
             None => car_part(here, listener),
@@ -65,14 +65,14 @@ fn place_plain(
     view_turn: &Matrix,
     heard_turn: &crate::race::heard_turn::HeardTurn,
     car: &Car,
-    listener: &Car,
+    listener: [f32; 3],
     offset: Option<[u32; 3]>,
 ) -> [f32; 3] {
-    let whole = |x: &PlainFloats<3>| x.bits().map(|k| k as i32);
+    let whole = |x: &[f32; 3]| x.map(|v| v.to_bits() as i32);
     let turn = heard_turn.turn(view_turn);
     rc2k_core::physics::sound_places::place(
         whole(&car.position),
-        whole(&listener.camera_position),
+        whole(&listener),
         offset.map(|o| o.map(|v| v as i32)),
         &std::array::from_fn(|n| turn[n]),
         numbers.one_over_65536.get(),
@@ -89,6 +89,7 @@ pub(super) fn cue_plain(
     sound: u32,
     band: u32,
     offset: Option<[u32; 3]>,
+    car: &mut Car,
 ) -> Result<(), BadInput> {
     if slot != FIRST && slot != SECOND {
         return Err(BadInput("a sound object's slot not worked out"));
@@ -106,8 +107,8 @@ pub(super) fn cue_plain(
         c.numbers,
         &c.view_turn,
         c.heard_turn,
-        c.car,
-        c.listener,
+        car,
+        c.listener.unwrap_or(car.camera_position),
         offset,
     );
     if slot == FIRST {

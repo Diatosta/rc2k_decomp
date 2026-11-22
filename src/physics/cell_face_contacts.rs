@@ -6,6 +6,7 @@
 //! back).
 
 use crate::errors::Refused;
+use crate::physics::car_store::Car;
 use crate::physics::find_course_record::find_course_record;
 use crate::physics::step_families::ContactInputs;
 
@@ -16,10 +17,11 @@ pub fn steps(
     x: u32,
     z: u32,
     scene: &crate::scene::owner::Scene,
+    car: &mut Car,
 ) -> Result<(), Refused> {
     let (key, _) = rc2k_core::physics::ground_search::cell_key(x, z);
     let Some(record) = find_course_record(c.course.reads(), key)? else {
         return Ok(());
     };
-    crate::physics::record_face_contacts::steps(c, record, scene)
+    crate::physics::record_face_contacts::steps(c, record, scene, car)
 }

@@ -9,9 +9,9 @@
 //! drawing: a field the drawing changed is logged (it would not belong here).
 
 use crate::errors::BadInput;
-use crate::memory::cells::Cells;
-use crate::memory::session::{Dword, Float};
+use crate::memory::session::{Cell32, Dword, Float};
 use crate::physics::car_store::Car;
+use crate::physics::flow::Bits;
 use crate::race::blocks_store::BLOCK_COUNT;
 use crate::race::owner::Race;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -33,13 +33,13 @@ macro_rules! car_view {
 
             /// Every field from `car`.
             fn take(&self, car: &Car) {
-                $(crate::memory::cells::SameShape::copy_cells_to(&car.$field, &self.$field);)*
+                $(Snap::snap(&car.$field, &self.$field);)*
             }
 
             /// The fields that differ from `car`'s.
             fn changed(&self, car: &Car) -> Vec<&'static str> {
                 let mut out = Vec::new();
-                $(if !same(&self.$field, &car.$field) {
+                $(if !Snap::same(&car.$field, &self.$field) {
                     out.push(stringify!($field));
                 })*
                 out
@@ -101,9 +101,35 @@ car_view! {
     surface_noise_b: Dword,
 }
 
-/// Two cells (or arrays of them, of either kind) with the same bits.
-fn same<A: Cells, B: Cells>(a: &A, b: &B) -> bool {
-    crate::memory::cells::flatten(a) == crate::memory::cells::flatten(b)
+/// A plain field of a car block (a word, or an array of them) copied into, and compared with,
+/// the snapshot's atomic cells of the same shape.
+trait Snap<To: ?Sized> {
+    /// Every word put into the cells.
+    fn snap(&self, to: &To);
+    /// Whether every word equals the cell's bits.
+    fn same(&self, to: &To) -> bool;
+}
+
+impl<T: Bits, C: Cell32> Snap<C> for T {
+    fn snap(&self, to: &C) {
+        to.set_bits(self.word_bits());
+    }
+    fn same(&self, to: &C) -> bool {
+        to.bits() == self.word_bits()
+    }
+}
+
+impl<T: Bits, C: Cell32, const N: usize> Snap<[C; N]> for [T; N] {
+    fn snap(&self, to: &[C; N]) {
+        for (from, to) in self.iter().zip(to) {
+            to.set_bits(from.word_bits());
+        }
+    }
+    fn same(&self, to: &[C; N]) -> bool {
+        self.iter()
+            .zip(to)
+            .all(|(from, to)| to.bits() == from.word_bits())
+    }
 }
 
 /// The snapshot of every car and whether one is held, kept by the frame owner

@@ -59,7 +59,7 @@ pub fn set_fine_turn(course: CourseReads<'_>, matrices: &ViewMatrices, axis: Axi
 /// equal to `Numbers.zero` (0, or no number). Minus zero made zero. Returns the length.
 pub fn unit_vector(
     course: CourseReads<'_>,
-    from: &(impl Cells + ?Sized),
+    from: &(impl crate::math::cells::Words + ?Sized),
     out: &(impl Cells + ?Sized),
 ) -> u32 {
     // `x87::length`: sqrt(x x + (y y + z z)).
@@ -126,7 +126,7 @@ pub fn square_matrix(course: CourseReads<'_>, at: &(impl Cells + ?Sized)) -> u32
 /// floats' cofactors laid out the other way round, then squared. Returns `square_matrix`'s length.
 pub fn invert_turn(
     course: CourseReads<'_>,
-    from: &(impl Cells + ?Sized),
+    from: &(impl crate::math::cells::Words + ?Sized),
     out: &(impl Cells + ?Sized),
 ) -> u32 {
     let mut m = [0f32; 9];

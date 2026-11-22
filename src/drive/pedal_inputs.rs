@@ -4,37 +4,22 @@
 //! 0x2000 and `input_brake`. The handbrake `handbrake` = `input_handbrake`, 0 when that is 0x100
 //! or less and `handbrake_failed` is set.
 
-use crate::memory::session::DwordLike;
 use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
 use rc2k_core::drive::controls::{BRAKE_KEY, THROTTLE_KEY, handbrake, pedal};
 
 /// One pedal: by the keys' `bit`, stepped from `input`, or set to it.
-fn step_pedal(shared: &RaceShared, bit: u32, input: u32, at: &impl DwordLike) {
-    at.set(pedal(
-        shared.car().input_keys.get() & bit != 0,
-        input,
-        at.get(),
-    ));
+fn step_pedal(keys: u32, bit: u32, input: u32, at: &mut u32) {
+    *at = pedal(keys & bit != 0, input, *at);
 }
 
 pub fn pedal_inputs(race: &Race) {
     let inputs = race.shared.run().gear_inputs;
-    step_pedal(
-        &race.shared,
-        THROTTLE_KEY,
-        inputs.first,
-        &race.shared.car().throttle,
-    );
-    step_pedal(
-        &race.shared,
-        BRAKE_KEY,
-        inputs.second,
-        &race.shared.car().brake,
-    );
+    let mut car = race.shared.car_mut();
+    let keys = car.input_keys;
+    step_pedal(keys, THROTTLE_KEY, inputs.first, &mut car.throttle);
+    step_pedal(keys, BRAKE_KEY, inputs.second, &mut car.brake);
+    drop(car);
     let hand = inputs.hold;
-    race.shared
-        .car()
-        .handbrake
-        .set(handbrake(hand, || race.shared.car().handbrake_failed.get()));
+    let value = handbrake(hand, || race.shared.car().handbrake_failed);
+    race.shared.car_mut().handbrake = value;
 }

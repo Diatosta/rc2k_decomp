@@ -6,7 +6,8 @@
 //!
 //! The x87 run is plain Rust over `X` (`math/x87_float.rs`).
 
-use crate::math::cell_x87::{CellX87, PlainX87};
+use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::PlainX87;
 use crate::math::x87;
 use crate::math::x87_float::int;
 use crate::physics::car_store::Car;
@@ -21,7 +22,7 @@ use crate::race::owner_shared::RaceShared;
 fn run(
     numbers: &Numbers,
     physics_tables: &mut PhysicsTables,
-    car: &Car,
+    car: &mut Car,
     gear: &GearFigures,
 ) -> u32 {
     x87_1(numbers, physics_tables, car, gear)
@@ -38,24 +39,24 @@ pub fn free_rev(
     let drag = run(
         &course.numbers,
         &mut shared.physics_tables_mut(),
-        shared.car(),
+        &mut shared.car_mut(),
         gear,
     );
-    let e = shared.car().engine_speed.get();
+    let e = shared.car().engine_speed;
     if e == 0.0 || e.is_nan() {
         return;
     }
     if e < 0.0 {
         let y = x87::add(e, drag);
-        shared.car().engine_speed.set(y);
+        shared.car_mut().engine_speed = y;
         if !below(y, 0.0) {
-            shared.car().engine_speed.set(0.0);
+            shared.car_mut().engine_speed = 0.0;
         }
     } else {
         let y = x87::sub(e, drag);
-        shared.car().engine_speed.set(y);
+        shared.car_mut().engine_speed = y;
         if below(y, 0.0) {
-            shared.car().engine_speed.set(0.0);
+            shared.car_mut().engine_speed = 0.0;
         }
     }
 }
@@ -66,7 +67,7 @@ pub fn free_rev(
 fn x87_1(
     numbers: &Numbers,
     physics_tables: &mut PhysicsTables,
-    car: &Car,
+    car: &mut Car,
     gear: &GearFigures,
 ) -> u32 {
     let t0 = physics_tables.drive_ratio.ld();
@@ -76,7 +77,7 @@ fn x87_1(
     let t4 = t2 / t3;
     let t5 = numbers.k10000.ld();
     let t6 = t4 / t5;
-    let t7 = int(car.throttle.get() as i32);
+    let t7 = int(car.throttle as i32);
     let t8 = t6 * t7;
     let t9 = numbers.k256.ld();
     let t10 = t8 / t9;
@@ -127,7 +128,7 @@ mod reference_vectors {
                 let drag = x87_1(
                     &crate::test_support::race_places::numbers(),
                     &mut race().shared.physics_tables_mut(),
-                    race().shared.car(),
+                    &mut race().shared.car_mut(),
                     race().gear(),
                 );
                 crate::test_support::own::scene().draw_work_mut().scratch = drag;

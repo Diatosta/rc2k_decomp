@@ -22,10 +22,10 @@ fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refuse
     let block = race.shared.work().car_block(slot as usize);
     race.shared.work_mut().work_block = block;
     crate::drive::load_car::load_car(&race.shared)?;
-    if race.shared.car().driver_kind.get() != 0 {
+    if race.shared.car().driver_kind != 0 {
         crate::drive::read_car_controls::read_car_controls(race, scene, net)?;
         crate::physics::gear_input_rules::gear_input_rules(
-            race.shared.car(),
+            &mut race.shared.car_mut(),
             &mut race.shared.run_mut().gear_inputs,
             race.shared.vars.get(),
         );
@@ -35,14 +35,10 @@ fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refuse
         crate::physics::car_physics_step::car_physics_step(o, race)?;
         crate::net::race_step::race_step(race, net)?;
     }
-    race.shared
-        .car()
-        .step_clock
-        .set(race.shared.car().step_clock.get().wrapping_add(1));
-    race.shared
-        .car()
-        .run_ticks
-        .set(race.shared.car().run_ticks.get().wrapping_add(1));
+    let value = race.shared.car().step_clock.wrapping_add(1);
+    race.shared.car_mut().step_clock = value;
+    let value = race.shared.car().run_ticks.wrapping_add(1);
+    race.shared.car_mut().run_ticks = value;
     crate::drive::store_car::store_car(&race.shared)?;
     crate::drive::replay_v2_step::after_step(race)?;
     Ok(())
@@ -56,14 +52,13 @@ pub fn replay_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(),
     crate::drive::keep_replay_frame::keep_replay_frame(race)?;
     crate::drive::play_replay_frame::play_replay_frame(race, o.system)?;
     if race_steps::skids_restart(
-        race.car_blocks().cars[0].step_clock.get(),
-        race.car_blocks().cars[0].previous_step_clock.get(),
+        race.car_blocks().cars[0].step_clock,
+        race.car_blocks().cars[0].previous_step_clock,
     ) {
         crate::race::stage_prefs::init_skidmarks(race)?;
     }
-    race.car_blocks().cars[0]
-        .previous_step_clock
-        .set(race.car_blocks().cars[0].step_clock.get());
+    let value = race.car_blocks().cars[0].step_clock;
+    race.car_blocks_mut().cars[0].previous_step_clock = value;
     race_steps::each_car(
         || shared.work().current_car,
         || shared.view.get().race_cars.get(),

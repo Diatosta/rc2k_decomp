@@ -16,16 +16,14 @@ use rc2k_core::physics::parts::{BROKEN_BITS, breaks, broken_checked};
 pub fn drop_broken_parts(
     numbers: &Numbers,
     work: &mut RaceWork,
-    car: &Car,
+    car: &mut Car,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     for (k, &bit) in BROKEN_BITS.iter().enumerate() {
         if !broken_checked(k, || scene.light_work().marks_mask != 0) {
             continue;
         }
-        if !breaks(car.part_damage_limits[k].get(), || {
-            work.part_break_limits[k]
-        }) {
+        if !breaks(car.part_damage_limits[k], || work.part_break_limits[k]) {
             continue;
         }
         fill_slot_on_bit(numbers, work, car, bit, scene)?;

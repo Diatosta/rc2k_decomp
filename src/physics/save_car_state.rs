@@ -18,17 +18,21 @@ pub(super) fn save_car_state(
     tables: &mut PhysicsTables,
     probes: &mut ProbeLists,
 ) -> Result<(), Refused> {
-    let n = save_count(car.probe_count.get())?;
+    let n = save_count(car.probe_count)?;
     tables.clear_place_count = 0;
-    for (to, from) in tables.saved_place.iter_mut().zip(car.position.bits()) {
+    for (to, from) in tables
+        .saved_place
+        .iter_mut()
+        .zip(car.position.map(f32::to_bits))
+    {
         *to = from;
     }
-    tables.saved_matrix = car.crash_matrix.bits().map(f32::from_bits);
+    tables.saved_matrix = car.crash_matrix;
     for (to, from) in probes.probe_saved_faces[..n]
         .iter_mut()
         .zip(&car.probe_point_face[..n])
     {
-        *to = from.get();
+        *to = *from;
     }
     Ok(())
 }
