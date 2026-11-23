@@ -4,11 +4,13 @@
 //! is marked unusable (bit 7), else white, or for the highlighted item red while a camera is
 //! edited, else yellow and red by turns (bit 3 of `frame_clock` - `move_clock`).
 //!
-//! The panel's pictures hold the numbers 1 and 2 only. Where an item needs another number (the car
-//! item of a further car, a camera button that edits another car's camera) its picture's own
-//! number is covered with a piece of its plain face, in the item's colour, and the number is
-//! drawn over the finished frame (`draw_numbers`) in the game's heavy font, black, as the button
-//! names are (`tip`); `rc2k_core::race::viewer_digits` holds where.
+//! The panel's pictures hold the numbers 1 and 2 only, and the car item's only the first two
+//! players alone and together. Where an item needs more (the car item of a further player, pair
+//! or group, a camera button that edits another player's camera) pieces of the atlas are laid over
+//! its picture in the item's colour (a piece of plain face over the picture's own number, the
+//! pair pictures' dividers), and the numbers are drawn over the finished frame (`draw_numbers`)
+//! in the game's heavy font, black, as the button names are (`tip`);
+//! `rc2k_core::race::viewer_digits` and `rc2k_core::race::car_item` hold what and where.
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
@@ -17,13 +19,24 @@ use crate::race::owner_replay::Replay;
 use crate::race::viewer_list_store::ViewerItem;
 use crate::race::viewer_state_store::{ReplayViewBlock, SwitchTable, ViewerPicture};
 use rc2k_core::hud::anchor::Spread;
-use rc2k_core::race::viewer_digits::Spot;
+use rc2k_core::race::car_item::CarPicture;
+use rc2k_core::race::viewer_digits::{Overlay, Source};
 
 fn camera_byte(race: &Race, replay: &Replay, byte: usize) -> Result<u32, BadInput> {
     Ok(crate::race::viewer::camera_byte_at(
         race,
         byte.wrapping_add(8 * replay.replay_view().replay_block.get() as usize),
     )? as u32)
+}
+
+/// The car item's picture for the layout of the block shown.
+fn car_picture(race: &Race, replay: &Replay) -> Result<CarPicture, BadInput> {
+    let layout = camera_byte(race, replay, 5)?.min(0xFF) as u8;
+    Ok(rc2k_core::race::car_item::car_picture(
+        layout,
+        crate::race::viewer::layout_shown(race, layout),
+        crate::race::split_layout::index(),
+    )?)
 }
 
 /// The item's picture (a rectangle of the panel's texture).
@@ -37,11 +50,7 @@ fn picture(race: &Race, replay: &Replay, index: u32) -> Result<[u32; 4], BadInpu
             panel.switch_picture(SwitchTable::A.number(), n)
         }
         ViewerPicture::Switch(SwitchTable::B) => {
-            let layout = camera_byte(race, replay, 5)?;
-            panel.switch_picture(
-                SwitchTable::B.number(),
-                rc2k_core::race::viewer::layout_picture(layout.min(0xFF) as u8),
-            )
+            panel.switch_picture(SwitchTable::B.number(), car_picture(race, replay)?.base)
         }
         ViewerPicture::Switch(SwitchTable::C) => {
             panel.switch_picture(SwitchTable::C.number(), camera_byte(race, replay, 4)?)
@@ -58,21 +67,26 @@ fn place(replay: &Replay, index: u32) -> Result<[u32; 4], BadInput> {
     }))
 }
 
-/// The number the item's picture is to carry in place of its own, and where: the car item for a
-/// layout that shows a further player alone, and the camera buttons that edit the camera of a
-/// player other than their own (the first two buttons' numbers) or are the third and fourth.
-fn number(race: &Race, replay: &Replay, index: u32) -> Result<Option<(u8, Spot)>, BadInput> {
+/// What is laid and drawn over the item's picture: for the car item its layout's
+/// (`car_item::car_picture`), for the camera buttons that edit the camera of a player other than
+/// their own (the first two buttons' numbers) or are the third and fourth the player's number in
+/// place of the icon's.
+fn overlay(race: &Race, replay: &Replay, index: u32) -> Result<Overlay, BadInput> {
     use rc2k_core::race::viewer::CAMERA_ITEMS;
-    use rc2k_core::race::viewer_digits::{CAR, camera_digit, car_digit};
-    let layout = camera_byte(race, replay, 5)?.min(0xFF) as u8;
+    use rc2k_core::race::viewer_digits::camera_digit;
     if index == CAR_ITEM {
-        return Ok(car_digit(layout).map(|digit| (digit, CAR)));
+        return Ok(car_picture(race, replay)?.overlay);
     }
     let Some(button) = CAMERA_ITEMS.iter().position(|&item| item == index) else {
-        return Ok(None);
+        return Ok(Overlay::default());
     };
+    let layout = camera_byte(race, replay, 5)?.min(0xFF) as u8;
     let buttons = crate::race::viewer::camera_buttons(race, layout)?;
-    Ok(buttons[button].and_then(|b| camera_digit(button, b.player)))
+    Ok(buttons[button]
+        .and_then(|b| camera_digit(button, b.player))
+        .map_or_else(Overlay::default, |(number, own)| {
+            Overlay::over_own(number, own)
+        }))
 }
 
 /// `item` the list item, `index` its number.
@@ -117,27 +131,27 @@ pub(super) fn draw_viewer_item(
         scene.scratch.game_scratch(),
         Spread::Centred,
     )?;
-    let Some((_, spot)) = number(race, replay, index)? else {
-        return Ok(());
-    };
-    // The picture's own number is covered with a piece of its face in the item's colour.
-    let [x, y, ..] = uv;
-    let [fx, fy, fw, fh] = spot.face;
-    let [px, py, w, h] = spot.covered;
-    crate::drive::tyre_quad::quad_of(
-        [x + fx, y + fy, fw, fh],
-        [
-            panel.item_place[0].get().wrapping_add(px),
-            panel.item_place[1].get().wrapping_add(py),
-            w,
-            h,
-        ],
-        colour,
-        panel,
-        system,
-        scene.scratch.game_scratch(),
-        Spread::Centred,
-    )
+    // The pieces in the item's colour, each stretched from its rectangle of the atlas onto its
+    // place on the picture.
+    let (left, top) = (panel.item_place[0].get(), panel.item_place[1].get());
+    for piece in overlay(race, replay, index)?.pieces {
+        let [x, y, ..] = match piece.source {
+            Source::Own => uv,
+            Source::CarPicture(n) => panel.switch_picture(SwitchTable::B.number(), n)?,
+        };
+        let [rx, ry, rw, rh] = piece.rect;
+        let [px, py, w, h] = piece.place;
+        crate::drive::tyre_quad::quad_of(
+            [x + rx, y + ry, rw, rh],
+            [left.wrapping_add(px), top.wrapping_add(py), w, h],
+            colour,
+            panel,
+            system,
+            scene.scratch.game_scratch(),
+            Spread::Centred,
+        )?;
+    }
+    Ok(())
 }
 
 /// How far right and down, in screen pixels, the game's textured quads land from their geometry
@@ -148,10 +162,10 @@ const QUAD_OFFSET: f32 = 0.5;
 /// The car item's index in the list (the item whose picture is the layout's).
 const CAR_ITEM: u32 = 15;
 
-/// The numbers of the items that carry one (`number`), drawn over the finished frame in the game's
-/// heavy font (`gfx::notice_text`) as solid black shapes, each where its picture's own number would
-/// be (`rc2k_core::race::viewer_digits`). The pictures lie where the items' quads are: the layout's
-/// x is mapped to the screen as the quads' are, its y by the screen's height over 600.
+/// The numbers of the items that carry any (`overlay`), drawn over the finished frame in the game's
+/// heavy font (`gfx::notice_text`) as solid black shapes, each where its spot on the picture is.
+/// The pictures lie where the items' quads are: the layout's x is mapped to the screen as the
+/// quads' are, its y by the screen's height over 600.
 pub(super) fn draw_numbers(
     o: crate::owners::Owners<'static>,
     list: &crate::race::viewer_list_store::ViewerList,
@@ -167,17 +181,20 @@ pub(super) fn draw_numbers(
         if !item_drawn(index, item.first.get()) {
             continue;
         }
-        let Some((digit, spot)) = number(race, replay, index)? else {
+        let overlay = overlay(race, replay, index)?;
+        if overlay.numbers.is_empty() {
             continue;
-        };
+        }
         let place = place(replay, index)?;
         let width = (picture(race, replay, index)?[2] as i32).unsigned_abs();
         let (left, top) = (centred(place[0], place[2], width), place[1]);
-        let centre_x =
-            ((f64::from(left) + f64::from(spot.centre_x)) * factor + shift) as f32 + QUAD_OFFSET;
-        let ink_top = (top as f32 + spot.top_y) * down + QUAD_OFFSET;
-        let size = [spot.scale * factor as f32, spot.scale * down];
-        numbers.push((digit, [centre_x, ink_top], size));
+        for (digit, spot) in overlay.numbers {
+            let centre_x = ((f64::from(left) + f64::from(spot.centre_x)) * factor + shift) as f32
+                + QUAD_OFFSET;
+            let ink_top = (top as f32 + spot.top_y) * down + QUAD_OFFSET;
+            let size = [spot.scale * factor as f32, spot.scale * down];
+            numbers.push((digit, [centre_x, ink_top], size));
+        }
     }
     if numbers.is_empty() {
         return Ok(());

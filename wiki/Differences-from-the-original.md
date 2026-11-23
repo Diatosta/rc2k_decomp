@@ -323,7 +323,14 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   works for a network race's replay and for races of more than four players. The item's picture shows the
   number of the car followed: the panel's pictures hold only 1, 2 and both, so the third to the eighth car are
   the first car's picture with its digit covered and the number drawn over it in the game's heavy font (the font's
-  letters without their outline, black, as large and where the panel's own 1 and 2 are). The camera buttons (and the
+  letters without their outline, black, as large and where the panel's own 1 and 2 are). Every layout has a picture
+  of how it splits the screen: the two-player layouts show the box split upright for the players side by side and
+  across for one above the other (the original showed each pair's picture for the other split); the fifth and
+  sixth as a pair have the pair pictures with 5 and 6 in place of 1 and 2; a group of three or four is the box
+  divided as the screen is in the split chosen for three or four parts (one across the top and two below, rows,
+  columns or quarters, the fourth quarter of three players left empty), with the pair pictures' own dividers, each
+  part with its player's number, the digits as high as the smallest part leaves room for (as the pairs' where the
+  parts are as big as a pair's). The pictures take the item's colours as the others do. The camera buttons (and the
   camera names in the bar above) act on the car the layout shows, also the fifth to the eighth, and their icons show
   that car's number in place of the fixed 1 and 2; in a split of three or four parts two more camera buttons lie on
   either side of the render button, for the third and fourth part. The choice for the fifth to the eighth car lasts

@@ -580,22 +580,6 @@ pub fn views_choosable(one_player: bool, cars: u32) -> bool {
     !one_player || cars >= 2
 }
 
-/// The picture the car item shows for a layout: the pictures are the first car alone (0), the
-/// second alone (1) and the two together (2 side by side, 3 one above the other). A further
-/// player alone shows the single car's (`viewer_digits::car_digit` puts its number on it), and a
-/// split screen of a group the two together side by side's, as the pair of the players after the
-/// fourth does (the same pair one above the other has the other's); a byte that is no layout is
-/// left as it is (the picture table then refuses it).
-pub fn layout_picture(layout: u8) -> u32 {
-    use crate::race::layouts::{FIRST_GROUP, SECOND_GROUP, SECOND_PAIR_STACKED};
-    match layout {
-        4..=9 => 0,
-        FIRST_GROUP | SECOND_GROUP => 2,
-        SECOND_PAIR_STACKED => 3,
-        other => u32::from(other),
-    }
-}
-
 /// A camera byte one on: byte 5 (the view) past 3 back to 2, byte 4 past 2 back to 0 (signed
 /// bytes). `whole_cycle` (a one-player replay's view: 0 the first car, 1 the second, 2 and 3 both
 /// side by side or above each other) takes byte 5 back to 0 instead.
@@ -665,14 +649,6 @@ pub fn count_up<const N: usize>(mut digits: [u8; N]) -> ([u8; N], usize, u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn every_layout_has_a_picture() {
-        assert_eq!(
-            (0..=12).map(layout_picture).collect::<Vec<_>>(),
-            [0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 2, 2, 3]
-        );
-    }
 
     #[test]
     fn files_and_steps() {

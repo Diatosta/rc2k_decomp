@@ -466,7 +466,10 @@ players after the first four, as many as there are: with six players the fifth a
 are by 2 and 3 (11 side by side, 12 one above the other); with seven or eight players a group of three or four
 (11 only). A replay of three or four players (a local split-screen race, or any three or four players) has 10 for
 all of them; five players have 10 for the first four (the fifth has no one to share a screen with); six also 11
-and 12; seven and eight 10 and 11. The viewer's car item offers them after the single players. From three players
+and 12; seven and eight 10 and 11. The viewer's car item offers them after the single players, its picture showing
+the split: a pair's the panel's pair picture of the split (5 and 6 drawn over its 1 and 2), a group's the box
+divided as the screen is in the split chosen for three or four parts (`display.split_layout`), each part numbered
+with its player. From three players
 on the first players are together only as the group: the pair layouts 2 and 3 are a two-player replay's alone (a
 replay of the original's format keeps its own layouts, 2 and 3 included, and has no groups). A group (but not a pair)
 needs the players to be the first cars of the race, as they are in the own format; a replay of three or more players

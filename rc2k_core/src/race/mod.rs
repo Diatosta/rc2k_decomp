@@ -2,6 +2,7 @@
 
 pub mod best_line;
 pub mod blend;
+pub mod car_item;
 pub mod car_marks;
 pub mod car_parts;
 pub mod cars;
