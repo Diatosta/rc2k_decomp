@@ -2,6 +2,7 @@
 //! the light at a place and the face corners' colours.
 
 use crate::Invalid;
+use crate::race::layouts::VIEWS_MOST;
 
 /// Whether a race car's lights are drawn: it has lights, it is drawn (any car in modes 0 and 2,
 /// else the shown car), and the shown car is not standing nor hidden; each asked only when needed.
@@ -126,26 +127,120 @@ pub(crate) fn clamp_byte(v: u32) -> u32 {
     (v as i32).clamp(0, 0xFF) as u32
 }
 
-/// Whether car n's headlights light the place: with one car chosen that car (or all with the
-/// all-cars setting); else the players' cars; outside one player and modes 0 and 2 only the
-/// drawn view's car.
-pub fn headlights_light(
-    n: u32,
-    one_chosen: bool,
-    chosen: impl FnOnce() -> u32,
-    all: bool,
-    players: impl Fn() -> u32,
-    mode: impl FnOnce() -> u32,
-    view_car: impl FnOnce() -> u32,
-) -> bool {
-    if one_chosen {
-        n == chosen() || all
-    } else if !all && n >= players() {
-        false
-    } else if players() == 1 || matches!(mode(), 0 | 2) {
-        true
-    } else {
-        n == view_car()
+/// The run kinds whose cars share the road and collide: 0 (a network race is one) and 2, the
+/// arcade race. There every player's car can be seen from every view; in the others each view has
+/// its own car alone.
+pub fn cars_together(run_kind: u32) -> bool {
+    matches!(run_kind, 0 | 2)
+}
+
+/// The cars the views of a split screen show, in the views' order (at most `VIEWS_MOST`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ViewCars {
+    cars: [u32; VIEWS_MOST],
+    count: usize,
+}
+
+impl ViewCars {
+    /// The cars of `views` views, view `n`'s `car(n)`; refused past `VIEWS_MOST` views (before
+    /// any is asked), or as `car` refuses.
+    pub fn try_from_fn<E: From<Invalid>>(
+        views: u32,
+        mut car: impl FnMut(usize) -> Result<u32, E>,
+    ) -> Result<Self, E> {
+        let count = views as usize;
+        if count > VIEWS_MOST {
+            return Err(Invalid("more views than a split screen has").into());
+        }
+        let mut cars = [0; VIEWS_MOST];
+        for (n, held) in cars.iter_mut().enumerate().take(count) {
+            *held = car(n)?;
+        }
+        Ok(Self { cars, count })
+    }
+
+    /// The views' cars; refused past `VIEWS_MOST` views.
+    pub fn new(cars: &[u32]) -> Result<Self, Invalid> {
+        let views = u32::try_from(cars.len()).unwrap_or(u32::MAX);
+        Self::try_from_fn(views, |n| Ok(cars[n]))
+    }
+
+    /// Whether a view shows `car`.
+    pub fn shows(&self, car: u32) -> bool {
+        self.cars[..self.count].contains(&car)
+    }
+}
+
+/// The cars whose lamps light what a view shows: the road (the headlights' pools on it) and the
+/// lit objects (the cars, the scenery). The headlights option "all cars" adds every other car
+/// (`LampCars::light`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LampCars {
+    /// One car's: on a network race's machine, its own car; in a network race's replay shown in
+    /// one view, the car followed, as its machine lit it.
+    One(u32),
+    /// A race's players' cars: its first so many (the players' cars come before the computer's).
+    FirstPlayers(u32),
+    /// A network race's replay split between players: the cars the views show, each lit as a
+    /// player's car of a split-screen race of them.
+    Shown(ViewCars),
+}
+
+impl LampCars {
+    /// The rule for a view: in a network race this machine's car (`network_car`); in a network
+    /// race's replay its views' cars (`replay_views`), or with one view the car it follows (the
+    /// drawn view's, `drawn_view_car`); else the race's players (`players`, asked only then).
+    pub fn of_view(
+        network_car: Option<u32>,
+        replay_views: Option<ViewCars>,
+        drawn_view_car: impl FnOnce() -> u32,
+        players: impl FnOnce() -> u32,
+    ) -> Self {
+        match (network_car, replay_views) {
+            (Some(car), _) => Self::One(car),
+            (None, Some(views)) if views.count > 1 => Self::Shown(views),
+            (None, Some(_)) => Self::One(drawn_view_car()),
+            (None, None) => Self::FirstPlayers(players()),
+        }
+    }
+
+    /// How many players' cars there are.
+    fn players(self) -> u32 {
+        match self {
+            Self::One(_) => 1,
+            Self::FirstPlayers(count) => count,
+            Self::Shown(views) => views.count as u32,
+        }
+    }
+
+    /// Whether `car` is one of the players' cars.
+    fn is_player(self, car: u32) -> bool {
+        match self {
+            Self::One(lit) => car == lit,
+            Self::FirstPlayers(count) => car < count,
+            Self::Shown(views) => views.shows(car),
+        }
+    }
+
+    /// Whether `car`'s lamps light what the view shows. One car's: that car, or every car with
+    /// `all`. Else the players' cars (every car with `all`) but `skipped` (the object being lit,
+    /// which its own lamps do not light; None for the road); of those every one with one player
+    /// or the cars together on the road (`cars_together` of `run_kind`), else only the view's own
+    /// car (`view_car`). `run_kind` and `view_car` are asked only when needed.
+    pub fn light(
+        self,
+        car: u32,
+        all: bool,
+        skipped: Option<u32>,
+        run_kind: impl FnOnce() -> u32,
+        view_car: impl FnOnce() -> u32,
+    ) -> bool {
+        if let Self::One(lit) = self {
+            return car == lit || all;
+        }
+        (all || self.is_player(car))
+            && skipped != Some(car)
+            && (self.players() == 1 || cars_together(run_kind()) || car == view_car())
     }
 }
 
@@ -218,36 +313,6 @@ mod tests {
         );
         assert_eq!(clamp_byte(0x1234), 0xFF);
         assert_eq!(clamp_byte(u32::MAX), 0);
-        assert!(headlights_light(
-            2,
-            true,
-            || 2,
-            false,
-            || unreachable!(),
-            || 0,
-            || 0
-        ));
-        assert!(headlights_light(
-            3,
-            true,
-            || 2,
-            true,
-            || unreachable!(),
-            || 0,
-            || 0
-        ));
-        assert!(!headlights_light(3, false, || 0, false, || 2, || 0, || 0));
-        assert!(headlights_light(
-            1,
-            false,
-            || 0,
-            false,
-            || 2,
-            || 0,
-            || unreachable!()
-        ));
-        assert!(headlights_light(1, false, || 0, false, || 2, || 1, || 1));
-        assert!(!headlights_light(1, false, || 0, false, || 2, || 1, || 0));
         assert_eq!(headlight_index(0x400, 0, 0x100), 0);
         assert_eq!(headlight_index(0, 0, 0x100), 0xFF);
         // spread 0: 0x100 less nothing held to 0xFF, doubled; side 0: 0xFF.
@@ -265,6 +330,76 @@ mod tests {
         assert!(check_light_colour(1, |_| 1, || 16).is_ok());
         assert_eq!(corner_colour(5, false, || unreachable!()), 5);
         assert_eq!(corner_colour(5, true, || (1, 2)), 8);
+    }
+
+    /// The cars of 0 .. 8 that `lamps` lights in a view of `view_car`.
+    fn lit(lamps: LampCars, all: bool, skipped: Option<u32>, kind: u32, view_car: u32) -> Vec<u32> {
+        (0..8)
+            .filter(|&car| lamps.light(car, all, skipped, || kind, || view_car))
+            .collect()
+    }
+
+    #[test]
+    fn lamp_cars_in_races() {
+        // A network race: the machine's own car, every car with the option; itself too.
+        let own = LampCars::One(2);
+        assert!(own.light(2, false, Some(2), || unreachable!(), || unreachable!()));
+        assert_eq!(lit(own, false, None, 1, 0), [2]);
+        assert_eq!(lit(own, true, None, 1, 0), [0, 1, 2, 3, 4, 5, 6, 7]);
+        // A split-screen race of two: both players' cars in every view where the cars share the
+        // road, only the view's own elsewhere; the computer's cars never without the option.
+        let two = LampCars::FirstPlayers(2);
+        assert!(two.light(1, false, None, || 0, || unreachable!()));
+        assert!(!two.light(3, false, None, || unreachable!(), || unreachable!()));
+        assert_eq!(lit(two, false, None, 0, 0), [0, 1]);
+        assert_eq!(lit(two, false, None, 2, 1), [0, 1]);
+        assert_eq!(lit(two, false, None, 1, 1), [1]);
+        assert_eq!(lit(two, true, None, 1, 1), [1]);
+        // An object is not lit by its own car's lamps.
+        let three = LampCars::FirstPlayers(3);
+        assert_eq!(lit(three, false, Some(1), 0, 0), [0, 2]);
+        assert_eq!(lit(three, false, Some(7), 1, 2), [2]);
+        // One player: the player's car, and every car with the option, in any run kind.
+        let one = LampCars::FirstPlayers(1);
+        assert_eq!(lit(one, false, None, 1, 5), [0]);
+        assert_eq!(lit(one, true, Some(0), 1, 2), [1, 2, 3, 4, 5, 6, 7]);
+    }
+
+    #[test]
+    fn lamp_cars_in_network_replays() {
+        let views = |cars: &[u32]| ViewCars::new(cars).unwrap();
+        // Followed in one view: the followed car alone (the drawn view's).
+        let followed = LampCars::of_view(None, Some(views(&[5])), || 5, || unreachable!());
+        assert_eq!(followed, LampCars::One(5));
+        assert_eq!(lit(followed, false, None, 0, 5), [5]);
+        // A group split between four players: each of the four in every view where the cars
+        // share the road, whichever view; the others (also those before the group) never.
+        let group = LampCars::of_view(
+            None,
+            Some(views(&[4, 5, 6, 7])),
+            || unreachable!(),
+            || unreachable!(),
+        );
+        assert_eq!(group, LampCars::Shown(views(&[4, 5, 6, 7])));
+        for view_car in 4..8 {
+            assert_eq!(lit(group, false, None, 0, view_car), [4, 5, 6, 7]);
+            assert_eq!(lit(group, false, None, 1, view_car), [view_car]);
+        }
+        assert_eq!(lit(group, false, Some(6), 2, 4), [4, 5, 7]);
+        // A pair: both cars in both views.
+        let pair = LampCars::of_view(None, Some(views(&[0, 1])), || 0, || 1);
+        assert_eq!(lit(pair, false, None, 0, 1), [0, 1]);
+        // A network race and a race keep their rules.
+        assert_eq!(
+            LampCars::of_view(Some(3), Some(views(&[0, 1])), || 0, || 4),
+            LampCars::One(3)
+        );
+        assert_eq!(
+            LampCars::of_view(None, None, || unreachable!(), || 4),
+            LampCars::FirstPlayers(4)
+        );
+        assert!(ViewCars::new(&[0, 1, 2, 3, 4]).is_err());
+        assert!(views(&[2, 3, 4]).shows(4) && !views(&[2, 3, 4]).shows(5));
     }
 
     #[test]

@@ -317,7 +317,7 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   byte as the original wrote it. The replays list marks a slot "old" after its name when it holds only the original's file, a new slot shows its name alone; a slot with both
   files loads the new one, and a slot with only the original's file (one copied in) loads that as it was. Old
   files play as they always did. A recording takes about 130 KB a minute for one car and up to about 2 MB a
-  minute for eight cars of which seven are driven elsewhere. Every car of such a replay is drawn with its own model (the original's header names four), and in a network race's replay the followed car's headlights light the road. A replay of the new format can be 90 minutes long (the original's was cut at 30); its original-format twin is cut at 30 minutes.
+  minute for eight cars of which seven are driven elsewhere. Every car of such a replay is drawn with its own model (the original's header names four), and in a network race's replay the followed car's headlights light the road, or, split between players, every shown car's in every view (as in a split-screen race). A replay of the new format can be 90 minutes long (the original's was cut at 30); its original-format twin is cut at 30 minutes.
 - The viewer's **car item** goes through the **players** only (a race's human players, also those on other
   machines), never a computer car; the computer's cars are still drawn and drive in the replay. It also
   works for a network race's replay and for races of more than four players. The item's picture shows the

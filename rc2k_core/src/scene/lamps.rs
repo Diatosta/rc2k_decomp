@@ -1,5 +1,6 @@
-//! The lamps that light an object: the scene's lamps by their distance, which cars' lamps
-//! count, which colours the light tables are made from, and the light by the light's kind.
+//! The lamps that light an object: the scene's lamps by their distance, which colours the light
+//! tables are made from, and the light by the light's kind. Which cars' lamps count is
+//! `crate::race::lights::LampCars`, the road's rule too.
 
 use crate::scene::distance::approximate;
 
@@ -67,38 +68,6 @@ pub fn add_point_lights(
         out.light = Some(light);
     }
     out
-}
-
-/// What `add_car_lights` reads, each asked only where needed.
-pub trait CarLights {
-    /// Whether only one car's lamps are used.
-    fn one_car(&self) -> bool;
-    /// That one car.
-    fn the_car(&self) -> u32;
-    /// Whether every car's lamps are used.
-    fn all_cars(&self) -> bool;
-    /// The cars near.
-    fn near(&self) -> u32;
-    /// The view.
-    fn view(&self) -> u32;
-    /// The car being drawn.
-    fn drawn(&self) -> u32;
-    /// The car viewed.
-    fn viewed(&self) -> u32;
-}
-
-/// Whether a car's lamps light the object: with one car, that car (or every car while all
-/// count); else the cars near (or all) but not the one drawn, and of those all if one is
-/// near or the view is 0 or 2, else only the car viewed.
-pub fn car_lights(c: &impl CarLights, car: u32) -> bool {
-    if c.one_car() {
-        return car == c.the_car() || c.all_cars();
-    }
-    let near = c.near();
-    let view = c.view();
-    (c.all_cars() || car < near)
-        && car != c.drawn()
-        && (near == 1 || view == 0 || view == 2 || car == c.viewed())
 }
 
 /// The plain colours (both switches 0) or the scene's.

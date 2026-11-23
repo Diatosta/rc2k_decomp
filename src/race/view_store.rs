@@ -86,6 +86,7 @@ pub struct RaceView {
 #[derive(Clone, Copy)]
 pub struct DrawnView {
     players: u32,
+    views: u32,
     race_cars: u32,
     lights_follow_view: u32,
     view_cars: [u32; 2],
@@ -113,6 +114,14 @@ impl DrawnViewRef<'_> {
         match self {
             Self::Store(v) => v.split_parts(),
             Self::Copy(v) => v.players,
+        }
+    }
+
+    /// The views shown (`RaceView::views`).
+    pub fn views(self) -> u32 {
+        match self {
+            Self::Store(v) => v.views.get(),
+            Self::Copy(v) => v.views,
         }
     }
 
@@ -213,6 +222,7 @@ impl RaceView {
     pub fn drawn(&self) -> DrawnView {
         DrawnView {
             players: self.split_parts(),
+            views: self.views.get(),
             race_cars: self.race_cars.get(),
             lights_follow_view: self.lights_follow_view.get(),
             view_cars: std::array::from_fn(|n| self.view_cars[n].get()),
