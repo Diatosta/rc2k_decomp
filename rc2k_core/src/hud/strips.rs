@@ -124,6 +124,19 @@ pub fn sizes(
         let w = across(v[3]);
         return ([down(v[0]), down(v[1]), left, w], [w, 0, VIRTUAL[0]]);
     }
+    if anchor::is_narrow(width, height) {
+        // Narrower than 4:3: the layout keeps its shape, one factor (the width over 800) down as
+        // across, the strip keeping to the top, bottom or middle by where it lies.
+        let s = f64::from(width) / f64::from(anchor::VIRTUAL_WIDTH);
+        let mid = v[0] as f32 + v[1] as f32 / 2.0;
+        let top = anchor::narrow_y(v[0] as f32, mid, width, height).floor() as u32;
+        let across = |n: u32| (f64::from(n) * s).floor() as u32;
+        let w = across(v[3]);
+        return (
+            [top, across(v[1]), box_left + across(v[2]), w],
+            [w, 0, VIRTUAL[0]],
+        );
+    }
     let [(top, _), (h, _), (left, _), (w, r)] = [
         scaled(v[0], height, VIRTUAL[1]),
         scaled(v[1], height, VIRTUAL[1]),
@@ -232,6 +245,21 @@ mod tests {
             BoxRatio::Full,
         );
         assert_eq!((s[2], s[3]), (5, 0x99));
+    }
+
+    #[test]
+    fn a_portrait_strip_keeps_its_shape() {
+        use crate::hud::anchor::{BoxRatio, Rule};
+        // 660 x 1088: one factor (660 / 800) across and down, the strip at the top.
+        let (s, _) = sizes(
+            [2, HEIGHT, 0, WIDTH],
+            660,
+            1088,
+            Rule::Thirds,
+            BoxRatio::Full,
+        );
+        assert_eq!((s[1], s[3]), (HEIGHT * 660 / 800, WIDTH * 660 / 800));
+        assert!(s[0] < 8, "the strip keeps to the top: {s:?}");
     }
 
     #[test]

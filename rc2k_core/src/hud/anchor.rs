@@ -192,6 +192,12 @@ pub fn is_wide(width: u32, height: u32) -> bool {
     u64::from(width) * 3 > u64::from(height) * 4
 }
 
+/// Whether the screen (or part) is narrower than 4:3: the layout then keeps its shape at one
+/// factor, the width over 800, each piece keeping to the top, bottom or middle (`narrow_y`).
+pub fn is_narrow(width: u32, height: u32) -> bool {
+    u64::from(width) * 3 < u64::from(height) * 4
+}
+
 /// The factors from the layout to the screen: across and down.
 pub fn factors(width: u32, height: u32) -> (f64, f64) {
     if is_wide(width, height) {
@@ -410,6 +416,13 @@ pub fn across(length: u32, width: u32, height: u32) -> Option<u32> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn narrow_and_wide_leave_4_3_between() {
+        assert!(is_narrow(660, 1088) && is_narrow(1280, 1024));
+        assert!(!is_narrow(800, 600) && !is_wide(800, 600));
+        assert!(is_wide(1280, 720) && !is_narrow(1280, 720));
+    }
+
     use super::*;
 
     #[test]

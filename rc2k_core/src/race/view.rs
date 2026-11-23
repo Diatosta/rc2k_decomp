@@ -386,6 +386,18 @@ pub fn mirror_window(
             height: scaled(MIRROR_SIZE.1, screen.1, 600)?,
         });
     }
+    if crate::hud::anchor::is_narrow(width, screen.1) {
+        // Narrower than 4:3: the layout keeps its shape, one factor (the width over 800) down as
+        // across, the mirror keeping to the top, bottom or middle by where it lies.
+        let mid = place.1 as f32 + MIRROR_SIZE.1 as f32 / 2.0;
+        let y = anchor::narrow_y(place.1 as f32, mid, width, screen.1).floor();
+        return Some(MirrorRect {
+            x: (left + scaled(place.0, width, 800)?) & !1,
+            y: y.max(0.0) as u32,
+            width: scaled(MIRROR_SIZE.0, width, 800)?,
+            height: scaled(MIRROR_SIZE.1, width, 800)?,
+        });
+    }
     Some(MirrorRect {
         x: (left + scaled(place.0, width, 800)?) & !1,
         y: scaled(place.1, screen.1, 600)?,
@@ -441,6 +453,27 @@ mod tests {
             ),
             None
         );
+    }
+
+    #[test]
+    fn a_portrait_mirror_keeps_its_shape_at_the_top() {
+        // 660 x 1088: the layout at one factor (660 / 800) both ways (sizes even, as the mirror's
+        // always are), the mirror at the top.
+        let m = mirror_window(
+            (0x139, 0x10),
+            (660, 1088),
+            crate::hud::anchor::Rule::Thirds,
+            crate::hud::anchor::BoxRatio::Full,
+        )
+        .unwrap();
+        assert_eq!(
+            (m.width, m.height),
+            (
+                MIRROR_SIZE.0 * 660 / 800 & !1,
+                MIRROR_SIZE.1 * 660 / 800 & !1
+            )
+        );
+        assert!(m.y < 0x20, "the mirror keeps to the top: {m:?}");
     }
 
     #[test]

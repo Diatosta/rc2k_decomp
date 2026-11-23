@@ -158,10 +158,11 @@ impl Placement {
                 at: anchor::anchor_of(middle, rule),
             }
         };
-        // A part narrower than 4:3 keeps the layout's shape too: one factor (the part's width
-        // over 800) down as across, a piece keeping to the part's top, bottom or middle by where
-        // its own middle lies in the layout.
-        let narrow_part = in_part && !wide && !beside && is_layout;
+        // A screen or part narrower than 4:3 keeps the layout's shape too: one factor (its width
+        // over 800) down as across, a piece keeping to the top, bottom or middle by where its
+        // own middle lies in the layout. A whole screen of exactly 4:3 is the layout itself.
+        let narrower = anchor::is_narrow(box_width, ih);
+        let narrow_part = (in_part || narrower) && !wide && !beside && is_layout;
         let y = if narrow_part {
             YMap::Narrow {
                 middle: (y_span.0 + y_span.1) / 2.0,
@@ -255,6 +256,23 @@ mod tests {
         let mut right = place(Keep::Thirds, 1920, 1080);
         right.x_span = (700.0, 800.0);
         assert_eq!(Placement::of(&right).x(800.0), 1920.0);
+    }
+
+    #[test]
+    fn a_portrait_screen_keeps_the_shape_and_the_top_and_bottom() {
+        // 660 x 1088: one factor of 0.825 down as across; the top piece at the top, the bottom
+        // piece at the bottom, the middle one about the middle.
+        let mut top = place(Keep::Thirds, 660, 1088);
+        top.y_span = (0.0, 100.0);
+        assert_eq!(Placement::of(&top).y(100.0), 82.5);
+        let mut bottom = place(Keep::Thirds, 660, 1088);
+        bottom.y_span = (500.0, 600.0);
+        let p = Placement::of(&bottom);
+        assert_eq!((p.y(600.0), p.y(500.0)), (1088.0, 1088.0 - 82.5));
+        let mut mid = place(Keep::Thirds, 660, 1088);
+        mid.y_span = (250.0, 350.0);
+        let p = Placement::of(&mid);
+        assert_eq!((p.x(400.0), p.y(300.0)), (330.0, 544.0));
     }
 
     #[test]
