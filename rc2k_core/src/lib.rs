@@ -6,6 +6,7 @@
 pub mod audio;
 pub mod cli;
 pub mod d3d;
+pub mod discord;
 pub mod drive;
 pub mod effects;
 pub mod fatal;

@@ -333,6 +333,8 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
             }
         }
         timing::start_sampler();
+        #[cfg(discord_support)]
+        super::discord::tick(o);
         timing_report::report_timing(o.system);
         // The next frame waits for its turn on the display.
         pacing::frame_shown(crate::video::active());

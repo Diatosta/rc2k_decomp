@@ -23,6 +23,7 @@ the switches of the command line are on [Running and options](Running-and-option
 - **Lobby passwords, ping, un-ready and `/kick`** to put a player out: [Network play](#network-play).
 - **Computer drivers (bots) in network races**, switched by the host in the lobby: [Network play](#network-play).
 - **A player who leaves a network race** has their car taken out of it, with a message to the others, and **the other cars on the map disc**: [Network play](#network-play).
+- **A Discord status** on the desktop builds: the menus, or the stage, car and mode being raced, with the time elapsed: [Discord status](Discord-status).
 - **A save code**: the player's saved games, car set-ups and best times (not the settings) as text and as QR codes on the options menu's new page, copied, pasted or read with a camera: [Save code](Save-code); the web build's saves page shows and reads the same QR codes ([Save code](Save-code#on-the-web)).
 - **Delete all saved data**, a row on the advanced page (asked once, with a delay on Yes) for starting fresh where the folders are out of reach: [Menus and settings](#menus-and-settings).
 - **Finding hosts over Tailscale**: [Network play](#network-play).
@@ -383,6 +384,7 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
   no films.
 - **A folder with no game data** opens a page asking for a folder or a zip (picked or dropped on
   the window), or takes `--game-data <folder|zip>`.
+- A Discord status on Windows, Linux and macOS (the Discord app on the same machine only; `discord_status = false` in `rc2k.toml` turns it off): [Discord status](Discord-status).
 - A second copy in the same folder is refused unless `--allow-another` is given.
 - Closing the window ends the game properly, saving the options and the session's records.
 

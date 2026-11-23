@@ -51,6 +51,11 @@ fn main() {
     if !handheld && matches!(os.as_str(), "windows" | "linux" | "macos") {
         println!("cargo:rustc-cfg=steam_support");
     }
+    // Discord's status (`platform::discord`): the desktop systems, as Steam.
+    println!("cargo:rustc-check-cfg=cfg(discord_support)");
+    if !handheld && matches!(os.as_str(), "windows" | "linux" | "macos") {
+        println!("cargo:rustc-cfg=discord_support");
+    }
     // SDL's `@available` checks call `__isPlatformVersionAtLeast`, in clang's runtime library,
     // which Rust's link leaves out. Built on a Mac, the runtime of the compiler there is added;
     // crossed from Linux, `tools/mac/cross/cc.sh` and `tools/ios/cc.sh` add it themselves.

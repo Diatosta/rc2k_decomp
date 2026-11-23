@@ -57,6 +57,11 @@ pub fn capture(o: Owners<'static>) -> Result<Options, Refused> {
     options.display.smooth_frames = crate::race::blend::smooth_on();
     options.display.split_layout = crate::race::split_layout::index();
     options.display.video = crate::race::render_row::kept();
+    #[cfg(discord_support)]
+    {
+        options.display.discord_status = crate::platform::discord::enabled();
+        options.display.discord_application_id = crate::platform::discord::id_override();
+    }
     Ok(options)
 }
 
@@ -79,6 +84,8 @@ pub fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
     crate::scene::workers::set_threads(options.display.draw_threads);
     crate::drive::quit_question::set_pictures_on(options.display.quit_pictures);
     let d = &options.display;
+    #[cfg(discord_support)]
+    crate::platform::discord::configure(d.discord_status, d.discord_application_id.clone());
     crate::gfx::monitor_sizes::set_custom(d.custom_width.zip(d.custom_height));
     crate::platform::window_mode::set(
         d.window_mode
