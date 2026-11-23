@@ -92,6 +92,40 @@ fn pressed(devices: &crate::input::store::Devices, key: usize) -> bool {
     devices.keys_pressed.get(key) != 0
 }
 
+/// Ctrl, Alt (AltGr too) and Shift, either side, by key code: with a number-row key, any of them
+/// picks the second view (`rc2k_core::race::keys::on_second_view`).
+const SECOND_VIEW_MODIFIERS: [usize; 6] = [
+    VIEW_MODE_KEY, // left Ctrl
+    0x61,          // right Ctrl
+    0x38,          // left Alt
+    0x64,          // right Alt (AltGr)
+    0x2A,          // left Shift
+    0x36,          // right Shift
+];
+
+/// The F key of a race key.
+fn f_key(key: rc2k_core::race::keys::Key) -> usize {
+    use rc2k_core::race::keys::Key;
+    match key {
+        Key::NextView => NEXT_VIEW_KEY,
+        Key::Split => SPLIT_KEY,
+        Key::VolumeDown => DOWN_KEY,
+        Key::VolumeUp => UP_KEY,
+        Key::Bit(n) => BIT_KEYS[n],
+        Key::Shared => SHARED_KEY,
+    }
+}
+
+/// Whether one of the players' keyboard controls uses key `code`.
+fn bound_to_controls(menus: &crate::menu::owner::Menus, code: usize) -> bool {
+    menus
+        .play
+        .slots
+        .records
+        .iter()
+        .any(|p| p.get().keys.contains(&(code as u8)))
+}
+
 /// The race's view and sound keys.
 pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (audio, sound) = (o.audio, o.sound);
@@ -99,44 +133,24 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     let state = &audio.state;
     let shared = &race.shared;
     crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
-    // The number row stands in for the F keys (a browser keeps most F keys for itself), unless a
-    // player's keyboard controls use that key; with it, Ctrl, Alt or Shift picks the second view
-    // (browsers keep Ctrl or Alt with a number for their tabs, by system).
-    let bound = |key: usize| {
-        o.menus
-            .play
-            .slots
-            .records
-            .iter()
-            .any(|p| p.get().keys.contains(&(key as u8)))
-    };
-    let held = |key: usize| devices.keys_now.get(key) != 0;
-    let mut by_number_row = false;
-    let mut down = |key: usize| {
-        if pressed(devices, key) {
-            return true;
-        }
-        let row = rc2k_core::race::keys::number_row_for(key)
-            .is_some_and(|row| pressed(devices, row) && !bound(row));
-        by_number_row |= row;
-        row
-    };
     use rc2k_core::race::keys::{
-        BIT_KEYS as BITS, COUNTED_VIEWS, Key, SHARED_BIT, first_key, flip_bit, split_flip,
-        volume_key, volume_step,
+        BIT_KEYS as BITS, COUNTED_VIEWS, Key, SHARED_BIT, first_key, flip_bit, number_row_for,
+        on_second_view, split_flip, volume_key, volume_step,
     };
-    let key = first_key(|k| {
-        down(match k {
-            Key::NextView => NEXT_VIEW_KEY,
-            Key::Split => SPLIT_KEY,
-            Key::VolumeDown => DOWN_KEY,
-            Key::VolumeUp => UP_KEY,
-            Key::Bit(n) => BIT_KEYS[n],
-            Key::Shared => SHARED_KEY,
-        })
-    });
-    let second = held(VIEW_MODE_KEY)
-        || (by_number_row && [0x61, 0x38, 0x64, 0x2A, 0x36].into_iter().any(held));
+    let held = |code: usize| devices.keys_now.get(code) != 0;
+    // A race key is down by its F key or by the number-row key standing in for it, unless a
+    // player's keyboard controls use that number key.
+    let by_row = |k: Key| {
+        number_row_for(f_key(k))
+            .is_some_and(|row| pressed(devices, row) && !bound_to_controls(o.menus, row))
+    };
+    let key = first_key(|k| pressed(devices, f_key(k)) || by_row(k));
+    let by_number_row = key.is_some_and(|k| !pressed(devices, f_key(k)));
+    let second = on_second_view(
+        by_number_row,
+        held(VIEW_MODE_KEY),
+        SECOND_VIEW_MODIFIERS.into_iter().any(held),
+    );
     let mut view = shared.view_car_or_end_mut(usize::from(second));
     // The view block's `option_bits` with `bit` flipped; gives the counter.
     let flip = |view: &mut Car, bit: (u32, u32, u32)| -> u32 {

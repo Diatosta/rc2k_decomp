@@ -67,7 +67,8 @@ pub fn flip_bit(flags: u32, (bit, clear, set): (u32, u32, u32)) -> (u32, u32) {
 pub const COUNTED_VIEWS: u32 = 7;
 
 /// The number-row key that stands in for a race's F key (both as key codes): 1 .. 9 and 0 for F1 ..
-/// F10, minus for F11 and equals for F12; none for any other key.
+/// F10, minus for F11 and equals for F12; none for any other key. A browser keeps most F keys for
+/// itself, the number row it leaves to the page.
 pub fn number_row_for(f_key: usize) -> Option<usize> {
     match f_key {
         0x3B..=0x44 => Some(f_key - 0x3B + 0x02),
@@ -77,8 +78,18 @@ pub fn number_row_for(f_key: usize) -> Option<usize> {
     }
 }
 
+/// Whether a race key acts on the second view. With an F key, Left Ctrl held says so (the
+/// original's rule, kept as it was). With the number row, any Ctrl, Alt or Shift does: browsers
+/// keep Ctrl or Alt with a number for their tabs (which one depends on the system), so each player
+/// has at least one that works.
+pub fn on_second_view(by_number_row: bool, left_ctrl: bool, ctrl_alt_or_shift: bool) -> bool {
+    left_ctrl || (by_number_row && ctrl_alt_or_shift)
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn the_number_row_stands_in_for_the_f_keys() {
         assert_eq!(number_row_for(0x3B), Some(0x02));
@@ -88,7 +99,16 @@ mod tests {
         assert_eq!(number_row_for(0x1C), None);
     }
 
-    use super::*;
+    #[test]
+    fn the_second_view() {
+        // An F key: Left Ctrl only, as the original.
+        assert!(on_second_view(false, true, true));
+        assert!(!on_second_view(false, false, true));
+        // The number row: any of Ctrl, Alt, Shift; Left Ctrl counts too.
+        assert!(on_second_view(true, false, true));
+        assert!(on_second_view(true, true, true));
+        assert!(!on_second_view(true, false, false));
+    }
 
     #[test]
     fn keys() {
