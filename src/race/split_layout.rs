@@ -33,11 +33,13 @@ pub fn chosen(players: u32) -> Option<Split> {
     Split::many(players, index())
 }
 
-/// How the screen is split between `views` views (three or four) as it is drawn now: while a
-/// replay plays a layout of a group of players, in the group's arrangement that the layout names
-/// (`layouts::Shown::Group`); else as the race's layout chosen (`chosen`).
+/// How the screen is split between `views` views (three or four) as it is drawn now: a replay's
+/// frame (`replay_frames::draws_replay`: playing, or the viewer's still frame) of a layout of a
+/// group of players, in the group's arrangement that the layout names (`layouts::Shown::Group`);
+/// else as the race's layout chosen (`chosen`).
 pub fn shown_split(race: &Race, views: u32) -> Option<Split> {
-    if race.course.replay_mode() == rc2k_core::drive::replay_frames::PLAYING {
+    let still = race.frame.frame_work.borrow().replay_still_on != 0;
+    if rc2k_core::drive::replay_frames::draws_replay(race.course.replay_mode(), still) {
         let layout = u8::try_from(race.shared.view.get().view_switch.get()).ok();
         if let Some(Shown::Group { split, .. }) =
             layout.and_then(|layout| crate::race::viewer::layout_shown(race, layout))
