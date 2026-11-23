@@ -214,14 +214,11 @@ pub const CAMERA_ITEMS: [u32; 4] = [0xD, 0x19, ROW_ITEMS, ROW_ITEMS + 1];
 /// action of their own number; 0x1A and 0x1B, the numbers after them, are keys' actions).
 const EXTRA_CAMERA_ACTIONS: [u32; 2] = [0x29, 0x2A];
 
-/// The action Enter does on list item `item`.
-pub fn item_action(item: u32) -> u32 {
+/// The action Enter does on list item `item`; none for a number past the panel's items.
+pub fn item_action(item: u32) -> Option<u32> {
     match item.checked_sub(ROW_ITEMS) {
-        Some(extra) => EXTRA_CAMERA_ACTIONS
-            .get(extra as usize)
-            .copied()
-            .unwrap_or(item),
-        None => item,
+        None => Some(item),
+        Some(extra) => EXTRA_CAMERA_ACTIONS.get(extra as usize).copied(),
     }
 }
 
@@ -882,8 +879,8 @@ mod tests {
         // The items past the rows act as the camera buttons of the parts; the rows' items do
         // the action of their number.
         assert_eq!(
-            (0..ITEMS).map(item_action).collect::<Vec<_>>()[ROW_ITEMS as usize - 1..],
-            [0x19, 0x29, 0x2A]
+            (0..=ITEMS).map(item_action).collect::<Vec<_>>()[ROW_ITEMS as usize - 1..],
+            [Some(0x19), Some(0x29), Some(0x2A), None]
         );
         assert!(item_drawn(5, ABSENT) && item_drawn(26, 0) && !item_drawn(27, ABSENT));
         assert_eq!(snapshot_number(|k| b"042"[k]), Some(42));

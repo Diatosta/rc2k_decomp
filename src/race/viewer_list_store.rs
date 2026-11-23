@@ -48,7 +48,12 @@ impl ViewerList {
 
     /// The action Enter does on item `n`.
     pub fn action(&self, n: u32) -> u32 {
-        self.item(n);
-        rc2k_core::race::viewer::item_action(n)
+        match rc2k_core::race::viewer::item_action(n) {
+            Some(action) => action,
+            None => crate::memory::host_hooks::end(
+                "viewer list",
+                crate::errors::BadInput("an item past the items of the viewer's list"),
+            ),
+        }
     }
 }

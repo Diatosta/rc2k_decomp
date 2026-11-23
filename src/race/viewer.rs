@@ -93,7 +93,7 @@ pub fn layout_shown(race: &Race, layout: u8) -> Option<rc2k_core::race::layouts:
     rc2k_core::race::layouts::shown(layout, players)
 }
 
-/// A camera button's player and the car she drives.
+/// A camera button's player and the car that player drives.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CameraButton {
     pub player: usize,

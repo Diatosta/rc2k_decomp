@@ -161,7 +161,7 @@ mod tests {
     fn the_players_after_the_first_four_are_split_as_many_as_they_are() {
         let second =
             |players| [SECOND_GROUP, SECOND_PAIR_STACKED].map(|layout| shown(layout, players));
-        // Five players: the fifth has her own layout only, nothing to split with.
+        // Five players: the fifth has a layout of their own only, nothing to split with.
         assert_eq!(second(5), [None, None]);
         assert_eq!(shown(FIRST_GROUP, 5), group(0, 4));
         assert_eq!(shown(6, 5), Some(Shown::Player(4)));
@@ -195,7 +195,7 @@ mod tests {
             }),
             [Some(0), Some(1), None, None]
         );
-        // A further player alone: both buttons edit her camera.
+        // A further player alone: both buttons edit that player's camera.
         assert_eq!(buttons(Shown::Player(5)), [Some(5), Some(5), None, None]);
         // A pair of the fifth and sixth: their cameras.
         assert_eq!(

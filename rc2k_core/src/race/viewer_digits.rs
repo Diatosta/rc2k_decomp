@@ -114,9 +114,10 @@ pub fn ink_of(width: i32, height: i32, coverage: impl Fn(i32, i32) -> f32) -> Op
             }
         }
     }
+    let top = top?;
     Some(Ink {
         centre_x: (sum / weight) as f32,
-        top: top?,
+        top,
     })
 }
 
