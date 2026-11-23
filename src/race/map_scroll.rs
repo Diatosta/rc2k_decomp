@@ -8,12 +8,14 @@ use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 
-/// Draws the map picture's slot `Textures::first_textures[198]` (+ `current_car`
-/// unless `session`) from tile (corner x >> 4, corner y >> 4).
+/// Draws the map picture's slot `Textures::first_textures[198]` (+ the view's number, 0 or 1,
+/// unless one view is shown) from tile (corner x >> 4, corner y >> 4). The slot goes by the view,
+/// as the views read their maps, not by the car the view shows (a replay's view may show any of
+/// eight cars, past the two map textures).
 pub(super) fn map_tiles(
     race: &Race,
     car: &Car,
-    car_number: u32,
+    view: u32,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
     net_race: &rc2k_core::net::net_race::NetRaceSlot,
@@ -26,7 +28,7 @@ pub(super) fn map_tiles(
     let slot = picture_slot(
         scene.textures.first_textures()[198],
         one_view,
-        if one_view { 0 } else { car_number },
+        if one_view { 0 } else { view },
     );
     crate::race::blit_map_tiles::blit_map_tiles(
         frame,
@@ -94,13 +96,13 @@ pub(super) fn map_position(race: &Race, car: &Car) -> Result<[u32; 2], Refused> 
 fn scroll_map(
     race: &Race,
     car: &mut Car,
-    car_number: u32,
+    view: u32,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
     net_race: &rc2k_core::net::net_race::NetRaceSlot,
 ) -> Result<(), Refused> {
     scroll_map_with(race, car, |car| {
-        map_tiles(race, car, car_number, scene, gfx, net_race)
+        map_tiles(race, car, view, scene, gfx, net_race)
     })
 }
 
@@ -200,7 +202,7 @@ pub(super) fn scroll_maps(
         let mut car = race
             .shared
             .race_car_or_mut((n & 7) as usize, "a view car's block")?;
-        scroll_map(race, &mut car, n, scene, gfx, net_race)?;
+        scroll_map(race, &mut car, v as u32, scene, gfx, net_race)?;
     }
     // A split screen of three or four: the further players' maps, each in a texture of its own.
     if !third_only {
