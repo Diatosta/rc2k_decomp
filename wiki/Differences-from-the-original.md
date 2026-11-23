@@ -83,12 +83,18 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   modes are gone: the screen always has 32 bits a pixel (an old 16-bit choice becomes the same
   size at 32 bits). On an iPhone or iPad the list holds the screen's own pixel size (the race fills it
   edge to edge, the HUD keeping clear of the notch) and its 3/4, 2/3 and 1/2, and the race starts at the largest no wider than 1920.
-- **Tall screens.** On a window taller than it is wide (a phone held upright, a window dragged
-  narrow) the race's HUD keeps its shape instead of being squeezed sideways, where the original
-  stretched its 800 x 600 layout over the screen and made the round dials and the map ovals: one
-  scale (the width over 800) goes both ways and a piece keeps to the top, the bottom or the
-  middle of the screen by where it lies in the layout. The same holds for the notice strips and
-  the rear-view mirror. A 4:3 screen is the layout itself and draws as before.
+- **Tall screens.** On a window narrower than 4:3 (a phone held upright, a window dragged
+  narrow) one player's race HUD keeps its shape and its normal size instead of being squeezed
+  sideways, where the original stretched its 800 x 600 layout over the screen and made the
+  round dials and the map ovals: one scale (the height over 600, what a 4:3 screen of that
+  height has) goes both ways, the dial and the map keep to the left and right edges as they do
+  on a wide screen, and a piece keeps to the top, the bottom or the middle of the screen by
+  where it lies in the layout. The HUD keeps that size as long as the dial and the map stay
+  clear of the car in the first chase view (down to a width of about 0.73 of the height, the
+  car's width measured on the widest of the game's cars); a narrower screen shrinks the HUD
+  just enough to keep clear, so on a phone it never covers the car. The notice strips and the
+  rear-view mirror follow. Split screens on a narrow screen keep each part's layout whole
+  across the part's width. A 4:3 screen is the layout itself and draws as before.
 - **Wide screens.** On a screen wider than 4:3 the 3D keeps its field of view up and down and
   shows more to the sides; the HUD keeps its 800 x 600 shape with its pieces in the corners and
   edges. The graphics page's "HUD area" row (the whole screen at first) confines the HUD to a

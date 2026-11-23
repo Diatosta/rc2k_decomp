@@ -87,6 +87,7 @@ pub fn mirror_view_window(
             rc2k_core::hud::anchor::Rule::Thirds
         },
         crate::hud::box_ratio::get(),
+        reads.vars.split() == 0,
     )
     else {
         trap.finish()?;

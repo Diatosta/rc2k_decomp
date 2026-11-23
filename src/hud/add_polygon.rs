@@ -69,6 +69,8 @@ pub fn add_polygon(frame: &Frame, hud: &mut Hud, pen: Pen) -> Result<(), Refused
             x_span: span(|v| v.x.get()),
             y_span: span(|v| v.y.get()),
             in_part: part.is_some(),
+            one_player: part.is_none()
+                && batch::Layout::of(frame.panel.borrow().players) == batch::Layout::Single,
         });
         // Pieces that are already in screen pixels are left where they are.
         if !placement.keeps_pixels() {
