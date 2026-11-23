@@ -72,6 +72,10 @@ pub struct RaceView {
     pub view_cars: [PlainDword; 2],
     /// Each view's car block (by handle: `blocks_store::block_ref`; read through `view_block`).
     pub view_blocks: [PlainDword; 2],
+    /// The first car of the group of players a replay's layout splits the screen between (the
+    /// cars a group shows are the ones from it on: view `n` shows car `split_first + n`); 0 when
+    /// no group is shown (`drive::choose_shown_cars`).
+    pub split_first: PlainDword,
     /// The clock at the frame's start (`race::show_frame`).
     pub clock_base: PlainDword,
     /// The frame's time (`race::show_frame`).
@@ -86,6 +90,7 @@ pub struct DrawnView {
     lights_follow_view: u32,
     view_cars: [u32; 2],
     view_blocks: [u32; 2],
+    split_first: u32,
 }
 
 /// The race's views as one reader finds them: the game's thread's own (read through the store
@@ -103,10 +108,10 @@ impl<'a> From<&'a RaceView> for DrawnViewRef<'a> {
 }
 
 impl DrawnViewRef<'_> {
-    /// The players (`RaceView::players`).
+    /// The players whose parts the screen is split between (`RaceView::split_parts`).
     pub fn players(self) -> u32 {
         match self {
-            Self::Store(v) => v.players.get(),
+            Self::Store(v) => v.split_parts(),
             Self::Copy(v) => v.players,
         }
     }
@@ -134,7 +139,7 @@ impl DrawnViewRef<'_> {
             Self::Store(v) => v.view_car_number(n),
             Self::Copy(v) => match v.view_cars.get(n) {
                 Some(car) => Ok(*car),
-                None if n < 4 => Ok(n as u32),
+                None if n < 4 => Ok(v.split_first + n as u32),
                 None => Err(crate::errors::BadInput("a view past the four")),
             },
         }
@@ -146,7 +151,7 @@ impl DrawnViewRef<'_> {
             Self::Store(v) => v.view_number(n),
             Self::Copy(v) => match v.view_blocks.get(n) {
                 Some(block) => crate::race::blocks_store::number_of(*block),
-                None if n < 4 => Ok(n),
+                None if n < 4 => Ok(v.split_first as usize + n),
                 None => Err(crate::errors::BadInput("a view past the four")),
             },
         }
@@ -190,19 +195,29 @@ impl RaceView {
                 PlainDword::new(crate::race::blocks_store::block_handle(0)),
                 PlainDword::new(crate::race::blocks_store::block_handle(1)),
             ],
+            split_first: PlainDword::new(0),
             clock_base: PlainDword::new(0),
             frame_time: PlainDword::new(0),
         }
     }
 
+    /// How many players' parts the screen is split between: the views when there are more than
+    /// two (a group of players of a replay, which may be more than the replay's players), else the
+    /// players.
+    pub fn split_parts(&self) -> u32 {
+        let views = self.views.get();
+        if views > 2 { views } else { self.players.get() }
+    }
+
     /// What the drawing parts read, as it stands.
     pub fn drawn(&self) -> DrawnView {
         DrawnView {
-            players: self.players.get(),
+            players: self.split_parts(),
             race_cars: self.race_cars.get(),
             lights_follow_view: self.lights_follow_view.get(),
             view_cars: std::array::from_fn(|n| self.view_cars[n].get()),
             view_blocks: std::array::from_fn(|n| self.view_blocks[n].get()),
+            split_first: self.split_first.get(),
         }
     }
 }
@@ -254,7 +269,7 @@ impl RaceView {
         match self.view_blocks.get(n) {
             Some(block) => crate::race::blocks_store::number_of(block.get()),
             // The further views of a split screen show their own player's car.
-            None if n < 4 => Ok(n),
+            None if n < 4 => Ok(self.split_first.get() as usize + n),
             None => Err(crate::errors::BadInput("a view past the four")),
         }
     }
@@ -264,7 +279,7 @@ impl RaceView {
     pub(super) fn view_car_number(&self, n: usize) -> Result<u32, crate::errors::BadInput> {
         match self.view_cars.get(n) {
             Some(car) => Ok(car.get()),
-            None if n < 4 => Ok(n as u32),
+            None if n < 4 => Ok(self.split_first.get() + n as u32),
             None => Err(crate::errors::BadInput("a view past the four")),
         }
     }

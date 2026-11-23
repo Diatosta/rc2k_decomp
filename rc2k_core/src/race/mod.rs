@@ -12,6 +12,7 @@ pub mod faces;
 pub mod frame;
 pub mod frame_rate;
 pub mod keys;
+pub mod layouts;
 pub mod lights;
 pub mod loading;
 pub mod map;

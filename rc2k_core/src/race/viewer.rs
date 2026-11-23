@@ -536,14 +536,35 @@ pub fn views_choosable(one_player: bool, cars: u32) -> bool {
     !one_player || cars >= 2
 }
 
-/// The head byte of the camera of the car a layout shows alone (4 for the third car, 5 for the
-/// fourth), or the first camera byte (`first`) for the other layouts.
-pub fn shown_camera_byte(layout: u8, first: u32) -> u32 {
-    match layout {
-        4 => 6,
-        5 => 7,
-        _ => first,
-    }
+/// The number of the car a layout shows alone, when its picture has no digit of its own: the
+/// panel's pictures hold the digits 1 and 2 only, so the third to the eighth player (layouts 4
+/// .. 9) are the first car's picture with its digit covered and the number drawn over it.
+pub fn layout_digit(layout: u8) -> Option<u8> {
+    (4..=9).contains(&layout).then(|| layout - 1)
+}
+
+/// Where the car picture's digit is, relative to the picture's top left (the picture is 48 by
+/// 48, its box from x 1 to 46 and y 7 to 39, the digit "1" inside it from x 13 to 28 and y 14 to
+/// 31; read off the panel's atlas): a patch of the box's plain face over the digit, and a 4 by
+/// 4 piece of the face to fill it from.
+pub const DIGIT_PATCH: [u32; 4] = [10, 11, 20, 24];
+pub const FACE_SAMPLE: [u32; 4] = [32, 10, 4, 4];
+/// The centre of the box's face (twice the x, which is on a half unit), relative to the picture:
+/// where a digit is centred.
+pub const BOX_CENTRE_X2: u32 = 47;
+pub const BOX_CENTRE_Y: u32 = 23;
+/// The ink of the game's heavy font (the race's notice font): from the glyph's top to its ink's
+/// middle, in units.
+pub const FONT_INK_MIDDLE: u32 = 12;
+
+/// Where the heavy font's digit goes for a car item placed at (`x`, `y`) in the 800 by 600
+/// layout: the layout x of its centre (twice) and the y its glyph's top is drawn at, so that
+/// the digit's ink is centred in the box.
+pub fn digit_spot(x: u32, y: u32) -> (u32, i32) {
+    (
+        x.wrapping_mul(2).wrapping_add(BOX_CENTRE_X2),
+        y.wrapping_add(BOX_CENTRE_Y).wrapping_sub(FONT_INK_MIDDLE) as i32,
+    )
 }
 
 /// The picture the car item shows for a layout: the pictures are the first car alone (0), the
@@ -553,7 +574,7 @@ pub fn shown_camera_byte(layout: u8, first: u32) -> u32 {
 pub fn layout_picture(layout: u8) -> u32 {
     match layout {
         4..=9 => 0,
-        crate::race::replay_v2::SPLIT_LAYOUT_BYTE => 2,
+        crate::race::layouts::FIRST_GROUP | crate::race::layouts::SECOND_GROUP => 2,
         other => u32::from(other),
     }
 }
@@ -629,10 +650,34 @@ mod tests {
     use super::*;
 
     #[test]
+    fn the_far_cars_have_a_digit_over_the_first_picture() {
+        assert_eq!(
+            (3..=11).map(layout_digit).collect::<Vec<_>>(),
+            [
+                None,
+                Some(3),
+                Some(4),
+                Some(5),
+                Some(6),
+                Some(7),
+                Some(8),
+                None,
+                None
+            ]
+        );
+        let [px, py, pw, ph] = DIGIT_PATCH;
+        let [sx, sy, sw, sh] = FACE_SAMPLE;
+        // The patch lies inside the box (x 2 .. 45, y 8 .. 38) and the sample is outside it.
+        assert!(px >= 2 && py >= 8 && px + pw <= 46 && py + ph <= 39);
+        assert!(sx >= px + pw && sx + sw <= 46 && sy >= 8 && sy + sh <= 39);
+        assert_eq!(digit_spot(100, 200), (247, 211));
+    }
+
+    #[test]
     fn every_layout_has_a_picture() {
         assert_eq!(
             (0..=11).map(layout_picture).collect::<Vec<_>>(),
-            [0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 2, 11]
+            [0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 2, 2]
         );
     }
 
@@ -739,14 +784,6 @@ mod tests {
         assert_eq!(
             [2u8, 3, 4, 5].map(|b| next_byte(5, b, false, 2)),
             [3, 4, 5, 2]
-        );
-        assert_eq!(
-            [
-                shown_camera_byte(4, 0),
-                shown_camera_byte(5, 1),
-                shown_camera_byte(1, 1)
-            ],
-            [6, 7, 1]
         );
         assert!(views_choosable(false, 1) && views_choosable(true, 2));
         assert!(!views_choosable(true, 1));

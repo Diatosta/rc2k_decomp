@@ -32,7 +32,7 @@ pub fn tyre_quad(
 }
 
 /// `tyre_quad` on the rectangles' values.
-pub(super) fn quad_of(
+pub(crate) fn quad_of(
     uv: [u32; 4],
     rect: [u32; 4],
     colour: u32,

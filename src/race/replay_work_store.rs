@@ -64,6 +64,9 @@ pub struct ReplayWork {
     pub camera_last_frame: [u32; 2],
     /// The same for cars 2 and 3 (a replay with the extra tape; `drive::replay_cameras`).
     pub camera_last_frame_extra: [u32; 2],
+    /// The same for the cameras the viewer chose for the fifth to the eighth player's layouts
+    /// (`drive::replay_cameras`).
+    pub camera_last_frame_live: [u32; 4],
 }
 
 impl ReplayWork {
@@ -98,6 +101,7 @@ impl ReplayWork {
             after_header: [0; 162],
             camera_last_frame: [0; 2],
             camera_last_frame_extra: [0; 2],
+            camera_last_frame_live: [0; 4],
         }
     }
 }

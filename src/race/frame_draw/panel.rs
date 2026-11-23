@@ -362,7 +362,7 @@ fn panel_split_players(race: &Race, players: usize) {
 /// first) or show nothing (the others).
 fn split_disc_cars(race: &Race) -> Result<(), BadInput> {
     let view = race.shared.view.get();
-    let players = (view.players.get() as usize).min(4);
+    let players = (view.split_parts() as usize).min(4);
     if players < 2 {
         race.frame.panel.borrow_mut().disc_cars_more = [0; 3];
         return Ok(());
@@ -423,7 +423,11 @@ fn car_distances(
 ) -> Result<(), BadInput> {
     use rc2k_core::race::panel::{distance_shown, travelled};
     for n in 0..count.min(8) {
-        let car = race.frame.cars.car(n)?;
+        // Part `n` shows the car `view_number(n)`: the same car but in a group of players.
+        let car = race
+            .frame
+            .cars
+            .car(race.shared.view.get().view_number(n)?)?;
         let at = |n: u32| {
             crate::race::checkpoints_store::distance_run_on(race.checkpoints(), n as usize)
         };
@@ -439,11 +443,13 @@ pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
     {
         // A split screen of more than two players: each player's values for the HUD of the
         // player's part, taken the way the first view's are, before the two views' own.
-        let players = race.shared.view.get().players.get() as usize;
+        let players = race.shared.view.get().split_parts() as usize;
         if players > 2 {
             for n in 0..players.min(4) {
-                panel_half(race, n, true)?;
-                let place = race.frame.cars.car(n)?.two_car_place.get();
+                // The part's own player's car (the first to the fourth, or those of a group).
+                let car = race.shared.view.get().view_number(n)?;
+                panel_half(race, car, true)?;
+                let place = race.frame.cars.car(car)?.two_car_place.get();
                 let mut panel = race.frame.panel.borrow_mut();
                 panel.parts[n] = panel.view_a;
                 panel.parts[n].place = place;
@@ -454,7 +460,7 @@ pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
         split_disc_cars(race)?;
         // A split screen of more than two players shows each player's progress on its own part's
         // bar (`hud::layout_many`), from the same distances the network markers use.
-        let players = race.shared.view.get().players.get() as usize;
+        let players = race.shared.view.get().split_parts() as usize;
         panel_split_players(race, players);
         if players > 2 {
             let (unit, miles) = (
@@ -609,13 +615,19 @@ pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
             }
         }
         // A split screen of three or four: the further players' maps move with their cars too.
-        let players = race.shared.view.get().players.get() as usize;
+        let players = race.shared.view.get().split_parts() as usize;
         for n in 2..players.min(4) {
             let car = &race.car_blocks().cars[race.shared.view.get().view_number(n)?];
             let mut out = [0; 3];
             out[0] = motion(car.map_picture_place[0] as i32, half, small).to_bits();
             out[1] = motion(car.map_picture_place[1] as i32, half, small).to_bits();
-            let turn = heading_turn(race.frame.cars.car(n)?.car_heading.get());
+            let turn = heading_turn(
+                race.frame
+                    .cars
+                    .car(race.shared.view.get().view_number(n)?)?
+                    .car_heading
+                    .get(),
+            );
             out[2] = heading(turn as i32, half, big).to_bits();
             race.frame.panel.borrow_mut().parts[n].motion = out;
         }

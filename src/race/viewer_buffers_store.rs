@@ -57,7 +57,14 @@ pub struct ViewerBuffers {
     /// The replay in the block is of this project's own format (version 2): its block is the
     /// plain frame, the extra tape and the tail.
     pub v2: PlainFlag,
+    /// The camera byte chosen in the viewer for each of the fifth to the eighth car
+    /// (`rc2k_core::race::layouts::camera_source`: the blocks hold no byte for the cars), `NO_CAMERA`
+    /// until chosen. Kept while a replay is open, not in the file.
+    pub live_cameras: [PlainDword; 4],
 }
+
+/// A `live_cameras` entry not chosen.
+pub const NO_CAMERA: u32 = u32::MAX;
 
 /// The buffers as held by `crate::test_support::own::race().shared`.
 #[cfg(test)]
@@ -100,6 +107,7 @@ impl ViewerBuffers {
             extra_tape: PlainFlag::new(false),
             block_tail: [const { PlainDword::new(0) }; TAIL_DWORDS],
             v2: PlainFlag::new(false),
+            live_cameras: [const { PlainDword::new(NO_CAMERA) }; 4],
         }
     }
 

@@ -110,6 +110,29 @@ struct Picture {
 }
 
 impl Picture {
+    /// The letters' outline taken away, leaving their fill: the dark pixels of a 32-bit picture are
+    /// made unwritten (a 16-bit picture is left as it is).
+    fn drop_outline(&mut self) {
+        if self.bytes != 4 {
+            return;
+        }
+        for at in (0..self.pixels.len()).step_by(4) {
+            let four = [
+                self.pixels[at],
+                self.pixels[at + 1],
+                self.pixels[at + 2],
+                self.pixels[at + 3],
+            ];
+            let value = u32::from_le_bytes(four);
+            let dark = [value >> 16, value >> 8, value]
+                .iter()
+                .all(|c| c & 0xFF < 0x60);
+            if value != self.see_through && dark {
+                self.pixels[at..at + 4].copy_from_slice(&self.see_through.to_le_bytes());
+            }
+        }
+    }
+
     /// The pixel at (x, y) as its raw value, none outside or not written.
     fn raw(&self, x: i32, y: i32) -> Option<u32> {
         if !(0..self.width).contains(&x) || !(0..self.height).contains(&y) {
@@ -190,6 +213,19 @@ pub fn draw(o: Owners<'static>, text: &[u8], top: i32, strength: u8) {
 /// is centred across the area, enlarged by the area's height over 600 (less where the area is
 /// narrower than the text), and its letters' top lies `top` layout units down the area.
 pub fn draw_in(o: Owners<'static>, text: &[u8], area: [i32; 4], top: i32, strength: u8) {
+    draw_in_tinted(o, text, area, top, strength, None);
+}
+
+/// `draw_in`, with every written pixel of the text (the outline too) given `tint` (0xRRGGBB)
+/// when there is one: the letters' shape in one colour.
+pub fn draw_in_tinted(
+    o: Owners<'static>,
+    text: &[u8],
+    area: [i32; 4],
+    top: i32,
+    strength: u8,
+    tint: Option<u32>,
+) {
     use crate::gfx::surface::{Target, surface};
     let screen = o.system.session.screen.get();
     let (w, h) = (screen.width.get() as i32, screen.height.get() as i32);
@@ -202,9 +238,12 @@ pub fn draw_in(o: Owners<'static>, text: &[u8], area: [i32; 4], top: i32, streng
     if !(bpp == 2 || bpp == 4) || real.pitch <= 0 || strength == 0 {
         return;
     }
-    let Some(picture) = capture_picture(o, text) else {
+    let Some(mut picture) = capture_picture(o, text) else {
         return;
     };
+    if tint.is_some() {
+        picture.drop_outline();
+    }
     let (cw, ch) = (picture.width, picture.height);
     // To the screen, `scale` times as large (less where the screen is narrower than the text).
     let scale = (f64::from(area_h) / 600.0).min(f64::from(area_w) / f64::from(cw)) as f32;
@@ -240,6 +279,9 @@ pub fn draw_in(o: Owners<'static>, text: &[u8], area: [i32; 4], top: i32, streng
             if bpp == 2 {
                 // A 16-bit screen has no blend: the nearest written pixel, whole.
                 if let Some(v) = picture.raw(sx as i32, sy as i32) {
+                    let v = tint.map_or(v, |rgb| {
+                        crate::input::osk_draw::pixel(rgb, real.bits_per_pixel)
+                    });
                     row[k..k + 2].copy_from_slice(&(v as u16).to_le_bytes());
                 }
                 continue;
@@ -257,10 +299,10 @@ pub fn draw_in(o: Owners<'static>, text: &[u8], area: [i32; 4], top: i32, streng
             if alpha == 0 {
                 continue;
             }
-            let own = {
+            let own = tint.unwrap_or_else(|| {
                 let c = |i: usize| ((sum[i] / (share * taps.len() as f32)).round() as u32).min(255);
                 c(0) << 16 | c(1) << 8 | c(2)
-            };
+            });
             let under = u32::from_le_bytes([row[k], row[k + 1], row[k + 2], row[k + 3]]);
             let px = rc2k_core::race::viewer_tip::over(own, under, alpha);
             row[k..k + 4].copy_from_slice(&px.to_le_bytes());

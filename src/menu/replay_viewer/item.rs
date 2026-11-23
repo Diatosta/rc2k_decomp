@@ -30,6 +30,9 @@ pub(super) fn draw_viewer_item(
     let replay = &race.replay;
     let panel = race.viewer_panel();
     use rc2k_core::race::viewer::{centred, item_colour, switch_byte};
+    // The car picture of a layout showing the third to the eighth car: the first car's with its
+    // digit replaced.
+    let mut digit = None;
     let uv = match ReplayViewBlock::item_picture(replay.replay_view(), index)? {
         ViewerPicture::Rectangle(offset) => panel.rectangle_at(offset)?,
         ViewerPicture::Switch(SwitchTable::A) => {
@@ -38,6 +41,7 @@ pub(super) fn draw_viewer_item(
         }
         ViewerPicture::Switch(SwitchTable::B) => {
             let layout = camera_byte(race, replay, 5)?;
+            digit = rc2k_core::race::viewer::layout_digit(layout.min(0xFF) as u8);
             panel.switch_picture(
                 SwitchTable::B.number(),
                 rc2k_core::race::viewer::layout_picture(layout.min(0xFF) as u8),
@@ -75,5 +79,85 @@ pub(super) fn draw_viewer_item(
         system,
         scene.scratch.game_scratch(),
         rc2k_core::hud::anchor::Spread::Centred,
+    )?;
+    if digit.is_none() {
+        return Ok(());
+    }
+    // The picture's own digit is covered with a piece of the box's face in the item's colour; the
+    // number itself is drawn over the finished frame (`draw_car_digit`).
+    use rc2k_core::race::viewer::{DIGIT_PATCH, FACE_SAMPLE};
+    let [x, y, ..] = uv;
+    let face = [
+        x + FACE_SAMPLE[0],
+        y + FACE_SAMPLE[1],
+        FACE_SAMPLE[2],
+        FACE_SAMPLE[3],
+    ];
+    let [px, py, w, h] = DIGIT_PATCH;
+    crate::drive::tyre_quad::quad_of(
+        face,
+        [
+            panel.item_place[0].get().wrapping_add(px),
+            panel.item_place[1].get().wrapping_add(py),
+            w,
+            h,
+        ],
+        colour,
+        panel,
+        system,
+        scene.scratch.game_scratch(),
+        rc2k_core::hud::anchor::Spread::Centred,
     )
+}
+
+/// The car item's index in the list (the item whose picture is the layout's).
+const CAR_ITEM: u32 = 15;
+
+/// The number of the car the car item shows, when its picture has none of its own: drawn in the
+/// game's heavy font (the race's notice font), black, centred on the box of the first car's
+/// picture whose own digit `draw_viewer_item` covered. Over the finished frame, as the button
+/// names are (`tip`); the layout's own x is mapped to the screen as the item's quad is.
+pub(super) fn draw_car_digit(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    use rc2k_core::hud::anchor::Spread;
+    use rc2k_core::race::viewer::{centred, digit_spot, layout_digit};
+    let race = o.race;
+    let replay = &race.replay;
+    let layout = camera_byte(race, replay, 5)?;
+    let Some(digit) = layout_digit(layout.min(0xFF) as u8) else {
+        return Ok(());
+    };
+    let panel = race.viewer_panel();
+    let uv = panel.switch_picture(
+        SwitchTable::B.number(),
+        rc2k_core::race::viewer::layout_picture(0),
+    )?;
+    let bytes = ReplayViewBlock::item_place(replay.replay_view(), CAR_ITEM)?
+        .read_array::<16>("a viewer item's place")?;
+    let place: [u32; 4] =
+        std::array::from_fn(|k| u32::from_le_bytes(bytes[4 * k..4 * k + 4].try_into().unwrap()));
+    let width = (uv[2] as i32).unsigned_abs();
+    let (centre2, top) = digit_spot(centred(place[0], place[2], width), place[1]);
+    let screen = o.system.session.screen.get();
+    let (w, h) = (screen.width.get(), screen.height.get());
+    let (factor, shift) = Spread::Centred.across(w, h);
+    // The glyph is centred across an area as wide as the glyph's own room, 48 units.
+    let (area_w, centre) = (
+        (f64::from(width) * factor).round() as i32,
+        f64::from(centre2) / 2.0 * factor + shift,
+    );
+    let area = [
+        (centre - f64::from(area_w) / 2.0).round() as i32,
+        0,
+        area_w,
+        h as i32,
+    ];
+    let locked_here = o.gfx.locked.surface.get() != 1;
+    if locked_here && crate::platform::lock_surface(o.gfx, o.system) < 1 {
+        return Ok(());
+    }
+    crate::gfx::notice_text::draw_in_tinted(o, &[b'0' + digit], area, top, 255, Some(0));
+    if locked_here {
+        crate::platform::unlock_surface(o.gfx);
+    }
+    Ok(())
 }

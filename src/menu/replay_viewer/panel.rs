@@ -95,10 +95,15 @@ pub(super) fn draw_viewer_panel(
     // The two cameras' names, three times each, 0xD lower and 0x78 to the left.
     let mut y = 0x32;
     for byte in 0..2usize {
-        let camera = camera_name(crate::race::viewer::camera_byte_at(
-            race,
-            byte.wrapping_add(8 * replay.replay_view().replay_block.get() as usize),
-        )?);
+        // With the extra tape, a layout showing a further car alone shows that car's camera.
+        let camera = camera_name(
+            crate::race::viewer::shown_camera(
+                race,
+                replay.replay_view().replay_block.get(),
+                byte as u32,
+            )?
+            .read(race)?,
+        );
         let id = race.viewer_panel().camera_name(camera as usize);
         let mut out = 0usize;
         crate::strings::append_string_by_id::append_string_by_id(

@@ -206,11 +206,12 @@ pub(super) fn scroll_maps(
     }
     // A split screen of three or four: the further players' maps, each in a texture of its own.
     if !third_only {
-        let players = race.shared.view.get().players.get().min(4) as usize;
+        let players = race.shared.view.get().split_parts().min(4) as usize;
         for n in 2..players {
-            let mut car = race
-                .shared
-                .race_car_or_mut(n, "a further player's car block")?;
+            let mut car = race.shared.race_car_or_mut(
+                race.shared.view.get().view_number(n)?,
+                "a further player's car block",
+            )?;
             scroll_map_with(race, &mut car, |car| {
                 further_map_tiles(race, car, n, scene, gfx)
             })?;

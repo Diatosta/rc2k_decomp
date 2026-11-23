@@ -68,6 +68,67 @@ pub fn camera_byte_at(race: &Race, offset: usize) -> Result<u8, BadInput> {
     camera_byte(offset as u32).read(race, "a replay camera byte")
 }
 
+/// Where the camera of the car the layout shown follows is kept: a byte of the block (the first
+/// two cars', and in a replay with the extra tape the third's and the fourth's) or, for the fifth
+/// to the eighth car, the choice made in the viewer (`ViewerBuffers::live_cameras`).
+#[derive(Clone, Copy)]
+pub enum ShownCamera {
+    Block(CameraByte),
+    Live(usize),
+}
+
+/// The car a layout shows alone: the player's car in a replay of the own format, else (the
+/// extra tape's replays) the car of the same number as the player.
+fn layout_car(race: &Race, layout: u8) -> Result<usize, BadInput> {
+    if race.viewer_buffers().v2.is_set() {
+        let v2 = race.replay.v2().lock();
+        return v2
+            .ext
+            .as_ref()
+            .and_then(|ext| ext.layout_player(u32::from(layout)))
+            .ok_or(BadInput("a layout of a player the replay does not have"));
+    }
+    Ok(usize::from(layout).saturating_sub(2))
+}
+
+/// Where the camera that the camera button `camera` (0 or 1) edits in block `block` is kept: in
+/// a replay without the extra tape the first two cars' own; with it, for a layout that shows one
+/// of the third to the eighth player alone, that player's car's (`layouts::camera_source`).
+pub fn shown_camera(race: &Race, block: u32, camera: u32) -> Result<ShownCamera, BadInput> {
+    use rc2k_core::race::layouts::{CameraSource, camera_source};
+    let base = block.wrapping_mul(8);
+    if race.viewer_buffers().extra_tape.is_set() {
+        let layout = camera_byte(5u32.wrapping_add(base)).read(race, "a replay camera byte")?;
+        if (4..=9).contains(&layout) {
+            let car = layout_car(race, layout)?;
+            return match camera_source(car).ok_or(BadInput("a camera of a car past the eighth"))? {
+                CameraSource::Head(byte) => Ok(ShownCamera::Block(camera_byte(
+                    (byte as u32).wrapping_add(base),
+                ))),
+                CameraSource::Live(n) => Ok(ShownCamera::Live(n)),
+            };
+        }
+    }
+    Ok(ShownCamera::Block(camera_byte(camera.wrapping_add(base))))
+}
+
+impl ShownCamera {
+    /// The camera byte now (a camera not yet chosen in the viewer is the first, 0).
+    pub fn read(self, race: &Race) -> Result<u8, BadInput> {
+        match self {
+            ShownCamera::Block(at) => at.read(race, "a replay camera byte"),
+            ShownCamera::Live(n) => {
+                let chosen = race.viewer_buffers().live_cameras[n].get();
+                Ok(if chosen == crate::race::viewer_buffers_store::NO_CAMERA {
+                    0
+                } else {
+                    chosen as u8
+                })
+            }
+        }
+    }
+}
+
 /// Whether `n` cells from `at` lie in `table`.
 fn inside(table: &dyn Cells, at: usize, n: usize) -> Result<(), BadInput> {
     match at.checked_add(n) {

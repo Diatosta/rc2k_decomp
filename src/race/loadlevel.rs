@@ -415,6 +415,7 @@ fn finish_level(
         let mut work = race.replay_work_mut();
         work.camera_last_frame = [0; 2];
         work.camera_last_frame_extra = [0; 2];
+        work.camera_last_frame_live = [0; 4];
     }
     s.indent(-3);
     s.log(Word::Finis);

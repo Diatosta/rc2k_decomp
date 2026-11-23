@@ -30,14 +30,69 @@ fn wish_of(replay_work: &ReplayWork, byte: usize) -> Result<u32, BadInput> {
         .ok_or(BadInput("a replay camera wish past the replay work"))
 }
 
-/// Car `c`'s last camera draw frame set to `frame`.
-fn set_last_frame(race: &Race, c: usize, frame: u32) {
-    let mut work = race.replay_work_mut();
-    if c < 2 {
-        work.camera_last_frame[c] = frame;
-    } else {
-        work.camera_last_frame_extra[c - 2] = frame;
+/// Where a car's last camera draw frame is kept: by its car (0 .. 3) or by the viewer's choice
+/// for a further player's layout (`ViewerBuffers::live_cameras`).
+#[derive(Clone, Copy)]
+enum LastFrame {
+    Car(usize),
+    Live(usize),
+}
+
+impl LastFrame {
+    fn get(self, race: &Race) -> u32 {
+        let work = race.replay_work();
+        match self {
+            LastFrame::Car(c) if c < 2 => work.camera_last_frame[c],
+            LastFrame::Car(c) => work.camera_last_frame_extra[c - 2],
+            LastFrame::Live(n) => work.camera_last_frame_live[n],
+        }
     }
+
+    fn set(self, race: &Race, frame: u32) {
+        let mut work = race.replay_work_mut();
+        match self {
+            LastFrame::Car(c) if c < 2 => work.camera_last_frame[c] = frame,
+            LastFrame::Car(c) => work.camera_last_frame_extra[c - 2] = frame,
+            LastFrame::Live(n) => work.camera_last_frame_live[n] = frame,
+        }
+    }
+}
+
+/// Car `c`'s camera by the wish of camera byte `byte`.
+fn camera_of(race: &Race, c: usize, byte: u32, last_frame: LastFrame) -> Result<(), Refused> {
+    let replay = &race.replay;
+    let last = last_frame.get(race);
+    let wish = wish_of(&race.replay_work(), byte as usize)?;
+    let camera_view = race.car_blocks().cars[c].camera_view;
+    match wish_step(wish, replay.replay_view().replay_block.get(), last, || {
+        camera_view
+    }) {
+        WishStep::Draw(_) => {
+            last_frame.set(race, replay.replay_view().replay_block.get());
+            // `Draw` comes only for the wishes that draw: the mode is there.
+            let mode = { crate::drive::pick_replay_camera::pick_replay_camera(race, wish) }?;
+            let mut blocks = race.car_blocks_mut();
+            let car = &mut blocks.cars[c];
+            if let Some(mode) = mode {
+                car.camera_view = mode;
+            }
+            car.camera_switch_active = 0;
+            car.camera_switch_clock = car.step_clock;
+        }
+        WishStep::Nothing(_) => {}
+        WishStep::Set => {
+            {
+                let mut blocks = race.car_blocks_mut();
+                let car = &mut blocks.cars[c];
+                car.camera_blend_view = wish;
+                car.camera_view = wish;
+                car.camera_switch_active = 0;
+                car.camera_switch_clock = car.step_clock;
+            }
+            last_frame.set(race, 0);
+        }
+    }
+    Ok(())
 }
 
 fn steps(race: &Race) -> Result<(), Refused> {
@@ -47,56 +102,26 @@ fn steps(race: &Race) -> Result<(), Refused> {
     replay.replay_frames_mut().camera_word_1 = race.car_blocks().cars[0].frame_head[1];
     // A replay with the extra tape also names the cameras of cars 2 and 3, in the head's bytes
     // 6 and 7 (zero in every other replay: no wish).
-    let cars = if race.viewer_buffers().extra_tape.is_set() {
-        4
-    } else {
-        2
-    };
+    let extra = race.viewer_buffers().extra_tape.is_set();
+    let cars = if extra { 4 } else { 2 };
     for c in 0..cars {
         let byte = if c < 2 { c } else { c + 4 };
-        let last = {
-            let work = race.replay_work();
-            if c < 2 {
-                work.camera_last_frame[c]
-            } else {
-                work.camera_last_frame_extra[c - 2]
-            }
-        };
-        let wish = wish_of(&race.replay_work(), head_byte(race, byte) as usize)?;
-        let camera_view = race.car_blocks().cars[c].camera_view;
-        match wish_step(wish, replay.replay_view().replay_block.get(), last, || {
-            camera_view
-        }) {
-            WishStep::Draw(_) => {
-                set_last_frame(race, c, replay.replay_view().replay_block.get());
-                // `Draw` comes only for the wishes that draw: the mode is there.
-                let mode = { crate::drive::pick_replay_camera::pick_replay_camera(race, wish) }?;
-                let mut blocks = race.car_blocks_mut();
-                let car = &mut blocks.cars[c];
-                if let Some(mode) = mode {
-                    car.camera_view = mode;
-                }
-                car.camera_switch_active = 0;
-                car.camera_switch_clock = car.step_clock;
-            }
-            WishStep::Nothing(_) => {}
-            WishStep::Set => {
-                {
-                    let mut blocks = race.car_blocks_mut();
-                    let car = &mut blocks.cars[c];
-                    car.camera_blend_view = wish;
-                    car.camera_view = wish;
-                    car.camera_switch_active = 0;
-                    car.camera_switch_clock = car.step_clock;
-                }
-                set_last_frame(race, c, 0);
+        camera_of(race, c, head_byte(race, byte), LastFrame::Car(c))?;
+    }
+    // The cars the blocks hold no camera byte for (the fifth to the eighth) follow the choice made
+    // for them in the viewer, once made.
+    if extra {
+        for (n, chosen) in race.viewer_buffers().live_cameras.iter().enumerate() {
+            let chosen = chosen.get();
+            if chosen != crate::race::viewer_buffers_store::NO_CAMERA {
+                camera_of(race, 4 + n, chosen, LastFrame::Live(n))?;
             }
         }
     }
     // The split-screen layout shows every player's HUD as the race did, the recording's own bits
     // (the viewer's other layouts show the first two cars' as the viewer's switches say).
     // A render takes the viewer's pieces it was given.
-    let split = head_byte(race, 5) == rc2k_core::race::replay_v2::SPLIT_LAYOUT;
+    let split = rc2k_core::race::layouts::is_group(head_byte(race, 5) as u8);
     if !split {
         let options = shown_hud().unwrap_or([
             shared.view.get().player_options[0].get(),
@@ -104,6 +129,11 @@ fn steps(race: &Race) -> Result<(), Refused> {
         ]);
         race.car_blocks_mut().cars[0].option_bits = options[0];
         race.car_blocks_mut().cars[1].option_bits = options[1];
+    } else {
+        group_hud(
+            race,
+            shown_hud().map_or(shared.view.get().player_options[0].get(), |o| o[0]),
+        );
     }
     // The head's bytes 2 .. 5 into the view switches.
     for (k, to) in [
@@ -123,6 +153,29 @@ fn steps(race: &Race) -> Result<(), Refused> {
         shared.view.get().view_on[1].set(1);
     }
     Ok(())
+}
+
+/// The HUD of the cars of a group the replay holds no HUD pieces for: a car recorded by its
+/// motion (another machine's) has none of its own, so each such car's part shows the pieces
+/// `own` names (the first player's); the other cars keep the recording's.
+fn group_hud(race: &Race, own: u32) {
+    let states = race
+        .replay
+        .v2()
+        .lock()
+        .ext
+        .as_ref()
+        .map_or(0, rc2k_core::race::replay_v2::Extension::state_mask);
+    let view = race.shared.view.get();
+    let first = view.split_first.get() as usize;
+    let mut blocks = race.car_blocks_mut();
+    let firsts = [view.view_cars[0].get(), view.view_cars[1].get()].map(|car| car as usize);
+    for part in 0..(view.views.get() as usize).min(4) {
+        let car = firsts.get(part).copied().unwrap_or(first + part);
+        if car < 8 && states & (1 << car) != 0 {
+            blocks.cars[car].option_bits = own;
+        }
+    }
 }
 
 /// The HUD pieces of the first two cars while the viewer is open (`set_shown_hud`), shown when
