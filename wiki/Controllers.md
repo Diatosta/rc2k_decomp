@@ -143,8 +143,9 @@ old texts; the keyboard always has its own).
 - Automatic follows SDL's gamepad type: Xbox 360 and Xbox One pads get the Xbox pictures, PS3,
   PS4 and PS5 pads the PlayStation ones, any other gamepad the Xbox look. A Steam Deck (USB id
   28DE:1205), a Steam controller, and any Valve pad when the program was started by Steam on a
-  Deck (`SteamDeck=1`) get the Steam Deck pictures. A joystick or wheel that is not a gamepad
-  shows numbers until the player picks a family.
+  Deck (`SteamDeck=1`) get the Steam Deck pictures. A joystick or wheel known by name (see
+  "Profiles") gets its own family (the FANATEC Wheel the PlayStation one); any other that is not
+  a gamepad shows numbers until the player picks a family.
 - A gamepad's buttons are bound by position (south, east, west, north, shoulders, back, start,
   the sticks' presses; SDL's own mapping puts the physical button there), so the picture is the
   one on the real button: south is A on an Xbox pad and the cross on a PlayStation one.
@@ -226,6 +227,12 @@ made the first time a player uses a controller:
 - a wheel (SDL's type says so): the first axis steers; the pedals are learnt;
 - any other joystick: the first axis steers, the second accelerates up and brakes down, the
   buttons as above.
+- a controller known by name (`rc2k_core/src/input/known_devices.rs`, the one table of
+  per-controller defaults) starts with its own bindings instead. Known now: the **FANATEC Wheel**
+  (a Fanatec base with a PlayStation rim): the wheel over 270 degrees of its 900, the throttle and
+  brake pedals (both resting high), the paddles for gear up and down, circle the handbrake,
+  triangle the camera, options the pause, share the lights, the H shifter on, and in the menus
+  cross enters, circle goes back, square is the third answer and the D-pad moves.
 
 Steering, accelerating and braking can be bound to an **axis**: the whole of a centred axis
 (steering), a pedal (from the end it rests at), or one side of a centred axis. Every control can

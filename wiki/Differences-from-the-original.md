@@ -200,7 +200,8 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   typed text in a line at the top (stars for a password), pages of symbols and accented letters.
   A system with its own screen keyboard shows that one instead.
 - **Profiles.** Each player keeps a profile for every controller used: bindings and per-axis
-  settings. The controller page has "axes" (a live bar for each axis; dead zone, range, response
+  settings. A controller known by name starts with its own bindings and button pictures (the
+  FANATEC Wheel: pedals, paddles, H shifter and PlayStation pictures; [Controllers](Controllers#profiles)). The controller page has "axes" (a live bar for each axis; dead zone, range, response
   curve, invert, and a wheel's full rotation, 900 degrees at first) in place of the original's axis
   mode and dead zone items. The buttons page binds steering, accelerate and brake to any axis
   and the rest to buttons or hat directions, and has a last page of **menu controls** (enter, back,
