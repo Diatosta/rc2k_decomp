@@ -65,7 +65,10 @@ fn run(
         if setup.kind_floats.borrow().running != 0 {
             windscreen_flakes_spawn(shared, drops, fl, effects)?;
         }
-        for n in 0..fl.items.borrow().items.len() {
+        // The count read on its own: a borrow in the loop's head would last the whole loop, and
+        // the loop writes the items.
+        let count = fl.items.borrow().items.len();
+        for n in 0..count {
             let mut item = fl.items.borrow().items[n];
             if item.live != 1 {
                 continue;
