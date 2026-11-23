@@ -66,8 +66,28 @@ pub fn flip_bit(flags: u32, (bit, clear, set): (u32, u32, u32)) -> (u32, u32) {
 /// The camera views with a counter of their own (below this).
 pub const COUNTED_VIEWS: u32 = 7;
 
+/// The number-row key that stands in for a race's F key (both as key codes): 1 .. 9 and 0 for F1 ..
+/// F10, minus for F11 and equals for F12; none for any other key.
+pub fn number_row_for(f_key: usize) -> Option<usize> {
+    match f_key {
+        0x3B..=0x44 => Some(f_key - 0x3B + 0x02),
+        0x57 => Some(0x0C),
+        0x58 => Some(0x0D),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_number_row_stands_in_for_the_f_keys() {
+        assert_eq!(number_row_for(0x3B), Some(0x02));
+        assert_eq!(number_row_for(0x44), Some(0x0B));
+        assert_eq!(number_row_for(0x57), Some(0x0C));
+        assert_eq!(number_row_for(0x58), Some(0x0D));
+        assert_eq!(number_row_for(0x1C), None);
+    }
+
     use super::*;
 
     #[test]

@@ -186,6 +186,9 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
 
 Everything is on [Controllers](Controllers) and [Input](Input); in short:
 
+- **The number row works as the F keys in a race** (1 .. 0, minus, equals for F1 .. F12; Ctrl, Alt or
+  Shift with them for the second view), for keyboards and browsers where the F keys are awkward:
+  [Input](Input#keys-in-a-race).
 - **The whole game works with a pad**: menus, questions, the credits, the replay viewer, the
   network lobby (the shoulders are Tab), any-key waits (South, East, West or Start). A held
   button repeats as a held key does.

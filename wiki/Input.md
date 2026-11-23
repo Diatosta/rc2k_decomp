@@ -146,6 +146,12 @@ keys went down *this frame* (with auto-repeat for held keys). The race's own key
 the view change, the screenshot key (`race_keys` in `src/race/frame.rs`). The pause binding
 and Escape ask the "leave?" question (`drive::race_loop`).
 
+The number row stands in for the race's F keys: 1 .. 9 and 0 for F1 .. F10, minus for F11 and
+equals for F12 (handy where a browser keeps the F keys for itself). Ctrl, Alt or Shift with one of
+them acts on the second view, as Ctrl does with the F keys (browsers keep Ctrl or Alt with a number
+for their tabs, depending on the system, so whichever is free works). A number key that a player's
+keyboard controls use keeps only that use.
+
 Driving does not read keys this way. It reads the players' devices.
 
 ## Devices

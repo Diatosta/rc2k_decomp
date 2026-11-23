@@ -99,25 +99,45 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     let state = &audio.state;
     let shared = &race.shared;
     crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
-    let second = devices.keys_now.get(VIEW_MODE_KEY) != 0;
-    let mut view = shared.view_car_or_end_mut(usize::from(second));
+    // The number row stands in for the F keys (a browser keeps most F keys for itself), unless a
+    // player's keyboard controls use that key; with it, Ctrl, Alt or Shift picks the second view
+    // (browsers keep Ctrl or Alt with a number for their tabs, by system).
+    let bound = |key: usize| {
+        o.menus
+            .play
+            .slots
+            .records
+            .iter()
+            .any(|p| p.get().keys.contains(&(key as u8)))
+    };
+    let held = |key: usize| devices.keys_now.get(key) != 0;
+    let mut by_number_row = false;
+    let mut down = |key: usize| {
+        if pressed(devices, key) {
+            return true;
+        }
+        let row = rc2k_core::race::keys::number_row_for(key)
+            .is_some_and(|row| pressed(devices, row) && !bound(row));
+        by_number_row |= row;
+        row
+    };
     use rc2k_core::race::keys::{
         BIT_KEYS as BITS, COUNTED_VIEWS, Key, SHARED_BIT, first_key, flip_bit, split_flip,
         volume_key, volume_step,
     };
     let key = first_key(|k| {
-        pressed(
-            devices,
-            match k {
-                Key::NextView => NEXT_VIEW_KEY,
-                Key::Split => SPLIT_KEY,
-                Key::VolumeDown => DOWN_KEY,
-                Key::VolumeUp => UP_KEY,
-                Key::Bit(n) => BIT_KEYS[n],
-                Key::Shared => SHARED_KEY,
-            },
-        )
+        down(match k {
+            Key::NextView => NEXT_VIEW_KEY,
+            Key::Split => SPLIT_KEY,
+            Key::VolumeDown => DOWN_KEY,
+            Key::VolumeUp => UP_KEY,
+            Key::Bit(n) => BIT_KEYS[n],
+            Key::Shared => SHARED_KEY,
+        })
     });
+    let second = held(VIEW_MODE_KEY)
+        || (by_number_row && [0x61, 0x38, 0x64, 0x2A, 0x36].into_iter().any(held));
+    let mut view = shared.view_car_or_end_mut(usize::from(second));
     // The view block's `option_bits` with `bit` flipped; gives the counter.
     let flip = |view: &mut Car, bit: (u32, u32, u32)| -> u32 {
         let (now, counter) = flip_bit(view.option_bits, bit);
