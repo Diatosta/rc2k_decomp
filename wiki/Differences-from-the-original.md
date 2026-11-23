@@ -322,16 +322,20 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   machines), never a computer car; the computer's cars are still drawn and drive in the replay. It also
   works for a network race's replay and for races of more than four players. The item's picture shows the
   number of the car followed: the panel's pictures hold only 1, 2 and both, so the third to the eighth car are
-  the first car's picture with its digit covered and the number drawn over it in the game's heavy font. The camera buttons (and the
-  camera names in the bar above) act on the car the layout shows alone, also the fifth to the eighth; the
-  choice for those four lasts while the viewer has the replay open and is not saved in the file.
+  the first car's picture with its digit covered and the number drawn over it in the game's heavy font (the font's
+  letters without their outline, black, as large and where the panel's own 1 and 2 are). The camera buttons (and the
+  camera names in the bar above) act on the car the layout shows, also the fifth to the eighth, and their icons show
+  that car's number in place of the fixed 1 and 2; in a split of three or four parts two more camera buttons lie on
+  either side of the render button, for the third and fourth part. The choice for the fifth to the eighth car lasts
+  while the viewer has the replay open and is not saved in the file.
 - A replay of **more than two cars** (three or four players on one machine, or a network race with other players
   and bots) is **heard with every car**: each car's engine, tyres, gear changes and knocks, the nearest loudest
   (heard from the followed car in one view). One- and two-player replays sound as before.
 - A replay of **three or more players** can be watched **split between players**: after the single players the
   viewer's car item offers the groups, each player in a part of the screen with its HUD: for a local split-screen
   race "all" as it was raced; for a network race or one of more than four players the first four players, and for
-  seven or eight players also the last three or four. The groups' parts take their cars' own camera choices as far
+  six, seven or eight players also the rest: the fifth and sixth as a two-player split (side by side or one above
+  the other, as the first two), the fifth to the seventh as a three-way split, the fifth to the eighth as a four-way one. The groups' parts take their cars' own camera choices as far
   as the replay has them.
 - A **network race records a replay** like a single race; the lobby then offers "save replay". A replay that
   cannot be saved or read shows a notice instead of ending the game.

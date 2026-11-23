@@ -296,16 +296,17 @@ pub mod id {
     pub const SHARE_LOG: u32 = FIRST + 0x1A7;
     /// The error dialog's last line on a touch screen, where a tap on a way chooses it.
     pub const DIALOG_KEYS_TOUCH: u32 = FIRST + 0x1B0;
-    /// The replay viewer's names of its buttons, shown when the highlight moves to one: the 26
-    /// buttons of the two rows in order, the render button, the name while a camera is edited
-    /// ("{}" the camera's number), a car's HUD shown or hidden ("{}" the car's number), and the
-    /// three replay speeds.
+    /// The replay viewer's names of its buttons, shown when the highlight moves to one: the 28
+    /// buttons (the two rows' 26 in order, then the camera buttons of the third and fourth part;
+    /// a camera button's name has "{}" for the number on its icon), the render button, the name
+    /// while a camera is edited ("{}" the number on the button's icon), a car's HUD shown or
+    /// hidden ("{}" the car's number), and the three replay speeds.
     pub const VIEWER_TIPS: u32 = FIRST + 0x12A;
-    pub const VIEWER_TIP_RENDER: u32 = FIRST + 0x144;
-    pub const VIEWER_TIP_EDITING: u32 = FIRST + 0x145;
-    pub const VIEWER_TIP_HUD_SHOW: u32 = FIRST + 0x146;
-    pub const VIEWER_TIP_HUD_HIDE: u32 = FIRST + 0x147;
-    pub const VIEWER_TIP_SPEEDS: u32 = FIRST + 0x148;
+    pub const VIEWER_TIP_RENDER: u32 = FIRST + 0x146;
+    pub const VIEWER_TIP_EDITING: u32 = FIRST + 0x147;
+    pub const VIEWER_TIP_HUD_SHOW: u32 = FIRST + 0x148;
+    pub const VIEWER_TIP_HUD_HIDE: u32 = FIRST + 0x149;
+    pub const VIEWER_TIP_SPEEDS: u32 = FIRST + 0x14A;
 }
 
 /// Each text's file key and id.
@@ -593,6 +594,8 @@ pub const KEYS: &[(&str, u32)] = &[
     ("viewer.tip_23", id::VIEWER_TIPS + 23),
     ("viewer.tip_24", id::VIEWER_TIPS + 24),
     ("viewer.tip_25", id::VIEWER_TIPS + 25),
+    ("viewer.tip_26", id::VIEWER_TIPS + 26),
+    ("viewer.tip_27", id::VIEWER_TIPS + 27),
 ];
 
 /// The English file, built in.

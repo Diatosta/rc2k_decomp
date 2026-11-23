@@ -44,7 +44,10 @@ pub(super) fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
         // The highlighted button's name goes over the finished frame; a render has none.
         if stopped_now && !crate::video::active() {
             crate::menu::replay_viewer::tip::draw(o)?;
-            crate::menu::replay_viewer::item::draw_car_digit(o)?;
+            crate::menu::replay_viewer::item::draw_numbers(
+                o,
+                &race.replay.replay_view().viewer_list,
+            )?;
         }
     }
     // Not shown: the frame is lost.

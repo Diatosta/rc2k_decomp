@@ -290,7 +290,7 @@ leaves them 0 (byte 5 is 2 or 3 in a two-player race, and in a network race 0 or
 the machine that recorded it); the viewer's camera editing fills them in when a replay is saved.
 Byte 5 is the layout: 0 the first car alone, 1 the second alone, 2 and 3 both cars (side by side, or
 one above the other); in a replay with the extra tape also 4 the third car alone and 5 the fourth. In the own
-format the layouts name players (see "The own format"), and 10 and 11 split the screen between a group of players (see below).
+format the layouts name players (see "The own format"), and 10 to 12 split the screen between players (see below).
 Bytes 6 and 7 choose the camera of the third and the fourth car, as bytes 0 and 1 do for the first
 two; they are 0 in every other replay. Old files read as before. The blocks hold no camera byte for the fifth to
 the eighth car: the viewer's camera choice for them is kept only while the replay is open,
@@ -459,17 +459,22 @@ derive them from their physics as it plays). Watched in one view, the sounds are
 the cars far from it are quiet; in the split screen each car is heard from its own camera, as in the race. A replay
 of one or two cars, or of the original's format, sounds as it always did.
 
-The head byte `5` of a block also has the layouts **10** and **11**, which split the screen between a group of
-players, each in a part of the screen and with a HUD: 10 the first group, up to four players from the first; 11 the
-second, the three or four players after the first four. A replay of three or four players (a local split-screen
-race, or any three or four players) has 10 for all of them; five or six players have 10 for the first four; seven
-or eight have 10 and 11. The viewer's car item offers them after the single players; the layouts of two players
-(2 and 3, side by side or one above the other) and of each player alone stay. A group needs the players to be the
-first cars of the race, as they are in the own format. The parts show the cars as a split-screen race did: the HUD
-of a car the replay holds no HUD pieces for (a player on another machine) is the first player's. The cameras of the
-parts are the ones the replay's camera bytes name for each of the first four cars; the later cars keep the
-viewer's own camera choice, once one is made. The layout is the head byte; the rule of which players a layout shows
-is one function (`rc2k_core::race::layouts::shown`) that the car item, the drawing, the cameras and the HUD ask.
+The head byte `5` of a block also has the layouts **10**, **11** and **12**, which split the screen between players,
+each in a part of the screen and with a HUD: 10 the first group, up to four players from the first; 11 and 12 the
+players after the first four, as many as there are: with six players the fifth and sixth as a pair, as the first two
+are by 2 and 3 (11 side by side, 12 one above the other); with seven or eight players a group of three or four
+(11 only). A replay of three or four players (a local split-screen race, or any three or four players) has 10 for
+all of them; five players have 10 for the first four (the fifth has no one to share a screen with); six also 11
+and 12; seven and eight 10 and 11. The viewer's car item offers them after the single players; the layouts of two
+players (2 and 3) and of each player alone stay. A group (but not a pair) needs the players to be the first cars of
+the race, as they are in the own format. The parts show the cars as a split-screen race did: the HUD of a car
+the replay holds no HUD pieces for (a player on another machine) is the first player's. The camera buttons of the viewer's
+panel edit the camera of the car each part shows (the first two on the panel's left and right, in a split of three or
+four parts also two more, on either side of the render button); a replay of the first format or a layout of one or two
+players keeps the first two cars' bytes. The cameras of the first four cars are the replay's camera bytes; the later
+cars keep the viewer's own camera choice, once one is made. The layout is the head byte; the rule of which players a
+layout shows (`rc2k_core::race::layouts::shown`) and whose camera each button edits is one function that the car
+item, the drawing, the cameras and the HUD ask.
 
 ## Compatibility
 

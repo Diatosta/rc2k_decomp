@@ -6,24 +6,33 @@
 //! - 2 and 3: the first two players together, side by side or one above the other;
 //! - 10: the first group of players, split as a local split-screen race is: up to four, each in
 //!   a part of the screen (for a three- or four-player replay, every player);
-//! - 11: the second group, the players after the first four (three or four of them).
+//! - 11 and 12: the players after the first four, split the same way: two of them (a replay of
+//!   six) are a pair, as the first two are, 11 side by side and 12 one above the other; three or
+//!   four of them (seven or eight players) are a group, 11 only.
 
 /// The layout of the first group of players.
 pub const FIRST_GROUP: u8 = 10;
-/// The layout of the second group of players.
+/// The layout of the players after the first four: a pair side by side when they are two, else
+/// a group.
 pub const SECOND_GROUP: u8 = 11;
+/// The layout of those players as a pair one above the other (when they are two).
+pub const SECOND_PAIR_STACKED: u8 = 12;
+/// The last layout.
+pub const LAST_LAYOUT: u8 = SECOND_PAIR_STACKED;
 /// How many players a group splits the screen between at most.
 pub const GROUP_MOST: usize = 4;
-/// The fewest players a group splits the screen between (two players are the layouts 2 and 3).
+/// The fewest players a group splits the screen between (two players are a pair).
 pub const GROUP_LEAST: usize = 3;
+/// How many views a layout has at most, so how many camera buttons the panel offers.
+pub const VIEWS_MOST: usize = GROUP_MOST;
 
 /// The players a layout shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Shown {
     /// One player alone.
     Player(usize),
-    /// The first two players, in two views.
-    Pair { stacked: bool },
+    /// Two players from player `first`, in two views.
+    Pair { first: usize, stacked: bool },
     /// `count` players from player `first`, each in a part of the screen.
     Group { first: usize, count: usize },
 }
@@ -32,9 +41,12 @@ pub enum Shown {
 /// ones this many players have.
 pub fn shown(layout: u8, players: usize) -> Option<Shown> {
     let player = |k: usize| (k < players).then_some(Shown::Player(k));
+    // The players after the first four.
+    let rest = players.saturating_sub(GROUP_MOST);
     match layout {
         0 | 1 => player(usize::from(layout)),
         2 | 3 if players >= 2 => Some(Shown::Pair {
+            first: 0,
             stacked: layout == 3,
         }),
         4..=9 => player(usize::from(layout) - 2),
@@ -42,17 +54,53 @@ pub fn shown(layout: u8, players: usize) -> Option<Shown> {
             first: 0,
             count: players.min(GROUP_MOST),
         }),
-        SECOND_GROUP if players >= GROUP_MOST + GROUP_LEAST => Some(Shown::Group {
+        SECOND_GROUP | SECOND_PAIR_STACKED if rest == 2 => Some(Shown::Pair {
             first: GROUP_MOST,
-            count: players - GROUP_MOST,
+            stacked: layout == SECOND_PAIR_STACKED,
+        }),
+        SECOND_GROUP if rest >= GROUP_LEAST => Some(Shown::Group {
+            first: GROUP_MOST,
+            count: rest,
         }),
         _ => None,
     }
 }
 
-/// Whether `layout` is one of the groups (whatever the replay's players).
-pub fn is_group(layout: u8) -> bool {
-    layout == FIRST_GROUP || layout == SECOND_GROUP
+impl Shown {
+    /// The player each camera button edits (button 0 is the first camera's, on the panel's left,
+    /// button 1 the second's, on its right, buttons 2 and 3 the further parts'); none for a
+    /// button the layout has no part for. A player alone has the first two buttons, as the
+    /// first format's layouts always had: the first player's and the second's own cameras for
+    /// the first two players, whatever one is shown; for a further player both buttons edit
+    /// that player's camera (there is the one).
+    pub fn camera_players(self) -> [Option<usize>; VIEWS_MOST] {
+        let mut buttons = [None; VIEWS_MOST];
+        match self {
+            Shown::Player(player) if player < 2 => {
+                buttons[0] = Some(0);
+                buttons[1] = Some(1);
+            }
+            Shown::Player(player) => {
+                buttons[0] = Some(player);
+                buttons[1] = Some(player);
+            }
+            Shown::Pair { first, .. } => {
+                buttons[0] = Some(first);
+                buttons[1] = Some(first + 1);
+            }
+            Shown::Group { first, count } => {
+                for (k, button) in buttons.iter_mut().enumerate().take(count) {
+                    *button = Some(first + k);
+                }
+            }
+        }
+        buttons
+    }
+
+    /// How many camera buttons the layout has.
+    pub fn camera_buttons(self) -> usize {
+        self.camera_players().iter().flatten().count()
+    }
 }
 
 /// The layout that shows player `k` alone.
@@ -84,43 +132,47 @@ pub fn camera_source(car: usize) -> Option<CameraSource> {
 mod tests {
     use super::*;
 
+    fn pair(first: usize, stacked: bool) -> Option<Shown> {
+        Some(Shown::Pair { first, stacked })
+    }
+
+    fn group(first: usize, count: usize) -> Option<Shown> {
+        Some(Shown::Group { first, count })
+    }
+
     #[test]
     fn single_players_pairs_and_groups() {
-        let layouts = |players| (0..=12).map(|l| shown(l, players)).collect::<Vec<_>>();
         // One or two players: the players alone, and for two the pair.
         assert_eq!(shown(1, 1), None);
         assert_eq!(shown(0, 1), Some(Shown::Player(0)));
-        assert_eq!(shown(2, 2), Some(Shown::Pair { stacked: false }));
+        assert_eq!(shown(2, 2), pair(0, false));
+        assert_eq!(shown(3, 2), pair(0, true));
         assert_eq!(shown(FIRST_GROUP, 2), None);
         // Three and four: every player alone, the pair, one group of all of them.
-        assert_eq!(
-            shown(FIRST_GROUP, 3),
-            Some(Shown::Group { first: 0, count: 3 })
-        );
-        assert_eq!(
-            shown(FIRST_GROUP, 4),
-            Some(Shown::Group { first: 0, count: 4 })
-        );
+        assert_eq!(shown(FIRST_GROUP, 3), group(0, 3));
+        assert_eq!(shown(FIRST_GROUP, 4), group(0, 4));
         assert_eq!(shown(SECOND_GROUP, 4), None);
         assert_eq!(shown(5, 4), Some(Shown::Player(3)));
         assert_eq!(shown(6, 4), None);
-        // Five and six: the first four split; no second group (it would be of one or two).
-        assert_eq!(
-            shown(FIRST_GROUP, 5),
-            Some(Shown::Group { first: 0, count: 4 })
-        );
-        assert_eq!(shown(SECOND_GROUP, 6), None);
-        // Seven: the second group of three; eight: of four.
-        assert_eq!(
-            shown(SECOND_GROUP, 7),
-            Some(Shown::Group { first: 4, count: 3 })
-        );
-        assert_eq!(
-            shown(SECOND_GROUP, 8),
-            Some(Shown::Group { first: 4, count: 4 })
-        );
-        assert_eq!(layouts(8)[9], Some(Shown::Player(7)));
-        assert_eq!(layouts(8)[12], None);
+        assert_eq!(shown(LAST_LAYOUT + 1, 8), None);
+    }
+
+    #[test]
+    fn the_players_after_the_first_four_are_split_as_many_as_they_are() {
+        let second =
+            |players| [SECOND_GROUP, SECOND_PAIR_STACKED].map(|layout| shown(layout, players));
+        // Five players: the fifth has her own layout only, nothing to split with.
+        assert_eq!(second(5), [None, None]);
+        assert_eq!(shown(FIRST_GROUP, 5), group(0, 4));
+        assert_eq!(shown(6, 5), Some(Shown::Player(4)));
+        assert_eq!(shown(7, 5), None);
+        // Six: the fifth and the sixth as a pair, side by side or one above the other.
+        assert_eq!(second(6), [pair(4, false), pair(4, true)]);
+        // Seven and eight: a group of three or four, with no pair.
+        assert_eq!(second(7), [group(4, 3), None]);
+        assert_eq!(second(8), [group(4, 4), None]);
+        assert_eq!(shown(9, 8), Some(Shown::Player(7)));
+        assert_eq!(shown(FIRST_GROUP, 8), group(0, 4));
     }
 
     #[test]
@@ -128,6 +180,40 @@ mod tests {
         for k in 0..8 {
             assert_eq!(shown(layout_of_player(k), 8), Some(Shown::Player(k)));
         }
+    }
+
+    #[test]
+    fn the_camera_buttons_follow_the_views() {
+        let buttons = |shown: Shown| shown.camera_players();
+        // The first format's layouts: the first two players' cameras, whichever one is shown.
+        assert_eq!(buttons(Shown::Player(0)), [Some(0), Some(1), None, None]);
+        assert_eq!(buttons(Shown::Player(1)), [Some(0), Some(1), None, None]);
+        assert_eq!(
+            buttons(Shown::Pair {
+                first: 0,
+                stacked: true
+            }),
+            [Some(0), Some(1), None, None]
+        );
+        // A further player alone: both buttons edit her camera.
+        assert_eq!(buttons(Shown::Player(5)), [Some(5), Some(5), None, None]);
+        // A pair of the fifth and sixth: their cameras.
+        assert_eq!(
+            buttons(Shown::Pair {
+                first: 4,
+                stacked: false
+            }),
+            [Some(4), Some(5), None, None]
+        );
+        // A group has a button for each part: three or four.
+        assert_eq!(
+            buttons(Shown::Group { first: 0, count: 3 }),
+            [Some(0), Some(1), Some(2), None]
+        );
+        let four = Shown::Group { first: 4, count: 4 };
+        assert_eq!(buttons(four), [Some(4), Some(5), Some(6), Some(7)]);
+        assert_eq!(four.camera_buttons(), 4);
+        assert_eq!(Shown::Player(3).camera_buttons(), 2);
     }
 
     #[test]

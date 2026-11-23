@@ -79,21 +79,30 @@ impl ShownCars {
             }
         };
         use crate::race::layouts::{Shown, shown};
-        // The group of players a layout splits the screen between, if it is one.
-        let group = u8::try_from(s.layout)
+        // The groups and pairs of players a layout splits the screen between, if it is one (a
+        // replay of the first format has no player count: its layouts are named below).
+        let parts = u8::try_from(s.layout)
             .ok()
             .and_then(|l| shown(l, s.player_count as usize))
-            .filter(|shown| matches!(shown, Shown::Group { .. }));
+            .filter(|shown| !matches!(shown, Shown::Player(_)));
+        let group = parts.filter(|shown| matches!(shown, Shown::Group { .. }));
         let split_replay = s.replay_mode == 2 && group.is_some();
         self.split_first = 0;
         if s.replay_mode == 2 {
-            let (views, first, second, split) = match (group, s.layout) {
+            let (views, first, second, split) = match (parts, s.layout) {
                 // A group of players, each in its part: as in the race.
                 (Some(Shown::Group { first, count }), _) => (
                     count as u32,
                     car(first as u32),
                     Some(car(first as u32 + 1)),
                     0,
+                ),
+                // Two players, side by side (split 1) or one above the other (split 2).
+                (Some(Shown::Pair { first, stacked }), _) => (
+                    2,
+                    car(first as u32),
+                    Some(car(first as u32 + 1)),
+                    if stacked { 2 } else { 1 },
                 ),
                 (_, 1) => (1, car(1), None, 0),
                 (_, 2) => (2, car(0), Some(car(1)), 1),
@@ -259,11 +268,40 @@ mod tests {
         .unwrap();
         assert_eq!((c.cars, c.views, c.split_first), ([0, 1], 4, 0));
         assert_eq!(c.listed[..5].to_vec(), vec![0, 1, 2, 3, u32::MAX]);
-        // A group the players do not have is none: the first car alone.
+        // Six players: layout 11 is the fifth and the sixth as a pair, side by side (split 1), 12
+        // the same one above the other (split 2): two views, no group.
+        for (layout, split) in [(11, 1), (12, 2)] {
+            c.choose(
+                &ShownSetup {
+                    layout,
+                    player_count: 6,
+                    ..eight
+                },
+                0,
+            )
+            .unwrap();
+            assert_eq!(
+                (c.cars, c.views, c.split, c.split_first),
+                ([4, 5], 2, split, 0)
+            );
+        }
+        // The pair takes the players' own cars when the players are not the first cars.
+        c.choose(
+            &ShownSetup {
+                layout: 12,
+                player_count: 6,
+                player_cars: [0, 1, 2, 3, 6, 7, 0, 0],
+                ..eight
+            },
+            0,
+        )
+        .unwrap();
+        assert_eq!((c.cars, c.views, c.split), ([6, 7], 2, 2));
+        // A layout the players do not have is none: the first car alone.
         c.choose(
             &ShownSetup {
                 layout: 11,
-                player_count: 6,
+                player_count: 5,
                 ..eight
             },
             0,

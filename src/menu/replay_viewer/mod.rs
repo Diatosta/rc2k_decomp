@@ -397,16 +397,37 @@ fn stopped_key(
         });
     }
     // The "render to video" row under the buttons: the down arrow from the lower row reaches
-    // it, up or left leaves it, Enter renders.
+    // it, up leaves it, Enter renders; left and right lead to the camera buttons of the third
+    // and fourth part beside it (items 0x1A and 0x1B), when the layout has them, and back.
     use crate::menu::replay_viewer::render_row::{
-        KEY_DOWN, KEY_ENTER, KEY_LEFT, KEY_UP, LOWER_ROW,
+        BESIDE_RENDER, KEY_DOWN, KEY_ENTER, KEY_LEFT, KEY_RIGHT, KEY_UP,
+    };
+    let render_here = crate::menu::replay_viewer::render_row::OFFERED
+        && race.shared.replay_file().index.block_count.get() != 0;
+    let beside = |key: u8| {
+        let item = BESIDE_RENDER[usize::from(key == KEY_RIGHT)];
+        let first = list.item(item).first.get();
+        (!rc2k_core::menu::list_menu::unusable(first)).then_some(item)
     };
     if crate::race::render_row::selected(race) {
         return Ok(match key {
-            KEY_UP | KEY_LEFT => {
+            KEY_UP => {
                 crate::race::render_row::select(race, false);
                 Next::Mark
             }
+            KEY_LEFT | KEY_RIGHT => match beside(key) {
+                Some(item) => {
+                    crate::race::render_row::select(race, false);
+                    list_state.write().choice = item;
+                    Next::Mark
+                }
+                // Nothing beside it: left leaves it as up does, right does nothing.
+                None if key == KEY_LEFT => {
+                    crate::race::render_row::select(race, false);
+                    Next::Mark
+                }
+                None => Next::Sound,
+            },
             KEY_ENTER => {
                 crate::race::render_row::select(race, false);
                 crate::menu::replay_viewer::render_row::render(race, o)?;
@@ -415,14 +436,22 @@ fn stopped_key(
             _ => Next::Sound,
         });
     }
-    // Down from the lower row, or from an upper-row button whose way down is not open (the table
-    // has none, or the button under it is greyed): the render button, before the list moves the
+    // From a camera button beside the render button, the way towards it.
+    let choice = list_state.read().choice;
+    if render_here
+        && ((choice == BESIDE_RENDER[0] && key == KEY_RIGHT)
+            || (choice == BESIDE_RENDER[1] && key == KEY_LEFT))
+    {
+        crate::race::render_row::select(race, true);
+        return Ok(Next::Mark);
+    }
+    // Down from a button of the rows whose way down is not open (the table has none, or the
+    // button under it is absent or greyed): the render button, before the list moves the
     // highlight sideways to some other button.
     if key == KEY_DOWN
-        && crate::menu::replay_viewer::render_row::OFFERED
-        && race.shared.replay_file().index.block_count.get() != 0
-        && (LOWER_ROW.contains(&list_state.read().choice)
-            || way_down_closed(list, list_state.read().choice)?)
+        && render_here
+        && choice < rc2k_core::race::viewer::ROW_ITEMS
+        && way_down_closed(list, choice)?
     {
         crate::race::render_row::select(race, true);
         return Ok(Next::Mark);
@@ -460,13 +489,9 @@ fn stopped_key(
         .map_or(Next::Sound, |&(_, action)| Next::Action(action)))
 }
 
-/// Whether the down arrow from the upper-row item `from` leads nowhere: the key table has no
-/// way down from it, or the item it leads to is greyed.
+/// Whether the down arrow from the item `from` of the rows leads nowhere: the key table has no
+/// way down from it, or the item it leads to is greyed or absent.
 fn way_down_closed(list: &ViewerList, from: u32) -> Result<bool, Refused> {
-    use crate::menu::replay_viewer::render_row::LOWER_ROW;
-    if from >= *LOWER_ROW.start() {
-        return Ok(false);
-    }
     let entry = ReplayViewBlock::key_table()
         .add(from.wrapping_mul(4) + 1)
         .read(1, "the viewer's key table")?[0];

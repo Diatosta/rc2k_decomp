@@ -118,22 +118,31 @@ fn steps(race: &Race) -> Result<(), Refused> {
             }
         }
     }
-    // The split-screen layout shows every player's HUD as the race did, the recording's own bits
-    // (the viewer's other layouts show the first two cars' as the viewer's switches say).
+    // A group of players shows every player's HUD as the race did, the recording's own bits; the
+    // viewer's other layouts show the HUD pieces of the cars the two views show as the viewer's
+    // switches say (the first two cars', and for the pair of the fifth and sixth player theirs).
     // A render takes the viewer's pieces it was given.
-    let split = rc2k_core::race::layouts::is_group(head_byte(race, 5) as u8);
-    if !split {
-        let options = shown_hud().unwrap_or([
-            shared.view.get().player_options[0].get(),
-            shared.view.get().player_options[1].get(),
-        ]);
-        race.car_blocks_mut().cars[0].option_bits = options[0];
-        race.car_blocks_mut().cars[1].option_bits = options[1];
-    } else {
-        group_hud(
-            race,
-            shown_hud().map_or(shared.view.get().player_options[0].get(), |o| o[0]),
-        );
+    use rc2k_core::race::layouts::Shown;
+    let options = shown_hud().unwrap_or([
+        shared.view.get().player_options[0].get(),
+        shared.view.get().player_options[1].get(),
+    ]);
+    let shown = crate::race::viewer::layout_shown(race, head_byte(race, 5) as u8);
+    let split = matches!(shown, Some(Shown::Group { .. }));
+    match shown {
+        Some(Shown::Group { .. }) => group_hud(race, options[0]),
+        Some(Shown::Pair { first, .. }) if first > 0 => {
+            let view = shared.view.get();
+            for (view_car, bits) in view.view_cars.iter().zip(options) {
+                if let Some(car) = race.car_blocks_mut().cars.get_mut(view_car.get() as usize) {
+                    car.option_bits = bits;
+                }
+            }
+        }
+        _ => {
+            race.car_blocks_mut().cars[0].option_bits = options[0];
+            race.car_blocks_mut().cars[1].option_bits = options[1];
+        }
     }
     // The head's bytes 2 .. 5 into the view switches.
     for (k, to) in [

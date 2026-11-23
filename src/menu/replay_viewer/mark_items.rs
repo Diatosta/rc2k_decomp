@@ -4,7 +4,9 @@
 //! 0x11 when the marks are not in order; 0x12 with an empty clipboard or one too big to paste
 //! (count + clipboard past 0x708); 0x13 with nothing to undo; 0xA at or before the first mark, 2 at
 //! or past the second; with no blocks 0 .. 0x11 and 0x15 .. 0x19; 0x18, 0x19 when the block's
-//! camera byte 5 is 0, 0xD, 0xE when it is 1; 0xF for a one-player replay with a single car.
+//! camera byte 5 is 0 or a further car's alone, 0xD, 0xE when it is 1; 0xF for a one-player replay
+//! with a single car; the camera buttons of the third and fourth part (items 0x1A and 0x1B) absent
+//! where the layout has no such part, else greyed where the first two are.
 //!
 //! Takes the list (`viewer_list`).
 
@@ -18,6 +20,10 @@ pub(super) fn mark_viewer_items(
     // Logic in `rc2k_core::race::viewer::item_marks`.
     crate::menu::replay_viewer::list_clear_marks::list_clear_marks(list);
     let block = replay.replay_view().replay_block.get();
+    let layout = crate::race::viewer::camera_byte_at(
+        race,
+        5usize.wrapping_add(block.wrapping_mul(8) as usize),
+    )?;
     let state = rc2k_core::race::viewer::ViewerState {
         last_race: replay.replay_view().last_race_viewed.get(),
         block,
@@ -26,11 +32,12 @@ pub(super) fn mark_viewer_items(
         mark_out: race.viewer_buffers().mark_out.get(),
         clip_blocks: race.viewer_buffers().clip_blocks.get(),
         undo_blocks: race.viewer_buffers().undo_blocks.get(),
-        camera: crate::race::viewer::camera_byte_at(
-            race,
-            5usize.wrapping_add(block.wrapping_mul(8) as usize),
-        )?,
+        camera: layout,
         one_player: !crate::menu::replay_viewer::action::views_choosable(race),
+        camera_buttons: crate::race::viewer::camera_buttons(race, layout)?
+            .iter()
+            .flatten()
+            .count(),
     };
     for (item, bit) in rc2k_core::race::viewer::item_marks(&state) {
         let item = list.item(item);

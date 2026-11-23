@@ -683,21 +683,15 @@ impl Extension {
 
     /// The layout after `old` in the cycle the viewer's car item goes through: each player alone,
     /// from two players on the first two together (2 side by side, 3 one above the other), and
-    /// after the single players the groups of players split as the race showed them (10, 11);
-    /// never a computer car. Wraps to the first.
+    /// after the single players the groups of players split as the race showed them (10, then
+    /// 11 and 12 for the players after the fourth: a pair side by side and one above the other
+    /// when they are two, a group when they are three or four); never a computer car. Wraps to
+    /// the first.
     pub fn next_layout(&self, old: u8) -> u8 {
-        (old.saturating_add(1)..=layouts::SECOND_GROUP)
+        (old.saturating_add(1)..=layouts::LAST_LAYOUT)
             .chain(0..=old)
             .find(|&l| self.shows(l).is_some())
             .unwrap_or(0)
-    }
-
-    /// The car a layout's player is, for a layout that shows one player alone.
-    pub fn layout_player(&self, layout: u32) -> Option<usize> {
-        match self.shows(u8::try_from(layout).ok()?)? {
-            layouts::Shown::Player(player) => self.player_cars().get(player).copied(),
-            _ => None,
-        }
     }
 }
 
@@ -1133,10 +1127,13 @@ mod tests {
                 entry(4, flag::PLAYER, "E"),
             ],
         };
-        assert_eq!(ext.layout_player(0), Some(1));
-        assert_eq!(ext.layout_player(1), Some(3));
-        assert_eq!(ext.layout_player(4), Some(4));
-        assert_eq!(ext.layout_player(5), None);
+        // The players are cars 1, 3 and 4 (a layout names the player, not the car); three
+        // players have the layouts of the first three alone, not a fourth's.
+        assert_eq!(ext.player_cars(), [1, 3, 4]);
+        assert_eq!(ext.shows(0), Some(layouts::Shown::Player(0)));
+        assert_eq!(ext.shows(1), Some(layouts::Shown::Player(1)));
+        assert_eq!(ext.shows(4), Some(layouts::Shown::Player(2)));
+        assert_eq!(ext.shows(5), None);
         // Three players: each alone, then the first two together, round and round.
         let three = Extension {
             rivals: None,
@@ -1161,7 +1158,6 @@ mod tests {
             (0..8).map(layout_of_player).collect::<Vec<_>>(),
             [0, 1, 4, 5, 6, 7, 8, 9]
         );
-        assert_eq!(ext.layout_player(2), None);
         assert!(!ext.old_format_holds() || ext.player_cars().len() <= 2);
     }
 
@@ -1204,7 +1200,7 @@ mod tests {
     }
 
     #[test]
-    fn five_to_eight_players_have_groups_of_four() {
+    fn five_to_eight_players_have_a_second_split() {
         let players = |n: usize| Extension {
             rivals: None,
             league: None,
@@ -1223,17 +1219,26 @@ mod tests {
                 seen.push(l);
             }
         };
-        // Five and six: the singles, the pair, the first group of four; seven: also the second,
-        // of three; eight: of four.
+        // Five: the singles, the pair, the first group of four (the fifth has nobody to split
+        // with); six: also the fifth and sixth as a pair, side by side (11) and stacked (12);
+        // seven: a group of three (11); eight: of four.
         assert_eq!(cycle(&players(5)), [0, 1, 2, 3, 4, 5, 6, 10]);
-        assert_eq!(cycle(&players(6)), [0, 1, 2, 3, 4, 5, 6, 7, 10]);
+        assert_eq!(cycle(&players(6)), [0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 12]);
         assert_eq!(cycle(&players(7)), [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11]);
         assert_eq!(cycle(&players(8)), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
         assert_eq!(
             players(8).shows(11),
             Some(layouts::Shown::Group { first: 4, count: 4 })
         );
-        assert_eq!(players(6).shows(11), None);
+        assert_eq!(
+            players(6).shows(12),
+            Some(layouts::Shown::Pair {
+                first: 4,
+                stacked: true
+            })
+        );
+        assert_eq!(players(5).shows(11), None);
+        assert_eq!(players(7).shows(12), None);
         // Two players: just the singles and the pair.
         assert_eq!(cycle(&players(2)), [0, 1, 2, 3]);
     }
