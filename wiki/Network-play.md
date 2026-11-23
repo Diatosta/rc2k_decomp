@@ -44,18 +44,21 @@ connection, between Steam accounts.
 
 What a player needs:
 1. The Steam client installed, running and signed in (any account: no purchase is needed).
-2. Valve's Steam library in the game program's folder, beside `rc2k` / `rc2k.exe`: `libsteam_api.so` on
-   Linux, `steam_api64.dll` on 64-bit Windows (`steam_api.dll` on 32-bit), `libsteam_api.dylib` on macOS. A
-   release that offers Steam carries it; otherwise download it with no sign-in from the copy of the
-   Steamworks SDK's `redistributable_bin` that the `steamworks-rs` project keeps, at the version the
-   game is written for (its 0.13.0 release; a newer one lacks an interface the game asks for):
-   [Linux](https://raw.githubusercontent.com/Noxime/steamworks-rs/v0.13.0/steamworks-sys/lib/steam/redistributable_bin/linux64/libsteam_api.so),
-   [Windows 64-bit](https://raw.githubusercontent.com/Noxime/steamworks-rs/v0.13.0/steamworks-sys/lib/steam/redistributable_bin/win64/steam_api64.dll),
-   [Windows 32-bit](https://raw.githubusercontent.com/Noxime/steamworks-rs/v0.13.0/steamworks-sys/lib/steam/redistributable_bin/steam_api.dll),
-   [macOS](https://raw.githubusercontent.com/Noxime/steamworks-rs/v0.13.0/steamworks-sys/lib/steam/redistributable_bin/osx/libsteam_api.dylib)
-   ([the folder](https://github.com/Noxime/steamworks-rs/tree/v0.13.0/steamworks-sys/lib/steam/redistributable_bin)). The same files are in Valve's
-   [Steamworks SDK](https://partner.steamgames.com/downloads/list) (free, with a Steam account), folder
-   `redistributable_bin`.
+2. Valve's Steam library in the game program's folder, beside `rc2k` / `rc2k.exe`. A release that
+   offers Steam carries it; otherwise download the one file for your system (no sign-in needed) and
+   put it there:
+
+   | System | File to download |
+   | --- | --- |
+   | Linux | [libsteam_api.so](https://raw.githubusercontent.com/Noxime/steamworks-rs/v0.13.0/steamworks-sys/lib/steam/redistributable_bin/linux64/libsteam_api.so) |
+   | Windows (64-bit, the usual build) | [steam_api64.dll](https://raw.githubusercontent.com/Noxime/steamworks-rs/v0.13.0/steamworks-sys/lib/steam/redistributable_bin/win64/steam_api64.dll) |
+   | Windows (32-bit build) | [steam_api.dll](https://raw.githubusercontent.com/Noxime/steamworks-rs/v0.13.0/steamworks-sys/lib/steam/redistributable_bin/steam_api.dll) |
+   | macOS | [libsteam_api.dylib](https://raw.githubusercontent.com/Noxime/steamworks-rs/v0.13.0/steamworks-sys/lib/steam/redistributable_bin/osx/libsteam_api.dylib) |
+
+   Use these rather than a newer copy: they are the version the game is written for (a newer one
+   lacks an interface it asks for). They come from the `steamworks-rs` project's copy of the
+   Steamworks SDK's `redistributable_bin`, release 0.13.0 ([the folder](https://github.com/Noxime/steamworks-rs/tree/v0.13.0/steamworks-sys/lib/steam/redistributable_bin)); the same files are
+   in Valve's [Steamworks SDK](https://partner.steamgames.com/downloads/list) (free, with a Steam account).
 3. Start the game, open the network page and choose **Steam** as the connection. If it is not listed, the
    game's log (`rc2k.log`) says why (`net: steam: not available: ...`).
 
