@@ -99,6 +99,9 @@ pub struct Panel {
     pub start_values: [u32; 2],
     /// The HUD's layout (`hud::overlay_pass`).
     pub players: u32,
+    /// How the screen is split between three or four views as drawn (`hud::overlay_pass`, from
+    /// `race::split_layout::shown_split`); none for fewer views.
+    pub many_split: Option<rc2k_core::race::view::Split>,
     /// Each view's HUD flags (the car block's `option_bits`; bit 0x40 flat, 8 the mirror); the third and
     /// fourth are the split screen's third and fourth players'.
     pub hud_flags: [u32; 4],
@@ -212,6 +215,7 @@ impl Panel {
             marks: [Marks::ZERO; 2],
             start_values: [0; 2],
             players: 0,
+            many_split: None,
             hud_flags: [0; 4],
             shown_texture: 0,
             flat: 0,

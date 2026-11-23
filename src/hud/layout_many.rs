@@ -13,7 +13,7 @@ use crate::hud::owner::Hud;
 use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 use crate::race::panel_store::{Lights, Marks, Panel, ViewA};
-use rc2k_core::race::view::{PlayerPart, Split};
+use rc2k_core::race::view::PlayerPart;
 
 /// The HUD flag of the stage bar, which `Panel::flat` holds of the HUD being drawn.
 const FLAT_BIT: u32 = 0x40;
@@ -170,7 +170,7 @@ impl Slots {
 pub fn layout_many(frame: &Frame, hud: &mut Hud, pen: Pen, views: u32) -> Result<(), Refused> {
     let screen = pen.system.session.screen.get();
     let size = (screen.width.get(), screen.height.get());
-    let Some(split) = Split::many(views, crate::race::split_layout::index()) else {
+    let Some(split) = frame.panel.borrow().many_split else {
         return Ok(());
     };
     // The part no player has: black, or the overview map.

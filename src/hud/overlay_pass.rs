@@ -37,7 +37,15 @@ pub fn overlay_pass(
     net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
     use crate::scene::depth_buffer_on::depth_buffer;
-    race.frame.panel.borrow_mut().players = shown_layout(&race.shared);
+    let players = shown_layout(&race.shared);
+    let many_split = (players > 2)
+        .then(|| crate::race::split_layout::shown_split(race, players))
+        .flatten();
+    {
+        let mut panel = race.frame.panel.borrow_mut();
+        panel.players = players;
+        panel.many_split = many_split;
+    }
     let part = scene.scratch.game_scratch();
     depth_buffer(part, false);
     crate::hud::overlay_states::overlay_states(part);

@@ -7,7 +7,6 @@
 use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::race::owner::Race;
-use rc2k_core::race::view::Split;
 
 /// Where the letters start in a part, in 800 x 600 layout units (the one-player question's place:
 /// 22 % down).
@@ -50,7 +49,7 @@ pub fn draw(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
     if views <= 2 || race.shared.replay_file().hold_car_revs.get() != 0 {
         return Ok(());
     }
-    let Some(split) = Split::many(views, crate::race::split_layout::index()) else {
+    let Some(split) = crate::race::split_layout::shown_split(race, views) else {
         return Ok(());
     };
     let screen = o.system.session.screen.get();

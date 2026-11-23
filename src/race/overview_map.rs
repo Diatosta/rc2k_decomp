@@ -14,11 +14,12 @@ use rc2k_core::race::overview::{Fit, SIDE};
 /// The players the overview map serves.
 const PLAYERS: u32 = 3;
 
-/// Whether the race is three players on a screen whose layout leaves a part free for the map.
+/// Whether the race is three players on a screen whose layout shown (`split_layout::shown_split`:
+/// a replay's group in its own arrangement) leaves a part free for the map.
 pub fn wanted(race: &Race) -> bool {
     let players = race.shared.view.get().players.get();
     players == PLAYERS
-        && rc2k_core::race::view::Split::many(players, crate::race::split_layout::index())
+        && crate::race::split_layout::shown_split(race, players)
             .is_some_and(|split| split.free_part(players, (SIDE, SIDE)).is_some())
 }
 

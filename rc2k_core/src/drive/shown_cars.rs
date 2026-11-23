@@ -91,7 +91,7 @@ impl ShownCars {
         if s.replay_mode == 2 {
             let (views, first, second, split) = match (parts, s.layout) {
                 // A group of players, each in its part: as in the race.
-                (Some(Shown::Group { first, count }), _) => (
+                (Some(Shown::Group { first, count, .. }), _) => (
                     count as u32,
                     car(first as u32),
                     Some(car(first as u32 + 1)),

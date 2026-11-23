@@ -681,25 +681,31 @@ impl Extension {
         (!group || self.split_players() != 0).then_some(shown)
     }
 
-    /// The layout after `old` in the cycle the viewer's car item goes through: each player alone,
-    /// for a replay of two players the two together (2 side by side, 3 one above the other), and
-    /// after the single players the groups of players split as the race showed them (10, then
-    /// 11 and 12 for the players after the fourth: a pair side by side and one above the other
-    /// when they are two, a group when they are three or four); never a computer car. Wraps to
-    /// the first.
+    /// The layout after `old` in the cycle the viewer's car item goes through (`layouts::CYCLE`,
+    /// the layouts this replay shows): each player alone, for a replay of two players the two
+    /// together (2 side by side, 3 one above the other), and after the single players the first
+    /// group of players in each of its arrangements (10, 13, 14, 15), then the players after the
+    /// fourth: a pair side by side and one above the other when they are two (11, 12), a group in
+    /// each arrangement when they are three or four (11, 16, 17, 18); never a computer car. Wraps
+    /// to the first; a byte of no layout goes to the first.
     pub fn next_layout(&self, old: u8) -> u8 {
-        (old.saturating_add(1)..=layouts::LAST_LAYOUT)
-            .chain(0..=old)
+        let after = layouts::CYCLE
+            .iter()
+            .position(|&l| l == old)
+            .map_or(0, |at| at + 1);
+        let (before, rest) = layouts::CYCLE.split_at(after);
+        rest.iter()
+            .chain(before)
+            .copied()
             .find(|&l| self.shows(l).is_some())
             .unwrap_or(0)
     }
 }
 
 /// The head byte (layout) that shows the first group of players (every player of a local
-/// split-screen race of three or four) at once, each in the part of the screen the race gave it.
+/// split-screen race of three or four) at once, each in a part of the screen, in the default
+/// arrangement (a race records the arrangement it is split in: `layouts::Shown::layout`).
 pub const SPLIT_LAYOUT: u32 = layouts::FIRST_GROUP as u32;
-/// `SPLIT_LAYOUT` as the head byte.
-pub const SPLIT_LAYOUT_BYTE: u8 = layouts::FIRST_GROUP;
 
 /// The head byte (layout) that shows player `k` alone: 0 and 1 the first two players, then 4 on
 /// (the same numbers as the extra tape's replays use for the third and fourth car).
@@ -1190,9 +1196,24 @@ mod tests {
             l = four.next_layout(l);
             seen.push(l);
         }
-        // The first two together only in the group, with the third and fourth.
-        assert_eq!(seen, [0, 1, 4, 5, 10, 0, 1, 4, 5]);
+        // The first two together only in the group, with the third and fourth: in each of the
+        // group's three arrangements, the default first.
+        assert_eq!(seen, [0, 1, 4, 5, 10, 13, 14, 0, 1]);
         assert_eq!(four.next_layout(5), SPLIT_LAYOUT as u8);
+        // Three players: the group in four arrangements.
+        let three = local(3, 0);
+        let mut l = 0u8;
+        let mut seen = vec![l];
+        for _ in 0..7 {
+            l = three.next_layout(l);
+            seen.push(l);
+        }
+        assert_eq!(seen, [0, 1, 4, 10, 13, 14, 15, 0]);
+        // A byte of no layout goes to the first; one of a layout this replay has not (the fourth
+        // arrangement, three players' only) to the next it has.
+        assert_eq!(four.next_layout(0xFF), 0);
+        assert_eq!(four.next_layout(15), 0);
+        assert_eq!(three.next_layout(2), 4);
         // Every car of a replay of more than two that the first format's format cannot hold is
         // heard; one it holds sounds as before.
         assert_eq!(four.heard_kinds().map(|k| k.len()), Some(6));
@@ -1221,17 +1242,35 @@ mod tests {
                 seen.push(l);
             }
         };
-        // Five: the singles and the first group of four (the fifth has nobody to split with; the
-        // first two are together only in the group); six: also the fifth and sixth as a pair,
-        // side by side (11) and stacked (12); seven: a group of three (11); eight: of four.
-        assert_eq!(cycle(&players(5)), [0, 1, 4, 5, 6, 10]);
-        assert_eq!(cycle(&players(6)), [0, 1, 4, 5, 6, 7, 10, 11, 12]);
-        assert_eq!(cycle(&players(7)), [0, 1, 4, 5, 6, 7, 8, 10, 11]);
-        assert_eq!(cycle(&players(8)), [0, 1, 4, 5, 6, 7, 8, 9, 10, 11]);
-        assert_eq!(
-            players(8).shows(11),
-            Some(layouts::Shown::Group { first: 4, count: 4 })
-        );
+        // Five: the singles and the first group of four in its three arrangements (the fifth has
+        // nobody to split with; the first two are together only in the group); six: also the
+        // fifth and sixth as a pair, side by side (11) and stacked (12); seven: a group of three
+        // in its four arrangements (11, 16, 17, 18); eight: of four in its three.
+        let first_four = [10, 13, 14];
+        let singles = |n: u8| (0..n).map(|k| if k < 2 { k } else { k + 2 });
+        let expected = |n: u8, second: &[u8]| -> Vec<u8> {
+            singles(n)
+                .chain(first_four)
+                .chain(second.iter().copied())
+                .collect()
+        };
+        assert_eq!(cycle(&players(5)), expected(5, &[]));
+        assert_eq!(cycle(&players(6)), expected(6, &[11, 12]));
+        assert_eq!(cycle(&players(7)), expected(7, &[11, 16, 17, 18]));
+        assert_eq!(cycle(&players(8)), expected(8, &[11, 16, 17]));
+        use crate::race::view::Split;
+        let group = |first, count, split| {
+            Some(layouts::Shown::Group {
+                first,
+                count,
+                split,
+            })
+        };
+        assert_eq!(players(8).shows(11), group(4, 4, Split::Quarters));
+        assert_eq!(players(8).shows(17), group(4, 4, Split::Columns));
+        assert_eq!(players(7).shows(11), group(4, 3, Split::WideTop));
+        assert_eq!(players(7).shows(18), group(4, 3, Split::Quarters));
+        assert_eq!(players(5).shows(14), group(0, 4, Split::Columns));
         assert_eq!(
             players(6).shows(12),
             Some(layouts::Shown::Pair {

@@ -605,9 +605,10 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         )?;
     } else {
         let side_by_side = race.shared.vars.get().split.get() == 1;
-        // The views' parts of the screen: the two players' split, or the layout chosen for more.
+        // The views' parts of the screen: the two players' split, or for more the layout shown
+        // (`split_layout::shown_split`).
         let split = if views > 2 {
-            rc2k_core::race::view::Split::many(views, crate::race::split_layout::index())
+            crate::race::split_layout::shown_split(race, views)
         } else {
             rc2k_core::race::view::Split::of(2, side_by_side)
         };

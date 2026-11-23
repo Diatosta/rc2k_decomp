@@ -290,7 +290,7 @@ leaves them 0 (byte 5 is 2 or 3 in a two-player race, and in a network race 0 or
 the machine that recorded it); the viewer's camera editing fills them in when a replay is saved.
 Byte 5 is the layout: 0 the first car alone, 1 the second alone, 2 and 3 both cars (side by side, or
 one above the other); in a replay with the extra tape also 4 the third car alone and 5 the fourth. In the own
-format the layouts name players (see "The own format"), and 10 to 12 split the screen between players (see below).
+format the layouts name players (see "The own format"), and 10 to 18 split the screen between players (see below).
 Bytes 6 and 7 choose the camera of the third and the fourth car, as bytes 0 and 1 do for the first
 two; they are 0 in every other replay. Old files read as before. The blocks hold no camera byte for the fifth to
 the eighth car: the viewer's camera choice for them is kept only while the replay is open,
@@ -460,16 +460,28 @@ derive them from their physics as it plays). Watched in one view, the sounds are
 the cars far from it are quiet; in the split screen each car is heard from its own camera, as in the race. A replay
 of one or two cars, or of the original's format, sounds as it always did.
 
-The head byte `5` of a block also has the layouts **10**, **11** and **12**, which split the screen between players,
-each in a part of the screen with its own HUD: 10 the first group, up to four players from the first; 11 and 12 the
-players after the first four, as many as there are: with six players the fifth and sixth as a pair, as the first two
-are by 2 and 3 (11 side by side, 12 one above the other); with seven or eight players a group of three or four
-(11 only). A replay of three or four players (a local split-screen race, or any three or four players) has 10 for
-all of them; five players have 10 for the first four (the fifth has no one to share a screen with); six also 11
-and 12; seven and eight 10 and 11. The viewer's car item offers them after the single players, its picture showing
-the split: a pair's the panel's pair picture of the split (5 and 6 drawn over its 1 and 2), a group's the box
-divided as the screen is in the split chosen for three or four parts (`display.split_layout`), each part numbered
-with its player. From three players
+The head byte `5` of a block also has the layouts **10** to **18**, which split the screen between players,
+each in a part of the screen with its own HUD. A group of three or four players has a layout for each way a
+split-screen race of as many players can be arranged, in the order the race's split key goes through them, the
+default first:
+
+| Layout | Shows | Three players | Four players |
+| --- | --- | --- | --- |
+| 10, 13, 14, 15 | the first group, up to four players from the first | one across the top and two below, rows, columns, quarters (the fourth quarter the course's map) | quarters, rows, columns (15 none) |
+| 11, 16, 17, 18 | the players after the first four, when they are three or four | as the first group | as the first group (18 none) |
+| 11, 12 | the fifth and sixth player as a pair, when they are two (as the first two are by 2 and 3) | 11 side by side, 12 one above the other | |
+
+A replay of three or four players (a local split-screen race, or any three or four players) has the first group for
+all of them; five players have it for the first four (the fifth has no one to share a screen with); six also 11
+and 12; seven and eight also the second group. 10 and 11 are the numbers written before a group kept its
+arrangement: a block of an older file with 10 or 11 shows its group in the default arrangement (before, the
+arrangement chosen for races at the time it was watched). A local split-screen race records the first group in the
+arrangement the screen is split in as each block is raced. The viewer's car item offers the layouts after the single
+players, each group's arrangements one after the other, its picture showing the split: a pair's the panel's pair
+picture of the split (5 and 6 drawn over its 1 and 2), a group's the box divided as the screen is in the layout's
+arrangement, each part numbered with its player. Everything in the picture follows the layout's arrangement (the
+parts, their HUD, the overview map of three players in quarters, the part notices), never the split chosen for races
+(`display.split_layout`), which the viewer leaves as it is. From three players
 on the first players are together only as the group: the pair layouts 2 and 3 are a two-player replay's alone (a
 replay of the original's format keeps its own layouts, 2 and 3 included, and has no groups). A group (but not a pair)
 needs the players to be the first cars of the race, as they are in the own format; a replay of three or more players

@@ -327,7 +327,7 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   of how it splits the screen: the two-player layouts show the box split upright for the players side by side and
   across for one above the other (the original showed each pair's picture for the other split); the fifth and
   sixth as a pair have the pair pictures with 5 and 6 in place of 1 and 2; a group of three or four is the box
-  divided as the screen is in the split chosen for three or four parts (one across the top and two below, rows,
+  divided as the screen is in that layout's arrangement (one across the top and two below, rows,
   columns or quarters, the fourth quarter of three players left empty), with the pair pictures' own dividers, each
   part with its player's number, the digits as high as the smallest part leaves room for (as the pairs' where the
   parts are as big as a pair's). The pictures take the item's colours as the others do. The camera buttons (and the
@@ -346,7 +346,12 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   race "all" as it was raced; for a network race or one of more than four players the first four players, and for
   six, seven or eight players also the rest: the fifth and sixth as a two-player split (side by side or one above
   the other, as the first two), the fifth to the seventh as a three-way split, the fifth to the eighth as a four-way one. The groups' parts take their cars' own camera choices as far
-  as the replay has them.
+  as the replay has them. Each group of three or four comes in **every arrangement** a split-screen race of as many
+  players has, one after the other on the car item, the race's default first: three players one across the top and
+  two below, three rows, three columns, quarters (the fourth quarter showing the course's map); four players
+  quarters, four rows, four columns. The arrangement is kept in the replay's blocks, so a saved replay shows its
+  groups as they were chosen, and a split-screen race's replay opens in the arrangement it was raced in; the split
+  chosen for races is left as it is.
 - A **network race records a replay** like a single race; the lobby then offers "save replay". A replay that
   cannot be saved or read shows a notice instead of ending the game.
 - Old replays are read as they are, and replays saved here play in the same way on every system.

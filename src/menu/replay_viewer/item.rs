@@ -35,7 +35,6 @@ fn car_picture(race: &Race, replay: &Replay) -> Result<CarPicture, BadInput> {
     Ok(rc2k_core::race::car_item::car_picture(
         layout,
         crate::race::viewer::layout_shown(race, layout),
-        crate::race::split_layout::index(),
     )?)
 }
 

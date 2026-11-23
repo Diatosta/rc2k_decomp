@@ -8,9 +8,9 @@
 //! built from them: a further player alone is the "1" box with its digit covered and the player's
 //! number drawn in its place; a pair of further players is the pair picture with both numbers
 //! replaced; a group of three or four is the "1" box, its digit covered, divided by pieces of the
-//! pair pictures' own dividers as the screen is divided (`view::Split`, the layout chosen for three
-//! or four parts), each part with its player's number. All lengths are in the pictures' units (48
-//! by 48), counted from their top left.
+//! pair pictures' own dividers as the screen is divided (`view::Split`, the group's arrangement
+//! that the layout names), each part with its player's number. All lengths are in the pictures'
+//! units (48 by 48), counted from their top left.
 
 use crate::Invalid;
 use crate::race::layouts::{GROUP_MOST, Shown};
@@ -76,14 +76,10 @@ impl CarPicture {
 }
 
 /// The car item's picture for `layout`, which shows `shown` of the replay (none: no layout of this
-/// replay's); `split_index` is the layout chosen for a screen of three or four parts
-/// (`Split::many`). A byte that names no layout at all is left as the picture's number (the
-/// panel's table then refuses it); a group's layout that shows nothing of this replay is refused.
-pub fn car_picture(
-    layout: u8,
-    shown: Option<Shown>,
-    split_index: u32,
-) -> Result<CarPicture, Invalid> {
+/// replay's). A byte that names no layout at all is left as the picture's number (the panel's
+/// table then refuses it); a group's layout that shows nothing of this replay is refused, as is a
+/// group whose split is none of its count's.
+pub fn car_picture(layout: u8, shown: Option<Shown>) -> Result<CarPicture, Invalid> {
     use crate::race::layouts::{FIRST_GROUP, LAST_LAYOUT};
     let Some(shown) = shown else {
         // A replay without this layout (a byte the file holds, not one the viewer's cycle gives):
@@ -100,9 +96,14 @@ pub fn car_picture(
     match shown {
         Shown::Player(player) => Ok(alone(player)),
         Shown::Pair { first, stacked } => Ok(pair(first, stacked)),
-        Shown::Group { first, count } => {
-            let split = Split::many(count as u32, split_index)
-                .ok_or(Invalid("a group of players with no split screen"))?;
+        Shown::Group {
+            first,
+            count,
+            split,
+        } => {
+            if !Split::many_layouts(count as u32).contains(&split) {
+                return Err(Invalid("a group of players in a split it has not"));
+            }
             Ok(group(first, count, split))
         }
     }
@@ -262,7 +263,7 @@ fn group(first: usize, count: usize, split: Split) -> CarPicture {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::race::layouts::shown;
+    use crate::race::layouts::{LAST_LAYOUT, shown};
 
     /// Whether `inner` (x, y, width, height) lies within x0 .. x1, y0 .. y1 (ends excluded).
     fn inside([x, y, w, h]: [u32; 4], (x0, y0, x1, y1): (u32, u32, u32, u32)) -> bool {
@@ -277,20 +278,28 @@ mod tests {
     const PICTURE: (u32, u32, u32, u32) = (0, 0, 48, 48);
     const FACE: (u32, u32, u32, u32) = (BOX_LEFT + 1, BOX_TOP + 1, BOX_RIGHT, BOX_BOTTOM);
 
-    /// Every split of three and four players, by its index.
-    fn every_group() -> Vec<(usize, u32, Split)> {
+    /// Every split of three and four players.
+    fn every_group() -> Vec<(usize, Split)> {
         let mut all = Vec::new();
         for count in [3usize, 4] {
-            for (index, &split) in Split::many_layouts(count as u32).iter().enumerate() {
-                all.push((count, index as u32, split));
+            for &split in Split::many_layouts(count as u32) {
+                all.push((count, split));
             }
         }
         all
     }
 
+    fn group_of(first: usize, count: usize, split: Split) -> Option<Shown> {
+        Some(Shown::Group {
+            first,
+            count,
+            split,
+        })
+    }
+
     #[test]
     fn single_players_and_the_first_pair_are_the_atlas_pictures() {
-        let picture = |layout, players| car_picture(layout, shown(layout, players), 0).unwrap();
+        let picture = |layout, players| car_picture(layout, shown(layout, players)).unwrap();
         assert_eq!(picture(0, 1), CarPicture::atlas(FIRST_ALONE));
         assert_eq!(picture(1, 2), CarPicture::atlas(SECOND_ALONE));
         // The pictures follow the screen: 2 splits it side by side, 3 one above the other.
@@ -315,7 +324,7 @@ mod tests {
             (11, PAIR_BESIDE, [PAIR_BESIDE_FIRST, PAIR_BESIDE_SECOND]),
             (12, PAIR_ABOVE, [PAIR_ABOVE_FIRST, PAIR_ABOVE_SECOND]),
         ] {
-            let picture = car_picture(layout, shown(layout, 6), 0).unwrap();
+            let picture = car_picture(layout, shown(layout, 6)).unwrap();
             assert_eq!(picture.base, base);
             let mut overlay = Overlay::default();
             overlay.put_over(Source::Own, 5, own[0]);
@@ -326,11 +335,15 @@ mod tests {
 
     #[test]
     fn a_byte_of_no_layout_of_the_replay() {
-        assert_eq!(car_picture(2, None, 0), Ok(CarPicture::atlas(2)));
-        assert_eq!(car_picture(5, None, 0), Ok(alone(3)));
-        assert!(car_picture(10, None, 0).is_err());
-        assert!(car_picture(12, None, 0).is_err());
-        assert_eq!(car_picture(13, None, 0), Ok(CarPicture::atlas(13)));
+        assert_eq!(car_picture(2, None), Ok(CarPicture::atlas(2)));
+        assert_eq!(car_picture(5, None), Ok(alone(3)));
+        assert!(car_picture(10, None).is_err());
+        assert!(car_picture(12, None).is_err());
+        assert!(car_picture(LAST_LAYOUT, None).is_err());
+        assert_eq!(
+            car_picture(LAST_LAYOUT + 1, None),
+            Ok(CarPicture::atlas(u32::from(LAST_LAYOUT) + 1))
+        );
     }
 
     #[test]
@@ -374,8 +387,8 @@ mod tests {
 
     #[test]
     fn every_group_picture_fits_its_box_without_overlaps() {
-        for (count, index, split) in every_group() {
-            let picture = car_picture(10, Some(Shown::Group { first: 0, count }), index).unwrap();
+        for (count, split) in every_group() {
+            let picture = car_picture(10, group_of(0, count, split)).unwrap();
             assert_eq!(picture.base, FIRST_ALONE, "{split:?}");
             let parts = grid_parts(split, count);
             assert_eq!(
@@ -415,9 +428,9 @@ mod tests {
 
     #[test]
     fn group_digits_are_centred_in_their_parts_and_fit_them() {
-        for (count, index, split) in every_group() {
+        for (count, split) in every_group() {
             for first in [0, GROUP_MOST] {
-                let picture = car_picture(11, Some(Shown::Group { first, count }), index).unwrap();
+                let picture = car_picture(11, group_of(first, count, split)).unwrap();
                 let parts = grid_parts(split, count);
                 let numbers = &picture.overlay.numbers;
                 assert_eq!(numbers.len(), count, "{split:?}");
@@ -465,7 +478,35 @@ mod tests {
     }
 
     #[test]
+    fn each_arrangement_of_a_group_has_its_own_picture() {
+        use crate::race::layouts::{FIRST_GROUP_LAYOUTS, SECOND_GROUP_LAYOUTS};
+        // Three players: four pictures; seven players' last three: the same four with 5, 6, 7.
+        for (layouts, players, first) in [(FIRST_GROUP_LAYOUTS, 3, 0), (SECOND_GROUP_LAYOUTS, 7, 4)]
+        {
+            let pictures: Vec<CarPicture> = layouts
+                .iter()
+                .map(|&layout| car_picture(layout, shown(layout, players)).unwrap())
+                .collect();
+            for (picture, &split) in pictures.iter().zip(Split::many_layouts(3)) {
+                assert_eq!(picture, &group(first, 3, split));
+            }
+            for (k, picture) in pictures.iter().enumerate() {
+                assert!(pictures[k + 1..].iter().all(|other| other != picture));
+            }
+        }
+        // Four players: three pictures, and no fourth layout.
+        let four: Vec<_> = FIRST_GROUP_LAYOUTS[..3]
+            .iter()
+            .map(|&layout| car_picture(layout, shown(layout, 4)).unwrap())
+            .collect();
+        assert_ne!(four[0], four[1]);
+        assert_ne!(four[1], four[2]);
+        assert!(car_picture(FIRST_GROUP_LAYOUTS[3], shown(FIRST_GROUP_LAYOUTS[3], 4)).is_err());
+    }
+
+    #[test]
     fn a_group_with_no_split_is_refused() {
-        assert!(car_picture(10, Some(Shown::Group { first: 0, count: 5 }), 0).is_err());
+        assert!(car_picture(10, group_of(0, 5, Split::Quarters)).is_err());
+        assert!(car_picture(10, group_of(0, 4, Split::WideTop)).is_err());
     }
 }
