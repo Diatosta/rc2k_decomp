@@ -682,7 +682,7 @@ impl Extension {
     }
 
     /// The layout after `old` in the cycle the viewer's car item goes through: each player alone,
-    /// from two players on the first two together (2 side by side, 3 one above the other), and
+    /// for a replay of two players the two together (2 side by side, 3 one above the other), and
     /// after the single players the groups of players split as the race showed them (10, then
     /// 11 and 12 for the players after the fourth: a pair side by side and one above the other
     /// when they are two, a group when they are three or four); never a computer car. Wraps to
@@ -1134,7 +1134,8 @@ mod tests {
         assert_eq!(ext.shows(1), Some(layouts::Shown::Player(1)));
         assert_eq!(ext.shows(4), Some(layouts::Shown::Player(2)));
         assert_eq!(ext.shows(5), None);
-        // Three players: each alone, then the first two together, round and round.
+        // Three players who are not the first cars: each alone, round and round (no group, as
+        // the views show cars by number, and from three players no pair either).
         let three = Extension {
             rivals: None,
             league: None,
@@ -1151,7 +1152,7 @@ mod tests {
             l = three.next_layout(l);
             seen.push(l);
         }
-        assert_eq!(seen, [0, 1, 2, 3, 4, 0]);
+        assert_eq!(seen, [0, 1, 4, 0, 1, 4]);
         assert_eq!(ext.next_layout(0), 1);
         assert!(three.layouts_choosable());
         assert_eq!(
@@ -1189,7 +1190,8 @@ mod tests {
             l = four.next_layout(l);
             seen.push(l);
         }
-        assert_eq!(seen, [0, 1, 2, 3, 4, 5, 10, 0, 1]);
+        // The first two together only in the group, with the third and fourth.
+        assert_eq!(seen, [0, 1, 4, 5, 10, 0, 1, 4, 5]);
         assert_eq!(four.next_layout(5), SPLIT_LAYOUT as u8);
         // Every car of a replay of more than two that the first format's format cannot hold is
         // heard; one it holds sounds as before.
@@ -1219,13 +1221,13 @@ mod tests {
                 seen.push(l);
             }
         };
-        // Five: the singles, the pair, the first group of four (the fifth has nobody to split
-        // with); six: also the fifth and sixth as a pair, side by side (11) and stacked (12);
-        // seven: a group of three (11); eight: of four.
-        assert_eq!(cycle(&players(5)), [0, 1, 2, 3, 4, 5, 6, 10]);
-        assert_eq!(cycle(&players(6)), [0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 12]);
-        assert_eq!(cycle(&players(7)), [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11]);
-        assert_eq!(cycle(&players(8)), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+        // Five: the singles and the first group of four (the fifth has nobody to split with; the
+        // first two are together only in the group); six: also the fifth and sixth as a pair,
+        // side by side (11) and stacked (12); seven: a group of three (11); eight: of four.
+        assert_eq!(cycle(&players(5)), [0, 1, 4, 5, 6, 10]);
+        assert_eq!(cycle(&players(6)), [0, 1, 4, 5, 6, 7, 10, 11, 12]);
+        assert_eq!(cycle(&players(7)), [0, 1, 4, 5, 6, 7, 8, 10, 11]);
+        assert_eq!(cycle(&players(8)), [0, 1, 4, 5, 6, 7, 8, 9, 10, 11]);
         assert_eq!(
             players(8).shows(11),
             Some(layouts::Shown::Group { first: 4, count: 4 })

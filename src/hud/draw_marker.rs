@@ -46,7 +46,7 @@ pub(super) fn draw_other_markers(frame: &Frame, hud: &mut Hud, pen: Pen) -> Resu
         return Ok(());
     }
     let own = if split > 0 {
-        pen.scope.icon.unwrap_or(0)
+        pen.scope.player.unwrap_or(0)
     } else {
         panel.network_own as usize
     };

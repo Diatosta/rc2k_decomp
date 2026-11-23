@@ -327,12 +327,15 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   camera names in the bar above) act on the car the layout shows, also the fifth to the eighth, and their icons show
   that car's number in place of the fixed 1 and 2; in a split of three or four parts two more camera buttons lie on
   either side of the render button, for the third and fourth part. The choice for the fifth to the eighth car lasts
-  while the viewer has the replay open and is not saved in the file.
+  while the viewer has the replay open and is not saved in the file; until it is made they start on the same camera
+  as the first four cars.
 - A replay of **more than two cars** (three or four players on one machine, or a network race with other players
   and bots) is **heard with every car**: each car's engine, tyres, gear changes and knocks, the nearest loudest
   (heard from the followed car in one view). One- and two-player replays sound as before.
 - A replay of **three or more players** can be watched **split between players**: after the single players the
-  viewer's car item offers the groups, each player in a part of the screen with its HUD: for a local split-screen
+  viewer's car item offers the groups (in place of the two-player layouts, which only a two-player replay has),
+  each player in a part of the screen with its own HUD, map and car icon, shown with the viewer's HUD switches as
+  in the other layouts (the third part with the left one, the fourth with the right): for a local split-screen
   race "all" as it was raced; for a network race or one of more than four players the first four players, and for
   six, seven or eight players also the rest: the fifth and sixth as a two-player split (side by side or one above
   the other, as the first two), the fifth to the seventh as a three-way split, the fifth to the eighth as a four-way one. The groups' parts take their cars' own camera choices as far

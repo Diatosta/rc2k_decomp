@@ -1,5 +1,6 @@
-//! The two cars' replay cameras from the frame's head (the first car block's first dwords). For
-//! each car, the head's byte picks a wish (`replay_camera_wishes`); 0x23 .. 0x25 at least three
+//! The cars' replay cameras from the frame's head (the first car block's first dwords) and, for
+//! the cars it holds no byte for, the viewer's own choice. For each car, the camera byte picks a
+//! wish (`replay_camera_wishes`); 0x23 .. 0x25 at least three
 //! frames after the last draw a camera mode (`drive::pick_replay_camera`), another wish not
 //! already set is taken as it is. Then the option bits of both come from `player_options` and
 //! the head's bytes 2 .. 5 become the view switches. Refuses what `pick_replay_camera` refuses
@@ -100,36 +101,38 @@ fn steps(race: &Race) -> Result<(), Refused> {
     let replay = &race.replay;
     replay.replay_frames_mut().camera_word_0 = race.car_blocks().cars[0].frame_head[0];
     replay.replay_frames_mut().camera_word_1 = race.car_blocks().cars[0].frame_head[1];
-    // A replay with the extra tape also names the cameras of cars 2 and 3, in the head's bytes
-    // 6 and 7 (zero in every other replay: no wish).
-    let extra = race.viewer_buffers().extra_tape.is_set();
-    let cars = if extra { 4 } else { 2 };
+    // Each car's camera where `layouts::camera_source` keeps it: the first two cars' in the head's
+    // bytes 0 and 1; a replay with the extra tape also names the third's and the fourth's (bytes 6
+    // and 7) and has the fifth to the eighth follow the camera kept for them while the replay is
+    // open (the one an unedited block names, until chosen in the viewer).
+    use rc2k_core::race::layouts::{CameraSource, camera_source};
+    let cars = if race.viewer_buffers().extra_tape.is_set() {
+        rc2k_core::race::replay_v2::MAX_CARS
+    } else {
+        2
+    };
     for c in 0..cars {
-        let byte = if c < 2 { c } else { c + 4 };
-        camera_of(race, c, head_byte(race, byte), LastFrame::Car(c))?;
+        let (byte, last_frame) = match camera_source(c) {
+            Some(CameraSource::Head(byte)) => (head_byte(race, byte), LastFrame::Car(c)),
+            Some(CameraSource::Live(n)) => (
+                race.viewer_buffers().live_cameras[n].get(),
+                LastFrame::Live(n),
+            ),
+            None => return Err(BadInput("a camera of a car past the eighth").into()),
+        };
+        camera_of(race, c, byte, last_frame)?;
     }
-    // The cars the blocks hold no camera byte for (the fifth to the eighth) follow the choice made
-    // for them in the viewer, once made.
-    if extra {
-        for (n, chosen) in race.viewer_buffers().live_cameras.iter().enumerate() {
-            let chosen = chosen.get();
-            if chosen != crate::race::viewer_buffers_store::NO_CAMERA {
-                camera_of(race, 4 + n, chosen, LastFrame::Live(n))?;
-            }
-        }
-    }
-    // A group of players shows every player's HUD as the race did, the recording's own bits; the
-    // viewer's other layouts show the HUD pieces of the cars the two views show as the viewer's
-    // switches say (the first two cars', and for the pair of the fifth and sixth player theirs).
-    // A render takes the viewer's pieces it was given.
+    // The HUD pieces: a group of players shows every player's as the race did, the recording's
+    // own bits; the viewer's other layouts show those of the cars the two views show as the
+    // viewer's switches say (the first two cars', and for the pair of the fifth and sixth player
+    // theirs). A render takes the viewer's pieces it was given. Whether a view shows its HUD at
+    // all is the head's HUD switches' (bytes 2 and 3), in every layout.
     use rc2k_core::race::layouts::Shown;
     let options = shown_hud().unwrap_or([
         shared.view.get().player_options[0].get(),
         shared.view.get().player_options[1].get(),
     ]);
-    let shown = crate::race::viewer::layout_shown(race, head_byte(race, 5) as u8);
-    let split = matches!(shown, Some(Shown::Group { .. }));
-    match shown {
+    match crate::race::viewer::layout_shown(race, head_byte(race, 5) as u8) {
         Some(Shown::Group { .. }) => group_hud(race, options[0]),
         Some(Shown::Pair { first, .. }) if first > 0 => {
             let view = shared.view.get();
@@ -155,11 +158,6 @@ fn steps(race: &Race) -> Result<(), Refused> {
     .enumerate()
     {
         to.set(head_byte(race, 2 + k));
-    }
-    // Every part of the split screen shows its HUD, as in the race.
-    if split {
-        shared.view.get().view_on[0].set(1);
-        shared.view.get().view_on[1].set(1);
     }
     Ok(())
 }

@@ -426,7 +426,7 @@ fn check_light_texture_slots(race: &Race, scene: &Scene) -> Result<(), Refused> 
 
 /// The hud flags of the views: the first views take their car's option bits (`blocks`), the
 /// further views of a split screen their own player's car's (none past the views shown), and a
-/// view that is off has none.
+/// view whose HUD switch is off (`view::hud_switch_of`) has none.
 fn set_hud_flags(race: &Race, blocks: &[usize], views: u32) -> Result<(), Refused> {
     for (n, block) in blocks.iter().copied().enumerate().take(4) {
         let bits = race.frame.cars.car(block)?.option_bits.get();
@@ -443,8 +443,11 @@ fn set_hud_flags(race: &Race, blocks: &[usize], views: u32) -> Result<(), Refuse
             }
         }
     }
-    for (n, on) in race.shared.view.get().view_on.iter().enumerate().take(4) {
-        if on.get() == 0 {
+    // A view whose HUD switch is off shows no HUD; a split's further parts follow a switch of the
+    // first two (a replay's still frame turns both off).
+    for n in 0..4 {
+        let switch = rc2k_core::race::view::hud_switch_of(n);
+        if race.shared.view.get().view_on[switch].get() == 0 {
             race.frame.panel.borrow_mut().hud_flags[n] = 0;
         }
     }

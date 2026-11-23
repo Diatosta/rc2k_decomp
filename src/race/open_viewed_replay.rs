@@ -116,9 +116,10 @@ pub fn open_viewed_replay(
     race.viewer_buffers().extra_tape.set(
         rc2k_core::race::replay::read_version(shared.replays().header.get_u32(8)) == Some(true),
     );
-    // A camera chosen in the viewer for another replay's car is not this one's.
+    // A camera chosen in the viewer for another replay's car is not this one's: the cars start on
+    // the camera of a block not edited, as the first four do.
     for chosen in &race.viewer_buffers().live_cameras {
-        chosen.set(crate::race::viewer_buffers_store::NO_CAMERA);
+        chosen.set(crate::race::viewer_buffers_store::LIVE_CAMERA_START);
     }
     // A replay of the own format has its cars after the header and a tail to each block.
     let own = shared.replays().header.get_u32(8) == rc2k_core::race::replay_v2::VERSION;

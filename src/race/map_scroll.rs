@@ -90,9 +90,9 @@ pub(super) fn map_position(race: &Race, car: &Car) -> Result<[u32; 2], Refused> 
 /// With two checkpoints or more, puts the car on the map (`map_x` / `map_y` at its last
 /// checkpoint, plus its distance from that checkpoint's face's point x 0x60 / 1000, z negated);
 /// unless it is still 0x34 .. 0x4B pixels inside the picture, moves the picture's corner (centred,
-/// 16-pixel steps), redraws it (`map_tiles`) and sets the redrawn flag; then sets its place in the
-/// picture ((place - corner << 16 - 0x300000) x 2). Refuses (before anything) no course faces or
-/// points.
+/// 16-pixel steps); redraws the view's picture (`map_tiles`) when the corner moved or the picture
+/// holds another (`map::redraws`) and sets the redrawn flag; then sets its place in the picture
+/// ((place - corner << 16 - 0x300000) x 2). Refuses (before anything) no course faces or points.
 fn scroll_map(
     race: &Race,
     car: &mut Car,
@@ -101,9 +101,17 @@ fn scroll_map(
     gfx: &crate::gfx::owner::Gfx,
     net_race: &rc2k_core::net::net_race::NetRaceSlot,
 ) -> Result<(), Refused> {
-    scroll_map_with(race, car, |car| {
+    // The picture the view's map is drawn into (`map_tiles`): the first alone in a network race.
+    let picture = if net_race.is_on() { 0 } else { view as usize };
+    scroll_map_with(race, car, picture, |car| {
         map_tiles(race, car, view, scene, gfx, net_race)
     })
+}
+
+/// No map picture holds a drawn map any more (their textures took their kinds' pictures again):
+/// each is drawn at its next scroll.
+pub fn forget_map_pictures(race: &Race) {
+    race.frame.frame_work.borrow_mut().map_pictures = [None; rc2k_core::race::map::PICTURES];
 }
 
 /// Draws the map picture of the further player `n` (2 or 3) into the player's own texture and
@@ -135,17 +143,26 @@ fn further_map_tiles(
     )
 }
 
-/// `scroll_map` with the picture's redraw (`redraw`, run once the corner has moved) left to the
-/// caller.
+/// `scroll_map` into map picture `picture` (`map::PICTURES`), with the picture's redraw
+/// (`redraw`) left to the caller.
 fn scroll_map_with(
     race: &Race,
     car: &mut Car,
+    picture: usize,
     redraw: impl FnOnce(&Car) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    // Logic in `rc2k_core::race::map::{on_map, pixel, well_inside, centred_corner,
+    // Logic in `rc2k_core::race::map::{on_map, pixel, well_inside, centred_corner, redraws,
     // picture_place}`.
-    use rc2k_core::race::map::{centred_corner, picture_place, pixel, well_inside};
+    use rc2k_core::race::map::{centred_corner, picture_place, pixel, redraws, well_inside};
     scroll_refuses(race)?;
+    let held = race
+        .frame
+        .frame_work
+        .borrow()
+        .map_pictures
+        .get(picture)
+        .copied()
+        .ok_or(BadInput("a map picture past the four"))?;
     car.map_redrawn = 0;
     if race.shared.vars.get().checkpoint_count.get() < 2 {
         return Ok(());
@@ -156,12 +173,16 @@ fn scroll_map_with(
     let x = pixel(map_x);
     let y = pixel(map_y);
     let (dx, dy) = (x.wrapping_sub(corner_x), y.wrapping_sub(corner_y));
-    if !(well_inside(dx) && well_inside(dy)) {
+    let moved = !(well_inside(dx) && well_inside(dy));
+    if moved {
         corner_x = centred_corner(x);
         corner_y = centred_corner(y);
         car.map_corner = [corner_x, corner_y];
+    }
+    if redraws(moved, held, car.map_corner) {
         redraw(car)?;
         car.map_redrawn = 1;
+        race.frame.frame_work.borrow_mut().map_pictures[picture] = Some(car.map_corner);
     }
     car.map_picture_place[0] = picture_place(corner_x, map_x);
     car.map_picture_place[1] = picture_place(corner_y, map_y);
@@ -212,7 +233,7 @@ pub(super) fn scroll_maps(
                 race.shared.view.get().view_number(n)?,
                 "a further player's car block",
             )?;
-            scroll_map_with(race, &mut car, |car| {
+            scroll_map_with(race, &mut car, n, |car| {
                 further_map_tiles(race, car, n, scene, gfx)
             })?;
         }

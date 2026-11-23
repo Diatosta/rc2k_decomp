@@ -215,6 +215,17 @@ pub fn device_fog_colour(colour: u32) -> u32 {
     colour | 0xFF00_0000
 }
 
+/// The HUD switches the views have (the race's view switches; in a replay the head's bytes 2 and
+/// 3, the viewer panel's left and right HUD buttons).
+pub const HUD_SWITCHES: usize = 2;
+
+/// The HUD switch that part `part` of the screen follows: the first two parts their own; the
+/// further parts of a split screen, which have none, the one on their side of the panel, as their
+/// camera buttons lie (the third part the left, the fourth the right).
+pub fn hud_switch_of(part: usize) -> usize {
+    part % HUD_SWITCHES
+}
+
 /// A player's part of the screen: its corner and size in pixels.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PlayerPart {
@@ -441,6 +452,11 @@ pub fn shared_spot_bytes(count: u32) -> Result<u32, crate::Invalid> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn each_part_follows_a_hud_switch() {
+        assert_eq!([0, 1, 2, 3].map(hud_switch_of), [0, 1, 0, 1]);
+    }
 
     #[test]
     fn fog_and_mirror() {

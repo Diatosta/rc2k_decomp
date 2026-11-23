@@ -112,6 +112,8 @@ pub struct Panel {
     /// Each player's values for a split screen of three or four players' HUD, in the first
     /// view's form (`race::frame_draw::panel_values_plain`; `hud::layout_many`).
     pub parts: [ViewA; 4],
+    /// The car each of those parts shows (its HUD's car icon).
+    pub part_cars: [u32; 4],
     /// 1 while a split screen of three players shows the overview map in the part no player has
     /// (`race::overview_map`).
     pub overview_on: u32,
@@ -215,6 +217,7 @@ impl Panel {
             flat: 0,
             texture_changes: 0,
             parts: [ViewA::ZERO; 4],
+            part_cars: [0; 4],
             overview_on: 0,
             overview_drawn: 0,
             overview_fit: [0.0; 3],

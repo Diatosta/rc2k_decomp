@@ -26,6 +26,9 @@ pub struct Pen<'a> {
 pub struct PartScope {
     /// The part's corner and size, if one is set.
     pub part: Option<rc2k_core::race::view::PlayerPart>,
-    /// The player whose half-size car icon is drawn (none: the first full-size icon).
+    /// The part's number among the split's parts (0 .. 3): whose map disc, markers and values
+    /// it draws (none: the whole screen's HUD).
+    pub player: Option<usize>,
+    /// The car whose half-size icon the part shows (none: the first full-size icon).
     pub icon: Option<usize>,
 }

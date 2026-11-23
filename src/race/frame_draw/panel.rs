@@ -73,12 +73,13 @@ pub fn panel_players(race: &Race) -> Result<(), BadInput> {
         }
         frame.panel.borrow_mut().view_a.back = u32::MAX;
         frame.panel.borrow_mut().view_a.front = u32::MAX;
-        // Each view block's `two_car_place`.
+        // Each view block's `two_car_place`, as far as the race works it out (`shown_place`).
         let field = |n: usize| -> Result<u32, BadInput> {
-            Ok(shared
+            let kept = shared
                 .view_car(n)
                 .ok_or(BadInput("a view without its car block"))?
-                .two_car_place)
+                .two_car_place;
+            Ok(shown_place(race, shared.view.get().view_number(n)?, kept))
         };
         frame.panel.borrow_mut().view_a.place = field(0)?;
         frame.panel.borrow_mut().view_b.place = field(1)?;
@@ -350,6 +351,16 @@ fn network_disc_cars(race: &Race) {
     panel.disc_cars = shown;
 }
 
+/// The place car `car` shows from its kept `two_car_place` (`places::shown_place`).
+fn shown_place(race: &Race, car: usize, kept: u32) -> u32 {
+    rc2k_core::drive::places::shown_place(
+        race.shared.vars.get().run_kind.get(),
+        race.shared.view.get().players.get(),
+        car,
+        kept,
+    )
+}
+
 /// The players a split screen of three or four shows on every part's stage bar.
 fn panel_split_players(race: &Race, players: usize) {
     let shown = if players > 2 { players.min(4) } else { 0 };
@@ -449,10 +460,11 @@ pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
                 // The part's own player's car (the first to the fourth, or those of a group).
                 let car = race.shared.view.get().view_number(n)?;
                 panel_half(race, car, true)?;
-                let place = race.frame.cars.car(car)?.two_car_place.get();
+                let place = shown_place(race, car, race.frame.cars.car(car)?.two_car_place.get());
                 let mut panel = race.frame.panel.borrow_mut();
                 panel.parts[n] = panel.view_a;
                 panel.parts[n].place = place;
+                panel.part_cars[n] = car as u32;
             }
         }
         panel_half(race, race.shared.view.get().view_number(0)?, true)?;

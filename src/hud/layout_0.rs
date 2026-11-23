@@ -17,13 +17,14 @@ use crate::race::owner_frame::Frame;
 use rc2k_core::hud::panels;
 
 /// The car's icon at the corner: the first full-size one, or with three or four players the
-/// part's player's half-size one drawn as large (its texture rectangle a quarter of the first's).
+/// half-size one of the part's car drawn as large (its texture rectangle a quarter of the first's).
 fn car_icon(frame: &Frame, hud: &mut Hud, pen: Pen, y: u32) -> Result<(), Refused> {
-    let Some(player) = pen.scope.icon else {
+    let Some(car) = pen.scope.icon else {
         return sprite(frame, hud, pen, 0, 0xE, y);
     };
     let [_, _, width, height] = crate::hud::block_store::RectAt::number(0).read(hud)?;
-    let [left, top] = rc2k_core::scene::car_icons::half_place(player);
+    let [left, top] = rc2k_core::scene::car_icons::half_place(car)
+        .ok_or(crate::errors::BadInput("a car icon past the eighth car"))?;
     let [w, h] = rc2k_core::scene::car_icons::HALF_SIZE;
     hud.block
         .quad
@@ -70,7 +71,7 @@ pub(super) fn layout_0_on(frame: &Frame, hud: &mut Hud, pen: Pen, map: u32) -> R
     hud.block.texture = texture::SPRITES;
     if flags & 0x10 != 0 {
         // A part of a split screen draws the markers of its own view's disc.
-        let slot = pen.scope.icon.map_or(0, |n| n.min(3));
+        let slot = pen.scope.player.map_or(0, |n| n.min(3));
         draw_map_cars::draw_map_cars(frame, hud, pen, slot, false)?;
         sprite(frame, hud, pen, 0x5F, 0x282, 0x1B8)?;
     }

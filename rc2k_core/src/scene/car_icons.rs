@@ -13,16 +13,24 @@ pub const ROWS: [u32; 2] = [0x68, 0x94];
 pub const COLUMN: u32 = 0xAD;
 /// The most cars.
 pub const CARS: u32 = 8;
-/// With three or four players every part's car icon is painted at half size (a quarter of the
-/// area), the four sharing the first row's place: an icon's width and height there.
+/// A full-size icon's width and height (the sheets' 82 by 42).
+pub const FULL_SIZE: [u32; 2] = [0x52, 0x2A];
+/// With three or four parts every part's car icon is painted at half size (a quarter of the
+/// area): an icon's width and height there. The first four cars' share the first row's place, the
+/// fifth to the eighth car's (a replay's second group) the second row's, which a split screen
+/// leaves free (it shows no second full-size icon).
 pub const HALF_SIZE: [u32; 2] = [0x29, 0x15];
+/// How many half-size icons one row's place holds.
+pub const HALF_PER_ROW: usize = 4;
 
-/// Where player `n`'s half-size icon lies on the HUD's texture: left and top.
-pub fn half_place(n: usize) -> [u32; 2] {
-    [
-        COLUMN + (n as u32 % 2) * HALF_SIZE[0],
-        ROWS[0] + (n as u32 / 2) * HALF_SIZE[1],
-    ]
+/// Where car `n`'s half-size icon lies on the HUD's texture: left and top; none past the eighth.
+pub fn half_place(n: usize) -> Option<[u32; 2]> {
+    let row = ROWS.get(n / HALF_PER_ROW)?;
+    let k = (n % HALF_PER_ROW) as u32;
+    Some([
+        COLUMN + (k % 2) * HALF_SIZE[0],
+        row + (k / 2) * HALF_SIZE[1],
+    ])
 }
 
 /// Refuses an icon number past the tables, before anything is uploaded.
@@ -51,11 +59,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn half_icons_fill_the_first_row() {
-        assert_eq!(half_place(0), [0xAD, 0x68]);
-        assert_eq!(half_place(3), [0xAD + 0x29, 0x68 + 0x15]);
-        assert!(half_place(3)[0] + HALF_SIZE[0] <= COLUMN + 0x52);
-        assert!(half_place(3)[1] + HALF_SIZE[1] <= ROWS[0] + 0x2A);
+    fn half_icons_fill_the_rows() {
+        assert_eq!(half_place(0), Some([0xAD, 0x68]));
+        assert_eq!(half_place(3), Some([0xAD + 0x29, 0x68 + 0x15]));
+        assert_eq!(half_place(4), Some([0xAD, 0x94]));
+        assert_eq!(half_place(7), Some([0xAD + 0x29, 0x94 + 0x15]));
+        assert_eq!(half_place(8), None);
+        // Each row's four within the place of a full-size icon, the rows apart.
+        for (n, row) in [(3, ROWS[0]), (7, ROWS[1])] {
+            let [x, y] = half_place(n).unwrap();
+            assert!(x + HALF_SIZE[0] <= COLUMN + FULL_SIZE[0]);
+            assert!(y + HALF_SIZE[1] <= row + FULL_SIZE[1]);
+        }
+        assert!(ROWS[0] + FULL_SIZE[1] <= ROWS[1]);
     }
 
     #[test]

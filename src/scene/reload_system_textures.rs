@@ -8,8 +8,9 @@
 //!   size pictures are read at (`Grading.saturation`, `Grading.scale`) = the scene's
 //!   (`StagePrefs.scene_size_a`, `StagePrefs.scene_size_b`), or 256 x 256 for picture 0x3DE and
 //!   pictures 0x706 .. 0x7CF; `scene::load_changed_texture_picture`; the loading bar moves on.
-//! - `Grading.reading` = 0 and the size 256 x 256 again; `scene::load_hud_car_icons`; two lines
-//!   in the log.
+//! - `Grading.reading` = 0 and the size 256 x 256 again; `scene::load_hud_car_icons`; the map
+//!   pictures known to hold no drawn map (`race::map_scroll::forget_map_pictures`); two lines in
+//!   the log.
 //!
 //! Refuses more than 0x400 system textures and a first texture past the table.
 //!
@@ -77,6 +78,8 @@ pub fn reload_system_textures(
     grading.saturation.set(0x100);
     crate::logfile::load_times::mark("load_hud_car_icons");
     load_hud_car_icons(scene, race, gfx, system, &o.net.race_slot)?;
+    // The map pictures hold their kinds' pictures again, no drawn map.
+    crate::race::map_scroll::forget_map_pictures(race);
     crate::logfile::log_write::log_nul(&TEXTS[2], true, 1);
     crate::logfile::log_write::log_nul(&TEXTS[3], true, 1);
     Ok(())

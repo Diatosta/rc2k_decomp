@@ -16,6 +16,24 @@ pub struct Order {
     pub last: u32,
 }
 
+/// A car with no place to show.
+pub const NO_PLACE: u32 = u32::MAX;
+
+/// Whether the race ranks every player's car (`many_car_order`): a split screen of more than two
+/// in a race (`mode` 0).
+pub fn ranks_many(mode: u32, players: u32) -> bool {
+    mode == 0 && players > 2
+}
+
+/// The place car `car` shows, from its `kept` place: the first two cars' always (the two-car order
+/// writes them, `NO_PLACE` for none); a further car's only when the race ranks every player's
+/// and the car is a player's, else none (nothing writes it: a replay's groups of a race of
+/// other machines).
+pub fn shown_place(mode: u32, players: u32, car: usize, kept: u32) -> u32 {
+    let ranked = car < 2 || (ranks_many(mode, players) && car < players as usize);
+    if ranked { kept } else { NO_PLACE }
+}
+
 /// The places of a two-car race: -1 for both outside mode 0 or with one view (`players` 1); left
 /// as they are while either is finished; else 1 for the one ahead (by checkpoint, then the
 /// tie-break, each by the sign of the difference), 2 for the other. `figure(car, offset)` reads a
@@ -28,7 +46,7 @@ pub fn two_car_order(
 ) -> Order {
     if mode != 0 || players == 1 {
         return Order {
-            places: Some([u32::MAX, u32::MAX]),
+            places: Some([NO_PLACE, NO_PLACE]),
             last: last_figure,
         };
     }
@@ -97,6 +115,20 @@ pub fn note_gap(car: u32, lead: u32, behind: bool, best: &mut u32) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn further_cars_show_a_place_only_when_ranked() {
+        // The first two cars show what the two-car order kept, whatever the race.
+        assert_eq!(shown_place(1, 1, 0, NO_PLACE), NO_PLACE);
+        assert_eq!(shown_place(0, 2, 1, 2), 2);
+        // A split screen of four in a race ranks its four players.
+        assert_eq!(shown_place(0, 4, 3, 1), 1);
+        assert_eq!(shown_place(0, 4, 4, 0), NO_PLACE);
+        // Nothing ranks the further cars of a race of one view (another machine's cars).
+        assert_eq!(shown_place(1, 4, 2, 0), NO_PLACE);
+        assert_eq!(shown_place(0, 1, 5, 0), NO_PLACE);
+        assert!(ranks_many(0, 3) && !ranks_many(0, 2) && !ranks_many(2, 4));
+    }
 
     fn blocks(a: [u32; 3], b: [u32; 3]) -> impl Fn(usize, u32) -> u32 {
         move |car, o| {

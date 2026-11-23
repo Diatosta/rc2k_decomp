@@ -117,7 +117,7 @@ pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Re
                 &kinds,
                 ExtraRuns {
                     framed: shared.switches.borrow().editor_mode != 0,
-                    further_maps: shared.view.get().players.get() > 2,
+                    further_maps: crate::race::viewer::splits_past_two(race),
                 },
                 other_levels,
                 |car| {

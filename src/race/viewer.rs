@@ -79,18 +79,30 @@ pub enum ShownCamera {
 
 /// What a layout byte shows of the replay open, as the layouts name it (`layouts::Shown`, by
 /// players), none for a byte that names nothing the replay has. A replay of the own format asks
-/// its players; the first format's holds up to four cars, each its own player (two without the
-/// extra tape).
+/// its players; the first format's has its own layouts (`layouts::first_format_shown`).
 pub fn layout_shown(race: &Race, layout: u8) -> Option<rc2k_core::race::layouts::Shown> {
     if race.viewer_buffers().v2.is_set() {
         return race.replay.v2().lock().ext.as_ref()?.shows(layout);
     }
-    let players = if race.viewer_buffers().extra_tape.is_set() {
-        4
-    } else {
-        2
-    };
-    rc2k_core::race::layouts::shown(layout, players)
+    rc2k_core::race::layouts::first_format_shown(layout, race.viewer_buffers().extra_tape.is_set())
+}
+
+/// Whether the stage may split the screen into more than two parts (`layouts::splits_past_two`):
+/// a race of more than two players, or the viewer's open replay of the own format that offers a
+/// group of them.
+pub fn splits_past_two(race: &Race) -> bool {
+    let viewed_group =
+        if race.shared.replay_file().replay_open.is_set() && race.viewer_buffers().v2.is_set() {
+            race.replay
+                .v2()
+                .lock()
+                .ext
+                .as_ref()
+                .map_or(0, rc2k_core::race::replay_v2::Extension::split_players)
+        } else {
+            0
+        };
+    rc2k_core::race::layouts::splits_past_two(race.shared.view.get().players.get(), viewed_group)
 }
 
 /// A camera button's player and the car that player drives.
@@ -168,18 +180,12 @@ pub fn shown_camera(race: &Race, block: u32, camera: u32) -> Result<ShownCamera,
 }
 
 impl ShownCamera {
-    /// The camera byte now (a camera not yet chosen in the viewer is the first, 0).
+    /// The camera byte now.
     pub fn read(self, race: &Race) -> Result<u8, BadInput> {
         match self {
             ShownCamera::Block(at) => at.read(race, "a replay camera byte"),
-            ShownCamera::Live(n) => {
-                let chosen = race.viewer_buffers().live_cameras[n].get();
-                Ok(if chosen == crate::race::viewer_buffers_store::NO_CAMERA {
-                    0
-                } else {
-                    chosen as u8
-                })
-            }
+            ShownCamera::Live(n) => u8::try_from(race.viewer_buffers().live_cameras[n].get())
+                .map_err(|_| BadInput("a live camera past a byte")),
         }
     }
 }
