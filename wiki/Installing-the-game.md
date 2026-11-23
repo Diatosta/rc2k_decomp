@@ -163,8 +163,7 @@ add `rally.sh` to Steam the same way.
 Not covered: the Deck's controls have not been set up or checked by the project (the game
 reads the Deck's pad through SDL like any other, see [Controllers](Controllers)), and network
 play through Steam needs Valve's library beside the program, which the released zip does not
-carry: take it from [the Steamworks SDK](https://partner.steamgames.com/downloads/list) (free with a Steam account, folder
-`redistributable_bin`; [Network play](Network-play)).
+carry: take `libsteam_api.so` from the link on [Network play](Network-play) (no sign-in needed).
 
 The same build runs on any x86-64 Linux with glibc 2.35 or later and a processor with AVX2,
 so it is also the one for a Linux system too old for the `linux` build.

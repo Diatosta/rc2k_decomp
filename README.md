@@ -30,9 +30,9 @@ replays and save files. Where the original had bugs, they are fixed (see below).
 - The whole game: menus, every stage, single rallies, championships, the arcade mode,
   split screen, replays, pace notes, the intro films, 3D sound, controllers.
 - Network play, standalone to standalone, over TCP/IP or through Steam (lobbies, friends'
-  invites, no ports to open; needs Valve's Steam library beside the program (from [the Steamworks SDK](https://partner.steamgames.com/downloads/list),
-  free with a Steam account, folder `redistributable_bin`) and the Steam
-  client running: see the wiki's Network play page). The original's DirectPlay is replaced by a
+  invites, no ports to open; needs Valve's Steam library beside the program (no sign-in: the copy of the SDK's
+  [`redistributable_bin`](https://github.com/Noxime/steamworks-rs/tree/v0.13.0/steamworks-sys/lib/steam/redistributable_bin) kept by the `steamworks-rs` project, release 0.13.0, or
+  Valve's Steamworks SDK) and the Steam client running: see the wiki's Network play page). The original's DirectPlay is replaced by a
   protocol of our own, so it does not play against the original program.
 - The installer and uninstaller, working from the files of the CD (or of a download of
   it).
