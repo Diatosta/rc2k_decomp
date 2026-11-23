@@ -2,9 +2,7 @@
 //! own (a boxed `Net`) or restored after: each case builds from fixed inputs, checks the exact
 //! bytes, and reads them back.
 
-use crate::memory::plain_floats::WordRef;
-use crate::memory::session::Cell32;
-use crate::net::apply_message::{apply_message, glide_steps, place, wanted};
+use crate::net::apply_message::{apply_message, place, wanted};
 use crate::net::owner::Net;
 use crate::net::send_inputs::{Message, fields, send_fields};
 use crate::net::send_message::send_message;
@@ -52,22 +50,30 @@ fn a_message_is_sent_as_its_sequence_byte_and_its_bytes() {
     assert_eq!(net.link.release_dplay(), Some(0));
 }
 
-/// Every cell a message kind reads or writes, with its bits.
-fn snapshot() -> Vec<(WordRef<'static>, u32)> {
-    let car = crate::test_support::own::race().shared.car();
-    let mut all: Vec<(WordRef<'static>, u32)> = Vec::new();
-    for kind in rc2k_core::net::race::SENT {
-        for (field, _) in fields(kind) {
-            let cell = field(car);
-            all.push((cell, cell.bits()));
-        }
-    }
-    all
+/// The work car and car 2, as they are, to put back.
+fn snapshot() -> (
+    crate::physics::car_store::Car,
+    Option<crate::physics::car_store::Car>,
+) {
+    let race = crate::test_support::own::race();
+    (
+        race.shared.car().clone(),
+        race.shared.race_car(2).ok().map(|c| c.clone()),
+    )
 }
 
-fn restore(all: &[(WordRef<'static>, u32)]) {
-    for (cell, bits) in all {
-        cell.set_bits(*bits);
+fn restore(
+    saved: &(
+        crate::physics::car_store::Car,
+        Option<crate::physics::car_store::Car>,
+    ),
+) {
+    let race = crate::test_support::own::race();
+    *race.shared.car_mut() = saved.0.clone();
+    if let Some(car) = &saved.1
+        && let Ok(mut block) = race.shared.race_car_mut(2)
+    {
+        *block = car.clone();
     }
 }
 
@@ -91,10 +97,11 @@ fn the_race_messages_are_built_from_the_car() {
         (Kind::Position, c"send p"),
         (Kind::Extra, c"send x"),
     ] {
-        let car = crate::test_support::own::race().shared.car();
+        let mut car = crate::test_support::own::race().shared.car_mut();
         for (n, (field, _)) in fields(kind).iter().enumerate() {
-            field(car).set_bits(0x1000 + n as u32);
+            field(&mut car).set_bits(0x1000 + n as u32);
         }
+        drop(car);
         let m = Message { text, kind };
         assert!(send_fields(crate::test_support::own::race(), &net, &m).is_ok());
         let len = 1 + 4 * (1 + fields(kind).len());
@@ -135,40 +142,18 @@ fn a_received_message_is_put_into_the_senders_car() {
     let _lock = crate::test_support::test_lock();
     let r = crate::test_support::own::race();
     let net = crate::test_support::own::net();
-    let Ok(car) = r.shared.race_car(2) else {
+    if r.shared.race_car(2).is_err() {
         crate::program_log::log("SKIPPED a_received_message_is_put_into_the_senders_car: no car 2");
         return;
-    };
-    let mut saved = snapshot();
-    let own = car;
-    let extra: Vec<(WordRef<'_>, u32)> = vec![
-        (
-            WordRef::Element(own.glide_target.cell_at(0)),
-            own.glide_target.bits_at(0),
-        ),
-        (
-            WordRef::Element(own.glide_target.cell_at(1)),
-            own.glide_target.bits_at(1),
-        ),
-        (
-            WordRef::Element(own.glide_target.cell_at(2)),
-            own.glide_target.bits_at(2),
-        ),
-        (
-            WordRef::Cell(&own.glide_steps_left),
-            own.glide_steps_left.bits(),
-        ),
-        (WordRef::Cell(&own.step_clock), own.step_clock.bits()),
-    ];
-    // The cells of car 2 (the snapshot above holds the work car's).
-    for kind in rc2k_core::net::race::SENT {
-        for (field, _) in fields(kind) {
-            let cell = field(own);
-            saved.push((cell, cell.bits()));
-        }
     }
-    let bits =
-        |kind: Kind| -> Vec<u32> { fields(kind).iter().map(|(f, _)| f(own).bits()).collect() };
+    let saved = snapshot();
+    let bits = |kind: Kind| -> Vec<u32> {
+        let mut own = r.shared.race_car_mut(2).expect("car 2");
+        fields(kind)
+            .iter()
+            .map(|(f, _)| f(&mut own).bits())
+            .collect()
+    };
 
     let inputs = dwords(&[0x4D53_474A, 11, 12, 13, 14]);
     assert!(apply_message(r, net, 2, &[vec![0x81], inputs.clone()].concat()[1..]).is_ok());
@@ -181,8 +166,11 @@ fn a_received_message_is_put_into_the_senders_car() {
 
     // A place 3 metres off (units of 1/65536 metre), the steps past 1000: glided to.
     let metre = 65536u32;
-    own.step_clock.set(5000);
-    own.position.set_bits([1000 * metre, 0, 1000 * metre]);
+    {
+        let mut own = r.shared.race_car_mut(2).expect("car 2");
+        own.step_clock = 5000;
+        own.position = ([1000 * metre, 0, 1000 * metre]).map(f32::from_bits);
+    }
     let position = |at: [u32; 3]| -> Vec<u8> {
         let values: Vec<u32> = (0..40)
             .map(|n| match n {
@@ -196,27 +184,33 @@ fn a_received_message_is_put_into_the_senders_car() {
     };
     let near = [1000 * metre + 3 * metre, 0, 1000 * metre];
     assert!(apply_message(r, net, 2, &position(near)).is_ok());
-    assert_eq!(glide_steps(own).get(), 0x20);
-    assert_eq!(wanted(own).bits(), [(3 * metre) >> 5, 0, 0]);
+    let own_car = || r.shared.race_car(2).expect("car 2");
+    assert_eq!(own_car().glide_steps_left, 0x20);
+    assert_eq!(
+        wanted(&own_car()).map(f32::to_bits),
+        [(3 * metre) >> 5, 0, 0]
+    );
     // A place 11 metres off: jumped to, the glide ended.
     let far = [1000 * metre + 11 * metre, 0, 1000 * metre];
     assert!(apply_message(r, net, 2, &position(far)).is_ok());
-    assert_eq!(place(own).bits(), far);
-    assert_eq!(glide_steps(own).get(), 0);
+    assert_eq!(place(&own_car()).map(f32::to_bits), far);
+    assert_eq!(own_car().glide_steps_left, 0);
     // Gear 9 is no gear: nothing is applied.
     let mut bad = position(near);
     bad[4 + 4 * 26..][..4].copy_from_slice(&9u32.to_le_bytes());
-    own.step_clock.set(5000);
-    glide_steps(own).set(0);
+    {
+        let mut own = r.shared.race_car_mut(2).expect("car 2");
+        own.step_clock = 5000;
+        own.glide_steps_left = 0;
+    }
     assert!(apply_message(r, net, 2, &bad).is_ok());
-    assert_eq!(glide_steps(own).get(), 0);
+    assert_eq!(own_car().glide_steps_left, 0);
     // An unknown tag and a player past the eighth change nothing.
     let before = bits(Kind::Inputs);
     assert!(apply_message(r, net, 2, &dwords(&[0x4D53_474B, 1, 2, 3, 4])).is_ok());
     assert!(apply_message(r, net, 8, &inputs).is_ok());
     assert_eq!(bits(Kind::Inputs), before);
     restore(&saved);
-    restore(&extra);
 }
 
 /// Guards the player record's 16 bytes (DirectPlay's player data): the head's eight bytes, the

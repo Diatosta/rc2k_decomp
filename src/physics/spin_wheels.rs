@@ -10,7 +10,7 @@ use crate::physics::figures::WHEEL_SPIN_SHARE;
 use crate::race::numbers_store::Numbers;
 
 /// The exact version, for `physics::car_physics_step`: the last turn added.
-pub(super) fn spin_wheels(car: &Car, numbers: &Numbers) -> u32 {
+pub(super) fn spin_wheels(car: &mut Car, numbers: &Numbers) -> u32 {
     let (wheel, dt, k65536, scale) = (
         WHEEL_SPIN_SHARE,
         numbers.step_time.get(),
@@ -18,12 +18,10 @@ pub(super) fn spin_wheels(car: &Car, numbers: &Numbers) -> u32 {
         &numbers.one_over_pi,
     );
     let mut last = 0;
-    for (speed, turn) in [
-        (&car.drive_speed_a, &car.driven_wheel_turns[0]),
-        (&car.drive_speed_b, &car.driven_wheel_turns[1]),
-    ] {
-        last = div_mul3_to_int(speed.get(), wheel, dt, k65536, scale) as u32;
-        turn.set(turn.get().wrapping_add(last));
+    let [turn_a, turn_b] = &mut car.driven_wheel_turns;
+    for (speed, turn) in [(car.drive_speed_a, turn_a), (car.drive_speed_b, turn_b)] {
+        last = div_mul3_to_int(speed, wheel, dt, k65536, scale) as u32;
+        *turn = turn.wrapping_add(last);
     }
     last
 }

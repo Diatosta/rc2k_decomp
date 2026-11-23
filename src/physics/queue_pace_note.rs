@@ -29,7 +29,7 @@ pub fn queue_pace_note(
     frame_work: &FrameWorkStore,
     work: &RaceWork,
     scene_clock: u32,
-    car: &Car,
+    car: &mut Car,
     checkpoint: u32,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
@@ -47,7 +47,7 @@ pub fn queue_pace_note(
         return Ok(());
     };
     let mut at = physics_store.pace().group_texts[group as usize];
-    crate::remote::pace_call(work.current_car.get(), checkpoint, group);
+    crate::remote::pace_call(work.current_car, checkpoint, group);
     loop {
         let byte = physics_store.pace().text[text_place(at)? as usize] as u32;
         match code(byte as u8) {

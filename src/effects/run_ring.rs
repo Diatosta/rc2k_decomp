@@ -53,25 +53,24 @@ fn entry_car(
 
 /// The place less the object's (the translation of the whole matrix) into `RingWork.away[0]` ..,
 /// turned by the object's matrix (`m`), |x| and |z| rounded into `RingWork.extent[0]` / `RingWork.extent[1]`.
-fn box_(
-    ring: &Ring,
-    en: &Entry,
-    whole: &crate::memory::plain_floats::PlainFloats<16>,
-    car: &CarEffects,
-) {
-    box_x87(en, &mut ring.work.borrow_mut(), &whole.bits(), car);
+fn box_(ring: &Ring, en: &Entry, whole: &[f32; 16], car: &CarEffects) {
+    box_x87(
+        en,
+        &mut ring.work.borrow_mut(),
+        &whole.map(f32::to_bits),
+        car,
+    );
 }
 
 /// The car's whole matrix (its block's); refused when there is none.
 fn whole_of(
     car: &CarEffects,
     effects: &crate::effects::owner::Effects,
-) -> Result<&'static crate::memory::plain_floats::PlainFloats<16>, BadInput> {
+) -> Result<[f32; 16], BadInput> {
     effects
         .car_parts()
         .ok()
-        .and_then(|blocks| blocks.of(car.whole_block.get()))
-        .map(|b| &b.whole_matrix)
+        .and_then(|blocks| blocks.of(car.whole_block.get()).map(|b| b.whole_matrix))
         .ok_or(BadInput("a ring entry without its object"))
 }
 
@@ -83,15 +82,10 @@ fn facing(ring: &Ring, car: &CarEffects, effects: &crate::effects::owner::Effect
 
 /// The place less the object's into `RingWork.away[0]` .., its length (kept, 80 bits, at `l`)
 /// less a constant into `RingWork.near`.
-fn pull_length(
-    ring: &Ring,
-    en: &Entry,
-    whole: &crate::memory::plain_floats::PlainFloats<16>,
-    length: &mut [u8; 10],
-) {
+fn pull_length(ring: &Ring, en: &Entry, whole: &[f32; 16], length: &mut [u8; 10]) {
     pull_length_x87(
         en,
-        &whole.bits(),
+        &whole.map(f32::to_bits),
         length,
         &mut ring.work.borrow_mut(),
         &ring.kinds,
@@ -226,7 +220,7 @@ fn on_object(
     effects: &crate::effects::owner::Effects,
 ) -> Result<[[u8; 10]; 3], Refused> {
     Ok({
-        let m = entry_car(en, effects)?.whole(effects.car_parts()?)?;
+        let m = &entry_car(en, effects)?.whole(&*effects.car_parts()?)?;
         [
             x87::add_80(en.place[0], matrix_float(m, 0x30)?),
             x87::add_80(en.place[1], matrix_float(m, 0x34)?),
@@ -359,7 +353,7 @@ fn outside_and_away(
 ) -> Result<bool, Refused> {
     Ok({
         let car = entry_car(en, effects)?;
-        box_(ring, en, whole_of(car, effects)?, car);
+        box_(ring, en, &whole_of(car, effects)?, car);
         let outside = (en.box_limit[0] as i32) < (ring.work.borrow().extent[0] as i32)
             || (en.box_limit[1] as i32) < (ring.work.borrow().extent[1] as i32);
         if !outside {
@@ -565,7 +559,7 @@ fn pull_toward(
     {
         let car = entry_car(en, effects)?;
         let mut length = [0u8; 10];
-        pull_length(ring, en, whole_of(car, effects)?, &mut length);
+        pull_length(ring, en, &whole_of(car, effects)?, &mut length);
         if ring.work.borrow().near.is_sign_negative() {
             return Ok(());
         }

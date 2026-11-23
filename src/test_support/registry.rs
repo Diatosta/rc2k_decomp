@@ -409,14 +409,12 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("owners.net.vars.chat", &o.net.vars.chat,),
         listed!("owners.net.vars.chat_line", &o.net.vars.chat_line,),
         listed!("owners.net.vars.chat_text", &o.net.vars.chat_text,),
-        listed!("owners.net.vars.receiver", &o.net.vars.receiver,),
         listed!("owners.net.vars.event", &o.net.vars.event,),
         listed!("owners.net.vars.stage_item", &o.net.vars.stage_item,),
         listed!("owners.net.vars.all_raced", &o.net.vars.all_raced,),
         listed!("owners.net.vars.race_over", &o.net.vars.race_over,),
         listed!("owners.net.vars.sync_first", &o.net.vars.sync_first,),
         listed!("owners.net.vars.synced", &o.net.vars.synced,),
-        listed!("owners.net.link", o.net.link.cells(),),
         listed!(
             "owners.net.main.settings.edit.edited",
             on_game(&o.net.main.get().settings.edit.edited),
@@ -751,14 +749,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             ),
         ),
         listed!(
-            "owners.race.shared.car_blocks",
-            on_game(o.race.shared.car_blocks.get()),
-        ),
-        listed!(
-            "owners.race.shared.car_parts",
-            on_game(o.race.shared.car_parts.get()),
-        ),
-        listed!(
             "owners.race.shared.replay_file.replays_on",
             on_game(&o.race.shared.replay_file().replays_on),
         ),
@@ -862,21 +852,10 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             "owners.race.course.grip_change",
             on_game(o.race.course.grip_change()),
         ),
-        listed!("owners.race.shared.tables", on_game(o.race.shared.tables()),),
-        listed!(
-            "owners.race.frame.view_and_records",
-            on_game(o.race.frame.view_and_records.get()),
-        ),
-        listed!(
-            "owners.race.shared.physics_tables",
-            on_game(o.race.shared.physics_tables.get()),
-        ),
         listed!(
             "owners.race.shared.vars.mud_scale_a",
             on_game(&o.race.shared.vars.get().mud_scale_a),
         ),
-        listed!("owners.race.shared.car", on_game(o.race.shared.car()),),
-        listed!("owners.race.shared.work", on_game(o.race.shared.work.get()),),
         listed!("owners.race.shared.state", &o.race.shared.state,),
         listed!(
             "owners.effects.masks.edge_settings.factor",

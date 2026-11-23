@@ -10,41 +10,38 @@
 //! puts back what it wrote).
 
 use crate::errors::{BadInput, Refused};
+use crate::physics::car_store::Car;
 use crate::physics::step_families::GroundInputs;
 use rc2k_core::physics::walls::WheelsOff;
 
 // Core: `rc2k_core::physics::walls::WheelsOff`.
-pub(super) fn feel_ground(c: &GroundInputs<'_>) -> Result<(), Refused> {
-    if c.car.probe_count.get() > rc2k_core::physics::walls::PROBE_ROOM {
+pub(super) fn feel_ground(c: &GroundInputs<'_>, car: &mut Car) -> Result<(), Refused> {
+    if car.probe_count > rc2k_core::physics::walls::PROBE_ROOM {
         return Err(BadInput("more than 0x40 probe points").into());
     }
-    crate::physics::note_surface_mode::note_surface_mode(c.car);
-    crate::physics::probe_ground::probe_ground(c, c.car)?;
+    crate::physics::note_surface_mode::note_surface_mode(car);
+    crate::physics::probe_ground::probe_ground(c, car)?;
     crate::physics::lowest_body_point::lowest_body_point(
-        c.car,
+        car,
         c.numbers,
         c.contact,
         &c.probes.borrow(),
     )?;
     let off = WheelsOff::of([
-        c.car.wheel_squeeze[0].bits(),
-        c.car.wheel_squeeze[1].bits(),
-        c.car.wheel_squeeze[2].bits(),
-        c.car.wheel_squeeze[3].bits(),
+        car.wheel_squeeze[0].to_bits(),
+        car.wheel_squeeze[1].to_bits(),
+        car.wheel_squeeze[2].to_bits(),
+        car.wheel_squeeze[3].to_bits(),
     ]);
-    c.car.front_wheels_off.set(u32::from(off.front));
-    c.car.rear_wheels_off.set(u32::from(off.back));
-    c.car.all_wheels_off.set(u32::from(off.all));
-    let driven = u32::from(off.driven(c.car.drive_kind.get()));
-    c.car.driven_wheels_off.set(driven);
+    car.front_wheels_off = u32::from(off.front);
+    car.rear_wheels_off = u32::from(off.back);
+    car.all_wheels_off = u32::from(off.all);
+    let driven = u32::from(off.driven(car.drive_kind));
+    car.driven_wheels_off = driven;
     if driven == 0 {
-        c.car.stuck_count.set(0);
+        car.stuck_count = 0;
     }
     // The face's word is not kept; the read still refuses a face outside the course.
-    crate::race::course_places::face_field::<u16>(
-        c.course.reads(),
-        c.car.probe_point_face[4].get(),
-        0x26,
-    )?;
+    crate::race::course_places::face_field::<u16>(c.course.reads(), car.probe_point_face[4], 0x26)?;
     Ok(())
 }

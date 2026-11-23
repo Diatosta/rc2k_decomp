@@ -23,7 +23,7 @@ pub fn car_input_words(
     let race_owner = race;
     let frame = &race.frame;
     use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};
-    let car = race_owner.shared.work.get().current_car.get();
+    let car = race_owner.shared.work().current_car;
     check_car(car)?;
     let mut device = frame.frame_work.borrow().listed_car_sounds[car as usize];
     // A replay that hears every car lists each by its own number, which names no device.
@@ -53,23 +53,24 @@ pub fn car_input_words(
         race_owner.shared.run_mut().input_words = HELD_WORDS;
     }
     if let Some(net_race) = net.race_slot.get() {
-        let block = race_owner
+        let mut block = race_owner
             .shared
-            .race_car_or(car as usize, "a car's block")?;
+            .race_car_or_mut(car as usize, "a car's block")?;
         // The kept throttle, key bits, steering and brake words.
+        let block = &mut *block;
         let kept = [
-            &block.kept_throttle_word,
-            &block.kept_keys_word,
-            &block.kept_steering_word,
-            &block.kept_brake_word,
+            &mut block.kept_throttle_word,
+            &mut block.kept_keys_word,
+            &mut block.kept_steering_word,
+            &mut block.kept_brake_word,
         ];
         for (k, at) in kept.into_iter().enumerate() {
             match replay_words(car, net_race.player) {
                 ReplayWords::FromBlock => {
-                    race_owner.shared.run_mut().input_words[k] = at.get();
+                    race_owner.shared.run_mut().input_words[k] = *at;
                 }
                 ReplayWords::IntoBlock => {
-                    at.set(race_owner.shared.run().input_words[k]);
+                    *at = race_owner.shared.run().input_words[k];
                 }
             }
         }

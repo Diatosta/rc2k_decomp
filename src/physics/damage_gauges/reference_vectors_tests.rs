@@ -26,12 +26,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().engine_damage;
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[0],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.engine_damage;
+                *g = add_product(dm(a[0]).gauge_rates[0], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -48,12 +45,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().exhaust_damage;
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[1],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.exhaust_damage;
+                *g = add_product(dm(a[0]).gauge_rates[1], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -70,12 +64,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().cooling_damage;
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[2],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.cooling_damage;
+                *g = add_product(dm(a[0]).gauge_rates[2], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -92,12 +83,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().clutch_damage;
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[3],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.clutch_damage;
+                *g = add_product(dm(a[0]).gauge_rates[3], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -114,15 +102,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .differential_damage;
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[4],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.differential_damage;
+                *g = add_product(dm(a[0]).gauge_rates[4], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -139,15 +121,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .electrics_damage;
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[5],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.electrics_damage;
+                *g = add_product(dm(a[0]).gauge_rates[5], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -164,16 +140,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(0);
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[6],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[0];
+                *g = add_product(dm(a[0]).gauge_rates[6], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -190,16 +159,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(1);
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[6],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[1];
+                *g = add_product(dm(a[0]).gauge_rates[6], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -216,16 +178,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(2);
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[6],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[2];
+                *g = add_product(dm(a[0]).gauge_rates[6], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -242,16 +197,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(3);
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[6],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[3];
+                *g = add_product(dm(a[0]).gauge_rates[6], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -268,16 +216,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(4);
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[6],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[4];
+                *g = add_product(dm(a[0]).gauge_rates[6], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -294,16 +235,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(5);
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[6],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[5];
+                *g = add_product(dm(a[0]).gauge_rates[6], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -320,15 +254,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .steering_damage;
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[7],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.steering_damage;
+                *g = add_product(dm(a[0]).gauge_rates[7], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -345,16 +273,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .suspension_damage
-                    .float_at(0);
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[8],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.suspension_damage[0];
+                *g = add_product(dm(a[0]).gauge_rates[8], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -371,16 +292,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .suspension_damage
-                    .float_at(1);
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[8],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.suspension_damage[1];
+                *g = add_product(dm(a[0]).gauge_rates[8], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -397,16 +311,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .suspension_damage
-                    .float_at(2);
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[8],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.suspension_damage[2];
+                *g = add_product(dm(a[0]).gauge_rates[8], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -423,16 +330,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .suspension_damage
-                    .float_at(3);
-                g.set(add_product(
-                    dm(a[0]).gauge_rates[8],
-                    dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.suspension_damage[3];
+                *g = add_product(dm(a[0]).gauge_rates[8], dm(a[0]).gauge_step, *g);
             },
         },
         Block {
@@ -454,14 +354,15 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().turbo_damage;
-                g.set(add_scaled_triple(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.turbo_damage;
+                *g = add_scaled_triple(
                     dm(a[0]),
                     dm(a[0]).wear_rates[11],
                     dm(a[0]).engine_over_limit,
                     dm(a[0]).engine_speed_share,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -486,11 +387,10 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                gear_wear_from_speed(
-                    dm(a[0]),
-                    view::<PlainFloat>(a[1], 0).get(),
-                    view::<PlainFloat>(a[2], 0),
-                );
+                let gauge = view::<PlainFloat>(a[2], 0);
+                let mut value = gauge.get();
+                gear_wear_from_speed(dm(a[0]), view::<PlainFloat>(a[1], 0).get(), &mut value);
+                gauge.set(value);
             },
         },
         Block {
@@ -511,7 +411,7 @@ fn blocks() -> Vec<Block> {
                 },
             ],
             ulps: 0,
-            plain: |a| brake_wear_step(race().shared.car(), dm(a[0])),
+            plain: |a| brake_wear_step(&mut race().shared.car_mut(), dm(a[0])),
         },
         Block {
             name: "damage_gauges line 254",
@@ -532,14 +432,15 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().brake_wear_b;
-                g.set(add_scaled_triple(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.brake_wear_b;
+                *g = add_scaled_triple(
                     dm(a[0]),
                     dm(a[0]).gauge_rates[9],
                     dm(a[0]).brake_balance_complement,
                     dm(a[0]).brake_share,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -560,16 +461,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .electrics_damage;
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.electrics_damage;
+                *g = add_triple_product(
                     dm(a[0]).gauge_rates[10],
                     dm(a[0]).on_surface_5,
                     dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -590,17 +489,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(0);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[0];
+                *g = add_triple_product(
                     dm(a[0]).gauge_rates[11],
                     dm(a[0]).on_surface_5,
                     dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -621,17 +517,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(1);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[1];
+                *g = add_triple_product(
                     dm(a[0]).gauge_rates[11],
                     dm(a[0]).on_surface_5,
                     dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -652,17 +545,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(2);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[2];
+                *g = add_triple_product(
                     dm(a[0]).gauge_rates[11],
                     dm(a[0]).on_surface_5,
                     dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -683,17 +573,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(3);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[3];
+                *g = add_triple_product(
                     dm(a[0]).gauge_rates[11],
                     dm(a[0]).on_surface_5,
                     dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -714,17 +601,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(4);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[4];
+                *g = add_triple_product(
                     dm(a[0]).gauge_rates[11],
                     dm(a[0]).on_surface_5,
                     dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -745,17 +629,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(5);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[5];
+                *g = add_triple_product(
                     dm(a[0]).gauge_rates[11],
                     dm(a[0]).on_surface_5,
                     dm(a[0]).gauge_step,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -816,17 +697,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .tyre_wears
-                    .float_at(0);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.tyre_wears[0];
+                *g = add_triple_product(
                     dm(a[0]).front_slip_wear_factor,
                     dm(a[0]).front_tyre_wear_rate,
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -847,17 +725,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .tyre_wears
-                    .float_at(1);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.tyre_wears[1];
+                *g = add_triple_product(
                     dm(a[0]).front_slip_wear_factor,
                     dm(a[0]).front_tyre_wear_rate,
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -878,17 +753,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .tyre_wears
-                    .float_at(2);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.tyre_wears[2];
+                *g = add_triple_product(
                     dm(a[0]).rear_slip_wear_factor,
                     dm(a[0]).rear_tyre_wear_rate,
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -909,17 +781,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .tyre_wears
-                    .float_at(3);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.tyre_wears[3];
+                *g = add_triple_product(
                     dm(a[0]).rear_slip_wear_factor,
                     dm(a[0]).rear_tyre_wear_rate,
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -940,13 +809,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().engine_damage;
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.engine_damage;
+                *g = add_triple_product(
                     dm(a[0]).engine_speed_wear_factor,
                     dm(a[0]).gauge_rates[13],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -967,13 +837,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().cooling_damage;
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.cooling_damage;
+                *g = add_triple_product(
                     dm(a[0]).engine_speed_wear_factor,
                     dm(a[0]).gauge_rates[12],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -989,7 +860,7 @@ fn blocks() -> Vec<Block> {
                 },
             ],
             ulps: 0,
-            plain: |a| engine_damage_carry(race().shared.car(), dm(a[1])),
+            plain: |a| engine_damage_carry(&mut race().shared.car_mut(), dm(a[1])),
         },
         Block {
             name: "damage_gauges line 443",
@@ -1009,13 +880,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().cooling_damage;
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.cooling_damage;
+                *g = add_triple_product(
                     dm(a[0]).overheat_excess,
                     dm(a[0]).gauge_rates[15],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1031,7 +903,7 @@ fn blocks() -> Vec<Block> {
                 },
             ],
             ulps: 0,
-            plain: |a| add_rate_to_clutch(race().shared.car(), dm(a[1]).gauge_rates[16]),
+            plain: |a| add_rate_to_clutch(&mut race().shared.car_mut(), dm(a[1]).gauge_rates[16]),
         },
         Block {
             name: "damage_gauges line 465",
@@ -1046,7 +918,7 @@ fn blocks() -> Vec<Block> {
                 },
             ],
             ulps: 0,
-            plain: |a| add_rate_to_clutch(race().shared.car(), dm(a[1]).gauge_rates[17]),
+            plain: |a| add_rate_to_clutch(&mut race().shared.car_mut(), dm(a[1]).gauge_rates[17]),
         },
         Block {
             name: "damage_gauges line 476",
@@ -1062,7 +934,10 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                add_rate_to_gauge(view::<PlainFloat>(a[0], 0), dm(a[1]).gauge_rates[18]);
+                let gauge = view::<PlainFloat>(a[0], 0);
+                let mut value = gauge.get();
+                add_rate_to_gauge(&mut value, dm(a[1]).gauge_rates[18]);
+                gauge.set(value);
             },
         },
         Block {
@@ -1079,7 +954,10 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                add_rate_to_gauge(view::<PlainFloat>(a[0], 0), dm(a[1]).gauge_rates[19]);
+                let gauge = view::<PlainFloat>(a[0], 0);
+                let mut value = gauge.get();
+                add_rate_to_gauge(&mut value, dm(a[1]).gauge_rates[19]);
+                gauge.set(value);
             },
         },
         Block {
@@ -1100,17 +978,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .wheel_hit_damage
-                    .float_at(0);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.wheel_hit_damage[0];
+                *g = add_triple_product(
                     dm(a[0]).roughness_wear_base,
                     dm(a[0]).wheel_roughness_rate,
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1131,17 +1006,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .wheel_hit_damage
-                    .float_at(1);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.wheel_hit_damage[1];
+                *g = add_triple_product(
                     dm(a[0]).roughness_wear_base,
                     dm(a[0]).wheel_roughness_rate,
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1162,17 +1034,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .wheel_hit_damage
-                    .float_at(2);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.wheel_hit_damage[2];
+                *g = add_triple_product(
                     dm(a[0]).roughness_wear_base,
                     dm(a[0]).wheel_roughness_rate,
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1193,17 +1062,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .wheel_hit_damage
-                    .float_at(3);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.wheel_hit_damage[3];
+                *g = add_triple_product(
                     dm(a[0]).roughness_wear_base,
                     dm(a[0]).wheel_roughness_rate,
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1224,17 +1090,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .suspension_damage
-                    .float_at(0);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.suspension_damage[0];
+                *g = add_triple_product(
                     dm(a[0]).suspension_roughness_wear,
                     dm(a[0]).figures[0],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1255,17 +1118,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .suspension_damage
-                    .float_at(1);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.suspension_damage[1];
+                *g = add_triple_product(
                     dm(a[0]).suspension_roughness_wear,
                     dm(a[0]).figures[0],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1286,17 +1146,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .suspension_damage
-                    .float_at(2);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.suspension_damage[2];
+                *g = add_triple_product(
                     dm(a[0]).suspension_roughness_wear,
                     dm(a[0]).figures[0],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1317,17 +1174,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .suspension_damage
-                    .float_at(3);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.suspension_damage[3];
+                *g = add_triple_product(
                     dm(a[0]).suspension_roughness_wear,
                     dm(a[0]).figures[0],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1348,16 +1202,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .body_hit_damage;
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.body_hit_damage;
+                *g = add_triple_product(
                     dm(a[0]).body_roughness_wear,
                     dm(a[0]).figures[1],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1378,16 +1230,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .steering_damage;
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.steering_damage;
+                *g = add_triple_product(
                     dm(a[0]).body_roughness_wear,
                     dm(a[0]).figures[2],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1408,13 +1258,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().engine_damage;
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.engine_damage;
+                *g = add_triple_product(
                     dm(a[0]).body_roughness_wear,
                     dm(a[0]).figures[3],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1435,13 +1286,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().exhaust_damage;
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.exhaust_damage;
+                *g = add_triple_product(
                     dm(a[0]).body_roughness_wear,
                     dm(a[0]).figures[4],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1462,17 +1314,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(0);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[0];
+                *g = add_triple_product(
                     dm(a[0]).body_roughness_wear,
                     dm(a[0]).figures[5],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1493,17 +1342,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(2);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[2];
+                *g = add_triple_product(
                     dm(a[0]).body_roughness_wear,
                     dm(a[0]).figures[5],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1524,17 +1370,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(3);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[3];
+                *g = add_triple_product(
                     dm(a[0]).body_roughness_wear,
                     dm(a[0]).figures[5],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1555,17 +1398,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(4);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[4];
+                *g = add_triple_product(
                     dm(a[0]).body_roughness_wear,
                     dm(a[0]).figures[5],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1586,17 +1426,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(5);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[5];
+                *g = add_triple_product(
                     dm(a[0]).body_roughness_wear,
                     dm(a[0]).figures[5],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1617,17 +1454,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(6);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[6];
+                *g = add_triple_product(
                     dm(a[0]).body_roughness_wear,
                     dm(a[0]).figures[5],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1648,17 +1482,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(7);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[7];
+                *g = add_triple_product(
                     dm(a[0]).body_roughness_wear,
                     dm(a[0]).figures[5],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1679,17 +1510,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(8);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[8];
+                *g = add_triple_product(
                     dm(a[0]).body_roughness_wear,
                     dm(a[0]).figures[5],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1710,16 +1538,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .differential_damage;
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.differential_damage;
+                *g = add_triple_product(
                     dm(a[0]).body_roughness_wear,
                     dm(a[0]).figures[6],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -1736,15 +1562,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .body_hit_damage;
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[13],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.body_hit_damage;
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[13], *g);
             },
         },
         Block {
@@ -1760,7 +1580,7 @@ fn blocks() -> Vec<Block> {
                 },
             ],
             ulps: 0,
-            plain: |a| scale_hit_size(race().shared.work.get(), dm(a[0])),
+            plain: |a| scale_hit_size(&race().shared.work(), dm(a[0])),
         },
         Block {
             name: "damage_gauges line 745",
@@ -1776,16 +1596,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(0);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[24],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[0];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[24], *g);
             },
         },
         Block {
@@ -1802,16 +1615,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(1);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[24],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[1];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[24], *g);
             },
         },
         Block {
@@ -1828,16 +1634,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(2);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[24],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[2];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[24], *g);
             },
         },
         Block {
@@ -1854,16 +1653,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(3);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[24],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[3];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[24], *g);
             },
         },
         Block {
@@ -1880,16 +1672,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(4);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[25],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[4];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[25], *g);
             },
         },
         Block {
@@ -1906,16 +1691,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(4);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[25],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[4];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[25], *g);
             },
         },
         Block {
@@ -1932,16 +1710,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(5);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[25],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[5];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[25], *g);
             },
         },
         Block {
@@ -1958,16 +1729,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .light_damage
-                    .float_at(5);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[25],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.light_damage[5];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[25], *g);
             },
         },
         Block {
@@ -1984,15 +1748,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .steering_damage;
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[23],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.steering_damage;
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[23], *g);
             },
         },
         Block {
@@ -2009,15 +1767,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .electrics_damage;
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[22],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.electrics_damage;
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[22], *g);
             },
         },
         Block {
@@ -2034,12 +1786,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().turbo_damage;
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[17],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.turbo_damage;
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[17], *g);
             },
         },
         Block {
@@ -2056,12 +1805,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().clutch_damage;
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[18],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.clutch_damage;
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[18], *g);
             },
         },
         Block {
@@ -2078,15 +1824,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .differential_damage;
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[19],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.differential_damage;
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[19], *g);
             },
         },
         Block {
@@ -2103,16 +1843,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(0);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[20],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[0];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[20], *g);
             },
         },
         Block {
@@ -2129,16 +1862,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(1);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[20],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[1];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[20], *g);
             },
         },
         Block {
@@ -2155,16 +1881,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(2);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[20],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[2];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[20], *g);
             },
         },
         Block {
@@ -2181,16 +1900,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(3);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[20],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[3];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[20], *g);
             },
         },
         Block {
@@ -2207,16 +1919,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(4);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[20],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[4];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[20], *g);
             },
         },
         Block {
@@ -2233,16 +1938,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(5);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[20],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[5];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[20], *g);
             },
         },
         Block {
@@ -2259,16 +1957,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(6);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[20],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[6];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[20], *g);
             },
         },
         Block {
@@ -2285,16 +1976,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(7);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[20],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[7];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[20], *g);
             },
         },
         Block {
@@ -2311,16 +1995,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .gear_wear
-                    .float_at(8);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[20],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.gear_wear[8];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[20], *g);
             },
         },
         Block {
@@ -2336,7 +2013,12 @@ fn blocks() -> Vec<Block> {
                 },
             ],
             ulps: 0,
-            plain: |a| add_hit_to_gear_gauge(dm(a[0]), view::<PlainFloat>(a[1], 0)),
+            plain: |a| {
+                let gauge = view::<PlainFloat>(a[1], 0);
+                let mut value = gauge.get();
+                add_hit_to_gear_gauge(dm(a[0]), &mut value);
+                gauge.set(value);
+            },
         },
         Block {
             name: "damage_gauges line 991",
@@ -2352,16 +2034,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .wheel_hit_damage
-                    .float_at(0);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[28],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.wheel_hit_damage[0];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[28], *g);
             },
         },
         Block {
@@ -2378,16 +2053,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .wheel_hit_damage
-                    .float_at(1);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[28],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.wheel_hit_damage[1];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[28], *g);
             },
         },
         Block {
@@ -2404,16 +2072,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .wheel_hit_damage
-                    .float_at(2);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[28],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.wheel_hit_damage[2];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[28], *g);
             },
         },
         Block {
@@ -2430,16 +2091,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .wheel_hit_damage
-                    .float_at(3);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[28],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.wheel_hit_damage[3];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[28], *g);
             },
         },
         Block {
@@ -2456,16 +2110,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .suspension_damage
-                    .float_at(0);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[30],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.suspension_damage[0];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[30], *g);
             },
         },
         Block {
@@ -2482,16 +2129,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .suspension_damage
-                    .float_at(1);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[30],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.suspension_damage[1];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[30], *g);
             },
         },
         Block {
@@ -2508,16 +2148,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .suspension_damage
-                    .float_at(2);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[30],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.suspension_damage[2];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[30], *g);
             },
         },
         Block {
@@ -2534,16 +2167,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .suspension_damage
-                    .float_at(3);
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[30],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.suspension_damage[3];
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[30], *g);
             },
         },
         Block {
@@ -2560,12 +2186,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().cooling_damage;
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[27],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.cooling_damage;
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[27], *g);
             },
         },
         Block {
@@ -2582,12 +2205,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().cooling_damage;
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[27],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.cooling_damage;
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[27], *g);
             },
         },
         Block {
@@ -2604,12 +2224,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().engine_damage;
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[26],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.engine_damage;
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[26], *g);
             },
         },
         Block {
@@ -2626,12 +2243,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().engine_damage;
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[26],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.engine_damage;
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[26], *g);
             },
         },
         Block {
@@ -2648,12 +2262,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().brake_wear_a;
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[29],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.brake_wear_a;
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[29], *g);
             },
         },
         Block {
@@ -2670,12 +2281,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().brake_wear_a;
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[29],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.brake_wear_a;
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[29], *g);
             },
         },
         Block {
@@ -2692,12 +2300,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().brake_wear_b;
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[29],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.brake_wear_b;
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[29], *g);
             },
         },
         Block {
@@ -2714,12 +2319,9 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().brake_wear_b;
-                g.set(add_product(
-                    dm(a[0]).hit_size,
-                    dm(a[0]).figures[29],
-                    g.get(),
-                ));
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.brake_wear_b;
+                *g = add_product(dm(a[0]).hit_size, dm(a[0]).figures[29], *g);
             },
         },
         Block {
@@ -2740,17 +2342,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .suspension_damage
-                    .float_at(0);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.suspension_damage[0];
+                *g = add_triple_product(
                     dm(a[0]).wheel_loads[0],
                     dm(a[0]).figures[14],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -2771,17 +2370,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .suspension_damage
-                    .float_at(1);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.suspension_damage[1];
+                *g = add_triple_product(
                     dm(a[0]).wheel_loads[1],
                     dm(a[0]).figures[14],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -2802,17 +2398,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .suspension_damage
-                    .float_at(2);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.suspension_damage[2];
+                *g = add_triple_product(
                     dm(a[0]).wheel_loads[2],
                     dm(a[0]).figures[14],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -2833,17 +2426,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .suspension_damage
-                    .float_at(3);
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.suspension_damage[3];
+                *g = add_triple_product(
                     dm(a[0]).wheel_loads[3],
                     dm(a[0]).figures[14],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -2864,13 +2454,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race().shared.car().exhaust_damage;
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.exhaust_damage;
+                *g = add_triple_product(
                     dm(a[0]).wheel_load_mean,
                     dm(a[0]).figures[15],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -2891,16 +2482,14 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                let g = &crate::test_support::own::race()
-                    .shared
-                    .car()
-                    .steering_damage;
-                g.set(add_triple_product(
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let g = &mut car.steering_damage;
+                *g = add_triple_product(
                     dm(a[0]).wheel_load_mean,
                     dm(a[0]).figures[16],
                     dm(a[0]).hundredth,
-                    g.get(),
-                ));
+                    *g,
+                );
             },
         },
         Block {
@@ -2965,7 +2554,7 @@ fn blocks() -> Vec<Block> {
                 },
             ],
             ulps: 0,
-            plain: |a| gauge_totals(race().shared.car(), dm(a[1])),
+            plain: |a| gauge_totals(&mut race().shared.car_mut(), dm(a[1])),
         },
     ]
 }

@@ -20,6 +20,7 @@
 //! The blocks are packed by runs and indexed as the first format's are, so the viewer's cutting,
 //! pasting and camera editing work on them unchanged.
 
+use crate::race::layouts;
 use crate::race::replay::HEADER_MAGIC;
 
 /// The header's first dword of a replay of this format, "RC2R".
@@ -646,18 +647,16 @@ impl Extension {
             .then(|| self.cars.iter().map(|c| c.kind).collect())
     }
 
-    /// How many players a split-screen replay shows at once (each in a part of the screen as in
-    /// the race): the players of a local split-screen race of three or four, else none. Cars
-    /// recorded by their states (another machine's) are not shown together.
+    /// How many players the first group of a split-screen replay shows at once (each in a part
+    /// of the screen as in the race): the players of a replay of three to eight, up to four, when
+    /// the players come first among the cars (the views show the cars of the same numbers, as in
+    /// the race); else none. Players on other machines (cars recorded by their motion) are shown
+    /// together too.
     pub fn split_players(&self) -> u32 {
         let players = self.player_cars();
-        let local = players
-            .iter()
-            .all(|&n| !self.cars[n].is_recorded_by_states());
-        // The views show the cars of the same numbers, as in the race: the players come first.
         let first = players.iter().enumerate().all(|(k, &n)| k == n);
-        if (3..=4).contains(&players.len()) && local && first {
-            players.len() as u32
+        if (layouts::GROUP_LEAST..=MAX_CARS).contains(&players.len()) && first {
+            players.len().min(layouts::GROUP_MOST) as u32
         } else {
             0
         }
@@ -674,48 +673,44 @@ impl Extension {
         self.player_cars().len() >= 2
     }
 
-    /// The layout after `old` in the cycle the viewer's car item goes through: each player alone
-    /// (`layout_of_player`), from two players on the first two together (2 side by side, 3 one
-    /// above the other), and after the single players, for a local split-screen race, all the
-    /// players as the race showed them (`SPLIT_LAYOUT`); never a computer car. Wraps to the first.
-    pub fn next_layout(&self, old: u8) -> u8 {
-        let players = self.player_cars().len() as u32;
-        let split = self.split_players() != 0;
-        let valid = |l: u32| {
-            (0..players).any(|k| layout_of_player(k) == l)
-                || (players >= 2 && (l == 2 || l == 3))
-                || (split && l == SPLIT_LAYOUT)
-        };
-        (u32::from(old) + 1..=SPLIT_LAYOUT)
-            .chain(0..=u32::from(old))
-            .find(|&l| valid(l))
-            .map_or(0, |l| l as u8)
+    /// What `layout` shows of this replay's players (`layouts::shown`); the groups only where
+    /// the players can be split (`split_players`).
+    pub fn shows(&self, layout: u8) -> Option<layouts::Shown> {
+        let shown = layouts::shown(layout, self.player_cars().len())?;
+        let group = matches!(shown, layouts::Shown::Group { .. });
+        (!group || self.split_players() != 0).then_some(shown)
     }
 
-    #[cfg(test)]
-    /// The car a layout's player is. The head byte of a block names the cars shown: 0 and 1 the
-    /// first and the second player alone, 2 and 3 both, and from 4 the third player on (4 the
-    /// third, 5 the fourth ... 9 the eighth), as the extra tape's replays name cars 2 and 3.
-    pub(crate) fn layout_player(&self, layout: u32) -> Option<usize> {
-        let player = match layout {
-            0 | 1 => layout as usize,
-            4..=9 => layout as usize - 2,
-            _ => return None,
-        };
-        self.player_cars().get(player).copied()
+    /// The layout after `old` in the cycle the viewer's car item goes through (`layouts::CYCLE`,
+    /// the layouts this replay shows): each player alone, for a replay of two players the two
+    /// together (2 side by side, 3 one above the other), and after the single players the first
+    /// group of players in each of its arrangements (10, 13, 14, 15), then the players after the
+    /// fourth: a pair side by side and one above the other when they are two (11, 12), a group in
+    /// each arrangement when they are three or four (11, 16, 17, 18); never a computer car. Wraps
+    /// to the first; a byte of no layout goes to the first.
+    pub fn next_layout(&self, old: u8) -> u8 {
+        let after = layouts::CYCLE
+            .iter()
+            .position(|&l| l == old)
+            .map_or(0, |at| at + 1);
+        let (before, rest) = layouts::CYCLE.split_at(after);
+        rest.iter()
+            .chain(before)
+            .copied()
+            .find(|&l| self.shows(l).is_some())
+            .unwrap_or(0)
     }
 }
 
-/// The head byte (layout) that shows every player of a local split-screen race at once, each in
-/// the part of the screen the race gave it.
-pub const SPLIT_LAYOUT: u32 = 10;
-/// `SPLIT_LAYOUT` as the head byte.
-pub const SPLIT_LAYOUT_BYTE: u8 = SPLIT_LAYOUT as u8;
+/// The head byte (layout) that shows the first group of players (every player of a local
+/// split-screen race of three or four) at once, each in a part of the screen, in the default
+/// arrangement (a race records the arrangement it is split in: `layouts::Shown::layout`).
+pub const SPLIT_LAYOUT: u32 = layouts::FIRST_GROUP as u32;
 
 /// The head byte (layout) that shows player `k` alone: 0 and 1 the first two players, then 4 on
 /// (the same numbers as the extra tape's replays use for the third and fourth car).
 pub fn layout_of_player(k: u32) -> u32 {
-    if k < 2 { k } else { k + 2 }
+    u32::from(layouts::layout_of_player(k as usize))
 }
 
 fn parse_rivals(body: &[u8]) -> Option<Vec<Rival>> {
@@ -1138,11 +1133,15 @@ mod tests {
                 entry(4, flag::PLAYER, "E"),
             ],
         };
-        assert_eq!(ext.layout_player(0), Some(1));
-        assert_eq!(ext.layout_player(1), Some(3));
-        assert_eq!(ext.layout_player(4), Some(4));
-        assert_eq!(ext.layout_player(5), None);
-        // Three players: each alone, then the first two together, round and round.
+        // The players are cars 1, 3 and 4 (a layout names the player, not the car); three
+        // players have the layouts of the first three alone, not a fourth's.
+        assert_eq!(ext.player_cars(), [1, 3, 4]);
+        assert_eq!(ext.shows(0), Some(layouts::Shown::Player(0)));
+        assert_eq!(ext.shows(1), Some(layouts::Shown::Player(1)));
+        assert_eq!(ext.shows(4), Some(layouts::Shown::Player(2)));
+        assert_eq!(ext.shows(5), None);
+        // Three players who are not the first cars: each alone, round and round (no group, as
+        // the views show cars by number, and from three players no pair either).
         let three = Extension {
             rivals: None,
             league: None,
@@ -1159,14 +1158,13 @@ mod tests {
             l = three.next_layout(l);
             seen.push(l);
         }
-        assert_eq!(seen, [0, 1, 2, 3, 4, 0]);
+        assert_eq!(seen, [0, 1, 4, 0, 1, 4]);
         assert_eq!(ext.next_layout(0), 1);
         assert!(three.layouts_choosable());
         assert_eq!(
             (0..8).map(layout_of_player).collect::<Vec<_>>(),
             [0, 1, 4, 5, 6, 7, 8, 9]
         );
-        assert_eq!(ext.layout_player(2), None);
         assert!(!ext.old_format_holds() || ext.player_cars().len() <= 2);
     }
 
@@ -1183,25 +1181,107 @@ mod tests {
         let four = local(4, 2);
         assert_eq!(four.split_players(), 4);
         assert_eq!(local(3, 0).split_players(), 3);
-        // Two players, or players on other machines, have no such layout.
+        // Two players have no such layout; players on other machines have it too.
         assert_eq!(local(2, 3).split_players(), 0);
         let mut net = local(3, 1);
         net.cars[1].flags = flag::PLAYER | flag::STATES;
+        assert_eq!(net.split_players(), 3);
+        // Players that are not the first cars cannot be split (the views show cars by number).
+        net.cars.swap(0, 3);
         assert_eq!(net.split_players(), 0);
+        net.cars.swap(0, 3);
         let mut l = 0u8;
         let mut seen = vec![l];
         for _ in 0..8 {
             l = four.next_layout(l);
             seen.push(l);
         }
-        assert_eq!(seen, [0, 1, 2, 3, 4, 5, 10, 0, 1]);
+        // The first two together only in the group, with the third and fourth: in each of the
+        // group's three arrangements, the default first.
+        assert_eq!(seen, [0, 1, 4, 5, 10, 13, 14, 0, 1]);
         assert_eq!(four.next_layout(5), SPLIT_LAYOUT as u8);
+        // Three players: the group in four arrangements.
+        let three = local(3, 0);
+        let mut l = 0u8;
+        let mut seen = vec![l];
+        for _ in 0..7 {
+            l = three.next_layout(l);
+            seen.push(l);
+        }
+        assert_eq!(seen, [0, 1, 4, 10, 13, 14, 15, 0]);
+        // A byte of no layout goes to the first; one of a layout this replay has not (the fourth
+        // arrangement, three players' only) to the next it has.
+        assert_eq!(four.next_layout(0xFF), 0);
+        assert_eq!(four.next_layout(15), 0);
+        assert_eq!(three.next_layout(2), 4);
         // Every car of a replay of more than two that the first format's format cannot hold is
         // heard; one it holds sounds as before.
         assert_eq!(four.heard_kinds().map(|k| k.len()), Some(6));
         assert_eq!(local(2, 3).heard_kinds(), None);
         assert!(net.heard_kinds().is_some());
         assert_eq!(local(2, 0).heard_kinds(), None);
+    }
+
+    #[test]
+    fn five_to_eight_players_have_a_second_split() {
+        let players = |n: usize| Extension {
+            rivals: None,
+            league: None,
+            cars: (0..n)
+                .map(|k| entry(k as u32, flag::PLAYER | flag::STATES, "p"))
+                .collect(),
+        };
+        let cycle = |ext: &Extension| {
+            let mut l = 0u8;
+            let mut seen = vec![l];
+            loop {
+                l = ext.next_layout(l);
+                if l == 0 {
+                    return seen;
+                }
+                seen.push(l);
+            }
+        };
+        // Five: the singles and the first group of four in its three arrangements (the fifth has
+        // nobody to split with; the first two are together only in the group); six: also the
+        // fifth and sixth as a pair, side by side (11) and stacked (12); seven: a group of three
+        // in its four arrangements (11, 16, 17, 18); eight: of four in its three.
+        let first_four = [10, 13, 14];
+        let singles = |n: u8| (0..n).map(|k| if k < 2 { k } else { k + 2 });
+        let expected = |n: u8, second: &[u8]| -> Vec<u8> {
+            singles(n)
+                .chain(first_four)
+                .chain(second.iter().copied())
+                .collect()
+        };
+        assert_eq!(cycle(&players(5)), expected(5, &[]));
+        assert_eq!(cycle(&players(6)), expected(6, &[11, 12]));
+        assert_eq!(cycle(&players(7)), expected(7, &[11, 16, 17, 18]));
+        assert_eq!(cycle(&players(8)), expected(8, &[11, 16, 17]));
+        use crate::race::view::Split;
+        let group = |first, count, split| {
+            Some(layouts::Shown::Group {
+                first,
+                count,
+                split,
+            })
+        };
+        assert_eq!(players(8).shows(11), group(4, 4, Split::Quarters));
+        assert_eq!(players(8).shows(17), group(4, 4, Split::Columns));
+        assert_eq!(players(7).shows(11), group(4, 3, Split::WideTop));
+        assert_eq!(players(7).shows(18), group(4, 3, Split::Quarters));
+        assert_eq!(players(5).shows(14), group(0, 4, Split::Columns));
+        assert_eq!(
+            players(6).shows(12),
+            Some(layouts::Shown::Pair {
+                first: 4,
+                stacked: true
+            })
+        );
+        assert_eq!(players(5).shows(11), None);
+        assert_eq!(players(7).shows(12), None);
+        // Two players: just the singles and the pair.
+        assert_eq!(cycle(&players(2)), [0, 1, 2, 3]);
     }
 
     /// A block of `len` bytes with runs and noise in it, as a block's are.

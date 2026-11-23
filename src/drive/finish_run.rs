@@ -13,18 +13,20 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
+use crate::memory::plain_floats::FloatRow;
+use crate::memory::plain_floats::FloatRowMut;
 use crate::physics::flow::c0;
 use crate::race::owner::Race;
 
 /// The car's lift: `CarBlocks.cars[0].position[1]` += `car_lift` x `k65536`.
 fn lift_car(race: &Race, k65536: crate::memory::session::ConstFloat) {
-    race.car_blocks().cars[0].position.set_bits_at(
-        1,
-        to_int(
-            ld(race.replay.finish().car_lift) * ld(k65536.get())
-                + int(race.car_blocks().cars[0].position.bits_at(1) as i32),
-        ) as u32,
-    );
+    let lifted = to_int(
+        ld(race.replay.finish().car_lift) * ld(k65536.get())
+            + int(race.car_blocks().cars[0].position.bits_at(1) as i32),
+    ) as u32;
+    race.car_blocks_mut().cars[0]
+        .position
+        .set_bits_at(1, lifted);
 }
 
 pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
@@ -54,12 +56,13 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
         if pressed(1) || pressed(0x1C) || input.pad_pressed_since(pad_at_start) {
             break;
         }
-        race.car_blocks().cars[0].camera_view.set(6);
+        race.car_blocks_mut().cars[0].camera_view = 6;
         crate::race::frame_views::load_first_car(&race.shared)?;
-        crate::drive::finish_camera::finish_camera(race.frame.view_and_records.get(), &race.replay);
+        crate::drive::finish_camera::finish_camera(&race.frame.view_and_records, &race.replay);
         crate::physics::camera_frame::camera_frame(
             &crate::physics::step_inputs::StepInputs::of(race).camera(),
             scene,
+            &mut race.shared.car_mut(),
         )?;
         crate::drive::store_first_car::store_first_car(&race.shared)?;
         race_frame(race, o)?;

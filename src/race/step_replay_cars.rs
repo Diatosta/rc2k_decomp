@@ -22,23 +22,21 @@ pub fn step_replay_cars(o: crate::owners::Owners<'static>, race: &Race) -> Resul
     };
     check_replay_cars(shared.view.get().race_cars.get())?;
     choose_shown_cars::choose_shown_cars_in(race, o.net)?;
-    shared.work.get().current_car.set(0);
+    shared.work_mut().current_car = 0;
     loop {
         car_input_words::car_input_words(race, input, o.net)?;
         play_inputs::play_inputs(race)?;
-        shared.work.get().work_block.set(
-            shared
-                .work
-                .get()
-                .car_block(car_block(shared.work.get().current_car.get()) as usize),
-        );
+        let block = shared
+            .work()
+            .car_block(car_block(shared.work().current_car) as usize);
+        shared.work_mut().work_block = block;
         load_car::load_car(shared)?;
-        if car_runs(shared.car().driver_kind.get()) {
+        if car_runs(shared.car().driver_kind) {
             for step in RUN_STEPS {
                 match step {
                     RunStep::Controls => read_car_controls::read_car_controls(race, scene, o.net)?,
                     RunStep::GearRules => crate::physics::gear_input_rules::gear_input_rules(
-                        race.shared.car(),
+                        &mut race.shared.car_mut(),
                         &mut race.shared.run_mut().gear_inputs,
                         race.shared.vars.get(),
                     ),
@@ -52,17 +50,14 @@ pub fn step_replay_cars(o: crate::owners::Owners<'static>, race: &Race) -> Resul
                     }
                 }
             }
-            for clock in [&shared.car().step_clock, &shared.car().run_ticks] {
-                clock.set(clock.get().wrapping_add(1));
-            }
+            let mut car = shared.car_mut();
+            car.step_clock = car.step_clock.wrapping_add(1);
+            car.run_ticks = car.run_ticks.wrapping_add(1);
         }
         store_car::store_car(shared)?;
         replay_v2_step::after_step(race)?;
-        let (next, done) = next_car(
-            shared.work.get().current_car.get(),
-            shared.view.get().race_cars.get(),
-        );
-        shared.work.get().current_car.set(next);
+        let (next, done) = next_car(shared.work().current_car, shared.view.get().race_cars.get());
+        shared.work_mut().current_car = next;
         if done {
             break;
         }

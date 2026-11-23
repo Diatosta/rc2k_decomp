@@ -22,53 +22,40 @@ use crate::race::numbers_store::Numbers;
 /// The exact version, for `physics::car_physics_step` and `physics::acceleration_figures`: the gear count.
 pub(super) fn make_gear_ratios(
     car: &Car,
-    tables: &PhysicsTables,
+    tables: &mut PhysicsTables,
     numbers: &Numbers,
     gear_figures: &GearFigures,
 ) -> Result<u32, Refused> {
-    let n = tables.gear_count.get();
+    let n = tables.gear_count;
     if n > 7 {
         return Err(BadInput("a gear count above 7 (past g_gearRatios)").into());
     }
     // Gear `g`'s ratio (reverse, -1, first).
-    let ratio = |g: i32| &tables.gear_ratios[(g + 1) as usize];
+    let at = |g: i32| (g + 1) as usize;
+    let ratios = &mut tables.gear_ratios;
     let figures = &gear_figures.figures;
     let (k, d) = (&numbers.quarter, &numbers.two_and_a_quarter);
     let one = numbers.one.get();
-    let i = car.gear_ratio_setting.get() as i32;
-    let limit = car.engine_speed_limit.get();
+    let i = car.gear_ratio_setting as i32;
+    let limit = car.engine_speed_limit;
     let top = n as i32;
-    ratio(top).set(lerp_int_over2(
-        figures[3].get(),
-        figures[1].get(),
-        k,
-        i,
-        d,
-        limit,
-    ));
-    ratio(1).set(lerp_int_over2(
-        figures[2].get(),
-        figures[0].get(),
-        k,
-        i,
-        d,
-        limit,
-    ));
-    let step = gear_step_80(ratio(top).get(), ratio(1).get(), top, one);
-    let mut acc = extended(ratio(1).get());
+    ratios[at(top)] = lerp_int_over2(figures[3].get(), figures[1].get(), k, i, d, limit);
+    ratios[at(1)] = lerp_int_over2(figures[2].get(), figures[0].get(), k, i, d, limit);
+    let step = gear_step_80(ratios[at(top)], ratios[at(1)], top, one);
+    let mut acc = extended(ratios[at(1)]);
     for gear in 2..=5 {
         acc = ext_add(acc, step);
-        ratio(gear).set(rounded_value(acc));
+        ratios[at(gear)] = rounded_value(acc);
     }
     if n > 5 {
         acc = ext_add(acc, step);
     }
-    ratio(6).set(rounded_value(acc));
+    ratios[at(6)] = rounded_value(acc);
     if n > 6 {
         acc = ext_add(acc, step);
     }
-    ratio(7).set(rounded_value(acc));
-    ratio(-1).set(x87::negated(ratio(1).get()));
-    ratio(0).set(x87::loaded(GEAR_RATIO_STEP));
+    ratios[at(7)] = rounded_value(acc);
+    ratios[at(-1)] = x87::negated(ratios[at(1)]);
+    ratios[at(0)] = x87::loaded(GEAR_RATIO_STEP);
     Ok(n)
 }

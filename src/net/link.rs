@@ -13,7 +13,6 @@ use crate::net::tables::NetTables;
 use std::sync::Mutex;
 
 /// The link's cells, shared with the receiving thread.
-#[derive(rc2k_derive::Cells)]
 pub struct LinkCells {
     /// The network's memory list (`memory::List`, 16 bytes) the tables are counted on.
     memory: [Dword; 4],
@@ -63,11 +62,6 @@ impl Link {
             tables: Owned::new("no network lists"),
             elements: Mutex::new(Vec::new()),
         }
-    }
-
-    /// The cells, for the state capture of the tests.
-    pub fn cells(&self) -> &LinkCells {
-        &self.cells
     }
 
     // ---- the DirectPlay objects ----

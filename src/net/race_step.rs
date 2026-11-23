@@ -13,14 +13,11 @@ pub fn race_step(race: &Race, net: &Net) -> Result<(), Refused> {
     if !net.race_slot.is_on() {
         return Ok(());
     }
-    if race.shared.work.get().current_car.get() == net.race_slot.player() {
+    if race.shared.work().current_car == net.race_slot.player() {
         send_turn::send_turn(race, net)?;
         crate::net::progress::send(race, net);
         apply_received::apply_received(race, net)
-    } else if net
-        .race_slot
-        .is_bot(race.shared.work.get().current_car.get())
-        && net.vars.own.state().is_host()
+    } else if net.race_slot.is_bot(race.shared.work().current_car) && net.vars.own.state().is_host()
     {
         // The host's computer driver: its state goes to the others.
         crate::net::send_bot_turn::send_bot_turn(race, net)

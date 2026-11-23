@@ -3,7 +3,7 @@
 //! `turn_by_inverse` and `turn_by_car_matrix`) taking and returning values: the contact work's
 //! vectors go through these.
 
-use crate::math::cells::{Cells, load};
+use crate::math::cells::{Words, load};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
 use crate::math::x87_float::{ld, st};
@@ -47,13 +47,13 @@ pub fn negate(v: [u32; 3]) -> [u32; 3] {
 }
 
 /// The point `v` turned and placed by the matrix `m`, each part stored as a float.
-pub fn turn(m: &(impl Cells + ?Sized), v: [u32; 3]) -> [u32; 3] {
+pub fn turn(m: &(impl Words + ?Sized), v: [u32; 3]) -> [u32; 3] {
     let point = v.map(extended);
     rotate_point(m, point).map(|e| rounded_value(e).to_bits())
 }
 
 /// The first three cells' bits.
-pub fn bits_of(cells: &(impl Cells + ?Sized)) -> [u32; 3] {
+pub fn bits_of(cells: &(impl Words + ?Sized)) -> [u32; 3] {
     load(cells)
 }
 

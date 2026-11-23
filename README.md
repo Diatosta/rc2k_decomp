@@ -30,9 +30,8 @@ replays and save files. Where the original had bugs, they are fixed (see below).
 - The whole game: menus, every stage, single rallies, championships, the arcade mode,
   split screen, replays, pace notes, the intro films, 3D sound, controllers.
 - Network play, standalone to standalone, over TCP/IP or through Steam (lobbies, friends'
-  invites, no ports to open; needs Valve's Steam library beside the program (from [the Steamworks SDK](https://partner.steamgames.com/downloads/list),
-  free with a Steam account, folder `redistributable_bin`) and the Steam
-  client running: see the wiki's Network play page). The original's DirectPlay is replaced by a
+  invites, no ports to open; needs one file from Valve beside the program, see
+  [Playing over Steam](#playing-over-steam) below, and the Steam client running). The original's DirectPlay is replaced by a
   protocol of our own, so it does not play against the original program.
 - The installer and uninstaller, working from the files of the CD (or of a download of
   it).
@@ -154,6 +153,24 @@ program into the folder that holds `files` and `var` and start it there.
 
 On macOS the application is signed ad hoc and not notarised, so the first start may have
 to be allowed in the system's security settings.
+
+### Playing over Steam
+
+Network play through Steam needs Valve's Steam library in the same folder as the game's
+program (`rc2k` or `rc2k.exe`). Download the one file for your system (no sign-in needed) and
+put it there:
+
+| System | File to download |
+| --- | --- |
+| Linux | [libsteam_api.so](https://raw.githubusercontent.com/Noxime/steamworks-rs/v0.13.0/steamworks-sys/lib/steam/redistributable_bin/linux64/libsteam_api.so) |
+| Windows (64-bit, the usual build) | [steam_api64.dll](https://raw.githubusercontent.com/Noxime/steamworks-rs/v0.13.0/steamworks-sys/lib/steam/redistributable_bin/win64/steam_api64.dll) |
+| Windows (32-bit build) | [steam_api.dll](https://raw.githubusercontent.com/Noxime/steamworks-rs/v0.13.0/steamworks-sys/lib/steam/redistributable_bin/steam_api.dll) |
+| macOS | [libsteam_api.dylib](https://raw.githubusercontent.com/Noxime/steamworks-rs/v0.13.0/steamworks-sys/lib/steam/redistributable_bin/osx/libsteam_api.dylib) |
+
+Use these links rather than a newer copy: they are the version the game is written for. (They
+come from the `steamworks-rs` project's copy of Valve's Steamworks SDK, release 0.13.0; the same
+files are in the SDK's `redistributable_bin` folder.) The Steam client must be running and
+signed in. See the wiki's Network play page for the rest.
 
 ### Steam Deck
 

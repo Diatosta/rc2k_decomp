@@ -197,12 +197,44 @@ pub struct ViewerState {
     pub camera: u8,
     /// The replay has one player and a single car (its view cannot be changed).
     pub one_player: bool,
+    /// How many camera buttons the layout has (`layouts::Shown::camera_buttons`): the first two
+    /// always, the third and the fourth only for a split of that many parts.
+    pub camera_buttons: usize,
+}
+
+/// The items of the panel's two rows (the original's list).
+pub const ROW_ITEMS: u32 = 26;
+/// The panel's items: the two rows' and, after them, the camera buttons of the third and the
+/// fourth part of a split screen (drawn on either side of the render button).
+pub const ITEMS: u32 = ROW_ITEMS + 2;
+/// The item of each camera button: the first and second are in the lower row (at its left end
+/// and its right end), the third and fourth the two items after the rows.
+pub const CAMERA_ITEMS: [u32; 4] = [0xD, 0x19, ROW_ITEMS, ROW_ITEMS + 1];
+/// The action of Enter on the third and the fourth camera button (the rows' items do the
+/// action of their own number; 0x1A and 0x1B, the numbers after them, are keys' actions).
+const EXTRA_CAMERA_ACTIONS: [u32; 2] = [0x29, 0x2A];
+
+/// The action Enter does on list item `item`; none for a number past the panel's items.
+pub fn item_action(item: u32) -> Option<u32> {
+    match item.checked_sub(ROW_ITEMS) {
+        None => Some(item),
+        Some(extra) => EXTRA_CAMERA_ACTIONS.get(extra as usize).copied(),
+    }
+}
+
+/// Whether an item with marks `flags` is drawn: every item of the rows is; the camera buttons
+/// after them only when the layout has the part (an absent one is marked `ABSENT`).
+pub fn item_drawn(item: u32, flags: u8) -> bool {
+    item < ROW_ITEMS || flags & ABSENT == 0
 }
 
 /// The item's bit for "greyed".
 pub(crate) const GREY: u8 = 0x80;
-/// The item's bit for "ticked".
+/// The item's bit for "ticked": it cannot be chosen but looks as it does.
 pub(crate) const TICK: u8 = 0x40;
+/// The mark of a camera button after the rows whose part the layout does not have: the item
+/// cannot be chosen (the same bit as a ticked one) and is not drawn.
+pub(crate) const ABSENT: u8 = TICK;
 
 /// The items marked (item, bit), in menu order.
 pub fn item_marks(s: &ViewerState) -> Vec<(u32, u8)> {
@@ -231,9 +263,9 @@ pub fn item_marks(s: &ViewerState) -> Vec<(u32, u8)> {
     if s.blocks == 0 {
         marks.extend((0..=0x11).chain(0x15..=0x19).map(|i| (i, GREY)));
     }
-    // The first car alone, or (a replay with the extra tape) the third or fourth alone: the
-    // second camera's items are not for them.
-    if matches!(s.camera, 0 | 4 | 5) {
+    // The first car alone, or (a replay with the extra tape) one of the third to the eighth
+    // alone: the second camera's items are not for them.
+    if matches!(s.camera, 0 | 4..=9) {
         marks.extend([(0x18, GREY), (0x19, GREY)]);
     }
     if s.camera == 1 {
@@ -241,6 +273,15 @@ pub fn item_marks(s: &ViewerState) -> Vec<(u32, u8)> {
     }
     if s.one_player {
         marks.push((0xF, GREY));
+    }
+    // The camera buttons of the parts a layout has are greyed where the first two are (nothing
+    // to edit past the last block or with no blocks); those it has not are absent.
+    for (button, &item) in CAMERA_ITEMS.iter().enumerate().skip(2) {
+        if button >= s.camera_buttons {
+            marks.push((item, ABSENT));
+        } else if s.block == s.blocks || s.blocks == 0 {
+            marks.push((item, GREY));
+        }
     }
     marks
 }
@@ -367,7 +408,8 @@ pub enum Action {
     Flip {
         byte: u32,
     },
-    /// 0xD, 0x19: camera 1 / 2 edited.
+    /// 0xD, 0x19, 0x29, 0x2A: camera 1 / 2 / 3 / 4 edited (the third and fourth only where a layout
+    /// splits the screen between that many parts).
     Edit {
         camera: u32,
     },
@@ -443,6 +485,8 @@ impl Action {
             0x25..=0x28 => Pictures {
                 time: [0, 0xA0, 0x50, 0x28][code as usize - 0x25],
             },
+            0x29 => Edit { camera: 3 },
+            0x2A => Edit { camera: 4 },
             _ => return None,
         })
     }
@@ -536,28 +580,6 @@ pub fn views_choosable(one_player: bool, cars: u32) -> bool {
     !one_player || cars >= 2
 }
 
-/// The head byte of the camera of the car a layout shows alone (4 for the third car, 5 for the
-/// fourth), or the first camera byte (`first`) for the other layouts.
-pub fn shown_camera_byte(layout: u8, first: u32) -> u32 {
-    match layout {
-        4 => 6,
-        5 => 7,
-        _ => first,
-    }
-}
-
-/// The picture the car item shows for a layout: the pictures are the first car alone (0), the
-/// second alone (1) and the two together (2 side by side, 3 one above the other). A further
-/// player alone shows the single car's, and every player of a split screen the two together; a
-/// byte that is no layout is left as it is (the picture table then refuses it).
-pub fn layout_picture(layout: u8) -> u32 {
-    match layout {
-        4..=9 => 0,
-        crate::race::replay_v2::SPLIT_LAYOUT_BYTE => 2,
-        other => u32::from(other),
-    }
-}
-
 /// A camera byte one on: byte 5 (the view) past 3 back to 2, byte 4 past 2 back to 0 (signed
 /// bytes). `whole_cycle` (a one-player replay's view: 0 the first car, 1 the second, 2 and 3 both
 /// side by side or above each other) takes byte 5 back to 0 instead.
@@ -629,14 +651,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_layout_has_a_picture() {
-        assert_eq!(
-            (0..=11).map(layout_picture).collect::<Vec<_>>(),
-            [0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 2, 11]
-        );
-    }
-
-    #[test]
     fn files_and_steps() {
         assert_eq!(ReplayFile::of(0xDE), ReplayFile::LastRace);
         assert_eq!(ReplayFile::of(99), ReplayFile::Saved(99));
@@ -699,7 +713,9 @@ mod tests {
 
     #[test]
     fn actions() {
-        assert_eq!(Action::of(0x29), None);
+        assert_eq!(Action::of(0x29), Some(Action::Edit { camera: 3 }));
+        assert_eq!(Action::of(0x2A), Some(Action::Edit { camera: 4 }));
+        assert_eq!(Action::of(0x2B), None);
         assert_eq!(Action::of(0x26), Some(Action::Pictures { time: 0xA0 }));
         assert_eq!(Action::of(9), Some(Action::Goto(Goto::On(10))));
         let var = |v: Var| match v {
@@ -739,14 +755,6 @@ mod tests {
         assert_eq!(
             [2u8, 3, 4, 5].map(|b| next_byte(5, b, false, 2)),
             [3, 4, 5, 2]
-        );
-        assert_eq!(
-            [
-                shown_camera_byte(4, 0),
-                shown_camera_byte(5, 1),
-                shown_camera_byte(1, 1)
-            ],
-            [6, 7, 1]
         );
         assert!(views_choosable(false, 1) && views_choosable(true, 2));
         assert!(!views_choosable(true, 1));
@@ -806,8 +814,10 @@ mod tests {
             undo_blocks: 1,
             camera: 2,
             one_player: false,
+            camera_buttons: 2,
         };
-        assert_eq!(item_marks(&s), [(0x14, TICK)]);
+        // Only the original's marks, and the two camera buttons a pair has no part for absent.
+        assert_eq!(item_marks(&s), [(0x14, TICK), (26, ABSENT), (27, ABSENT)]);
         let m = item_marks(&ViewerState {
             blocks: 0,
             block: 0,
@@ -816,6 +826,39 @@ mod tests {
         });
         assert!(m.contains(&(0x16, GREY)) && m.contains(&(0xD, GREY)));
         assert!(!m.contains(&(0x14, GREY)));
+        // A group of three: the third camera button is there (greyed past the last block), the
+        // fourth absent; a group of four has both.
+        let three = ViewerState {
+            camera: 10,
+            camera_buttons: 3,
+            ..s
+        };
+        assert_eq!(item_marks(&three), [(0x14, TICK), (27, ABSENT)]);
+        let end = item_marks(&ViewerState {
+            block: 9,
+            camera_buttons: 4,
+            ..three
+        });
+        assert!(end.contains(&(26, GREY)) && end.contains(&(27, GREY)));
+        assert!(
+            !end.iter()
+                .any(|&(item, bit)| item >= ROW_ITEMS && bit == ABSENT)
+        );
+        // A further car alone has no second camera; the first car's alone neither.
+        for camera in [0, 4, 6, 9] {
+            let m = item_marks(&ViewerState { camera, ..s });
+            assert!(
+                m.contains(&(0x19, GREY)) && m.contains(&(0x18, GREY)),
+                "{camera}"
+            );
+        }
+        // The items past the rows act as the camera buttons of the parts; the rows' items do
+        // the action of their number.
+        assert_eq!(
+            (0..=ITEMS).map(item_action).collect::<Vec<_>>()[ROW_ITEMS as usize - 1..],
+            [Some(0x19), Some(0x29), Some(0x2A), None]
+        );
+        assert!(item_drawn(5, ABSENT) && item_drawn(26, 0) && !item_drawn(27, ABSENT));
         assert_eq!(snapshot_number(|k| b"042"[k]), Some(42));
         assert_eq!(step_camera(0x2E, true, true, |_| unreachable!()), Ok(0));
         // By sign: 0x80 is not past the last.

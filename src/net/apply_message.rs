@@ -10,9 +10,6 @@
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
-use crate::memory::plain_floats::PlainFloats;
-use crate::memory::session::Cell32;
-use crate::memory::session::PlainDword;
 use crate::net::owner::Net;
 use crate::net::send_inputs::fields;
 use crate::physics::car_store::Car;
@@ -24,18 +21,23 @@ use rc2k_core::net::race::{self, Arrival, Kind};
 const TEXT: &std::ffi::CStr = c"rcvd fm plyr";
 
 /// A car's place (`position`).
-pub fn place(car: &Car) -> &PlainFloats<3> {
+pub fn place(car: &Car) -> &[f32; 3] {
     &car.position
 }
 
+/// A car's place, to write.
+pub fn place_mut(car: &mut Car) -> &mut [f32; 3] {
+    &mut car.position
+}
+
 /// Where a place received goes, to be glided to (`glide_target`).
-pub fn wanted(car: &Car) -> &PlainFloats<3> {
+pub fn wanted(car: &Car) -> &[f32; 3] {
     &car.glide_target
 }
 
-/// The glide's steps left.
-pub(super) fn glide_steps(car: &Car) -> &PlainDword {
-    &car.glide_steps_left
+/// Where a place received goes, to write.
+pub fn wanted_mut(car: &mut Car) -> &mut [f32; 3] {
+    &mut car.glide_target
 }
 
 /// A message no car could send, told once in the log.
@@ -73,32 +75,38 @@ pub fn apply_message(race: &Race, net: &Net, player: u32, message: &[u8]) -> Res
         note_unbelievable(player);
         return Ok(());
     }
-    let car = race.shared.race_car(player as usize)?;
+    let mut car = race.shared.race_car_mut(player as usize)?;
     for (n, (&(field, _), &value)) in table.iter().zip(&values).enumerate() {
         // The place received goes where the car is to be.
         if kind == Kind::Position && n < 3 {
-            wanted(car).set_bits_at(n, value);
+            wanted_mut(&mut car)[n] = f32::from_bits(value);
         } else {
-            field(car).set_bits(value);
+            field(&mut car).set_bits(value);
         }
     }
     if kind != Kind::Position {
         return Ok(());
     }
-    let (wanted_place, now) = (wanted(car).bits(), place(car).bits());
-    let steps = car.step_clock.get();
+    let wanted_place = bits3(wanted(&car));
+    let now = bits3(place(&car));
+    let steps = car.step_clock;
     match race::arrival(wanted_place, now, steps, race::SNAP_FROM) {
         Arrival::Jump => {
-            place(car).set_bits(wanted_place);
+            *place_mut(&mut car) = wanted_place.map(f32::from_bits);
             // The glide target now holds a place, not a step: a glide under way ends.
-            glide_steps(car).set(0);
+            car.glide_steps_left = 0;
         }
         Arrival::Glide(step) => {
-            wanted(car).set_bits(step);
-            glide_steps(car).set(race::GLIDE);
+            *wanted_mut(&mut car) = step.map(f32::from_bits);
+            car.glide_steps_left = race::GLIDE;
         }
     }
     Ok(())
+}
+
+/// The bits of a place's three floats.
+fn bits3(place: &[f32; 3]) -> [u32; 3] {
+    place.map(f32::to_bits)
 }
 
 #[cfg(test)]
@@ -108,12 +116,16 @@ mod tests {
     /// The places sit where the core's constants put them in the car's block.
     #[test]
     fn the_places_sit_where_the_offsets_were() {
-        let car = crate::test_support::own::race().shared.car();
-        let at = |addr: usize| crate::physics::car_offsets_1999::offset_1999(car, addr) as u32;
-        let of = |cell: &dyn crate::memory::session::Cell32| core::ptr::from_ref(cell).addr();
-        assert_eq!(at(place(car).cell_at(0).addr()), 0x134);
-        assert_eq!(at(wanted(car).cell_at(0).addr()), 0xFC0);
-        assert_eq!(at(of(glide_steps(car))), 0xFCC);
-        assert_eq!(at(of(&car.step_clock)), 8);
+        use crate::physics::car_offsets_1999::offset_changed_by;
+        assert_eq!(
+            offset_changed_by(|c| place_mut(c)[0] = f32::from_bits(1)),
+            0x134
+        );
+        assert_eq!(
+            offset_changed_by(|c| wanted_mut(c)[0] = f32::from_bits(1)),
+            0xFC0
+        );
+        assert_eq!(offset_changed_by(|c| c.glide_steps_left = 1), 0xFCC);
+        assert_eq!(offset_changed_by(|c| c.step_clock = 1), 8);
     }
 }

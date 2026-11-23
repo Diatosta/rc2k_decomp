@@ -11,43 +11,35 @@ use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 
 /// One compare and copy of floats: the same at any precision.
 // Core: `rc2k_core::physics::motion::count_down`.
-pub(super) fn count_down_timers(car: &Car, vars: &RaceVars) {
+pub(super) fn count_down_timers(car: &mut Car, vars: &RaceVars) {
     let mut c = StepCounters {
-        first: [car.light_hold_steps.get(), car.value_jump_steps.get()],
-        standing: car.stopped_steps.get(),
-        running: car.tyre_change_state.get(),
-        later: [
-            car.wall_hit_timer.get(),
-            car.drive_cut_steps.get(),
-            car.hit_cooldown.get(),
-        ],
-        highest: car.top_speed.get(),
+        first: [car.light_hold_steps, car.value_jump_steps],
+        standing: car.stopped_steps,
+        running: car.tyre_change_state,
+        later: [car.wall_hit_timer, car.drive_cut_steps, car.hit_cooldown],
+        highest: car.top_speed,
     };
     let facts = StepFacts {
-        steps: car.run_ticks.get(),
-        switches: [
-            car.finish_flag.get(),
-            car.go_stand_timer.get(),
-            car.started_stand_timer.get(),
-        ],
+        steps: car.run_ticks,
+        switches: [car.finish_flag, car.go_stand_timer, car.started_stand_timer],
         mode: vars.run_kind.get(),
-        bits: car.parts_present.get(),
-        gear: car.gear.get(),
-        figure: car.engine_speed_scaled.get(),
+        bits: car.parts_present,
+        gear: car.gear,
+        figure: car.engine_speed_scaled,
     };
     count_down(&mut c, &facts);
     for (cell, x) in [
-        (&car.light_hold_steps, c.first[0]),
-        (&car.value_jump_steps, c.first[1]),
-        (&car.stopped_steps, c.standing),
-        (&car.tyre_change_state, c.running),
-        (&car.wall_hit_timer, c.later[0]),
-        (&car.drive_cut_steps, c.later[1]),
-        (&car.hit_cooldown, c.later[2]),
+        (&mut car.light_hold_steps, c.first[0]),
+        (&mut car.value_jump_steps, c.first[1]),
+        (&mut car.stopped_steps, c.standing),
+        (&mut car.tyre_change_state, c.running),
+        (&mut car.wall_hit_timer, c.later[0]),
+        (&mut car.drive_cut_steps, c.later[1]),
+        (&mut car.hit_cooldown, c.later[2]),
     ] {
-        if cell.get() != x {
-            cell.set(x);
+        if *cell != x {
+            *cell = x;
         }
     }
-    car.top_speed.set(c.highest);
+    car.top_speed = c.highest;
 }

@@ -29,7 +29,7 @@ pub const UNSET_BINDING: usize = 9;
 /// controls (`PlayerControls`) the last 0x6C of them): copies of fields of the player's record
 /// (`Player`), in the record's order less the words the race does not take. Only the game's
 /// thread reaches it. Field docs name the record's field.
-#[derive(rc2k_derive::Cells)]
+#[cfg_attr(test, derive(rc2k_derive::Cells))]
 pub struct RaceCarOwn {
     /// `Player.tyre`.
     pub tyre: PlainDword,
@@ -79,7 +79,7 @@ pub struct RaceCarOwn {
 /// player's controller none when it is the first's (`input::device_command`), so they are atomic
 /// cells beside the game thread's own part.
 #[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells)]
+#[cfg_attr(test, derive(rc2k_derive::Cells))]
 pub struct PlayerControls {
     /// `Player.controller`.
     pub controller: Dword,
@@ -117,7 +117,7 @@ impl PlayerControls {
 
 /// One player's settings as the race variables keep them: the game thread's own fields and the
 /// controls both threads reach. The own fields read through the record (`car.tyre`).
-#[derive(rc2k_derive::Cells)]
+#[cfg_attr(test, derive(rc2k_derive::Cells))]
 pub struct RaceCar {
     /// The fields only the game's thread reaches.
     pub own: GameThread<RaceCarOwn>,
@@ -134,7 +134,7 @@ impl core::ops::Deref for RaceCar {
 
 /// A car's result as the race leaves it.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[cfg_attr(test, derive(rc2k_derive::Cells))]
 pub struct RaceResult {
     /// The car's time.
     pub time: PlainDword,
@@ -189,7 +189,7 @@ impl RaceResult {
 
 /// The first twenty words of the race's settings: the mode, the stage, the direction and the
 /// options, which only the game's thread reaches.
-#[derive(rc2k_derive::Cells)]
+#[cfg_attr(test, derive(rc2k_derive::Cells))]
 pub struct SettingsHead {
     /// 1 in the A8 game, the new simulation unlocked (`menu::apply_cheats`).
     pub a8_game: PlainDword,
@@ -262,7 +262,7 @@ impl SettingsHead {
 /// The race's settings as the front end keeps them ("Graham's" variables, which
 /// `race::copy_settings_in` copies to the race's ("Shaun's")): the mode, the stage, the direction,
 /// the two players' settings. The head's fields read through the record (`settings.stage`).
-#[derive(rc2k_derive::Cells)]
+#[cfg_attr(test, derive(rc2k_derive::Cells))]
 pub struct RaceSettings {
     /// The mode, the stage, the direction and the options.
     pub inline: GameThread<SettingsHead>,
@@ -279,7 +279,7 @@ impl core::ops::Deref for RaceSettings {
 }
 
 /// The race's results.
-#[derive(rc2k_derive::Cells)]
+#[cfg_attr(test, derive(rc2k_derive::Cells))]
 pub struct RaceResults {
     /// The arcade race's stage (Shaun's `RaceVars.race_stage`).
     pub race_stage: PlainDword,
@@ -319,7 +319,7 @@ pub struct RaceResults {
 /// The third and fourth players' of a split screen of more than two: their settings, car kinds,
 /// results and the words the first two players' sides keep in `RaceResults`. Kept apart from the
 /// first two players' so that theirs stay as the game laid them out.
-#[derive(rc2k_derive::Cells)]
+#[cfg_attr(test, derive(rc2k_derive::Cells))]
 pub struct RaceMore {
     pub car_kinds: [PlainDword; 2],
     pub results: [RaceResult; 2],
@@ -329,7 +329,7 @@ pub struct RaceMore {
 }
 
 /// The race's settings and results.
-#[derive(rc2k_derive::Cells)]
+#[cfg_attr(test, derive(rc2k_derive::Cells))]
 pub struct RaceState {
     /// The race's settings as the front end keeps them ("Graham's" variables).
     pub settings: RaceSettings,

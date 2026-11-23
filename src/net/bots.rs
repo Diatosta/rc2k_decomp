@@ -90,9 +90,9 @@ pub fn make_drivers(
         place_like_arcade(race, scene, players, count)?;
     }
     for k in 0..count {
-        let car = &race.car_blocks().cars[(players + k) as usize];
-        car.driver_kind.set(2);
-        car.start_share.set(bots::pace_share(k));
+        let car = &mut race.car_blocks_mut().cars[(players + k) as usize];
+        car.driver_kind = 2;
+        car.start_share = bots::pace_share(k);
     }
     Ok(())
 }
@@ -108,7 +108,7 @@ fn place_like_arcade(
     let shared = &race.shared;
     let checkpoints: Vec<u32> = race.car_blocks().cars[..players as usize]
         .iter()
-        .map(|car| car.checkpoint.get())
+        .map(|car| car.checkpoint)
         .collect();
     let places = bots::arcade_places(
         &checkpoints,
@@ -118,22 +118,24 @@ fn place_like_arcade(
     );
     let c = crate::physics::step_inputs::StepInputs::of(race).reset();
     for (k, place) in places.into_iter().enumerate() {
-        shared.work.get().current_car.set(players + k as u32);
+        shared.work_mut().current_car = players + k as u32;
         crate::drive::load_car::load_car(shared)?;
         scene.line_and_shake_mut().line_place = place;
         scene.line_and_shake_mut().line_fraction = 0;
         crate::race::start_place::place_car_on_line(shared, &race.course, scene)?;
         let nearest =
             crate::race::start_place::nearest_checkpoint(c.physics, c.course, shared, scene)?;
-        let car = shared.car();
-        for cell in [&car.checkpoint, &car.reset_checkpoint, &car.last_pace_call] {
-            cell.set(nearest);
-        }
         let checks = rc2k_core::race::start::start_checks(
             crate::race::checkpoints_store::check_count(shared.checkpoints(), nearest as usize),
         );
-        car.splits_passed.set(checks);
-        car.splits_recorded.set(checks);
+        {
+            let mut car = shared.car_mut();
+            car.checkpoint = nearest;
+            car.reset_checkpoint = nearest;
+            car.last_pace_call = nearest;
+            car.splits_passed = checks;
+            car.splits_recorded = checks;
+        }
         crate::race::car_starts::reset_car_motion(&c, scene)?;
         crate::drive::store_car::store_car(shared)?;
     }

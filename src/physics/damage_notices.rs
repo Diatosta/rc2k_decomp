@@ -10,15 +10,18 @@
 
 use crate::errors::Refused;
 use crate::math::x87::from_int;
-use crate::memory::session::Run;
+use crate::memory::plain_run::PlainRun;
 use crate::physics::car_store::Car;
 use crate::physics::queue_notice::queue_notice;
 use crate::physics::store::DamageModel;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 
+/// The gauges `brake_heat` .. `tyre_wear` take in a row in the car's record.
+const GAUGES: usize = 47;
+
 /// `brake_heat` .. `tyre_wear`: the gauges, 47 dwords in a row in the car's record.
 fn gauge(car: &Car, mut k: usize) -> u32 {
-    let groups: [&dyn Run; 24] = [
+    let groups: [&dyn PlainRun; 24] = [
         &car.brake_heat,
         &car.engine_heat,
         &car.engine_damage,
@@ -57,23 +60,25 @@ fn gauge(car: &Car, mut k: usize) -> u32 {
 }
 
 // Core: `rc2k_core::physics::damage_notices::damage_notices`.
-fn steps(car: &Car, damage: &mut DamageModel) -> Result<(), Refused> {
-    let mut levels: [u32; LEVELS] = std::array::from_fn(|k| car.damage_levels[k].get());
+fn steps(car: &mut Car, damage: &mut DamageModel) -> Result<(), Refused> {
+    let mut levels: [u32; LEVELS] = std::array::from_fn(|k| car.damage_levels[k]);
+    // The gauges as they are now: the notices queued below change none of them.
+    let gauges: Vec<u32> = (0..GAUGES).map(|k| gauge(car, k)).collect();
     let result = damage_notices_core(
         &mut levels,
-        |k| f32::from_bits(gauge(car, k)),
+        |k| f32::from_bits(gauges[k]),
         |t| {
             damage.scratch = from_int(t);
         },
-        |q| queue_notice(car, q.notice, q.rank, gauge(car, q.gauge)),
+        |q| queue_notice(car, q.notice, q.rank, gauges[q.gauge]),
     );
     for (k, &v) in levels.iter().enumerate() {
-        car.damage_levels[k].set(v);
+        car.damage_levels[k] = v;
     }
     result
 }
 
-pub fn damage_notices(car: &Car, damage: &mut DamageModel) -> Result<(), Refused> {
+pub fn damage_notices(car: &mut Car, damage: &mut DamageModel) -> Result<(), Refused> {
     steps(car, damage)
 }
 
@@ -82,11 +87,8 @@ mod gauge_tests {
     /// Each gauge is the dword its number says, from `brake_heat` on.
     #[test]
     fn the_gauges_are_in_a_row() {
-        let shared_store = &crate::test_support::own::race().shared;
-
-        let car = shared_store.car();
-        let at = |cell: *const u8| crate::physics::car_offsets_1999::offset_1999(car, cell.addr());
-        let first = at(car.brake_heat.cell_at(0).addr() as *const u8);
-        assert_eq!(at((&raw const car.tyre_wear).cast()), first + 46 * 4);
+        use crate::physics::car_offsets_1999::offset_changed_by;
+        let first = offset_changed_by(|c| c.brake_heat[0] = 1.0);
+        assert_eq!(offset_changed_by(|c| c.tyre_wear = 1.0), first + 46 * 4);
     }
 }

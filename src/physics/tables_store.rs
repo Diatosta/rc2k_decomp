@@ -3,213 +3,208 @@
 //! constants are `race::numbers_store::Numbers`; the race clock and the recorded input words are
 //! in `physics::run_store`). Most names are readings from the code's uses.
 
-use crate::memory::cells::ZeroCells;
-use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
 use crate::physics::figures;
 
 /// A kind of ground (0x30 bytes, `PhysicsTables.surfaces[0].table`): what `physics::wheel_surfaces`
 /// blends between for each point, and `physics::apply_patches` patches (readings).
 #[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(Clone, Default, rc2k_derive::PlainRecord)]
 pub struct Surface {
     /// Where its table starts in `figures::SURFACE_TABLES`, as a dword's number (a multiple of 13).
-    pub table: PlainDword,
+    pub table: u32,
     /// Slide grip (`patchslidegrip`).
-    pub slide_grip: PlainFloat,
+    pub slide_grip: f32,
     /// Acceleration grip (`patchaccelgrip`).
-    pub accel_grip: PlainFloat,
+    pub accel_grip: f32,
     /// Brake grip (`patchbrakegrip`).
-    pub brake_grip: PlainFloat,
+    pub brake_grip: f32,
     /// How much mud the surface lets the wheels throw. Blended per point into `surface_blends`; the
     /// centre point's go to `mud_scale_a` ([0] -> throws, scaled by the drive speed; [1] ->
     /// splashes, scaled by the slip; `physics::accumulate_mud`). Probable.
-    pub mud_rates: [PlainFloat; 2],
+    pub mud_rates: [f32; 2],
     /// No code reads or writes it (data only); kept so the record keeps its 0x30 bytes, as the
     /// recorded vectors lay it out.
-    pub reserved_18: [PlainDword; 2],
+    pub reserved_18: [u32; 2],
     /// The drag (10.0 on two grasses, `patchstickygrass`).
-    pub drag: PlainFloat,
+    pub drag: f32,
     /// The speed over the ground above which the rolling drag applies (the centre point's blend is
     /// `wheel_drag[1]`, compared in `drive_wheels_step::speed_over_ground`).
-    pub rolling_drag_min_speed: PlainFloat,
+    pub rolling_drag_min_speed: f32,
     /// The grip blended into `point_grips`.
-    pub grip: PlainFloat,
+    pub grip: f32,
     /// How much a hit on this ground wears the car: blended per point into the car's
     /// `point_wear_factor`; the centre point's multiplies the hit figures of the damage model
     /// (`damage_wear::hit_figures`). Probable.
-    pub wear_factor: PlainFloat,
+    pub wear_factor: f32,
 }
 
 /// A force on the car (0x20 bytes): `physics::apply_force` takes it, the step clears its
 /// first six dwords (`physics::clear_records`).
 #[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(Clone, Default, rc2k_derive::PlainRecord)]
 pub struct ForceRecord {
     /// The force.
-    pub force: [PlainFloat; 3],
+    pub force: [f32; 3],
     /// Where it acts.
-    pub point: [PlainFloat; 3],
+    pub point: [f32; 3],
 }
 
 #[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(Clone, Default, rc2k_derive::PlainRecord)]
 pub struct PhysicsTables {
     /// 0.7 (`physics::update_camera`, the car's shadow).
-    pub camera_drop: PlainFloat,
+    pub camera_drop: f32,
     /// 10: the contact steps' limit (`figures::CONTACT_STEPS`, the same value).
-    pub contact_steps: PlainDword,
+    pub contact_steps: u32,
     /// The ground kinds' records (`physics::wheel_surfaces`; twelve patched by
     /// `physics::apply_patches`).
     pub surfaces: [Surface; 16],
     /// 2.0 (`physics::hold_spin_on_ground`).
-    pub ground_spin_limit: PlainFloat,
+    pub ground_spin_limit: f32,
     /// 0x76C, 0x640, 0x384, scaled into `spec_ints` (`physics::load_car_specs`).
-    pub spec_default_bc0: [PlainDword; 3],
+    pub spec_default_bc0: [u32; 3],
     /// 3000.0 then one more, by spec (`physics::load_car_specs`, by drive kind 0 .. 2: kind 2 reads
     /// the next field, `camera_drop`: a slip kept as is).
-    pub rev_limits: [PlainFloat; 2],
+    pub rev_limits: [f32; 2],
     /// 9.8 (`physics::apply_patches`).
-    pub gravity: PlainFloat,
+    pub gravity: f32,
     /// The motion kept by `physics::keep_motion`.
-    pub kept_motion: [PlainFloat; 3],
+    pub kept_motion: [f32; 3],
     /// `physics::stall_when_still`'s.
-    pub stall_figure: PlainFloat,
+    pub stall_figure: f32,
     /// Two shares held to 0 .. 1 and their blend (`physics::drive_wheels_step`).
-    pub drive_shares: [PlainFloat; 3],
+    pub drive_shares: [f32; 3],
     /// The gear ratios from gear -1 (reverse) to 7 (`physics::make_gear_ratios`).
-    pub gear_ratios: [PlainFloat; 9],
+    pub gear_ratios: [f32; 9],
     /// The engine's lowest speed (`physics::load_car_specs`).
-    pub idle_engine_speed: PlainFloat,
+    pub idle_engine_speed: f32,
     /// The idle speed + a step, the drop to neutral below it.
-    pub stall_engine_speed: PlainFloat,
+    pub stall_engine_speed: f32,
     /// The motion's limit (`physics::limit_motion`).
-    pub top_speed: PlainFloat,
+    pub top_speed: f32,
     /// The engine's highest speed.
-    pub rev_limit: PlainFloat,
+    pub rev_limit: f32,
     /// The face `physics::find_clear_place` logs.
-    pub clear_place_face: PlainDword,
+    pub clear_place_face: u32,
     /// The two surfaces' scales by tyre kind (`physics::wheel_surfaces`).
-    pub surface_scales: [PlainFloat; 2],
+    pub surface_scales: [f32; 2],
     /// The car's vertical speed kept (`physics::car_physics_step`).
-    pub vertical_speed: PlainFloat,
+    pub vertical_speed: f32,
     /// `physics::pick_start_gear`'s: 100, 0, the engine speed it began with.
-    pub start_gear_figures: [PlainFloat; 3],
+    pub start_gear_figures: [f32; 3],
     /// Steps since a contact (`physics::car_physics_step`, `physics::apply_contact_torques`).
-    pub contact_step: PlainDword,
+    pub contact_step: u32,
     /// 1 for each point on hard ground (`physics::wheel_surfaces`).
-    pub hard_ground: [PlainDword; 5],
+    pub hard_ground: [u32; 5],
     /// `physics::drive_grip_forces`' integer.
-    pub grip_drive_word: PlainInt,
+    pub grip_drive_word: i32,
     /// (`physics::cap_drive_speed`).
-    pub drive_speed_figure: PlainFloat,
+    pub drive_speed_figure: f32,
     /// The `noautoneutral` setting.
-    pub no_auto_neutral: PlainDword,
+    pub no_auto_neutral: u32,
     /// The car's weight factor (`physics::race_timers`, `physics::set_wheel_weights`).
-    pub weight: PlainFloat,
+    pub weight: f32,
     /// (`physics::set_downforce`).
-    pub downforce: PlainFloat,
+    pub downforce: f32,
     /// The two axles' pushes (`physics::drive_wheels_step`, `physics::wheel_springs`).
-    pub wheel_spin_push: [PlainFloat; 2],
+    pub wheel_spin_push: [f32; 2],
     /// The car's place saved (`physics::restore_saved_car`).
-    pub saved_place: [PlainDword; 3],
+    pub saved_place: [u32; 3],
     /// The car's matrix saved.
-    pub saved_matrix: [PlainFloat; 16],
+    pub saved_matrix: [f32; 16],
     /// (`physics::drive_wheels_step`).
-    pub wheel_speed_step: PlainFloat,
+    pub wheel_speed_step: f32,
     /// (`physics::wheel_surfaces`).
-    pub surface_softness: PlainFloat,
+    pub surface_softness: f32,
     /// (`physics::drive_wheels_step`).
-    pub drive_limits: [PlainFloat; 3],
+    pub drive_limits: [f32; 3],
     /// (`physics::drive_grip_forces`).
-    pub grip_limit: PlainFloat,
+    pub grip_limit: f32,
     /// (`physics::drive_wheels_step`).
-    pub slip_limit: PlainFloat,
+    pub slip_limit: f32,
     /// The four wheel loads' sum x `wheel_load_scale`.
-    pub wheel_load: PlainFloat,
+    pub wheel_load: f32,
     /// The pitch and roll steps of a car settling (`race::car_starts`).
-    pub settle_steps: [PlainDword; 2],
+    pub settle_steps: [u32; 2],
     /// The five points' loads (`physics::wheel_surfaces` writes all five; `physics::crash_contact`
     /// reads the fifth).
-    pub wheel_loads: [PlainFloat; 5],
+    pub wheel_loads: [f32; 5],
     /// The five points' grips.
-    pub wheel_grips: [PlainFloat; 5],
+    pub wheel_grips: [f32; 5],
     /// The five points' second figures.
-    pub wheel_grips_b: [PlainFloat; 5],
+    pub wheel_grips_b: [f32; 5],
     /// The five points' grips blended (`physics::wheel_surfaces`).
-    pub point_grips: [PlainFloat; 5],
+    pub point_grips: [f32; 5],
     /// Four of the surface records' figures blended for the five points.
-    pub surface_blends: [PlainFloat; 20],
+    pub surface_blends: [f32; 20],
     /// The first surface of each point (`physics::wheel_surfaces`).
-    pub surface_firsts: [PlainDword; 5],
+    pub surface_firsts: [u32; 5],
     /// The second surface of each point.
-    pub surface_seconds: [PlainDword; 5],
+    pub surface_seconds: [u32; 5],
     /// `physics::find_clear_place`'s count, 0 when clear.
-    pub clear_place_count: PlainDword,
+    pub clear_place_count: u32,
     /// (`physics::drive_force`, `physics::free_rev`).
-    pub drive_ratio: PlainFloat,
+    pub drive_ratio: f32,
     /// (`physics::engine_torque`).
-    pub engine_torque: PlainFloat,
+    pub engine_torque: f32,
     /// The engine's torque, 0 when cut.
-    pub engine_force: PlainFloat,
+    pub engine_force: f32,
     /// (`physics::drive_force`).
-    pub drive_torque: PlainFloat,
+    pub drive_torque: f32,
     /// (`physics::drive_torque_share`).
-    pub torque_share: PlainFloat,
+    pub torque_share: f32,
     /// (`physics::ease_low_speed_forces`).
-    pub low_speed_share: PlainFloat,
+    pub low_speed_share: f32,
     /// (`physics::drive_wheels_step`).
-    pub wheel_drag: [PlainFloat; 2],
+    pub wheel_drag: [f32; 2],
     /// Held to 0 .. 1 (`physics::drive_grip_forces`, `physics::lever_push`).
-    pub lever_share: PlainFloat,
+    pub lever_share: f32,
     /// The spec's downforce figure (`physics::load_car_specs`).
-    pub downforce_spec: PlainDword,
+    pub downforce_spec: u32,
     /// Force records (0x20: a force, a point): 0..3 the wheels' weights, then springs, drive and
     /// grip (`physics::clear_forces`).
     pub forces: [ForceRecord; 23],
     /// The contacts' force records (`physics::clear_contacts`).
     pub contacts: [ForceRecord; 7],
     /// (`physics::drive_grip_forces`).
-    pub grip_scale: PlainFloat,
+    pub grip_scale: f32,
     /// (`physics::drive_grip_forces`).
-    pub side_grip_scale: PlainFloat,
+    pub side_grip_scale: f32,
     /// The spec's torque curve (`physics::load_car_specs`, `physics::engine_torque`).
-    pub spec_torque: [PlainDword; 9],
+    pub spec_torque: [u32; 9],
     /// The spec's grip (`physics::drive_grip_forces`).
-    pub spec_grip: PlainFloat,
+    pub spec_grip: f32,
     /// The spec's wheel figure (`physics::drive_wheels_step`).
-    pub spec_wheel: PlainFloat,
+    pub spec_wheel: f32,
     /// (`physics::drive_wheels_step`).
-    pub spec_drive: [PlainFloat; 2],
+    pub spec_drive: [f32; 2],
     /// The spec's surface figures (`physics::wheel_surfaces`).
-    pub spec_surface: [PlainFloat; 3],
+    pub spec_surface: [f32; 3],
     /// The spec's whole figures, scaled (`physics::load_car_specs`).
-    pub spec_ints: [PlainDword; 3],
+    pub spec_ints: [u32; 3],
     /// The motion and spin kept (`physics::keep_motion_vectors`).
-    pub kept_vectors: [PlainFloat; 8],
+    pub kept_vectors: [f32; 8],
     /// `physics::set_handling`'s figures, by the set-up.
-    pub handling: [PlainFloat; 9],
+    pub handling: [f32; 9],
     /// Forward gears.
-    pub gear_count: PlainDword,
+    pub gear_count: u32,
     /// The spec's ride-height scale for the handling.
-    pub ride_height_handling_scale: PlainDword,
+    pub ride_height_handling_scale: u32,
     /// (`physics::drive_wheels_step`).
-    pub axle_slip_limits: [PlainFloat; 2],
+    pub axle_slip_limits: [f32; 2],
     /// The gear asked for (`physics::take_asked_gear`).
-    pub gear_asked: PlainInt,
+    pub gear_asked: i32,
     /// (`physics::reset_car`).
-    pub reset_offset: PlainDword,
+    pub reset_offset: u32,
     /// The checkpoint tried (`physics::reset_point_blocked`).
-    pub reset_candidate: PlainDword,
+    pub reset_candidate: u32,
     /// The distance to the nearest checkpoint.
-    pub nearest_checkpoint_distance: PlainFloat,
+    pub nearest_checkpoint_distance: f32,
     /// The distance to the split point.
-    pub split_point_distance: PlainFloat,
+    pub split_point_distance: f32,
     /// The slot 0 .. 7.
-    pub pace_slot: PlainDword,
+    pub pace_slot: u32,
 }
-
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
 
 /// The starting values of `spec_default_bc0`.
 #[rustfmt::skip]
@@ -248,48 +243,55 @@ const SURFACE_ROWS: [(u32, [f32; 11]); 16] = [
 impl Surface {
     /// A ground kind from its table start and the eleven figures after it (`SURFACE_ROWS`); the
     /// two unknown dwords hold floats.
-    const fn from_row(table: u32, f: &[f32; 11]) -> Self {
+    fn from_row(table: u32, f: &[f32; 11]) -> Self {
         Self {
-            table: PlainDword::new(table),
-            slide_grip: PlainFloat::new(f[0]),
-            accel_grip: PlainFloat::new(f[1]),
-            brake_grip: PlainFloat::new(f[2]),
-            mud_rates: [PlainFloat::new(f[3]), PlainFloat::new(f[4])],
-            reserved_18: [
-                PlainDword::new(f[5].to_bits()),
-                PlainDword::new(f[6].to_bits()),
-            ],
-            drag: PlainFloat::new(f[7]),
-            rolling_drag_min_speed: PlainFloat::new(f[8]),
-            grip: PlainFloat::new(f[9]),
-            wear_factor: PlainFloat::new(f[10]),
+            table,
+            slide_grip: f[0],
+            accel_grip: f[1],
+            brake_grip: f[2],
+            mud_rates: [f[3], f[4]],
+            reserved_18: [f[5].to_bits(), f[6].to_bits()],
+            drag: f[7],
+            rolling_drag_min_speed: f[8],
+            grip: f[9],
+            wear_factor: f[10],
         }
-    }
-
-    /// The ground kinds of `rows`, in order.
-    const fn rows(rows: &[(u32, [f32; 11]); 16]) -> [Self; 16] {
-        let mut surfaces: [Self; 16] = ZeroCells::ZERO;
-        let mut n = 0;
-        while n < 16 {
-            surfaces[n] = Self::from_row(rows[n].0, &rows[n].1);
-            n += 1;
-        }
-        surfaces
     }
 }
 
 impl PhysicsTables {
     /// The piece, with the image's first values.
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
-            camera_drop: PlainFloat::new(figures::CAMERA_DROP),
-            contact_steps: PlainDword::new(figures::CONTACT_STEPS),
-            surfaces: Surface::rows(&SURFACE_ROWS),
-            ground_spin_limit: PlainFloat::new(2.0),
-            spec_default_bc0: PlainDword::array(SPEC_DEFAULT_BC0),
-            rev_limits: PlainFloat::array(REV_LIMITS),
-            gravity: PlainFloat::new(9.8),
-            ..ZeroCells::ZERO
+            camera_drop: figures::CAMERA_DROP,
+            contact_steps: figures::CONTACT_STEPS,
+            surfaces: SURFACE_ROWS
+                .each_ref()
+                .map(|(table, f)| Surface::from_row(*table, f)),
+            ground_spin_limit: 2.0,
+            spec_default_bc0: SPEC_DEFAULT_BC0,
+            rev_limits: REV_LIMITS,
+            gravity: 9.8,
+            ..Self::default()
+        }
+    }
+}
+
+/// A force record of the tables, by its place.
+#[derive(Clone, Copy)]
+pub enum RecordAt {
+    /// `forces[n]`.
+    Force(usize),
+    /// `contacts[n]`.
+    Contact(usize),
+}
+
+impl PhysicsTables {
+    /// The record at `at`, to write.
+    pub fn record_mut(&mut self, at: RecordAt) -> &mut ForceRecord {
+        match at {
+            RecordAt::Force(n) => &mut self.forces[n],
+            RecordAt::Contact(n) => &mut self.contacts[n],
         }
     }
 }
@@ -305,7 +307,7 @@ impl PhysicsTables {
             .surfaces
             .get(n as usize)
             .ok_or(crate::errors::BadInput("a ground kind past the 16"))?;
-        let at = record.table.get() as usize;
+        let at = record.table as usize;
         if at >= Self::TABLES_LEN {
             return Err(crate::errors::BadInput(
                 "a ground record's table off the tables",
@@ -316,26 +318,8 @@ impl PhysicsTables {
 }
 
 #[cfg(test)]
-mod tests {
-    /// The tables' whole bytes, as a checksum: a wrong dword in a row shows here.
-    #[test]
-    fn the_physics_tables_keep_the_bytes_of_the_image() {
-        let bytes = crate::memory::cells::flatten(&super::PhysicsTables::new());
-        let mut hash = 0xcbf2_9ce4_8422_2325_u64;
-        for byte in &bytes {
-            hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);
-        }
-        assert_eq!(bytes.len(), 2236);
-        assert_eq!(hash, 4_048_912_719_414_518_593);
-    }
-
-    #[test]
-    fn the_ground_records_name_whole_tables() {
-        let shared = &crate::test_support::own::race().shared;
-        for n in 0..16u32 {
-            let slot = shared.physics_tables.get().surface_table_index(n).unwrap();
-            assert!(slot.is_multiple_of(13) && slot < 104);
-        }
-        assert!(shared.physics_tables.get().surface_table_index(16).is_err());
-    }
-}
+mod old_cells;
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+pub mod words;

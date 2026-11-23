@@ -34,7 +34,7 @@ pub(super) fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
         replay.replay_view().snapshot_asked.set(0);
         // Nor can ending it.
         crate::d3d::device::end_layer(&o.gfx.d3d);
-        crate::race::viewer_snapshot::viewer_snapshot(replay, gfx, o.system)?;
+        crate::race::viewer_snapshot::viewer_snapshot(gfx, o.system)?;
     } else {
         let stopped_now = race.shared.replay_file().viewer_stopped.is_set();
         if stopped_now {
@@ -44,6 +44,10 @@ pub(super) fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
         // The highlighted button's name goes over the finished frame; a render has none.
         if stopped_now && !crate::video::active() {
             crate::menu::replay_viewer::tip::draw(o)?;
+            crate::menu::replay_viewer::item::draw_numbers(
+                o,
+                &race.replay.replay_view().viewer_list,
+            )?;
         }
     }
     // Not shown: the frame is lost.

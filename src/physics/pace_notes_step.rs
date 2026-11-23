@@ -11,6 +11,7 @@
 //! Refuses what its calls refuse.
 
 use crate::errors::Refused;
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::physics::figures::PACE_SCALE;
 use crate::physics::step_families::CheckpointInputs;
@@ -21,13 +22,13 @@ use rc2k_core::physics::pace_calls::{call_target, calling, calls};
 /// The gates' variables (each must be 0; the last is "1000 or more").
 fn gates(work: &RaceWork, replay_file: &ReplayFileBlock, car: &Car) -> [u32; 7] {
     [
-        car.finish_flag.get(),
-        car.go_stand_timer.get(),
-        car.started_stand_timer.get(),
+        car.finish_flag,
+        car.go_stand_timer,
+        car.started_stand_timer,
         replay_file.hold_car_revs.get(),
-        u32::from(work.in_credits.is_set()),
-        car.false_start_count.get(),
-        car.all_wheels_off.get(),
+        u32::from(work.in_credits != 0),
+        car.false_start_count,
+        car.all_wheels_off,
     ]
 }
 const ONE_F32: u32 = 0x3F80_0000;
@@ -37,15 +38,15 @@ pub fn pace_notes_step(
     c: &CheckpointInputs<'_>,
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
+    car: &mut Car,
 ) -> Result<(), Refused> {
     let (physics, numbers, frame_work) = (c.physics, c.numbers, &c.frame_work);
     let (work, vars, replay_file) = (c.work, c.vars, c.shared.replay_file());
-    let car = c.car;
     let scene_clock = c.shared.run().scene_clock;
     if !calling(
-        gates(work, replay_file, car),
-        car.driver_kind.get(),
-        car.run_ticks.get(),
+        gates(&work.borrow(), replay_file, car),
+        car.driver_kind,
+        car.run_ticks,
     ) {
         return Ok(());
     }
@@ -56,20 +57,16 @@ pub fn pace_notes_step(
         numbers.eight,
         ONE_F32,
     );
-    let target = call_target(
-        car.reset_checkpoint.get(),
-        ahead,
-        vars.checkpoint_count.get(),
-    );
-    if let Some((last, _)) = calls(target, car.last_pace_call.get()) {
-        car.last_pace_call.set(last);
+    let target = call_target(car.reset_checkpoint, ahead, vars.checkpoint_count.get());
+    if let Some((last, _)) = calls(target, car.last_pace_call) {
+        car.last_pace_call = last;
         let mut checkpoint = last;
         loop {
             checkpoint = checkpoint.wrapping_add(1);
             crate::physics::queue_pace_note::queue_pace_note(
                 physics,
                 frame_work,
-                work,
+                &work.borrow(),
                 scene_clock,
                 car,
                 checkpoint,
@@ -80,7 +77,7 @@ pub fn pace_notes_step(
                 break;
             }
         }
-        car.last_pace_call.set(target);
+        car.last_pace_call = target;
     }
     crate::physics::expire_car_events::expire_car_events(car, scene_clock)?;
     Ok(())

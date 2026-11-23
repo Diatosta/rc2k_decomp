@@ -1,4 +1,4 @@
-//! The screenshot switch, its lock and the file name's template.
+//! The screenshot switch and its lock.
 
 use std::cell::Cell;
 
@@ -7,9 +7,6 @@ pub struct Shots {
     pub on: Cell<u32>,
     /// The lock a screenshot holds.
     pub locked_here: Cell<u32>,
-    /// The screenshot file's name, "000.png" (the number's three digits are counted up for each
-    /// file).
-    pub name: Cell<[u8; 7]>,
 }
 
 impl Shots {
@@ -17,7 +14,6 @@ impl Shots {
         Shots {
             on: Cell::new(0),
             locked_here: Cell::new(0),
-            name: Cell::new(*b"000.png"),
         }
     }
 }

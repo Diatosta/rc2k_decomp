@@ -118,17 +118,10 @@ macro_rules! cells_stores {
 #[test]
 fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
     let menus = crate::test_support::own::menus();
-    let race = crate::test_support::own::race();
+    let _race = crate::test_support::own::race();
     let _lock = crate::test_support::test_lock();
     cells_stores! {
-        *race.shared.car(),
         menus.play.slots.pointers,
-        *race.shared.physics_tables.get(),
-        *race.shared.car_blocks.get(),
-        *race.shared.car_parts.get(),
-        *race.frame.view_and_records.get(),
-        *race.shared.tables(),
-        *race.shared.work.get(),
     }
 }
 
@@ -167,37 +160,6 @@ fn a_byte_written_into_a_dword_keeps_its_other_bytes() {
     let mut out = [0; 6];
     load_cells(&m, 7, &mut out).unwrap();
     assert_eq!(out, [0x05, 0x06, 0xAA, 0xBB, 0xCC, 0xDD]);
-}
-
-#[test]
-#[ignore = "a timing, run by hand in release"]
-fn timing_of_a_deep_read() {
-    let race = crate::test_support::own::race();
-    let field = &race.shared.work.get().no_precipitation;
-    let n = 2_000_000;
-    let t = std::time::Instant::now();
-    let mut sum = 0u32;
-    for _ in 0..n {
-        let mut b = [0; 4];
-        load_cells(
-            race.shared.work.get(),
-            std::mem::offset_of!(crate::race::work_store::RaceWork, no_precipitation),
-            &mut b,
-        )
-        .unwrap();
-        sum = sum.wrapping_add(u32::from_le_bytes(b));
-    }
-    let cells = t.elapsed();
-    let t = std::time::Instant::now();
-    for _ in 0..n {
-        sum = sum.wrapping_add(std::hint::black_box(field).get());
-    }
-    let typed = t.elapsed();
-    eprintln!(
-        "per read: load_cells {:?}, typed {:?} ({sum})",
-        cells / n,
-        typed / n
-    );
 }
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
@@ -282,14 +244,27 @@ fn new_start<const N: usize>(
     out
 }
 
-/// The derived `SameShape` of a record over a kind (`ViewVars`) copies and merges as the
-/// derived `Cells` copy and merge do.
+/// The derived `SameShape` of a record over a kind of cells copies and merges as the derived
+/// `Cells` copy and merge do.
 #[test]
 fn same_shape_records_match_the_run_copies() {
-    use crate::memory::session::PlainCells;
-    use crate::race::view_vars_store::ViewVars;
+    use crate::memory::session::{CellKind, PlainCells, PlainDword, PlainFloat};
+    #[derive(rc2k_derive::Cells)]
+    struct Shape<K: CellKind> {
+        scale: K::Float,
+        count: K::Dword,
+        place: [K::Dword; 3],
+        place_f: [K::Float; 3],
+        kind: K::Dword,
+    }
+    let make = || Shape::<PlainCells> {
+        scale: PlainFloat::new(8.0),
+        count: PlainDword::new(0),
+        place: [const { PlainDword::new(0) }; 3],
+        place_f: [const { PlainFloat::new(0.0) }; 3],
+        kind: PlainDword::new(1),
+    };
     for seed in 1..6 {
-        let make = || ViewVars::<PlainCells>::new();
         let (from, start, a, b) = (make(), make(), make(), make());
         varied(&from, seed);
         varied(&start, seed ^ 0x55);

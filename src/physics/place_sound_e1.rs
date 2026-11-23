@@ -6,15 +6,16 @@
 
 use crate::errors::Refused;
 use crate::physics::car_sounds::{listed, object, place};
+use crate::physics::car_store::Car;
 use crate::physics::sound_bands::{CONTACT_BAND, band_value};
 use crate::physics::step_families::SoundInputs;
 
 /// The exact version, for `physics::wall_push_back` and `physics::wall_edge_contact`.
-pub fn place_sound_e1(c: &SoundInputs<'_>) -> Result<(), Refused> {
-    if !listed(c.frame_work, c.work.current_car.get())? {
+pub fn place_sound_e1(c: &SoundInputs<'_>, car: &mut Car) -> Result<(), Refused> {
+    if !listed(c.frame_work, c.work.borrow().current_car)? {
         return Ok(());
     }
-    let b = band_value(c, &CONTACT_BAND);
+    let b = band_value(c, &CONTACT_BAND, car);
     if b == 0 {
         return Ok(());
     }
@@ -25,8 +26,8 @@ pub fn place_sound_e1(c: &SoundInputs<'_>) -> Result<(), Refused> {
         c.numbers,
         &c.view_turn,
         c.heard_turn,
-        c.car,
-        c.listener,
+        car,
+        c.listener.unwrap_or(car.camera_position),
         None,
     );
     o.borrow_mut().hit_place = at;

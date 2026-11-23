@@ -9,7 +9,7 @@ use crate::race::owner::Race;
 /// The replay's starting state gathered from the four car blocks, the race slots and
 /// `replay_extra`'s run, field by field (`drive::replay_state`), and put in the replay's frame.
 pub fn save_replay_cars(race: &Race) {
-    let frame = gather(&race.car_blocks().cars, race.shared.work.get());
+    let frame = gather(&race.car_blocks().cars, &race.shared.work());
     race.replay.staging_mut().set_start(&frame);
     if race.viewer_buffers().v2.is_set() {
         let mut v2 = race.replay.v2().lock();

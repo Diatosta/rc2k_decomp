@@ -1,34 +1,64 @@
 //! Writes the locked surface as a 24-bit PNG file (an older version wrote PCX). The
-//! file is `name` when set, else the next screenshot name `000.png` (999 goes round to 000).
+//! file is `name` when set, else the next screenshot in `savedata\snapshot\`: one more than the
+//! highest `NNN.png` already there (999 goes round to 000), so no picture is written over.
 //!
 //! Kept as the game's screenshots had it: a 16-bit pixel goes into the low half of the running
 //! value, whose upper half the conversion gets as it was, and pixels of other sizes are not
 //! read (the last value is used). Refuses what `open_stream` refuses.
 
 use crate::errors::Refused;
+use crate::files::search::DIRECTORY;
 use crate::files::stream::with_stream;
 use crate::files::write_stream_block::write_stream_all;
-use crate::gfx::shots::Shots;
 
-/// The screenshot name's three digits one more (999 goes round to 000).
-fn next_shot_name(shots: &Shots) {
-    let mut name = shots.name.get();
-    for n in (0..3).rev() {
-        let d = name[n].wrapping_add(1);
-        if d <= b'9' {
-            name[n] = d;
-            break;
+/// The folder every screenshot goes into (the key's and the replay viewer's snapshot button).
+pub const SNAPSHOT_FOLDER: &[u8] = b"savedata\\snapshot";
+
+/// Makes the screenshots' folder when it is not there yet (a failure shows when the file is
+/// opened).
+pub fn make_snapshot_folder() {
+    let _ = std::fs::create_dir_all(crate::files::host_path(SNAPSHOT_FOLDER));
+}
+
+/// The highest number of the `NNN.png` files in the screenshots' folder (0 for none).
+pub fn highest_snapshot_number() -> u32 {
+    let mut pattern = SNAPSHOT_FOLDER.to_vec();
+    pattern.extend_from_slice(b"\\???.png");
+    let mut highest = 0;
+    if crate::files::search::first(&pattern, DIRECTORY) {
+        loop {
+            let name = crate::files::search::found_name();
+            if let Some(number) =
+                rc2k_core::race::viewer::snapshot_number(|n| name.get(n).copied().unwrap_or(0))
+            {
+                highest = highest.max(number);
+            }
+            if !crate::files::search::next(DIRECTORY) {
+                break;
+            }
         }
-        name[n] = b'0';
     }
-    shots.name.set(name);
+    crate::files::search::close();
+    highest
+}
+
+/// The next screenshot's path: one more than the folder's highest number (999 goes round to 000).
+fn next_snapshot_path() -> Vec<u8> {
+    make_snapshot_folder();
+    let highest = format!("{:03}", highest_snapshot_number() % 1000);
+    let digits: [u8; 3] = highest.as_bytes().try_into().expect("three digits");
+    let (next, _, _) = rc2k_core::race::viewer::next_snapshot(digits);
+    let mut path = SNAPSHOT_FOLDER.to_vec();
+    path.push(b'\\');
+    path.extend_from_slice(&next);
+    path.extend_from_slice(b".png");
+    path
 }
 
 /// Whether it worked. `name` is the file's path without its NUL, or None for the next numbered
 /// screenshot. `to_photos`: a picture written is also added to the phone's photo library
 /// (the screenshots; not the replay's picture sequence).
 pub fn write_screen_pcx(
-    shots: &Shots,
     name: Option<&[u8]>,
     to_photos: bool,
     gfx: &crate::gfx::owner::Gfx,
@@ -41,10 +71,7 @@ pub fn write_screen_pcx(
     }
     let path = match name {
         Some(name) => name.to_vec(),
-        None => {
-            next_shot_name(shots);
-            shots.name.get().to_vec()
-        }
+        None => next_snapshot_path(),
     };
     with_stream(|stream| {
         if !crate::files::open_stream::open_stream(stream, &path, 1)? {

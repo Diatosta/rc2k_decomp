@@ -13,6 +13,7 @@ use crate::math::matrix3::extended;
 use crate::math::x87::{abs_compare, ext_times};
 use crate::math::x87_float::from_f80;
 use crate::memory::session::{Cell32, PlainFloat};
+use crate::physics::car_store::Car;
 use crate::physics::step_families::ContactInputs;
 use crate::race::numbers_store::Numbers;
 use crate::scene::rotate_point::rotate_point;
@@ -60,20 +61,23 @@ pub(super) fn corner_inside(corner: &CornerWork, numbers: &Numbers) -> bool {
 pub(super) fn corner_hits_car(
     c: &ContactInputs<'_>,
     corner: &CornerWork,
-    block: &crate::physics::car_store::Car,
+    block: &mut Car,
     other_car_number: u32,
+    car: &mut Car,
 ) -> Result<(), Refused> {
     if !corner_inside(corner, c.numbers) {
         return Ok(());
     }
     {
         crate::physics::restore_saved_car::restore_saved_car(
-            c.car,
-            c.tables,
+            car,
+            &mut c.tables.borrow_mut(),
             &c.ground.probes.borrow(),
         )
     }?;
-    { crate::physics::bump_cars::bump_cars(c, &corner.corner_turned, block, other_car_number) }?;
+    {
+        crate::physics::bump_cars::bump_cars(c, &corner.corner_turned, block, other_car_number, car)
+    }?;
     Ok(())
 }
 

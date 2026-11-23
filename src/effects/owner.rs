@@ -42,18 +42,24 @@ impl Effects {
 
     /// The car blocks the race handed `init_marks` with its settings record; refused before
     /// the first (no car record names a block then).
-    pub fn car_blocks(&self) -> Result<&'static crate::race::blocks_store::CarBlocks, BadInput> {
+    pub fn car_blocks(
+        &self,
+    ) -> Result<std::cell::Ref<'static, crate::race::blocks_store::CarBlocks>, BadInput> {
         self.setup
             .car_blocks
             .get()
+            .map(crate::memory::session::DrawArc::borrow)
             .ok_or(BadInput("a car record without its block"))
     }
 
     /// The cars' drawing state the race handed `init_marks`; refused before the first.
-    pub fn car_parts(&self) -> Result<&'static crate::race::car_parts_store::CarParts, BadInput> {
+    pub fn car_parts(
+        &self,
+    ) -> Result<std::cell::Ref<'static, crate::race::car_parts_store::CarParts>, BadInput> {
         self.setup
             .car_parts
             .get()
+            .map(crate::memory::session::DrawArc::borrow)
             .ok_or(BadInput("a car record without its block"))
     }
 
@@ -77,12 +83,12 @@ impl Effects {
 
     /// Whether `car`'s whole matrix's block is set.
     pub fn has_whole(&self, car: &crate::race::effects_settings_store::CarEffects) -> bool {
-        self.car_blocks().is_ok_and(|b| car.has_whole(b))
+        self.car_blocks().is_ok_and(|b| car.has_whole(&b))
     }
 
     /// Whether `car`'s part matrices' block is set.
     pub fn has_parts(&self, car: &crate::race::effects_settings_store::CarEffects) -> bool {
-        self.car_blocks().is_ok_and(|b| car.has_parts(b))
+        self.car_blocks().is_ok_and(|b| car.has_parts(&b))
     }
 }
 

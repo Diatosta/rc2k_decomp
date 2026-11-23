@@ -2,6 +2,7 @@
 
 pub mod best_line;
 pub mod blend;
+pub mod car_item;
 pub mod car_marks;
 pub mod car_parts;
 pub mod cars;
@@ -12,6 +13,7 @@ pub mod faces;
 pub mod frame;
 pub mod frame_rate;
 pub mod keys;
+pub mod layouts;
 pub mod lights;
 pub mod loading;
 pub mod map;
@@ -40,5 +42,6 @@ pub mod tyre_change;
 pub mod view;
 pub mod view_steps;
 pub mod viewer;
+pub mod viewer_digits;
 pub mod viewer_flow;
 pub mod viewer_tip;

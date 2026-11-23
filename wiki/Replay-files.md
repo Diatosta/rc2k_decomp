@@ -290,9 +290,12 @@ leaves them 0 (byte 5 is 2 or 3 in a two-player race, and in a network race 0 or
 the machine that recorded it); the viewer's camera editing fills them in when a replay is saved.
 Byte 5 is the layout: 0 the first car alone, 1 the second alone, 2 and 3 both cars (side by side, or
 one above the other); in a replay with the extra tape also 4 the third car alone and 5 the fourth. In the own
-format the layouts name players (see "The own format"), and 10 shows every player of a local split-screen race at once.
+format the layouts name players (see "The own format"), and 10 to 18 split the screen between players (see below).
 Bytes 6 and 7 choose the camera of the third and the fourth car, as bytes 0 and 1 do for the first
-two; they are 0 in every other replay. Old files read as before.
+two; they are 0 in every other replay. Old files read as before. The blocks hold no camera byte for the fifth to
+the eighth car: the viewer's camera choice for them is kept only while the replay is open,
+not in the file; until one is made they have the camera of an unedited block's byte (0), as the first four cars
+start, so every car of a replay played from the list starts on the same camera.
 
 ### A loose part
 
@@ -430,8 +433,8 @@ physics' own noise makes a replay drift in the same way for a car with recorded 
 computer's cars, which each machine saw glided to the host's places) has its motion recorded at each step
 as that machine showed it, and the viewer puts that motion into the car after each step: it is where the
 recording showed it, with no drift. The head byte `5` of a block (see "A block" above) names a layout by
-**player**, never by car: 0 and 1 the first and the second player alone, 2 and 3 the first two together, 4 and up
-the third player and on (4 the third, 5 the fourth, ... 9 the eighth). The `CARS` flags say which cars are players.
+**player**, never by car: 0 and 1 the first and the second player alone, 2 and 3 the two together (a replay of two
+players only), 4 and up the third player and on (4 the third, 5 the fourth, ... 9 the eighth). The `CARS` flags say which cars are players.
 
 **Size.** A one-player race is about 130 KB a minute (the keyframe and the inputs). For eight cars with one
 driven on the recording machine, seven are recorded by their motion: about 1.5 to 2 MB a minute at the most (the
@@ -444,7 +447,7 @@ file (a replay copied in by hand), and shows an own-format slot's name alone; a 
 file. A replay of the original's format that is viewed and saved is saved as it was (in the original's format
 alone).
 
-**Cars and lights in the viewer.** The header names four cars' models; the viewer takes every car's model from the `CARS` section (up to eight), so cars 4 and on are built, textured and drawn as in the race (before, they were built with a stale model: plain white or in pieces). In a replay of a network race the headlights light the road of the car followed (the drawn view's car), as the race lit the machine's own car's; before, only the first car's did.
+**Cars and lights in the viewer.** The header names four cars' models; the viewer takes every car's model from the `CARS` section (up to eight), so cars 4 and on are built, textured and drawn as in the race (before, they were built with a stale model: plain white or in pieces). In a replay of a network race shown in one view, the headlights of the car followed light the road and the objects around it, as the race lit the machine's own car's (before, only the first car's did, and the objects were lit by the first car's lamps whichever car was followed). Split between players (a pair or a group), every car the views show lights the road and objects in every view, as the players' cars of a split-screen race do where the cars share the road (a network race, the arcade race); in the other run kinds each view has its own car's light alone. Before, each view of such a split lit only its own car's road, so the other shown cars drove with no light pool before them. The computer's cars and the cars not shown light nothing, unless the headlights option is "all cars". Replays of local races keep the race's rule.
 
 ### Sound and the split screen
 
@@ -457,10 +460,45 @@ derive them from their physics as it plays). Watched in one view, the sounds are
 the cars far from it are quiet; in the split screen each car is heard from its own camera, as in the race. A replay
 of one or two cars, or of the original's format, sounds as it always did.
 
-The head byte `5` of a block also has the layout **10**: every player of a local split-screen race of three or
-four, each in the part of the screen and with the HUD the race gave it. The viewer's car item offers it after the
-single players, for such a replay only; the layouts of two players (2 and 3, side by side or one above the other)
-and of each player alone stay. The cameras of the parts are the ones the replay's camera bytes name for each car.
+The head byte `5` of a block also has the layouts **10** to **18**, which split the screen between players,
+each in a part of the screen with its own HUD. A group of three or four players has a layout for each way a
+split-screen race of as many players can be arranged, in the order the race's split key goes through them, the
+default first:
+
+| Layout | Shows | Three players | Four players |
+| --- | --- | --- | --- |
+| 10, 13, 14, 15 | the first group, up to four players from the first | one across the top and two below, rows, columns, quarters (the fourth quarter the course's map) | quarters, rows, columns (15 none) |
+| 11, 16, 17, 18 | the players after the first four, when they are three or four | as the first group | as the first group (18 none) |
+| 11, 12 | the fifth and sixth player as a pair, when they are two (as the first two are by 2 and 3) | 11 side by side, 12 one above the other | |
+
+A replay of three or four players (a local split-screen race, or any three or four players) has the first group for
+all of them; five players have it for the first four (the fifth has no one to share a screen with); six also 11
+and 12; seven and eight also the second group. 10 and 11 are the numbers written before a group kept its
+arrangement: a block of an older file with 10 or 11 shows its group in the default arrangement (before, the
+arrangement chosen for races at the time it was watched). A local split-screen race records the first group in the
+arrangement the screen is split in as each block is raced. The viewer's car item offers the layouts after the single
+players, each group's arrangements one after the other, its picture showing the split: a pair's the panel's pair
+picture of the split (5 and 6 drawn over its 1 and 2), a group's the box divided as the screen is in the layout's
+arrangement, each part numbered with its player. Everything in the picture follows the layout's arrangement (the
+parts, their HUD, the overview map of three players in quarters, the part notices), never the split chosen for races
+(`display.split_layout`), which the viewer leaves as it is. From three players
+on the first players are together only as the group: the pair layouts 2 and 3 are a two-player replay's alone (a
+replay of the original's format keeps its own layouts, 2 and 3 included, and has no groups). A group (but not a pair)
+needs the players to be the first cars of the race, as they are in the own format; a replay of three or more players
+that are not shows each player alone only. Each part's HUD follows the viewer's HUD switches as the other layouts'
+do (head bytes 2 and 3; the third part follows the first switch, the fourth the second, the sides their camera
+buttons lie on), so a replay plays without it until switched on, and the still picture shows none. A part shows its
+car's icon (the stage loads the half-size icons of all the cars and the further parts' map pictures when the replay
+offers a group), its own map (a map picture is drawn again whenever its part shows a car whose map lies elsewhere,
+not only when that car's map scrolls) and the car's place only where the race worked one out (a network race's
+replay has none). The HUD of a car the replay holds no HUD pieces for (a player on another machine) is the first
+player's. The camera buttons of the viewer's
+panel edit the camera of the car each part shows (the first two on the panel's left and right, in a split of three or
+four parts also two more, on either side of the render button); a replay of the first format or a layout of one or two
+players keeps the first two cars' bytes. The cameras of the first four cars are the replay's camera bytes; the later
+cars have the viewer's own camera choice, which starts on the camera of an unedited block (byte 0) as theirs do. The layout is the head byte; the rule of which players a
+layout shows (`rc2k_core::race::layouts::shown`) and whose camera each button edits is one function that the car
+item, the drawing, the cameras and the HUD ask.
 
 ## Compatibility
 

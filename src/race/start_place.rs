@@ -6,6 +6,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::memory::plain_floats::FloatRowMut;
 use crate::physics::car_store::Car;
 use crate::physics::figures::GROUND_DROP;
 use crate::race::best_line::MOST_CHECKS;
@@ -76,10 +77,10 @@ pub fn place_car_on_line(
             place.place_z = z;
             place.place_heading = heading;
         }
-        shared.car().position.set_bits_at(0, x);
-        shared.car().position.set_bits_at(2, z);
-        shared.car().car_heading.set(heading);
-        shared.car().position.set_bits_at(1, y);
+        shared.car_mut().position.set_bits_at(0, x);
+        shared.car_mut().position.set_bits_at(2, z);
+        shared.car_mut().car_heading = heading;
+        shared.car_mut().position.set_bits_at(1, y);
         Ok(())
     }
 }
@@ -292,12 +293,27 @@ pub fn nearest_checkpoint(
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
 ) -> Result<u32, Refused> {
+    let (x, z) = {
+        let car = shared.car();
+        (car.position[0].to_bits(), car.position[2].to_bits())
+    };
+    nearest_checkpoint_at(physics, course, shared, (x, z), scene)
+}
+
+/// `nearest_checkpoint` for a car at `(x, z)` (as bits), for the callers that hold the work car.
+pub fn nearest_checkpoint_at(
+    physics: &Physics,
+    course: &Course,
+    shared: &RaceShared,
+    (x, z): (u32, u32),
+    scene: &crate::scene::owner::Scene,
+) -> Result<u32, Refused> {
     let count = count(shared)?;
     {
         {
             let mut search = physics.ground_search().borrow_mut();
-            search.x = shared.car().position.bits_at(0);
-            search.z = shared.car().position.bits_at(2);
+            search.x = x;
+            search.z = z;
         }
         if count == 0 {
             return Ok(0);
@@ -308,22 +324,17 @@ pub fn nearest_checkpoint(
             near.distance,
             course.numbers.k65536.get(),
         );
-        shared
-            .physics_tables
-            .get()
-            .nearest_checkpoint_distance
-            .set(units);
+        shared.physics_tables_mut().nearest_checkpoint_distance = units;
         Ok(near.checkpoint)
     }
 }
 
 /// `race::invert_car_matrix`: the car's inverse matrix from its crash matrix.
-pub fn invert_car_matrix(course: &Course, car: &Car, scene: &crate::scene::owner::Scene) {
-    let length = crate::scene::view_matrix::invert_turn(
-        course.reads(),
-        &car.crash_matrix,
-        &car.car_inverse_matrix,
-    );
+pub fn invert_car_matrix(course: &Course, car: &mut Car, scene: &crate::scene::owner::Scene) {
+    let crash = car.crash_matrix;
+    let length = crate::math::cells::via_cells(&mut car.car_inverse_matrix, |inverse| {
+        crate::scene::view_matrix::invert_turn(course.reads(), &crash, inverse)
+    });
     // The matrix's last length is left in `scratch`.
     scene.draw_work_mut().scratch = length;
 }

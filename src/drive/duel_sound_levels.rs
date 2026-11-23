@@ -8,13 +8,13 @@ use rc2k_core::drive::replay_views::{RARE_FROM, first_level, rare_draw, second_l
 
 pub(super) fn duel_sound_levels(race: &Race, sound: &crate::sound::owner::Sound) {
     let mut stage = sound.race.stage.get().borrow_mut();
-    stage.loop_volume_a = first_level(race.car_blocks().cars[0].surface_noise_a.get());
+    stage.loop_volume_a = first_level(race.car_blocks().cars[0].surface_noise_a);
     if stage.loop_volume_a >= RARE_FROM {
         let r = race.shared.random.sounds.next();
         if rare_draw(r) {
             stage.timed_arm = 1;
         }
     }
-    let (level, _) = second_level(race.car_blocks().cars[0].surface_noise_second.get());
+    let (level, _) = second_level(race.car_blocks().cars[0].surface_noise_second);
     stage.loop_volume_b = level;
 }

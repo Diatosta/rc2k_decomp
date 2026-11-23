@@ -30,7 +30,7 @@ pub fn full_view_window(
         &draw,
         session.screen.get(),
         window,
-        &race.frame.view_and_records.get().view_vars,
+        &race.frame.view_and_records.borrow().view_vars,
         &crate::race::vars_store::SCALE_FACTOR,
     );
     // `draw_mode` is not written: it stays 0 (modes 1 and 2 are only read), and the drawing parts
@@ -52,7 +52,7 @@ pub fn mirror_view_window(
     reads: crate::scene::workers::DrawReads<'_>,
 ) -> Result<(), Refused> {
     let draw = &reads.scene_draw;
-    let (fog, poly, car, vars) = (&view.fog, &view.polygon, &view.car, &view.vars);
+    let (fog, poly, car) = (&view.fog, &view.polygon, &view.car);
     let drawn_view = view.drawn_view(race);
     // Logic in `rc2k_core::race::view::{mirror_entry, mirror_window}`.
     use rc2k_core::race::view::{MirrorRect, mirror_entry, mirror_window};
@@ -87,6 +87,7 @@ pub fn mirror_view_window(
             rc2k_core::hud::anchor::Rule::Thirds
         },
         crate::hud::box_ratio::get(),
+        reads.vars.split() == 0,
     )
     else {
         trap.finish()?;
@@ -108,7 +109,7 @@ pub fn mirror_view_window(
         draw,
         reads.screen,
         &poly.window,
-        vars,
+        &view.vars.borrow(),
         &crate::race::vars_store::SCALE_FACTOR,
         MIRROR_REACH,
     );
@@ -117,7 +118,7 @@ pub fn mirror_view_window(
         reads.stage_prefs,
         fog,
         poly,
-        car,
+        &car.borrow(),
         part,
     )?;
     // `draw_mode` is not written here either: see `full_view_window`.
@@ -200,10 +201,10 @@ fn draw_marks_overlays(
 /// Loads car 0 as the current car (`drive::load_car`). Refuses (before anything) car 0 without
 /// its block.
 pub fn load_first_car(shared: &RaceShared) -> Result<(), Refused> {
-    if !shared.work.get().has_car_block(0) {
+    if !shared.work().has_car_block(0) {
         return Err(BadInput("car 0 without its block").into());
     }
-    shared.work.get().current_car.set(0);
+    shared.work_mut().current_car = 0;
     crate::drive::load_car::load_car(shared)?;
     Ok(())
 }
@@ -332,14 +333,8 @@ pub(super) fn forget_view_textures(
     // (the switch, the slot's variable) of each.
     let slot_of = |n: usize| textures.kinds.borrow().kind_first_slots[n];
     let source = |f: Forget| match f {
-        Forget::Changing(v) => (
-            field(blocks[v], |car| car.map_redrawn.get()),
-            slot_of(198 + v),
-        ),
-        Forget::Counted(v) => (
-            field(blocks[v], |car| car.notice_counter.get()),
-            slot_of(196 + v),
-        ),
+        Forget::Changing(v) => (field(blocks[v], |car| car.map_redrawn), slot_of(198 + v)),
+        Forget::Counted(v) => (field(blocks[v], |car| car.notice_counter), slot_of(196 + v)),
         Forget::Extra(n) => (frame.overlay().forget_flags[n], slot_of(220 + n)),
     };
     let mirror = mirror_on(
@@ -372,8 +367,8 @@ pub(super) fn forget_view_textures(
         frame.panel.borrow_mut().texture_changes = value;
         frame.frame_work.borrow_mut().view_textures_forgotten |= bit;
         if let Forget::Counted(v) = f {
-            let counter = &race.car_blocks().cars[blocks[v]].notice_counter;
-            counter.set(counter.get().wrapping_sub(1));
+            let counter = &mut race.car_blocks_mut().cars[blocks[v]].notice_counter;
+            *counter = counter.wrapping_sub(1);
         }
     }
     if !mirror {
@@ -411,7 +406,7 @@ pub(super) fn draw_screen_tint(
     // Logic in `rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha,
     // glare_colour}`.
     use rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha, glare_colour};
-    if ctx.reads.work.in_credits.is_set() {
+    if ctx.reads.work.in_credits() {
         ctx.view.quad.borrow_mut().colour[1] = NIGHT_ALPHA;
         window_corners(ctx.view);
         ctx.view.quad.borrow_mut().colour[0] = NIGHT_COLOUR;
@@ -481,7 +476,7 @@ pub fn draw_own_car(
         return Err(BadInput("the drawn car without its block").into());
     }
     let car = ctx.reads.work.block_number(car_number(number) as usize)?;
-    ctx.view.vars.drawn_car.set(number);
+    ctx.view.vars.borrow_mut().drawn_car = number;
     ctx.view.state.borrow_mut().drawn_car = number;
     // The state bits are the view's own; the rest, the car as seen.
     if !seen_inside(ctx.view.cars.borrow().state_of(car)?) {
@@ -573,7 +568,10 @@ pub fn run_view_marks(
         .unwrap_or(0);
     race.effects_settings().marks_layout.set(layout);
     let whole = crate::scene::matrix::matrix_of(
-        &ctx.reads.car_parts.cars[ctx.reads.view.view_number(view as usize)?].whole_matrix,
+        &ctx.reads
+            .car_parts
+            .car(ctx.reads.view.view_number(view as usize)?)
+            .whole_matrix,
     );
     race.frame.view_kept.borrow_mut().view_place = whole;
     crate::drive::share_all_cars::share_all_cars(

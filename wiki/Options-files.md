@@ -128,6 +128,8 @@ each, written in decimal in the file; to read one, turn it into hexadecimal (`32
 | `hud_box` | The graphics page's "HUD area": the box, centred on the screen, the HUD's pieces keep to: `"4:3"`, `"16:9"` or `"21:9"` (never wider than the screen). Left out for the whole screen, the default. The 3D always fills the screen. |
 | `smooth_frames` | The advanced page's "smooth frames" switch: on (the default), the race's frames between two of the simulation's ticks are drawn blended between the last two, so a display faster than 100 Hz shows motion in every frame (the picture is up to a tick, 10 ms, behind the simulation); `false` draws the last tick as it is and holds the frames to 100 a second at most. Left out when on. |
 | `split_layout` | The layout of a split screen of three or four players, as its place in the layouts the F2 key cycles through (with four players quarters, rows, columns; with three one wide view above two, rows, columns, quarters). `0`, the first, is the default and is left out. An older file's `split_many` is read and ignored. |
+| `discord_status` | `false` turns the [Discord status](Discord-status) off (desktop builds). Left out when on (the default); the file is its only switch. |
+| `discord_application_id` | The Discord application whose status is set, in place of the built-in one. Left out for the built-in one. |
 
 ### Sound
 

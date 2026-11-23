@@ -11,6 +11,8 @@
 //! `corner_hits_car` refuses (what was written is put back).
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::plain_floats::FloatRow;
+use crate::physics::car_store::Car;
 use crate::physics::corner_hits_car::{CornerWork, corner_hits_car};
 use crate::physics::step_families::CollisionInputs;
 use crate::race::view_store::RaceView;
@@ -33,8 +35,8 @@ const CORNERS: [[f32; 3]; 8] = [
     [0.9, 0.8, 1.8],
 ];
 
-pub fn car_collisions(c: &CollisionInputs<'_>) -> Result<(), Refused> {
-    let (work, car_now) = (c.contact.work, c.contact.car);
+pub fn car_collisions(c: &CollisionInputs<'_>, car: &mut Car) -> Result<(), Refused> {
+    let (work, car_now) = (c.contact.work, car);
     if !matches!(c.vars.run_kind.get(), 0 | 2) {
         return Ok(());
     }
@@ -42,18 +44,18 @@ pub fn car_collisions(c: &CollisionInputs<'_>) -> Result<(), Refused> {
     if n > 8 {
         return Err(BadInput("more than eight cars (g_carBlocks' room)").into());
     }
-    if (0..n).any(|k| k != work.current_car.get() && !work.has_car_block(k as usize)) {
+    if (0..n).any(|k| k != work.borrow().current_car && !work.borrow().has_car_block(k as usize)) {
         return Err(BadInput("a null car block").into());
     }
     {
         let corner_work = CornerWork::new();
         for car in 0..n {
-            if car == work.current_car.get() {
+            if car == work.borrow().current_car {
                 continue;
             }
             // A car block of the eight, not null (both checked above).
-            let block = c.contact.shared.race_car_or_end(car as usize);
-            if block.driver_kind.get() == 0 {
+            let mut block = c.contact.shared.race_car_or_end_mut(car as usize);
+            if block.driver_kind == 0 {
                 continue;
             }
             let place = [0usize, 1, 2].map(|k| {
@@ -82,7 +84,7 @@ pub fn car_collisions(c: &CollisionInputs<'_>) -> Result<(), Refused> {
                 for (cell, value) in corner_work.corner_in.iter().zip(corner) {
                     cell.set(value);
                 }
-                { corner_hits_car(&c.contact, &corner_work, block, car) }?;
+                { corner_hits_car(&c.contact, &corner_work, &mut block, car, car_now) }?;
             }
         }
         Ok(())

@@ -6,12 +6,12 @@
 //! read from memory as it then is (in place, later ones see earlier results). The fourth column's
 //! four floats are not written.
 
-use crate::math::cells::Cells;
+use crate::math::cells::{Cells, Words};
 use crate::math::x87;
 
 /// The x87 version, for `effects::cars_particles` (unconverted). The cells are the matrix's
 /// and the result's from their first dword on.
-pub fn adjugate_matrix(matrix: &(impl Cells + ?Sized), out: &(impl Cells + ?Sized)) {
+pub fn adjugate_matrix(matrix: &(impl Words + ?Sized), out: &(impl Cells + ?Sized)) {
     use rc2k_core::scene::matrices::COFACTORS;
     let get = |o: u32| matrix.float(o as usize / 4);
     let put = |o: u32, v: f32| out.set_float(o as usize / 4, v);

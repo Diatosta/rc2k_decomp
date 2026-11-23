@@ -716,7 +716,7 @@ pub fn int_times_plus_and_negated(a: i32, b: u32, c: u32) -> (u32, u32) {
 }
 
 /// The matrix in `m`'s cells, as far as a turn reads it (the first 15 dwords).
-fn matrix_at(m: &(impl crate::math::cells::Cells + ?Sized)) -> [u32; 15] {
+fn matrix_at(m: &(impl crate::math::cells::Words + ?Sized)) -> [u32; 15] {
     crate::math::cells::load(m)
 }
 
@@ -744,7 +744,7 @@ pub(super) fn turned_place_less(
     k: u32,
     d: u32,
     lift: u32,
-    m: &(impl crate::math::cells::Cells + ?Sized),
+    m: &(impl crate::math::cells::Words + ?Sized),
 ) -> [u32; 4] {
     let kf = bh::ld(k);
     let a = -bh::ld(t[0]) * kf;
@@ -784,7 +784,7 @@ pub fn mul_80(a: u32, b: u32) -> [u8; 10] {
 pub fn turned_place(
     p: [u32; 3],
     lift: u32,
-    m: &(impl crate::math::cells::Cells + ?Sized),
+    m: &(impl crate::math::cells::Words + ?Sized),
 ) -> [u32; 4] {
     let [x, y, z] = matrix_turn(
         &matrix_at(m),
@@ -828,8 +828,8 @@ pub fn normalised3(p: [u32; 3], one: u32) -> [u32; 3] {
 /// (unrounded) turned by the transposed matrix at `m` (rows 0x10 apart).
 pub fn crossed_turned(
     p: [u32; 3],
-    w: &(impl crate::math::cells::Cells + ?Sized),
-    m: &(impl crate::math::cells::Cells + ?Sized),
+    w: &(impl crate::math::cells::Words + ?Sized),
+    m: &(impl crate::math::cells::Words + ?Sized),
 ) -> [u32; 3] {
     let [w0, w1, w2]: [u32; 3] = crate::math::cells::load(w);
     let (w0, w1, w2) = (bh::ld(w0), bh::ld(w1), bh::ld(w2));
@@ -916,7 +916,7 @@ pub fn toward(a: u32, b: u32, r: u32) -> u32 {
 
 /// `effects::draw_particle`'s turn: the point p (x, y, z, 80 bits) by the matrix at m read by
 /// columns, each (m[c] x + (m[c+4] y + m[c+8] z)) + m[c+12]; the three rounded.
-pub fn column_turn(p: &[[u8; 10]; 3], m: &(impl crate::math::cells::Cells + ?Sized)) -> [u32; 3] {
+pub fn column_turn(p: &[[u8; 10]; 3], m: &(impl crate::math::cells::Words + ?Sized)) -> [u32; 3] {
     let [x, y, z] = {
         matrix_turn(
             &matrix_at(m),

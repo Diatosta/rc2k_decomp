@@ -7,19 +7,19 @@
 //! lists nothing writes; 0x10 has only 8's keys. What this tab writes is the game's memory until
 //! the stage reloads, as the developers' keys did.
 
-use crate::memory::session::PlainDword;
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::race::view_vars_store::{ViewRecord, ViewVars};
+use crate::race::view_vars_store::ViewRecord;
 use crate::scene::owner::Scene;
 use dear_imgui_rs::{TreeNodeFlags, Ui};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
 
 /// The first car's block: its model, place, heading, view, nearest checkpoint.
-fn first_car(race: &Race) -> &Car {
-    &race.car_blocks().cars[0]
+fn first_car(race: &Race) -> std::cell::Ref<'_, Car> {
+    std::cell::Ref::map(race.car_blocks(), |blocks| &blocks.cars[0])
 }
 
 /// The kept places: 0x100 entries of 0x20 bytes.
@@ -100,20 +100,27 @@ const LIGHT_NAMES: [&str; 12] = [
 
 /// The camera record's figures the page edits, by the developers' labels: name, offset; the
 /// last is whole.
-fn camera_figures(r: &ViewRecord) -> [(&'static str, &PlainDword); 12] {
+fn camera_figures(r: &mut ViewRecord) -> [(&'static str, &mut u32); 12] {
+    let ViewRecord {
+        focus: [xfoc, yfoc, zfoc],
+        offset: [xoff, yoff, zoff],
+        angles: [xang, yang, zang],
+        speeds: [mspx, mspy, mspz],
+        ..
+    } = r;
     [
-        ("xfoc", &r.focus[0]),
-        ("yfoc", &r.focus[1]),
-        ("zfoc", &r.focus[2]),
-        ("xoff", &r.offset[0]),
-        ("yoff", &r.offset[1]),
-        ("zoff", &r.offset[2]),
-        ("xang", &r.angles[0]),
-        ("yang", &r.angles[1]),
-        ("zang", &r.angles[2]),
-        ("mspx", &r.speeds[0]),
-        ("mspy", &r.speeds[1]),
-        ("mspz", &r.speeds[2]),
+        ("xfoc", xfoc),
+        ("yfoc", yfoc),
+        ("zfoc", zfoc),
+        ("xoff", xoff),
+        ("yoff", yoff),
+        ("zoff", zoff),
+        ("xang", xang),
+        ("yang", yang),
+        ("zang", zang),
+        ("mspx", mspx),
+        ("mspy", mspy),
+        ("mspz", mspz),
     ]
 }
 
@@ -228,26 +235,27 @@ fn groups(scene: &Scene, ui: &Ui) {
 
 /// Mode 6: the record of the view the car is in.
 fn camera(race: &Race, ui: &Ui) {
-    let view = (first_car(race).camera_view.get() as i32).clamp(0, 0x33) as usize;
+    let view = (first_car(race).camera_view as i32).clamp(0, 0x33) as usize;
     ui.text(format!("View {view}: {}", VIEW_NAMES[view]));
     ui.text_disabled("Changes the view's record until the stage is loaded again");
-    let Ok(record) = ViewVars::record_of(race.frame.view_and_records.get(), view) else {
+    let mut records = race.frame.view_and_records.borrow_mut();
+    let Some(record) = records.records.get_mut(view) else {
         ui.text("This view's record is not readable");
         return;
     };
+    let mut fish = record.fish as i32;
     for (label, cell) in camera_figures(record) {
-        let mut v = f32::from_bits(cell.get());
+        let mut v = f32::from_bits(*cell);
         if ui
             .drag_config::<_, f32>(label)
             .speed(1.0 / 64.0)
             .build(ui, &mut v)
         {
-            cell.set(v.to_bits());
+            *cell = v.to_bits();
         }
     }
-    let mut fish = record.fish.get() as i32;
     if ui.drag("fish", &mut fish) {
-        record.fish.set(fish as u32);
+        record.fish = fish as u32;
     }
 }
 
@@ -260,11 +268,11 @@ fn kept_places(race: &Race, ui: &Ui) {
         // The first free.
         if let Some(n) = (0..ERROR_ENTRIES).find(|&n| kept(race, n, 0x1C) == 0) {
             let car = first_car(race);
-            set_kept(race, n, 0, car.camera_view.get());
-            for (k, place) in car.position.bits().into_iter().enumerate() {
+            set_kept(race, n, 0, car.camera_view);
+            for (k, place) in car.position.map(f32::to_bits).into_iter().enumerate() {
                 set_kept(race, n, 4 + 4 * k, place);
             }
-            set_kept(race, n, 0x10, car.car_heading.get());
+            set_kept(race, n, 0x10, car.car_heading);
             set_kept(race, n, 0x1C, 1);
             *last = n;
         }
@@ -284,12 +292,13 @@ fn kept_places(race: &Race, ui: &Ui) {
         ui.same_line();
         if ui.button("Go") {
             // The car put there.
-            let car = first_car(race);
-            for k in 0..3 {
-                car.position.set_bits_at(k, kept(race, n, 4 + 4 * k));
-            }
-            car.car_heading.set(kept(race, n, 0x10));
-            car.camera_view.set(kept(race, n, 0));
+            let position = [0, 1, 2].map(|k| f32::from_bits(kept(race, n, 4 + 4 * k)));
+            let (heading, view) = (kept(race, n, 0x10), kept(race, n, 0));
+            let mut blocks = race.car_blocks_mut();
+            let car = &mut blocks.cars[0];
+            car.position = position;
+            car.car_heading = heading;
+            car.camera_view = view;
             *last = n;
         }
         ui.same_line();
@@ -302,7 +311,7 @@ fn kept_places(race: &Race, ui: &Ui) {
 /// Mode 8: the car model's lights: 12 places of 3 dwords, 12 x 12 a model.
 fn lights(race: &Race, ui: &Ui) {
     let frame = &race.frame;
-    let kind = first_car(race).car_kind.get() as usize;
+    let kind = first_car(race).car_kind as usize;
     let mut light = LIGHT.load(Relaxed) as usize % LIGHT_NAMES.len();
     ui.text(format!("Car model {kind}"));
     for (n, name) in LIGHT_NAMES.iter().enumerate().take(9) {
@@ -353,7 +362,7 @@ fn checkpoint_place(race: &Race, n: usize) -> Option<[i32; 3]> {
 /// Mode 0xC: 25 checkpoints around the car's, heights less its own.
 fn heights(race: &Race, ui: &Ui) {
     let count = race.shared.vars.get().checkpoint_count.get() as usize;
-    let here = first_car(race).checkpoint.get() as usize;
+    let here = first_car(race).checkpoint as usize;
     let Some(own) = checkpoint_place(race, here).map(|p| p[1]) else {
         ui.text("No checkpoints");
         return;

@@ -9,20 +9,19 @@ use rc2k_core::physics::gearing::drops_to_neutral;
 
 /// A compare of floats only: the same at any precision.
 // Core: `rc2k_core::physics::gearing::drops_to_neutral`.
-pub(super) fn drop_to_neutral(car: &Car, tables: &PhysicsTables) {
+pub(super) fn drop_to_neutral(car: &mut Car, tables: &PhysicsTables) {
     if !drops_to_neutral(
-        car.contact_flag.get(),
-        car.gear.get(),
-        car.engine_speed.get(),
-        tables.stall_engine_speed.get(),
-        || tables.no_auto_neutral.get(),
+        car.contact_flag,
+        car.gear,
+        car.engine_speed,
+        tables.stall_engine_speed,
+        || tables.no_auto_neutral,
     ) {
         return;
     }
-    car.gear.set(0);
-    car.drive_cut_steps
-        .set(crate::physics::figures::DRIVE_CUT_STEPS);
-    car.gear_change_hold.set(0x14);
-    car.gear_changed.set(1);
-    car.gear_change_pending.set(1);
+    car.gear = 0;
+    car.drive_cut_steps = crate::physics::figures::DRIVE_CUT_STEPS;
+    car.gear_change_hold = 0x14;
+    car.gear_changed = 1;
+    car.gear_change_pending = 1;
 }

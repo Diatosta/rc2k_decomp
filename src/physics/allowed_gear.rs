@@ -5,7 +5,6 @@
 //! Refuses a gear whose bit is past 31 (as `gear_bit`).
 
 use crate::errors::Refused;
-use crate::memory::session::{PlainDword, PlainFloat};
 use crate::physics::car_store::Car;
 use crate::physics::gear_bit::bits_at;
 use crate::race::numbers_store::Numbers;
@@ -14,27 +13,27 @@ use crate::race::numbers_store::Numbers;
 // Core: `rc2k_core::physics::gearbox::allowed_gear`.
 fn allowed_gear_at(
     numbers: &Numbers,
-    locked: &PlainFloat,
-    open: &PlainFloat,
-    bits: &PlainDword,
+    locked: f32,
+    open: f32,
+    bits: u32,
     eax: i32,
 ) -> Result<i32, Refused> {
     // The words are compared: the engine damage is exactly 100.0's bits, not a float compare.
-    let locked = locked.get() == numbers.hundred.get();
+    let locked = locked == numbers.hundred.get();
     Ok(rc2k_core::physics::gearbox::allowed_gear(
         locked,
         eax,
         || bits_at(bits),
-        || open.bits(),
+        || open.to_bits(),
     )?)
 }
 
 pub fn allowed_gear(car: &Car, numbers: &Numbers, eax: i32) -> Result<i32, Refused> {
     allowed_gear_at(
         numbers,
-        &car.engine_damage,
-        &car.engine_power_factor,
-        &car.lost_gear_bits,
+        car.engine_damage,
+        car.engine_power_factor,
+        car.lost_gear_bits,
         eax,
     )
 }

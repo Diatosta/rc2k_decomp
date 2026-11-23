@@ -12,7 +12,7 @@ pub(super) fn turn_by_heading(
     point: [u32; 3],
     ebx: u32,
 ) -> [u32; 3] {
-    let angle = car.car_heading.get().wrapping_neg();
+    let angle = car.car_heading.wrapping_neg();
     let ([x, _, z], _) = rotate_float_point_about_y(
         engine_tables,
         f32::from_bits(point[0]),

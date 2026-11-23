@@ -69,6 +69,9 @@ pub struct FrameWork {
     /// 1 while the replay's still frame is shown (set and cleared by `race::show_replay_still`);
     /// `race::lay_skidmarks_if_on` lays no skid marks while it is set.
     pub replay_still_on: u32,
+    /// The corner each map picture was last drawn at (`rc2k_core::race::map::PICTURES`, by the
+    /// picture), none while it holds no drawn map (`race::map_scroll`).
+    pub map_pictures: [Option<[u32; 2]>; rc2k_core::race::map::PICTURES],
     /// The car's place for the camera.
     pub camera_car: [u32; 3],
     /// The car part's place used by `race::frame_draw`.
@@ -99,6 +102,7 @@ impl FrameWork {
             listed_car_sounds: [0; 8],
             drawing: 0,
             replay_still_on: 0,
+            map_pictures: [None; rc2k_core::race::map::PICTURES],
             camera_car: [0; 3],
             part_place: [0xFFFFA000, 0xC000, 0x20000],
             placed_matrix: [0.0; 16],

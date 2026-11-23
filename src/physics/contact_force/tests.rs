@@ -1,6 +1,7 @@
 use super::*;
+use crate::math::cell_x87::CellX87;
 use crate::math::x87_mem::{Base, view};
-use crate::memory::session::PlainDword;
+use crate::memory::session::{PlainDword, PlainFloat};
 use crate::test_support::own::race;
 use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
@@ -128,10 +129,7 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
-                a[2].set_tbyte(
-                    0,
-                    x87_5(one(a[1], 0).ld(), race().shared.physics_tables.get()),
-                );
+                a[2].set_tbyte(0, x87_5(one(a[1], 0).ld(), &race().shared.physics_tables()));
             },
         },
         Block {
@@ -220,11 +218,15 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
+                let mut out = [0.0f32; 3];
                 x87_8(
                     bits(three(a[1], 0)),
                     &crate::test_support::race_places::numbers(),
-                    three(a[2], 0),
+                    &mut out,
                 );
+                for (k, v) in out.into_iter().enumerate() {
+                    a[2].set_dword(4 * k, v.to_bits());
+                }
             },
         },
     ]

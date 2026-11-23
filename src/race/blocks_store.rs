@@ -3,10 +3,8 @@
 //! car's block into `car` and `drive::store_car` copies it back.
 
 use crate::physics::car_store::Car;
-#[cfg(test)]
-use crate::test_support::own::race;
 
-#[derive(rc2k_derive::Cells)]
+#[derive(Clone, rc2k_derive::PlainRecord)]
 pub struct CarBlocks {
     /// The blocks.
     pub cars: [Car; BLOCK_COUNT],
@@ -21,24 +19,6 @@ impl CarBlocks {
     }
 }
 
-/// The piece: a field of the race's replay group (`race::owner_replay::Replay::car_blocks`). One
-/// copy: no drawing part writes it (each view draws its own car, `ViewScratch::car`, and the view's
-/// value for its block is stored by the game's thread, `ViewOutput::store_view_value`).
-#[cfg(test)]
-pub struct InGroup;
-
-#[cfg(test)]
-impl core::ops::Deref for InGroup {
-    type Target = CarBlocks;
-    #[inline]
-    fn deref(&self) -> &CarBlocks {
-        race().shared.car_blocks.get()
-    }
-}
-
-#[cfg(test)]
-pub static CAR_BLOCKS: InGroup = InGroup;
-
 /// A car block by handle, as `car_blocks` and `view_blocks` hold it: `BLOCK_TAG | n` for block
 /// `n`, 0 for none.
 pub const BLOCK_TAG: u32 = 0xCB00_0000;
@@ -47,6 +27,12 @@ pub const BLOCK_COUNT: usize = 8;
 
 /// The handle of block `n` (a number past the blocks fails to compile).
 pub(super) const fn block_handle(n: usize) -> u32 {
+    assert!(n < BLOCK_COUNT);
+    BLOCK_TAG | n as u32
+}
+
+/// The handle of block `n` (a number past the blocks ends the program).
+pub fn block_handle_of(n: usize) -> u32 {
     assert!(n < BLOCK_COUNT);
     BLOCK_TAG | n as u32
 }
@@ -78,11 +64,11 @@ pub fn number_of(handle: u32) -> Result<usize, crate::errors::BadInput> {
 }
 
 impl CarBlocks {
-    /// The block a handle names (a `car_blocks` entry, a view's block, or a dword read on past the
-    /// eight); any other value is refused.
-    pub fn named(&self, handle: u32) -> Result<&Car, crate::errors::BadInput> {
+    /// The number of the block a handle names (a `car_blocks` entry, a view's block, or a dword
+    /// read on past the eight); any other value is refused.
+    pub fn named_index(handle: u32) -> Result<usize, crate::errors::BadInput> {
         match known_block(handle) {
-            Some(n) => Ok(&self.cars[n]),
+            Some(n) => Ok(n),
             None => {
                 crate::memory::host_hooks::log(&format!(
                     "trap: {handle:#x} is no car block's place"
@@ -90,6 +76,27 @@ impl CarBlocks {
                 Err(crate::errors::BadInput("a car block at no car's place"))
             }
         }
+    }
+
+    /// The block a handle names (see `named_index`).
+    pub fn named(&self, handle: u32) -> Result<&Car, crate::errors::BadInput> {
+        Ok(&self.cars[Self::named_index(handle)?])
+    }
+
+    /// The number of the block a handle names, none for 0; a value naming no block ends the
+    /// program (as `block_number`).
+    pub fn index_of(handle: u32) -> Option<usize> {
+        block_number(handle)
+    }
+
+    /// The number of the block a handle names, or the refusal `what` for 0; a value naming no
+    /// block ends the program.
+    pub fn index_at(handle: u32, what: &'static str) -> Result<usize, crate::errors::BadInput> {
+        if handle == 0 {
+            return Err(crate::errors::BadInput(what));
+        }
+        Ok(Self::named_index(handle)
+            .unwrap_or_else(|e| crate::memory::host_hooks::end("physics::Car::at", e)))
     }
 
     /// The handle of the block `car`; a car that is none of the blocks ends the program.
@@ -105,12 +112,12 @@ impl CarBlocks {
 
     /// The drawing state (`race::car_parts_store`) of the car whose block is `car`; a car that is
     /// none of the blocks ends the program (as `handle_of`).
-    pub fn parts_of<'p>(
+    pub fn parts_of(
         &self,
-        parts: &'p crate::race::car_parts_store::CarParts,
+        parts: crate::memory::drawn_table::DrawnTable<'_, crate::race::car_parts_store::CarParts>,
         car: &Car,
-    ) -> &'p crate::race::car_parts_store::CarPartCells {
-        &parts.cars[(self.handle_of(car) ^ BLOCK_TAG) as usize]
+    ) -> crate::race::car_parts_store::CarPart {
+        parts.car((self.handle_of(car) ^ BLOCK_TAG) as usize)
     }
 
     /// The block a handle names, none for 0; a value naming no block ends the program (as

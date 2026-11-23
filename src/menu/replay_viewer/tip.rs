@@ -8,6 +8,7 @@ use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::race::render_row;
+use rc2k_core::race::viewer::CAMERA_ITEMS;
 use rc2k_core::race::viewer_tip::{
     BUTTONS, HUD_BUTTONS, Highlight, SPEED_BUTTON, button_text, hud_text, speed_text, strength,
 };
@@ -31,11 +32,21 @@ fn text_of(o: Owners<'static>, highlight: Highlight) -> String {
     let block = race.replay.replay_view().replay_block.get() as usize;
     let camera_byte =
         |byte: usize| crate::race::viewer::camera_byte_at(race, byte.wrapping_add(8 * block)).ok();
+    // The number on camera button `button`'s icon (0 .. 3): its player's, counted from 1.
+    let icon_number = |button: usize| {
+        let layout = camera_byte(5)?;
+        let buttons = crate::race::viewer::camera_buttons(race, layout).ok()?;
+        Some(buttons.get(button).copied().flatten()?.player as u32 + 1)
+    };
     let (text, with) = match highlight {
         Highlight::Render => (id::VIEWER_TIP_RENDER, None),
-        Highlight::Editing(camera) => (id::VIEWER_TIP_EDITING, Some(camera)),
+        Highlight::Editing(camera) => (
+            id::VIEWER_TIP_EDITING,
+            icon_number((camera as usize).wrapping_sub(1)),
+        ),
         Highlight::Button(button) => {
             let hud = HUD_BUTTONS.iter().position(|&b| b == button);
+            let camera_button = CAMERA_ITEMS.iter().position(|&item| item == button);
             match (
                 hud,
                 camera_byte(if button == SPEED_BUTTON {
@@ -46,7 +57,10 @@ fn text_of(o: Owners<'static>, highlight: Highlight) -> String {
             ) {
                 (Some(car), Some(byte)) => (hud_text(byte != 0), Some(car as u32 + 1)),
                 (None, Some(byte)) if button == SPEED_BUTTON => (speed_text(byte), None),
-                _ => (button_text(button).unwrap_or(id::BLANK), None),
+                _ => (
+                    button_text(button).unwrap_or(id::BLANK),
+                    camera_button.and_then(icon_number),
+                ),
             }
         }
     };

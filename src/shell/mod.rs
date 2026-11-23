@@ -13,6 +13,8 @@
 
 #[cfg(target_os = "android")]
 pub mod android;
+#[cfg(discord_support)]
+mod discord;
 pub(crate) mod events;
 pub(crate) mod film;
 pub(crate) mod frame;

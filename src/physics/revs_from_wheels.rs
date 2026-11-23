@@ -11,9 +11,9 @@ use crate::race::numbers_store::Numbers;
 
 /// The exact version, for the gearbox's Rust callers, on the game's variables.
 pub fn revs_from_wheels(
-    car: &Car,
+    car: &mut Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
 ) -> Result<(), Refused> {
-    revs_from_wheels_at(numbers, &GearPlaces::game(car, tables))
+    revs_from_wheels_at(numbers, car, &tables.gear_ratios)
 }

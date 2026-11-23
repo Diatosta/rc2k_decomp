@@ -40,39 +40,8 @@ fn point_lights() {
     assert_eq!(none, PointLights::default());
 }
 
-struct Cars([u32; 7]);
-impl CarLights for Cars {
-    fn one_car(&self) -> bool {
-        self.0[0] != 0
-    }
-    fn the_car(&self) -> u32 {
-        self.0[1]
-    }
-    fn all_cars(&self) -> bool {
-        self.0[2] == 1
-    }
-    fn near(&self) -> u32 {
-        self.0[3]
-    }
-    fn view(&self) -> u32 {
-        self.0[4]
-    }
-    fn drawn(&self) -> u32 {
-        self.0[5]
-    }
-    fn viewed(&self) -> u32 {
-        self.0[6]
-    }
-}
-
 #[test]
-fn cars() {
-    let lit = |c: Cars| (0..4).filter(|&n| car_lights(&c, n)).collect::<Vec<_>>();
-    assert_eq!(lit(Cars([1, 2, 0, 0, 0, 0, 0])), [2]);
-    assert_eq!(lit(Cars([1, 2, 1, 0, 0, 0, 0])), [0, 1, 2, 3]);
-    assert_eq!(lit(Cars([0, 0, 0, 3, 0, 1, 0])), [0, 2]);
-    assert_eq!(lit(Cars([0, 0, 0, 3, 1, 9, 2])), [2]);
-    assert_eq!(lit(Cars([0, 0, 1, 1, 1, 0, 2])), [1, 2, 3]);
+fn plain() {
     assert!(plain_light(0, || 0) && !plain_light(1, || unreachable!()));
 }
 

@@ -18,14 +18,11 @@ pub fn prepare_menu_scene(
     scratch: &ViewScratch,
 ) {
     let frame = &race.frame;
-    crate::memory::session::write_bits(
-        &race.frame.view_and_records.get().view_vars.view_place,
-        [0u32; 3],
-    );
-    crate::memory::session::write_first(
-        &race.frame.view_and_records.get().view_vars.view_angles,
-        &[0u32; 3],
-    );
+    {
+        let mut records = race.frame.view_and_records.borrow_mut();
+        records.view_vars.view_place = [0; 3];
+        records.view_vars.view_angles[..3].fill(0);
+    }
     scratch.polygon.window.borrow_mut().view_size = [0x320, 0x258];
     let draw = *scene.drawing.scene.borrow();
     set_view_window(
@@ -33,7 +30,7 @@ pub fn prepare_menu_scene(
         &draw,
         system.session.screen.get(),
         &scratch.polygon.window,
-        &race.frame.view_and_records.get().view_vars,
+        &race.frame.view_and_records.borrow().view_vars,
         &crate::race::vars_store::SCALE_FACTOR,
     );
     let light = &scratch.light;

@@ -8,10 +8,14 @@ use crate::race::owner::Race;
 
 pub fn load_replay_cars(race: &Race) {
     let frame = race.replay.staging().start_frame();
-    scatter(&frame, &race.car_blocks().cars, race.shared.work.get());
+    scatter(
+        &frame,
+        &mut race.car_blocks_mut().cars,
+        &mut race.shared.work_mut(),
+    );
     if race.viewer_buffers().v2.is_set() {
         let keys = race.replay.v2().lock().tail.keyframes;
         let count = race.shared.view.get().race_cars.get() as usize;
-        scatter_tail(&keys, &race.car_blocks().cars, count);
+        scatter_tail(&keys, &mut race.car_blocks_mut().cars, count);
     }
 }

@@ -1,4 +1,5 @@
-//! `scene::load_hud_car_icons`: the two car icons painted into the HUD's texture (kind 0xC1):
+//! `scene::load_hud_car_icons`: the two car icons painted into the HUD's texture (kind 0xC1), or
+//! with three or more players every race car's at half size (`car_icons::half_place`):
 //! car 0's model and car 1's, from the icon sheets `tx1822` .. `tx1825` (the 34 cars and the
 //! bonus vehicles, 82 x 42 each, with their masks). The game's log calls every texture a
 //! "plate".
@@ -45,21 +46,20 @@ pub fn load_hud_car_icons(
     }
     let player = if let Some(net_race) = net_race.get() {
         let car = car_icons::one_car(net_race.player)?;
-        shared
-            .race_car_or(car, "a car without its block")?
-            .car_kind
-            .get()
+        shared.race_car_or(car, "a car without its block")?.car_kind
     } else {
-        race.car_blocks().cars[0].car_kind.get()
+        race.car_blocks().cars[0].car_kind
     };
-    let players = shared.view.get().players.get();
-    if players > 2 && net_race.get().is_none() {
-        // Three or four players: each part's own car, at half size, four to the first row's place.
-        for n in 0..players.min(4) as usize {
-            let number = car_icon_number(race, race.car_blocks().cars[n].car_kind.get());
+    if crate::race::viewer::splits_past_two(race) && net_race.get().is_none() {
+        // Three or more players: every car a part may show (a replay's groups show the fifth to
+        // the eighth too), at half size, four to a row's place.
+        let cars = (shared.view.get().race_cars.get() as usize).min(car_icons::CARS as usize);
+        for n in 0..cars {
+            let number = car_icon_number(race, race.car_blocks().cars[n].car_kind);
             car_icons::check_numbers([number, 0])?;
             let names = car_icons::pictures(number);
-            let [target_x, target_y] = car_icons::half_place(n);
+            let [target_x, target_y] = car_icons::half_place(n)
+                .ok_or(crate::errors::BadInput("a car icon past the eighth car"))?;
             upload_car_icon(
                 &CarIcon {
                     sheet: scene.path_text(NAMES[names]),
@@ -79,7 +79,7 @@ pub fn load_hud_car_icons(
     }
     let numbers = [
         car_icon_number(race, player),
-        car_icon_number(race, race.car_blocks().cars[1].car_kind.get()),
+        car_icon_number(race, race.car_blocks().cars[1].car_kind),
     ];
     car_icons::check_numbers(numbers)?;
     for (number, target_y) in numbers.into_iter().zip(car_icons::ROWS) {

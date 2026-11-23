@@ -7,7 +7,6 @@
 use crate::errors::BadInput;
 use crate::memory::cells::ZeroCells;
 use crate::memory::first_cells::plain_dwords;
-use crate::memory::plain_floats::PlainFloats;
 use crate::memory::session::{PlainDword, PlainFloat, PlainInt};
 use crate::race::blocks_store::CarBlocks;
 use crate::race::car_parts_store::CarParts;
@@ -20,7 +19,8 @@ use crate::test_support::own::race;
 /// wheel and body records (0x48 bytes each) are `MarkRecord`s; the tail after them is the lines'
 /// and the point morphs' part (`CAR_BLOCK`).
 #[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::ZeroCells)]
+#[cfg_attr(test, derive(rc2k_derive::Cells))]
 pub struct CarEffects {
     /// Whether the streaks are drawn (the first car's is the one `effects::run_ribbons`
     /// asks).
@@ -113,7 +113,8 @@ pub struct CarEffects {
 /// A wheel's or the body's record inside a car's (0x48 bytes): what the emitters keep per wheel.
 /// Names are readings.
 #[cfg_attr(test, repr(C))]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::ZeroCells)]
+#[cfg_attr(test, derive(rc2k_derive::Cells))]
 pub struct MarkRecord {
     /// A flag the body's emitter flips each time (bit 0 the side).
     pub flip: PlainDword,
@@ -192,7 +193,8 @@ pub const CAR_LEN: usize = 0x4C8;
 /// The cars the record has room for.
 pub const CARS: usize = 8;
 
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::ZeroCells)]
+#[cfg_attr(test, derive(rc2k_derive::Cells))]
 pub struct EffectsSettings {
     /// A 2-byte tab text that `effects::init_mark_step` takes a pointer to in place (probably
     /// the settings' text path start).
@@ -387,18 +389,18 @@ impl CarEffects {
 
     /// The car's whole matrix (the block's `whole_matrix`; the record holds a block handle, set by
     /// `drive::share_car_state`); refused when no block is set.
-    pub fn whole<'a>(&self, blocks: &'a CarParts) -> Result<&'a PlainFloats<16>, BadInput> {
+    pub fn whole(&self, blocks: &CarParts) -> Result<[f32; 16], BadInput> {
         blocks
             .of(self.whole_block.get())
-            .map(|b| &b.whole_matrix)
+            .map(|b| b.whole_matrix)
             .ok_or(BadInput("a car record without its block"))
     }
 
     /// The car's four part matrices (the block's `part_matrices`); refused when no block is set.
-    pub fn parts<'a>(&self, blocks: &'a CarParts) -> Result<&'a PlainFloats<64>, BadInput> {
+    pub fn parts(&self, blocks: &CarParts) -> Result<[f32; 64], BadInput> {
         blocks
             .of(self.parts_block.get())
-            .map(|b| &b.part_matrices)
+            .map(|b| b.part_matrices)
             .ok_or(BadInput("a car record without its block"))
     }
 

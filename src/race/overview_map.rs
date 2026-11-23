@@ -14,11 +14,12 @@ use rc2k_core::race::overview::{Fit, SIDE};
 /// The players the overview map serves.
 const PLAYERS: u32 = 3;
 
-/// Whether the race is three players on a screen whose layout leaves a part free for the map.
+/// Whether the race is three players on a screen whose layout shown (`split_layout::shown_split`:
+/// a replay's group in its own arrangement) leaves a part free for the map.
 pub fn wanted(race: &Race) -> bool {
     let players = race.shared.view.get().players.get();
     players == PLAYERS
-        && rc2k_core::race::view::Split::many(players, crate::race::split_layout::index())
+        && crate::race::split_layout::shown_split(race, players)
             .is_some_and(|split| split.free_part(players, (SIDE, SIDE)).is_some())
 }
 
@@ -63,13 +64,13 @@ pub fn update(race: &Race, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> 
         return Ok(());
     }
     for n in 0..(PLAYERS as usize).min(4) {
-        let car = race
+        let mut car = race
             .shared
-            .race_car_or(n, "an overview map's car without its block")?;
-        crate::race::map_scroll::place_on_map(race, car)?;
+            .race_car_or_mut(n, "an overview map's car without its block")?;
+        crate::race::map_scroll::place_on_map(race, &mut car)?;
         let mut panel = race.frame.panel.borrow_mut();
         for (cell, place) in panel.overview_cars[n].iter_mut().zip(&car.map_place) {
-            *cell = place.get() as i32 as f32 / 65536.0;
+            *cell = *place as i32 as f32 / 65536.0;
         }
     }
     if race.frame.panel.borrow().overview_drawn == 0 {

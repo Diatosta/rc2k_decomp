@@ -12,12 +12,13 @@
 //! Refuses (before anything) what the two calls refuse.
 
 use crate::errors::Refused;
-use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::PlainX87;
 use crate::math::matrix3::extended;
 use crate::math::x87;
 use crate::math::x87::ext_to_int;
 use crate::math::x87_float::stf;
 use crate::math::x87_float::to_int;
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_sound_state::car_sound_state;
 use crate::physics::car_store::Car;
 use crate::physics::gear_change_sound::gear_change_sound;
@@ -28,7 +29,7 @@ use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 
 /// The speed figures.
-fn run(car: &Car, numbers: &Numbers) {
+fn run(car: &mut Car, numbers: &Numbers) {
     run_at(car, numbers);
 }
 
@@ -36,21 +37,20 @@ fn run(car: &Car, numbers: &Numbers) {
 /// `engine_speed_scaled` = the speed x `two_and_a_quarter`; its whole-number figure = that (x
 /// `kilometres_in_mile` with bit 8 of the car's flags); the length of the motion x
 /// `two_and_a_quarter`, the squares added in the order z, then x and y.
-fn run_at(car: &Car, numbers: &Numbers) {
+fn run_at(car: &mut Car, numbers: &Numbers) {
     car.engine_speed_scaled
         .st(car.local_velocity.ld(2) * numbers.two_and_a_quarter.ld());
     let speed = car.engine_speed_scaled.ld();
-    let flags = car.option_bits.get();
+    let flags = car.option_bits;
     let scaled = if flags & 0x100 != 0 {
         speed * numbers.kilometres_in_mile.ld()
     } else {
         speed
     };
-    car.engine_sound_speed_int.set(to_int(scaled) as u32);
+    car.engine_sound_speed_int = to_int(scaled) as u32;
     let (z, x, y) = (car.velocity.ld(2), car.velocity.ld(0), car.velocity.ld(1));
     let sum = z * z + (x * x + y * y);
-    car.sound_speed
-        .set(stf(sum.sqrt() * numbers.two_and_a_quarter.ld()));
+    car.sound_speed = stf(sum.sqrt() * numbers.two_and_a_quarter.ld());
 }
 
 // Core: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
@@ -64,15 +64,15 @@ pub(super) fn engine_sound(
     if shared.view.get().players.get() == 1 && shared.view_car(0).is_none() {
         return Err(crate::errors::BadInput("a null view block").into());
     }
-    run(shared.car(), numbers);
-    let speed = x87::loaded(&shared.car().engine_speed);
-    let floor = shared.physics_tables.get().idle_engine_speed.get();
+    run(&mut shared.car_mut(), numbers);
+    let speed = x87::loaded(shared.car().engine_speed);
+    let floor = shared.physics_tables().idle_engine_speed;
     let held = hold_low(speed, floor);
     let whole = ext_to_int(extended(held.to_bits())) as u32;
-    let (revs, _) = ease_revs(shared.car().engine_sound_revs.get(), whole);
-    shared.car().engine_sound_revs.set(revs);
+    let (revs, _) = ease_revs(shared.car().engine_sound_revs, whole);
+    shared.car_mut().engine_sound_revs = revs;
     { car_sound_state(numbers, view_turn, shared, sound) }?;
-    gear_change_sound(shared.car(), sound, shared.work.get())
+    gear_change_sound(&shared.car(), sound, &shared.work())
 }
 
 #[cfg(test)]
@@ -100,7 +100,7 @@ mod reference_vectors {
             ulps: 0,
             plain: |_| {
                 run_at(
-                    race().shared.car(),
+                    &mut race().shared.car_mut(),
                     &crate::test_support::race_places::numbers(),
                 );
             },

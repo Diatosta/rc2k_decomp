@@ -1075,3 +1075,12 @@ has the same fixed addresses, but its network mode could not be run here to see 
 - **In game**: a car that passed a checkpoint 1st showed something like 46th there in the replay, with other rivals' names before and after it (a time trial's replay showed no place at all). Watched just after the race it was right, since the race's tables were still loaded.
 - **Seen or read**: seen in play; the original's code places the same way.
 - **Fix**: a replay of the own format keeps both tables in its extension, the 90 rivals (name, car, time) as a `RIVL` section and the league table as `LEAG` (`rc2k_core::race::replay_v2::Extension::{rivals, league}`), and plays back against them. A replay written before has neither and plays as before.
+
+## The replay viewer's two-player pictures were the other way round
+
+*Original*: the replay viewer's car item and its table of pictures by layout. *Fixed*: 2026-11-23.
+
+- **What**: the viewer's car item shows a picture of the layout. Of a two-player replay's two layouts, the one that splits the screen side by side showed the picture of the box split across (1 above 2), and the one that splits it one above the other the picture split upright (1 left of 2).
+- **In game**: choosing the two cars together, the item's picture showed the players the other way round from the screen.
+- **Seen or read**: seen in play (a two-player replay, both layouts), and read in the table.
+- **Fix**: the picture follows the split (`rc2k_core::race::car_item::car_picture`), as the pictures of the further players' pairs and groups do.

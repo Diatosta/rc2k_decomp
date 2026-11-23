@@ -35,7 +35,6 @@ const CELLS: usize = 4 * ENTRIES + 0x10;
 /// flares, cars, faces drawn by depth) and the sort entries (the course faces); then 0x10 dwords
 /// that a flare's entry is read on into as a description of 0x3C bytes
 /// (`scene::draw_described_object`), past the last sort entry.
-#[derive(rc2k_derive::Cells)]
 pub struct SortLists {
     cells: [PlainDword; CELLS],
     pub depth_entry_count: PlainDword,
@@ -93,7 +92,6 @@ impl SortLists {
 /// lists (`copy_drawing_from`, `merge_drawing`).
 macro_rules! for_each_part {
     ($f:ident, $to:expr, $from:expr $(, $start:expr)?) => {{
-        use crate::memory::cells::Cells;
         let (to, from) = ($to, $from);
         to.fog.$f(&from.fog $(, &$start.fog)?);
         to.object.$f(&from.object $(, &$start.object)?);
@@ -107,7 +105,6 @@ macro_rules! for_each_part {
         to.quad.$f(&from.quad $(, &$start.quad)?);
         to.lamps.$f(&from.lamps $(, &$start.lamps)?);
         to.state.$f(&from.state $(, &$start.state)?);
-        to.car.$f(&from.car $(, &$start.car)?);
         to.hand_off.$f(&from.hand_off $(, &$start.hand_off)?);
         to.vars.$f(&from.vars $(, &$start.vars)?);
         to.vars_taken.$f(&from.vars_taken $(, &$start.vars_taken)?);
@@ -146,15 +143,15 @@ pub struct ViewScratch {
     pub state: PlainSlot<crate::race::view_state::ViewState>,
     /// The view's car: a copy of its block that the view's camera, matrices, course and lights read
     /// (`race::frame::load_view_car`); the physics' work car and `current_car` are not touched.
-    pub car: crate::physics::car_store::ViewCar,
+    pub car: std::cell::RefCell<crate::physics::car_store::ViewCar>,
     /// What the view's scene left its overlays (`race::scene_hand_off`).
     pub hand_off: crate::race::scene_hand_off::SceneHandOff,
     /// The view variables as the view's drawing has them: taken from the shared ones
     /// (`race().frame.view_and_records.view_vars`) as the view's drawing begins (`take_vars`),
     /// what it changed handed back on the main thread in the views' order (`hand_on_vars`).
-    pub vars: crate::race::view_vars_store::ViewVarsCopy,
+    pub vars: PlainSlot<crate::race::view_vars_store::ViewVarsCopy>,
     /// `vars` as taken.
-    vars_taken: crate::race::view_vars_store::ViewVarsCopy,
+    vars_taken: PlainSlot<crate::race::view_vars_store::ViewVarsCopy>,
 }
 
 impl ViewScratch {
@@ -174,31 +171,30 @@ impl ViewScratch {
             quad: PlainSlot::new(crate::race::quad_work::QuadWork::new()),
             lamps: PlainSlot::new(crate::race::lamp_work::LampValues::new()),
             state: PlainSlot::new(crate::race::view_state::ViewState::new()),
-            car: crate::physics::car_store::ViewCar::new(),
+            car: std::cell::RefCell::new(crate::physics::car_store::ViewCar::new()),
             hand_off: crate::race::scene_hand_off::SceneHandOff::new(),
-            vars: crate::race::view_vars_store::ViewVarsCopy::new(),
-            vars_taken: crate::race::view_vars_store::ViewVarsCopy::new(),
+            vars: PlainSlot::new(crate::race::view_vars_store::ViewVarsCopy::new()),
+            vars_taken: PlainSlot::new(crate::race::view_vars_store::ViewVarsCopy::new()),
         }
     }
 
     /// The shared view variables (`reads.view_and_records`) into the view's (`vars`), as its
     /// drawing begins.
     pub(super) fn take_vars(&self, reads: crate::scene::workers::DrawReads<'_>) {
-        let shared = &reads.view_and_records.view_vars;
-        use crate::memory::cells::Cells;
-        self.vars.copy_from(shared);
-        self.vars_taken.copy_from(shared);
+        let shared = reads.view_and_records.read(|records| records.view_vars);
+        self.vars.reset(shared);
+        self.vars_taken.reset(shared);
     }
 
     /// Hands what the view's drawing changed in its view variables into the shared ones (on the
     /// main thread, once it is drawn).
     pub(super) fn hand_on_vars(&self, race: &crate::race::owner::Race) {
-        use crate::memory::cells::Cells;
-        race.frame
-            .view_and_records
-            .get()
-            .view_vars
-            .merge_changes(&self.vars, &self.vars_taken);
+        let (now, start) = (*self.vars.borrow(), *self.vars_taken.borrow());
+        crate::memory::plain_record::PlainRecord::merge_changes(
+            &mut race.frame.view_and_records.borrow_mut().view_vars,
+            &now,
+            &start,
+        );
     }
 
     /// Every part but the lamps and the sort lists set back to its first values: a race view's
@@ -250,12 +246,17 @@ impl ViewScratch {
     pub fn copy_drawing_from(&self, other: &ViewScratch) {
         self.slot.set(other.slot.get());
         for_each_part!(copy_from, self, other);
+        *self.car.borrow_mut() = other.car.borrow().clone();
     }
 
     /// What `now` (a copy, `copy_drawing_from`) changed since it was `start` put into this
     /// view, part by part but the sort lists: the copy's drawing put after this view's own.
     pub(super) fn merge_drawing(&self, now: &ViewScratch, start: &ViewScratch) {
         for_each_part!(merge_changes, self, now, start);
+        use crate::memory::plain_record::PlainRecord;
+        self.car
+            .borrow_mut()
+            .merge_changes(&now.car.borrow(), &start.car.borrow());
     }
 
     /// The view drawn (`RaceView::drawn_view`): the player whose view or mirror the slot is; the

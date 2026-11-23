@@ -85,13 +85,15 @@ pub fn scaled(v: u32, screen: u32, of: u32) -> (u32, u32) {
 
 /// The strip's sizes on the screen (top, height, left, width: `Strips.sizes[0]` ..) from the
 /// virtual ones, and what the last division leaves: the width, its remainder and the
-/// virtual width.
+/// virtual width. `one_player`: one view fills the screen, whose HUD keeps its shape and its
+/// edges on a narrow screen as on a wide one (`anchor::layout_scale`).
 pub fn sizes(
     v: [u32; 4],
     screen_width: u32,
     height: u32,
     rule: crate::hud::anchor::Rule,
     hud_box: crate::hud::anchor::BoxRatio,
+    one_player: bool,
 ) -> ([u32; 4], [u32; 3]) {
     use crate::hud::anchor;
     if rule == anchor::Rule::Halves && anchor::is_wide(screen_width, height) {
@@ -112,9 +114,11 @@ pub fn sizes(
     }
     // The strip keeps to the HUD's box, centred on the screen.
     let (box_left, width) = hud_box.area(screen_width, height);
-    if anchor::is_wide(width, height) {
+    let narrow = anchor::is_narrow(width, height);
+    if anchor::is_wide(width, height) || (narrow && one_player) {
         // The layout keeps its shape: the strip's size and corner by one factor, the corner
-        // from the edge or the middle its place goes with.
+        // from the edge or the middle its place goes with; on a narrow screen the strip also
+        // keeps to the top, bottom or middle by where it lies.
         let (sx, sy) = anchor::factors(width, height);
         let middle = v[2] as f32 + v[3] as f32 / 2.0;
         let at = anchor::offset(width, height, anchor::anchor_of(middle, rule));
@@ -122,7 +126,29 @@ pub fn sizes(
         let down = |n: u32| (f64::from(n) * sy).floor() as u32;
         let left = (f64::from(box_left) + at + f64::from(v[2]) * sx).floor() as u32;
         let w = across(v[3]);
-        return ([down(v[0]), down(v[1]), left, w], [w, 0, VIRTUAL[0]]);
+        let top = if narrow {
+            let mid = v[0] as f32 + v[1] as f32 / 2.0;
+            anchor::narrow_y(v[0] as f32, mid, height, sy)
+                .floor()
+                .max(0.0) as u32
+        } else {
+            down(v[0])
+        };
+        return ([top, down(v[1]), left, w], [w, 0, VIRTUAL[0]]);
+    }
+    if narrow {
+        // A split screen narrower than 4:3: the layout keeps its shape, one factor (the width
+        // over 800) down as across, the strip keeping to the top, bottom or middle by where it
+        // lies.
+        let s = f64::from(width) / f64::from(anchor::VIRTUAL_WIDTH);
+        let mid = v[0] as f32 + v[1] as f32 / 2.0;
+        let top = anchor::narrow_y(v[0] as f32, mid, height, s).floor() as u32;
+        let across = |n: u32| (f64::from(n) * s).floor() as u32;
+        let w = across(v[3]);
+        return (
+            [top, across(v[1]), box_left + across(v[2]), w],
+            [w, 0, VIRTUAL[0]],
+        );
     }
     let [(top, _), (h, _), (left, _), (w, r)] = [
         scaled(v[0], height, VIRTUAL[1]),
@@ -201,6 +227,7 @@ mod tests {
             1080,
             Rule::Halves,
             BoxRatio::Full,
+            false,
         );
         assert!(s[2] >= 1920 && s[2] + s[3] <= 3840);
         // The first player's lies in the left half, at the 1.8 factor of the half's height, and
@@ -211,6 +238,7 @@ mod tests {
             1080,
             Rule::Halves,
             BoxRatio::Full,
+            false,
         );
         assert_eq!(s[3], 216);
         assert_eq!(s[2] + 3 * s[3] / 2, 960);
@@ -221,6 +249,7 @@ mod tests {
             1080,
             Rule::Halves,
             BoxRatio::Full,
+            false,
         );
         assert_eq!(s[2] + 3 * s[3] / 2, 2880);
         // 4:3 stretches as before.
@@ -230,8 +259,56 @@ mod tests {
             768,
             Rule::Halves,
             BoxRatio::Full,
+            false,
         );
         assert_eq!((s[2], s[3]), (5, 0x99));
+    }
+
+    #[test]
+    fn a_split_screens_portrait_strip_keeps_its_shape() {
+        use crate::hud::anchor::{BoxRatio, Rule};
+        // 660 x 1088: one factor (660 / 800) across and down, the strip at the top.
+        let (s, _) = sizes(
+            [2, HEIGHT, 0, WIDTH],
+            660,
+            1088,
+            Rule::Thirds,
+            BoxRatio::Full,
+            false,
+        );
+        assert_eq!((s[1], s[3]), (HEIGHT * 660 / 800, WIDTH * 660 / 800));
+        assert!(s[0] < 8, "the strip keeps to the top: {s:?}");
+    }
+
+    #[test]
+    fn one_players_strip_on_a_narrow_screen_keeps_the_normal_size() {
+        use crate::hud::anchor::{BoxRatio, CLEAR_ASPECT, Rule};
+        // 700 x 600: the size of a 4:3 screen of that height (a factor of 1), the strip's corner
+        // from the edge its place goes with: a strip in the left third keeps to the left edge.
+        let (s, _) = sizes(
+            [2, HEIGHT, 100, WIDTH],
+            700,
+            600,
+            Rule::Thirds,
+            BoxRatio::Full,
+            true,
+        );
+        assert_eq!((s[0], s[1], s[3]), (2, HEIGHT, WIDTH));
+        assert_eq!(s[2], 100);
+        // 660 x 1088, narrower than the limit: the layout shrunk to the limit aspect's scale,
+        // the strip at the top.
+        let k = 660.0 / (CLEAR_ASPECT * 600.0);
+        let (s, _) = sizes(
+            [2, HEIGHT, 100, WIDTH],
+            660,
+            1088,
+            Rule::Thirds,
+            BoxRatio::Full,
+            true,
+        );
+        assert_eq!(s[1], (f64::from(HEIGHT) * k).floor() as u32);
+        assert_eq!(s[3], (f64::from(WIDTH) * k).floor() as u32);
+        assert!(s[0] < 8, "the strip keeps to the top: {s:?}");
     }
 
     #[test]
@@ -245,6 +322,7 @@ mod tests {
             768,
             crate::hud::anchor::Rule::Thirds,
             crate::hud::anchor::BoxRatio::Full,
+            false,
         );
         assert_eq!(s, [12, 32, 25, 0x99]);
         assert_eq!(regs, [0x99, 480, 0x320]);

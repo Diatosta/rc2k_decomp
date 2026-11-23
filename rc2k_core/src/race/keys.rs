@@ -66,9 +66,55 @@ pub fn flip_bit(flags: u32, (bit, clear, set): (u32, u32, u32)) -> (u32, u32) {
 /// The camera views with a counter of their own (below this).
 pub const COUNTED_VIEWS: u32 = 7;
 
+/// The number-row key that stands in for a race's F key (both as key codes): 1 .. 9 and 0 for F1 ..
+/// F10, minus for F11 and equals for F12; none for any other key. A browser keeps most F keys for
+/// itself, the number row it leaves to the page.
+pub fn number_row_for(f_key: usize) -> Option<usize> {
+    match f_key {
+        0x3B..=0x44 => Some(f_key - 0x3B + 0x02),
+        0x57 => Some(0x0C),
+        0x58 => Some(0x0D),
+        _ => None,
+    }
+}
+
+/// The player a race key acts on (0 .. 3), by the modifier held with it: none the first, Ctrl
+/// the second (the original's Left Ctrl with the F keys), Alt the third, Shift the fourth. With
+/// more than one held the later in that list wins, so AltGr (Ctrl and Alt together on Windows)
+/// is Alt.
+pub fn key_player(ctrl: bool, alt: bool, shift: bool) -> usize {
+    if shift {
+        3
+    } else if alt {
+        2
+    } else {
+        usize::from(ctrl)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_number_row_stands_in_for_the_f_keys() {
+        assert_eq!(number_row_for(0x3B), Some(0x02));
+        assert_eq!(number_row_for(0x44), Some(0x0B));
+        assert_eq!(number_row_for(0x57), Some(0x0C));
+        assert_eq!(number_row_for(0x58), Some(0x0D));
+        assert_eq!(number_row_for(0x1C), None);
+    }
+
+    #[test]
+    fn each_modifier_has_its_player() {
+        assert_eq!(key_player(false, false, false), 0);
+        assert_eq!(key_player(true, false, false), 1);
+        assert_eq!(key_player(false, true, false), 2);
+        assert_eq!(key_player(false, false, true), 3);
+        // AltGr is Ctrl and Alt together on Windows: Alt's player.
+        assert_eq!(key_player(true, true, false), 2);
+        assert_eq!(key_player(true, true, true), 3);
+    }
 
     #[test]
     fn keys() {

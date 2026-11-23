@@ -20,33 +20,32 @@ pub(super) fn drive_force(
     gear_figures: &GearFigures,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let gear = shared.car().gear.get();
+    let gear = shared.car().gear;
     if !(-1..=7).contains(&gear) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     engine_torque_or_cut(course, shared, scene);
-    shared
-        .physics_tables
-        .get()
-        .drive_ratio
-        .set(sum_times_int_over_minus(
-            &shared.physics_tables.get().engine_force,
-            &shared.physics_tables.get().engine_torque,
-            shared.car().throttle.get() as i32,
+    {
+        let mut tables = shared.physics_tables_mut();
+        tables.drive_ratio = sum_times_int_over_minus(
+            tables.engine_force,
+            tables.engine_torque,
+            shared.car().throttle as i32,
             course.numbers.k256,
-        ));
-    shared.physics_tables.get().drive_torque.set(mul_div2(
-        &shared.physics_tables.get().drive_ratio,
-        &gear_figures.drive_torque_figure,
-        &shared.physics_tables.get().gear_ratios[(gear + 1) as usize],
-        course.numbers.k10000,
-    ));
-    if shared.car().drive_cut_steps.get() != 0 {
-        shared.physics_tables.get().drive_torque.set(0.0);
+        );
+        tables.drive_torque = mul_div2(
+            tables.drive_ratio,
+            &gear_figures.drive_torque_figure,
+            tables.gear_ratios[(gear + 1) as usize],
+            course.numbers.k10000,
+        );
+        if shared.car().drive_cut_steps != 0 {
+            tables.drive_torque = 0.0;
+        }
     }
     drive_torque_share(
-        shared.car(),
-        shared.physics_tables.get(),
+        &shared.car(),
+        &mut shared.physics_tables_mut(),
         &course.numbers,
         scene,
     );

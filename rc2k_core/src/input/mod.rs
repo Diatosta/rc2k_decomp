@@ -12,6 +12,7 @@ pub mod frame;
 pub mod icons;
 pub mod joystick;
 pub mod keyboard;
+pub mod known_devices;
 pub mod layouts;
 pub mod menu_touch;
 pub mod osk;

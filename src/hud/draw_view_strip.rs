@@ -39,12 +39,26 @@ pub struct Overlay<'a> {
 }
 
 /// The strip's sizes into `strips.sizes` (`strips::sizes`).
-fn sizes(system: &System, strips: &Strips, v: [u32; 4], rule: Rule) {
-    sizes_in(system, strips, v, rule, crate::hud::box_ratio::get());
+fn sizes(system: &System, strips: &Strips, v: [u32; 4], rule: Rule, one_player: bool) {
+    sizes_in(
+        system,
+        strips,
+        v,
+        rule,
+        crate::hud::box_ratio::get(),
+        one_player,
+    );
 }
 
 /// `sizes` in the box `hud_box`.
-fn sizes_in(system: &System, strips: &Strips, v: [u32; 4], rule: Rule, hud_box: BoxRatio) {
+fn sizes_in(
+    system: &System,
+    strips: &Strips,
+    v: [u32; 4],
+    rule: Rule,
+    hud_box: BoxRatio,
+    one_player: bool,
+) {
     // The strip keeps to the part of the screen clear of a phone's notch and home indicator.
     let [ox, oy, width, height] = crate::hud::safe_inset::get(
         (
@@ -53,7 +67,7 @@ fn sizes_in(system: &System, strips: &Strips, v: [u32; 4], rule: Rule, hud_box: 
         ),
         None,
     );
-    let (mut sizes, _) = strips::sizes(v, width, height, rule, hud_box);
+    let (mut sizes, _) = strips::sizes(v, width, height, rule, hud_box, one_player);
     sizes[0] += oy;
     sizes[2] += ox;
     for (n, x) in sizes.into_iter().enumerate() {
@@ -128,7 +142,14 @@ pub(super) fn overlay_tail(overlay: &Overlay) -> Result<(), Refused> {
     for (v, rows) in strips::TAIL {
         // The labels at the top corners lie on the bar's end caps: at the screen's own edges,
         // whatever the HUD's box (`hud::layout_0` keeps the bar there too).
-        sizes_in(system, strips_store, v, Rule::Thirds, BoxRatio::Full);
+        sizes_in(
+            system,
+            strips_store,
+            v,
+            Rule::Thirds,
+            BoxRatio::Full,
+            players == 0,
+        );
         let get = |n: usize| strips_store.sizes[n].get();
         quad(overlay, get(2), get(3), rows, Some(strips::TAIL_TEXTURE))?;
     }
@@ -167,6 +188,7 @@ pub fn draw_view_strip(overlay: &Overlay, view: u32) -> Result<(), Refused> {
             strips,
             [top, strips::HEIGHT, left, strips::WIDTH],
             rule,
+            view_layout(race) == 0,
         );
         let get = |n: usize| strips.sizes[n].get();
         let (mut left, width, mut rows) = (get(2), get(3), 0);

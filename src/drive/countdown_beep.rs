@@ -15,16 +15,11 @@ pub fn countdown_beep(
     store: impl FnOnce(u32),
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
-    let beep = countdown::countdown_beep(
-        block.false_start_count.get(),
-        block.driver_kind.get(),
-        || {
-            block
-                .run_ticks
-                .get()
-                .wrapping_sub(crate::race::overlay_store::COUNTDOWN_START)
-        },
-    );
+    let beep = countdown::countdown_beep(block.false_start_count, block.driver_kind, || {
+        block
+            .run_ticks
+            .wrapping_sub(crate::race::overlay_store::COUNTDOWN_START)
+    });
     let (second, cue) = match beep {
         Beep::Idle | Beep::Before(_) => return Ok(()),
         Beep::At { second, cue, .. } => (second, cue),

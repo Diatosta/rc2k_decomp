@@ -2,6 +2,7 @@
 //! scene points, 12 bytes each), with no offset: `object_offset` set to 0.
 
 use crate::errors::Refused;
+use crate::physics::car_store::Car;
 use crate::physics::point_hits_car::point_hits_car;
 use crate::physics::step_families::ContactInputs;
 
@@ -10,6 +11,7 @@ use crate::physics::step_families::ContactInputs;
 pub(super) fn scene_point_hits_car(
     c: &ContactInputs<'_>,
     face: u32,
+    car: &mut Car,
 ) -> Result<(bool, u32), Refused> {
     let number = crate::race::course_places::face_field::<u32>(c.course.reads(), face, 4)?;
     c.contact.borrow_mut().object_offset = [0; 3];
@@ -18,5 +20,5 @@ pub(super) fn scene_point_hits_car(
         &crate::race::scene_points::no_own(),
         number,
     )?;
-    Ok(({ point_hits_car(c, place, face) }?, number))
+    Ok(({ point_hits_car(c, place, face, car) }?, number))
 }

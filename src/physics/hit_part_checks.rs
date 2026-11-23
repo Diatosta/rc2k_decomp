@@ -21,11 +21,16 @@ pub(super) fn hit_part_checks(
     scene: &crate::scene::owner::Scene,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    let left = parts_left(shared.car().parts_present.get());
-    shared.car().parts_state.set(left);
-    if left != 0 || shared.car().tyre_change_state.get() != 0 {
+    let left = parts_left(shared.car().parts_present);
+    shared.car_mut().parts_state = left;
+    if left != 0 || shared.car().tyre_change_state != 0 {
         return Ok(());
     }
-    drop_hit_parts(numbers, shared.work.get(), shared.car(), scene)?;
+    drop_hit_parts(
+        numbers,
+        &mut shared.work_mut(),
+        &mut shared.car_mut(),
+        scene,
+    )?;
     sound_hit_parts(numbers, view_turn, shared, kind_tables, sound)
 }

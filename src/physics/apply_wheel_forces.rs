@@ -9,7 +9,7 @@ use crate::race::numbers_store::Numbers;
 const COUNT: usize = 0x17;
 
 pub(super) fn apply_wheel_forces(
-    car: &Car,
+    car: &mut Car,
     numbers: &Numbers,
     tables: &PhysicsTables,
 ) -> Result<(), Refused> {

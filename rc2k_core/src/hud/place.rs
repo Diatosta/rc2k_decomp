@@ -31,6 +31,9 @@ pub struct Place {
     pub y_span: (f32, f32),
     /// Drawing into a part of the screen.
     pub in_part: bool,
+    /// One player's HUD on the whole screen (`hud::batch::Layout::Single`): on a screen
+    /// narrower than 4:3 it keeps to the edges at the full size `anchor::layout_scale` gives.
+    pub one_player: bool,
 }
 
 /// The mapping of the vertices' x.
@@ -48,13 +51,14 @@ enum XMap {
     },
     /// The marker: its shape kept, its right edge at `edge`.
     Marker { edge: f32, scale: f32, high: f32 },
-    /// A screen no wider than 4:3: each axis by its own factor.
+    /// A screen of 4:3, or a narrower one with a split screen's layout: each axis by its own
+    /// factor.
     Scaled {
         left: f32,
         box_width: u32,
         virtual_width: f32,
     },
-    /// A wide screen: the piece keeps to an edge or the middle.
+    /// A wide screen, or one player's on a narrow one: the piece keeps to an edge or the middle.
     Anchored {
         left: f32,
         box_width: u32,
@@ -66,9 +70,9 @@ enum XMap {
 /// The mapping of the vertices' y.
 #[derive(Clone, Copy, Debug)]
 enum YMap {
-    /// A part narrower than 4:3: the layout's shape kept, the piece to the part's top, bottom or
-    /// middle.
-    Narrow { middle: f32 },
+    /// The layout's shape kept at `scale` on a screen or part narrower than 4:3 (a part's width
+    /// over 800; one player's `anchor::layout_scale`), the piece to the top, bottom or middle.
+    Narrow { middle: f32, scale: f64 },
     /// The layout's shape kept across a wide screen.
     Shape,
     /// Each axis by its own factor.
@@ -101,6 +105,7 @@ impl Placement {
             x_span: (low, high),
             y_span,
             in_part,
+            one_player,
         } = *place;
         // The pieces keep to the HUD's box, centred on the screen (all of it by default); the
         // divider's own rule stretches over the whole screen.
@@ -111,7 +116,10 @@ impl Placement {
             (ox + left, width)
         };
         let is_layout = (kx, ky) == LAYOUT;
-        let wide = anchor::is_wide(box_width, ih) && is_layout;
+        let narrow = anchor::is_narrow(box_width, ih) && is_layout;
+        // One player's HUD on a narrow screen keeps its shape and its edges as on a wide one.
+        let one_narrow = narrow && one_player && !in_part;
+        let wide = (anchor::is_wide(box_width, ih) && is_layout) || one_narrow;
         // Two players side by side on a wide screen: each half is a part of its own.
         let beside = (rule == Keep::Halves as u32 || rule == Keep::PartMiddle as u32)
             && anchor::is_wide(iw, ih)
@@ -136,7 +144,7 @@ impl Placement {
             XMap::Marker {
                 edge: ox as f32
                     + anchor::marker_edge_x(low, marker_k[0], marker_k[1], box_width, ih),
-                scale: ih as f32 / 600.0,
+                scale: anchor::layout_scale(box_width, ih) as f32,
                 high,
             }
         } else if !wide {
@@ -158,13 +166,20 @@ impl Placement {
                 at: anchor::anchor_of(middle, rule),
             }
         };
-        // A part narrower than 4:3 keeps the layout's shape too: one factor (the part's width
-        // over 800) down as across, a piece keeping to the part's top, bottom or middle by where
-        // its own middle lies in the layout.
-        let narrow_part = in_part && !wide && !beside && is_layout;
-        let y = if narrow_part {
+        // A part, or a split screen, narrower than 4:3 keeps the layout's shape too: one factor
+        // (its width over 800) down as across, a piece keeping to the top, bottom or middle by
+        // where its own middle lies in the layout. A whole screen of exactly 4:3 is the layout
+        // itself.
+        let middle_y = (y_span.0 + y_span.1) / 2.0;
+        let y = if one_narrow {
             YMap::Narrow {
-                middle: (y_span.0 + y_span.1) / 2.0,
+                middle: middle_y,
+                scale: anchor::layout_scale(box_width, ih),
+            }
+        } else if is_layout && (in_part || narrow) && !wide && !beside {
+            YMap::Narrow {
+                middle: middle_y,
+                scale: f64::from(box_width) / f64::from(anchor::VIRTUAL_WIDTH),
             }
         } else if wide || beside {
             YMap::Shape
@@ -216,7 +231,7 @@ impl Placement {
     pub fn y(&self, y: f32) -> f32 {
         self.top as f32
             + match self.y {
-                YMap::Narrow { middle } => anchor::narrow_y(y, middle, self.box_width, self.height),
+                YMap::Narrow { middle, scale } => anchor::narrow_y(y, middle, self.height, scale),
                 YMap::Shape => anchor::screen_y(y, self.box_width, self.height),
                 YMap::Scaled => screen_scaled(y, self.height, self.virtual_height),
             }
@@ -238,6 +253,7 @@ mod tests {
             x_span: (0.0, 100.0),
             y_span: (0.0, 50.0),
             in_part: false,
+            one_player: false,
         }
     }
 
@@ -255,6 +271,87 @@ mod tests {
         let mut right = place(Keep::Thirds, 1920, 1080);
         right.x_span = (700.0, 800.0);
         assert_eq!(Placement::of(&right).x(800.0), 1920.0);
+    }
+
+    #[test]
+    fn a_split_screen_in_portrait_keeps_the_shape_and_the_top_and_bottom() {
+        // 660 x 1088: one factor of 0.825 down as across; the top piece at the top, the bottom
+        // piece at the bottom, the middle one about the middle.
+        let mut top = place(Keep::Thirds, 660, 1088);
+        top.y_span = (0.0, 100.0);
+        assert_eq!(Placement::of(&top).y(100.0), 82.5);
+        let mut bottom = place(Keep::Thirds, 660, 1088);
+        bottom.y_span = (500.0, 600.0);
+        let p = Placement::of(&bottom);
+        assert_eq!((p.y(600.0), p.y(500.0)), (1088.0, 1088.0 - 82.5));
+        let mut mid = place(Keep::Thirds, 660, 1088);
+        mid.y_span = (250.0, 350.0);
+        let p = Placement::of(&mid);
+        assert_eq!((p.x(400.0), p.y(300.0)), (330.0, 544.0));
+    }
+
+    fn single(width: u32, height: u32) -> Place {
+        Place {
+            one_player: true,
+            ..place(Keep::Thirds, width, height)
+        }
+    }
+
+    #[test]
+    fn one_player_on_a_slightly_narrow_screen_keeps_the_normal_size_at_the_edges() {
+        // 700 x 600: the layout's size at 4:3 for the height (one factor of 1), the left piece
+        // at the left edge, the right piece at the right edge, rows as at 4:3.
+        let mut left = single(700, 600);
+        left.x_span = (30.0, 160.0);
+        left.y_span = (440.0, 568.0);
+        let p = Placement::of(&left);
+        assert_eq!(
+            (p.x(33.0), p.x(161.0), p.y(440.0), p.y(568.0)),
+            (33.0, 161.0, 440.0, 568.0)
+        );
+        let mut right = single(700, 600);
+        right.x_span = (640.0, 770.0);
+        right.y_span = (440.0, 568.0);
+        let p = Placement::of(&right);
+        // The map's inner edge 158 from the right edge, as at 800 x 600.
+        assert_eq!((p.x(642.0), p.x(768.0), p.y(568.0)), (542.0, 668.0, 568.0));
+        // The 4:3 screen itself is the layout.
+        let mut right = single(800, 600);
+        right.x_span = (640.0, 770.0);
+        assert_eq!(Placement::of(&right).x(642.0), 642.0);
+    }
+
+    #[test]
+    fn one_player_on_a_portrait_screen_shrinks_to_clear_the_car_and_keeps_the_corners() {
+        use crate::hud::anchor::{CAR_HALF_WIDTH, CLEAR_ASPECT, DIAL_REACH};
+        let s = 660.0 / (CLEAR_ASPECT * 600.0);
+        // The bottom left piece (the dial): at the left edge, its bottom at the screen's bottom.
+        let mut dial = single(660, 1088);
+        dial.x_span = (33.0, 161.0);
+        dial.y_span = (440.0, 568.0);
+        let p = Placement::of(&dial);
+        assert!((f64::from(p.x(0.0))).abs() < 1e-3);
+        let edge = f64::from(p.x(161.0));
+        assert!((edge - DIAL_REACH * s).abs() < 1e-2);
+        assert!(edge <= 660.0 * (0.5 - CAR_HALF_WIDTH) + 1e-2, "{edge}");
+        // Its rows: the layout's bottom third keeps to the bottom edge.
+        assert!((f64::from(p.y(600.0)) - 1088.0).abs() < 1e-3);
+        // The map at the right edge, clear of the car too.
+        let mut map = single(660, 1088);
+        map.x_span = (642.0, 768.0);
+        map.y_span = (440.0, 568.0);
+        let p = Placement::of(&map);
+        assert!((f64::from(p.x(800.0)) - 660.0).abs() < 1e-3);
+        assert!(f64::from(p.x(642.0)) >= 660.0 * (0.5 + CAR_HALF_WIDTH) - 1e-2);
+        // A top piece keeps to the top, a middle one to the middle.
+        let mut top = single(660, 1088);
+        top.y_span = (0.0, 100.0);
+        assert!((f64::from(Placement::of(&top).y(100.0)) - 100.0 * s).abs() < 1e-3);
+        let mut mid = single(660, 1088);
+        mid.x_span = (350.0, 450.0);
+        mid.y_span = (250.0, 350.0);
+        let p = Placement::of(&mid);
+        assert_eq!((p.x(400.0), p.y(300.0)), (330.0, 544.0));
     }
 
     #[test]

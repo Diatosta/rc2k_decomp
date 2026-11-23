@@ -13,72 +13,49 @@
 use crate::math::x87;
 use crate::math::x87::compare_full;
 use crate::math::x87_float as bh;
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 
-/// The cells the blend reads and writes.
-struct BlendCells<'a> {
-    /// The work car's checkpoint.
-    pub checkpoint: &'a PlainDword,
-    /// The lead car's checkpoint.
-    pub lead_checkpoint: &'a PlainDword,
-    /// The held count.
-    pub scratch: &'a crate::memory::session::PlainDword,
-    /// `start_blend_share`: the count times `start_blend_step`.
-    pub step_share: &'a PlainFloat,
-    pub start_share: &'a PlainFloat,
-    pub pace_push: &'a PlainFloat,
-    /// `start_blend`: the result.
-    pub blend: &'a PlainFloat,
-}
-
-/// The Rust core on the variables `v`: the held count.
-fn blend_at(race: &Race, v: &BlendCells<'_>) -> u32 {
-    let mut n = v.checkpoint.get().wrapping_sub(v.lead_checkpoint.get());
+/// The Rust core on the work car `car` and the lead car's checkpoint: the held count, which is
+/// also left in `scratch`.
+fn blend_at(race: &Race, car: &mut Car, lead_checkpoint: u32, scratch: &mut u32) -> u32 {
+    let mut n = car.checkpoint.wrapping_sub(lead_checkpoint);
     if (n as i32) < 0 {
         n = 0;
     }
     if (n.wrapping_sub(100) as i32) >= 0 {
         n = 100;
     }
-    v.scratch.set(n);
-    v.step_share.set(x87::int_times(
-        n as i32,
-        &race.shared.tables().start_blend_step,
-    ));
-    v.blend.set(bh::stf(
-        bh::ld(v.start_share.get()) + bh::ld(v.step_share.get()) + bh::ld(v.pace_push.get()),
-    ));
+    *scratch = n;
+    car.start_blend_share = x87::int_times(n as i32, &race.shared.tables().start_blend_step);
+    car.start_blend = bh::stf(
+        bh::ld(car.start_share.to_bits())
+            + bh::ld(car.start_blend_share.to_bits())
+            + bh::ld(car.pace_push.to_bits()),
+    );
     let (low, high) = (
         race.course.numbers.zero.get(),
         race.course.numbers.one.get(),
     );
-    if compare_full(v.blend.get(), low) & 0x100 != 0 {
-        v.blend.set(x87::loaded(low));
+    if compare_full(car.start_blend, low) & 0x100 != 0 {
+        car.start_blend = x87::loaded(low);
     }
-    if compare_full(v.blend.get(), high) & 0x100 == 0 {
-        v.blend.set(x87::loaded(high));
+    if compare_full(car.start_blend, high) & 0x100 == 0 {
+        car.start_blend = x87::loaded(high);
     }
     n
 }
 
-fn game<'a>(race: &'a Race, scratch: &'a PlainDword) -> BlendCells<'a> {
-    let shared = &race.shared;
-    BlendCells {
-        checkpoint: &shared.car().checkpoint,
-        lead_checkpoint: &race.car_blocks().cars[0].checkpoint,
-        scratch,
-        step_share: &shared.car().start_blend_share,
-        start_share: &shared.car().start_share,
-        pace_push: &shared.car().pace_push,
-        blend: &shared.car().start_blend,
-    }
-}
-
 /// (the exact one, for `drive::read_car_controls`).
 pub fn start_blend(race: &Race, scene: &crate::scene::owner::Scene) -> u32 {
-    let scratch = PlainDword::new(scene.draw_work().scratch);
-    let n = blend_at(race, &game(race, &scratch));
-    scene.draw_work_mut().scratch = scratch.get();
+    let mut scratch = scene.draw_work().scratch;
+    let lead_checkpoint = race.car_blocks().cars[0].checkpoint;
+    let n = blend_at(
+        race,
+        &mut race.shared.car_mut(),
+        lead_checkpoint,
+        &mut scratch,
+    );
+    scene.draw_work_mut().scratch = scratch;
     n
 }

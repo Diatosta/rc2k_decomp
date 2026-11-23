@@ -20,7 +20,7 @@ pub(super) fn lowest_body_point(
     contact: &RefCell<ContactWork>,
     probes: &ProbeLists,
 ) -> Result<(), Refused> {
-    let n = car.probe_count.get();
+    let n = car.probe_count;
     if n > 0x40 {
         return Err(BadInput("more than 0x40 probe points (the depths' room)").into());
     }

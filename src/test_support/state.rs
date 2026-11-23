@@ -32,6 +32,18 @@ fn kept_plain(name: &str) -> Option<Box<dyn Fn() + 'static>> {
     match name {
         // The game's float constants: fixed, nothing to keep.
         "owners.race.course.numbers" => Some(Box::new(|| {})),
+        "owners.race.shared.car" => {
+            let copy = super::own::race().shared.car().clone();
+            Some(Box::new(move || {
+                *super::own::race().shared.car_mut() = copy.clone();
+            }))
+        }
+        "owners.race.shared.car_blocks" => {
+            let copy = super::own::race().shared.car_blocks().clone();
+            Some(Box::new(move || {
+                *super::own::race().shared.car_blocks_mut() = copy.clone();
+            }))
+        }
         "owners.scene.draw_work" => {
             let copy = super::own::scene().draw_work().clone();
             Some(Box::new(move || {
@@ -48,6 +60,12 @@ fn kept_plain(name: &str) -> Option<Box<dyn Fn() + 'static>> {
             let copy = super::own::race().frame.shadow_skids.borrow().clone();
             Some(Box::new(move || {
                 *super::own::race().frame.shadow_skids.borrow_mut() = copy.clone();
+            }))
+        }
+        "owners.race.shared.work" => {
+            let copy = super::own::race().shared.work().clone();
+            Some(Box::new(move || {
+                *super::own::race().shared.work_mut() = copy.clone();
             }))
         }
         "owners.scene.line_and_shake" => {

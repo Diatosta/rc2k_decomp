@@ -23,6 +23,7 @@ the switches of the command line are on [Running and options](Running-and-option
 - **Lobby passwords, ping, un-ready and `/kick`** to put a player out: [Network play](#network-play).
 - **Computer drivers (bots) in network races**, switched by the host in the lobby: [Network play](#network-play).
 - **A player who leaves a network race** has their car taken out of it, with a message to the others, and **the other cars on the map disc**: [Network play](#network-play).
+- **A Discord status** on the desktop builds: the menus, or the stage, car and mode being raced, with the time elapsed: [Discord status](Discord-status).
 - **A save code**: the player's saved games, car set-ups and best times (not the settings) as text and as QR codes on the options menu's new page, copied, pasted or read with a camera: [Save code](Save-code); the web build's saves page shows and reads the same QR codes ([Save code](Save-code#on-the-web)).
 - **Delete all saved data**, a row on the advanced page (asked once, with a delay on Yes) for starting fresh where the folders are out of reach: [Menus and settings](#menus-and-settings).
 - **Finding hosts over Tailscale**: [Network play](#network-play).
@@ -82,6 +83,18 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   modes are gone: the screen always has 32 bits a pixel (an old 16-bit choice becomes the same
   size at 32 bits). On an iPhone or iPad the list holds the screen's own pixel size (the race fills it
   edge to edge, the HUD keeping clear of the notch) and its 3/4, 2/3 and 1/2, and the race starts at the largest no wider than 1920.
+- **Tall screens.** On a window narrower than 4:3 (a phone held upright, a window dragged
+  narrow) one player's race HUD keeps its shape and its normal size instead of being squeezed
+  sideways, where the original stretched its 800 x 600 layout over the screen and made the
+  round dials and the map ovals: one scale (the height over 600, what a 4:3 screen of that
+  height has) goes both ways, the dial and the map keep to the left and right edges as they do
+  on a wide screen, and a piece keeps to the top, the bottom or the middle of the screen by
+  where it lies in the layout. The HUD keeps that size as long as the dial and the map stay
+  clear of the car in the first chase view (down to a width of about 0.73 of the height, the
+  car's width measured on the widest of the game's cars); a narrower screen shrinks the HUD
+  just enough to keep clear, so on a phone it never covers the car. The notice strips and the
+  rear-view mirror follow. Split screens on a narrow screen keep each part's layout whole
+  across the part's width. A 4:3 screen is the layout itself and draws as before.
 - **Wide screens.** On a screen wider than 4:3 the 3D keeps its field of view up and down and
   shows more to the sides; the HUD keeps its 800 x 600 shape with its pieces in the corners and
   edges. The graphics page's "HUD area" row (the whole screen at first) confines the HUD to a
@@ -118,8 +131,10 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
   the simulation's 100 ticks a second (it showed as dark squares).
 - **Helmets** on the in-race options page are textured.
 - A **loading bar** is shown while a stage loads, and the loading picture is shown once.
-- **Screenshots and snapshots are PNG files**, not PCX ([Screenshots](Screenshots)); the numbering
-  and folders are as before.
+- **Screenshots and snapshots are PNG files**, not PCX, and **all go into `savedata/snapshot/`**
+  (the screenshot key's too, which the original put in the game's folder), each numbered one past
+  the highest already there, so a new session no longer writes over the last one's pictures
+  ([Screenshots](Screenshots)).
 - The rectangle fill the original never drew at 32 bits works, so message boxes have backs and
   the installer's percentage and the tyre change's texts are cleared before they are redrawn.
 - The 3D resolution and screen options only change how a frame is drawn: the simulation, and so
@@ -183,6 +198,9 @@ The original was a 32-bit Windows program on DirectX. Its platform side was not 
 
 Everything is on [Controllers](Controllers) and [Input](Input); in short:
 
+- **The number row works as the F keys in a race** (1 .. 0, minus, equals for F1 .. F12), and **a modifier picks the player** the
+  view keys act on, with the F keys too: Ctrl the second (as before), Alt the third, Shift the fourth, for keyboards and browsers where the F keys are awkward:
+  [Input](Input#keys-in-a-race).
 - **The whole game works with a pad**: menus, questions, the credits, the replay viewer, the
   network lobby (the shoulders are Tab), any-key waits (South, East, West or Start). A held
   button repeats as a held key does.
@@ -198,7 +216,8 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   typed text in a line at the top (stars for a password), pages of symbols and accented letters.
   A system with its own screen keyboard shows that one instead.
 - **Profiles.** Each player keeps a profile for every controller used: bindings and per-axis
-  settings. The controller page has "axes" (a live bar for each axis; dead zone, range, response
+  settings. A controller known by name starts with its own bindings and button pictures (the
+  FANATEC Wheel: pedals, paddles, H shifter and PlayStation pictures; [Controllers](Controllers#profiles)). The controller page has "axes" (a live bar for each axis; dead zone, range, response
   curve, invert, and a wheel's full rotation, 900 degrees at first) in place of the original's axis
   mode and dead zone items. The buttons page binds steering, accelerate and brake to any axis
   and the rest to buttons or hat directions, and has a last page of **menu controls** (enter, back,
@@ -298,15 +317,41 @@ Everything is on [Controllers](Controllers) and [Input](Input); in short:
   byte as the original wrote it. The replays list marks a slot "old" after its name when it holds only the original's file, a new slot shows its name alone; a slot with both
   files loads the new one, and a slot with only the original's file (one copied in) loads that as it was. Old
   files play as they always did. A recording takes about 130 KB a minute for one car and up to about 2 MB a
-  minute for eight cars of which seven are driven elsewhere. Every car of such a replay is drawn with its own model (the original's header names four), and in a network race's replay the followed car's headlights light the road. A replay of the new format can be 90 minutes long (the original's was cut at 30); its original-format twin is cut at 30 minutes.
+  minute for eight cars of which seven are driven elsewhere. Every car of such a replay is drawn with its own model (the original's header names four), and in a network race's replay the followed car's headlights light the road, or, split between players, every shown car's in every view (as in a split-screen race). A replay of the new format can be 90 minutes long (the original's was cut at 30); its original-format twin is cut at 30 minutes.
 - The viewer's **car item** goes through the **players** only (a race's human players, also those on other
   machines), never a computer car; the computer's cars are still drawn and drive in the replay. It also
-  works for a network race's replay and for races of more than four players.
+  works for a network race's replay and for races of more than four players. The item's picture shows the
+  number of the car followed: the panel's pictures hold only 1, 2 and both, so the third to the eighth car are
+  the first car's picture with its digit covered and the number drawn over it in the game's heavy font (the font's
+  letters without their outline, black, as large and where the panel's own 1 and 2 are). Every layout has a picture
+  of how it splits the screen: the two-player layouts show the box split upright for the players side by side and
+  across for one above the other (the original showed each pair's picture for the other split); the fifth and
+  sixth as a pair have the pair pictures with 5 and 6 in place of 1 and 2; a group of three or four is the box
+  divided as the screen is in that layout's arrangement (one across the top and two below, rows,
+  columns or quarters, the fourth quarter of three players left empty), with the pair pictures' own dividers, each
+  part with its player's number, the digits as high as the smallest part leaves room for (as the pairs' where the
+  parts are as big as a pair's). The pictures take the item's colours as the others do. The camera buttons (and the
+  camera names in the bar above) act on the car the layout shows, also the fifth to the eighth, and their icons show
+  that car's number in place of the fixed 1 and 2; in a split of three or four parts two more camera buttons lie on
+  either side of the render button, for the third and fourth part. The choice for the fifth to the eighth car lasts
+  while the viewer has the replay open and is not saved in the file; until it is made they start on the same camera
+  as the first four cars.
 - A replay of **more than two cars** (three or four players on one machine, or a network race with other players
   and bots) is **heard with every car**: each car's engine, tyres, gear changes and knocks, the nearest loudest
   (heard from the followed car in one view). One- and two-player replays sound as before.
-- A replay of a **three- or four-player split-screen race** can be watched **split as it was raced**: after the
-  single players the viewer's car item offers "all", each player in the race's part of the screen with its HUD.
+- A replay of **three or more players** can be watched **split between players**: after the single players the
+  viewer's car item offers the groups (in place of the two-player layouts, which only a two-player replay has),
+  each player in a part of the screen with its own HUD, map and car icon, shown with the viewer's HUD switches as
+  in the other layouts (the third part with the left one, the fourth with the right): for a local split-screen
+  race "all" as it was raced; for a network race or one of more than four players the first four players, and for
+  six, seven or eight players also the rest: the fifth and sixth as a two-player split (side by side or one above
+  the other, as the first two), the fifth to the seventh as a three-way split, the fifth to the eighth as a four-way one. The groups' parts take their cars' own camera choices as far
+  as the replay has them. Each group of three or four comes in **every arrangement** a split-screen race of as many
+  players has, one after the other on the car item, the race's default first: three players one across the top and
+  two below, three rows, three columns, quarters (the fourth quarter showing the course's map); four players
+  quarters, four rows, four columns. The arrangement is kept in the replay's blocks, so a saved replay shows its
+  groups as they were chosen, and a split-screen race's replay opens in the arrangement it was raced in; the split
+  chosen for races is left as it is.
 - A **network race records a replay** like a single race; the lobby then offers "save replay". A replay that
   cannot be saved or read shows a notice instead of ending the game.
 - Old replays are read as they are, and replays saved here play in the same way on every system.
@@ -380,6 +425,7 @@ or IPX connection), and Steam when Valve's library is beside the program (it is 
   no films.
 - **A folder with no game data** opens a page asking for a folder or a zip (picked or dropped on
   the window), or takes `--game-data <folder|zip>`.
+- A Discord status on Windows, Linux and macOS (the Discord app on the same machine only; `discord_status = false` in `rc2k.toml` turns it off): [Discord status](Discord-status).
 - A second copy in the same folder is refused unless `--allow-another` is given.
 - Closing the window ends the game properly, saving the options and the session's records.
 

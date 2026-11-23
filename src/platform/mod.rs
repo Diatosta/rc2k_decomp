@@ -27,6 +27,8 @@
 #[cfg(target_os = "android")]
 pub(crate) mod android;
 pub(crate) mod caps;
+#[cfg(discord_support)]
+pub(crate) mod discord;
 pub(crate) mod event;
 pub(crate) mod ffi;
 #[cfg(handheld)]

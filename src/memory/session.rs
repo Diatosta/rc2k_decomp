@@ -76,27 +76,6 @@ pub fn read_bits<C: Cell32, const N: usize>(cells: &[C; N]) -> [u32; N] {
     std::array::from_fn(|k| cells[k].bits())
 }
 
-/// Stores a run of dwords or floats by their bits.
-pub fn write_bits<C: Cell32, const N: usize>(cells: &[C; N], values: [u32; N]) {
-    for (cell, value) in cells.iter().zip(values) {
-        cell.set_bits(value);
-    }
-}
-
-/// The bits of the first `N` cells of a longer run (part of a table read whole).
-pub fn read_first<C: Cell32, const N: usize>(cells: &[C]) -> [u32; N] {
-    assert!(N <= cells.len());
-    std::array::from_fn(|k| cells[k].bits())
-}
-
-/// Stores `values` by their bits into the first cells of a run (the rest keep theirs).
-pub fn write_first<C: Cell32>(cells: &[C], values: &[u32]) {
-    assert!(values.len() <= cells.len());
-    for (cell, &value) in cells.iter().zip(values) {
-        cell.set_bits(value);
-    }
-}
-
 /// One of the game's floats: an atomic cell holding its bits.
 #[repr(transparent)]
 pub struct Float(AtomicU32);

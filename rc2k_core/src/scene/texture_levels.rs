@@ -35,7 +35,8 @@ pub const TYRE_TITLE_TEXTURE: u32 = 0x3F0;
 
 /// The textures of the third and fourth players' map pictures in a split screen of three or four:
 /// textures of their own beside the two the first and second players' maps use, the same size
-/// and format (numbers no stage's object names). They are made only for such a race.
+/// and format (numbers no stage's object names). They are made only for a stage that may show
+/// such parts (`race::layouts::splits_past_two`: such a race, or a viewed replay's group).
 pub const FURTHER_MAP_TEXTURES: [u32; 2] = [0x3F1, 0x3F2];
 
 /// The runs after the kinds' slots.

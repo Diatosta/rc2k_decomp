@@ -10,7 +10,6 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87::compare_full;
 use crate::math::x87_float as bh;
-use crate::memory::session::Cell32;
 use crate::physics::car_store::Car;
 use crate::race::effects_settings_store::CarEffects;
 use crate::race::mud::car_file_number;
@@ -24,7 +23,7 @@ use crate::race::light_records_store::LightRecord;
 /// A whole-number field of the effects' car record.
 type RecordWord = fn(&CarEffects) -> &PlainDword;
 /// A float field of a car block.
-type BlockFloat = fn(&Car) -> &PlainFloat;
+type BlockFloat = fn(&Car) -> f32;
 /// A field of a light record.
 type LightField = fn(&LightRecord) -> &u32;
 
@@ -32,22 +31,18 @@ type LightField = fn(&LightRecord) -> &u32;
 /// number (a surface kind, flags) or a float.
 #[derive(Clone, Copy)]
 enum Move {
-    Word(RecordWord, fn(&Car) -> &PlainDword),
+    Word(RecordWord, fn(&Car) -> u32),
     Float(fn(&CarEffects) -> &PlainFloat, BlockFloat),
     /// A float of a vector the block keeps whole.
-    Part(
-        fn(&CarEffects) -> &PlainFloat,
-        fn(&Car) -> crate::memory::plain_floats::PlainWord<'_>,
-    ),
+    Part(fn(&CarEffects) -> &PlainFloat, BlockFloat),
 }
 
 impl Move {
     /// The block's field into the record's.
     fn apply(self, o: &CarEffects, car: &Car) {
         match self {
-            Move::Word(r, b) => r(o).set(b(car).get()),
-            Move::Float(r, b) => r(o).set(b(car).get()),
-            Move::Part(r, b) => r(o).set(f32::from_bits(b(car).bits())),
+            Move::Word(r, b) => r(o).set(b(car)),
+            Move::Float(r, b) | Move::Part(r, b) => r(o).set(b(car)),
         }
     }
 }
@@ -62,7 +57,7 @@ macro_rules! rec {
 /// A car block's array field `$field` at `$i`.
 macro_rules! blk {
     ($field:ident [$i:expr]) => {
-        |c: &Car| &c.$field[$i]
+        |c: &Car| c.$field[$i]
     };
 }
 
@@ -101,10 +96,8 @@ const MOVES_A: [Move; 20] = [
 
 /// The wheels' sums: (the two wheel records they go to, the block's driven speed that is
 /// their first figure). Each record gets the speed, the local velocity's x, 0 and its z.
-const QUADS: [([usize; 2], BlockFloat); 2] = [
-    ([0, 1], |c| &c.drive_speed_a),
-    ([2, 3], |c| &c.drive_speed_b),
-];
+const QUADS: [([usize; 2], BlockFloat); 2] =
+    [([0, 1], |c| c.drive_speed_a), ([2, 3], |c| c.drive_speed_b)];
 
 /// The four wheel records' surface kind (from the block's `wheel_surface_a`), each cleared by
 /// its switch.
@@ -119,43 +112,44 @@ const MOVES_B: [Move; 9] = [
     Move::Float(rec!(4, chance), blk!(wheel_surface_blend[4])),
     Move::Word(rec!(4, kind), blk!(wheel_surface_a[4])),
     Move::Word(rec!(4, under_kind), blk!(wheel_surface_b[4])),
-    Move::Part(rec!(4, local_velocity_x), |c| c.velocity.cell_at(0)),
-    Move::Part(rec!(4, local_velocity_z), |c| c.velocity.cell_at(2)),
+    Move::Part(rec!(4, local_velocity_x), |c| c.velocity[0]),
+    Move::Part(rec!(4, local_velocity_z), |c| c.velocity[2]),
 ];
 
 /// The block's eight slot figures: the seven parts' damage figures and the first of the saved
 /// point figures after them.
-fn slot_cells(car: &Car) -> impl Iterator<Item = &PlainDword> {
+fn slot_cells(car: &mut Car) -> impl Iterator<Item = &mut u32> {
     car.part_damage_limits
-        .iter()
-        .chain(&car.saved_point_figures[..1])
+        .iter_mut()
+        .chain(&mut car.saved_point_figures[..1])
 }
 
 /// The block's seventeen kind figures: the saved point figures after the first.
-fn kind_cells(car: &Car) -> &[PlainDword] {
-    &car.saved_point_figures[1..18]
+fn kind_cells(car: &mut Car) -> &mut [u32] {
+    &mut car.saved_point_figures[1..18]
 }
 
 /// The light record's number for the block, or the refusal.
 fn light_record(race: &Race, car: &Car) -> Result<u32, Refused> {
-    let n = car_file_number(race.kind_tables(), car.car_kind.get());
+    let n = car_file_number(race.kind_tables(), car.car_kind);
     sharing::check_light_record(n)?;
     Ok(n)
 }
 
-/// The Rust core: block `car`, record `o` (the marks' car record), sound object `p`, the
-/// scratch dword `scratch`.
+/// The Rust core: block `car` (the block's number `block`), record `o` (the marks' car record),
+/// sound object `p`, the scratch dword `scratch`.
 fn share_car_state_at(
     race: &Race,
-    car: &Car,
+    car: &mut Car,
+    block: usize,
     o: &CarEffects,
     p: &SoundObjectCell,
     scratch: &PlainDword,
 ) -> Result<(), Refused> {
     let n = light_record(race, car)?;
-    if let Some(count) = sharing::count_down(car.reset_marker.get()) {
+    if let Some(count) = sharing::count_down(car.reset_marker) {
         o.reset_wait.set(1);
-        car.reset_marker.set(count);
+        car.reset_marker = count;
     }
     o.gear_notice.set(p.borrow().gear_notice);
     p.borrow_mut().gear_notice = 0;
@@ -163,29 +157,25 @@ fn share_car_state_at(
     let step = race.course.numbers.four.get();
     for (level, gauge) in o.levels.iter().zip([&car.engine_heat, &car.engine_damage]) {
         level.set(0);
-        if compare_full(gauge.bits(), from) & 0x100 == 0 {
-            let v = bh::to_int((bh::ld(gauge.bits()) - bh::ld(from)) / bh::ld(step));
+        if compare_full(gauge.to_bits(), from) & 0x100 == 0 {
+            let v = bh::to_int((bh::ld(gauge.to_bits()) - bh::ld(from)) / bh::ld(step));
             scratch.set(v as u32);
             level.set(sharing::level(v));
         }
     }
-    o.tag.set(car.light_colour.get());
+    o.tag.set(car.light_colour);
     let light = race.light_records().read(|l| l.records[n as usize].clone());
     for (r, l) in LIGHT_MOVES {
         r(o).set(*l(&light));
     }
-    o.set_block(race.shared.car_blocks().handle_of(car));
-    o.engine_speed.set(x87::loaded(&car.engine_speed));
+    o.set_block(crate::race::blocks_store::block_handle_of(block));
+    o.engine_speed.set(x87::loaded(car.engine_speed));
     o.model.set(n);
     for m in MOVES_A {
         m.apply(o, car);
     }
     for (records, first) in QUADS {
-        let (a, bb, c) = (
-            first(car).get(),
-            car.local_velocity.at(0),
-            car.local_velocity.at(2),
-        );
+        let (a, bb, c) = (first(car), car.local_velocity[0], car.local_velocity[2]);
         for wheel in records {
             let w = &o.records[wheel];
             w.driven_speed.set(a);
@@ -195,14 +185,10 @@ fn share_car_state_at(
         }
     }
     for (k, r) in WHEELS.into_iter().enumerate() {
-        r(o).set(car.wheel_surface_a[k].get());
+        r(o).set(car.wheel_surface_a[k]);
     }
     for (k, r) in WHEELS.into_iter().enumerate() {
-        if sharing::wheel_cleared(
-            car.wheel_squeeze[k].bits(),
-            car.parts_present.get(),
-            k as u32,
-        ) {
+        if sharing::wheel_cleared(car.wheel_squeeze[k].to_bits(), car.parts_present, k as u32) {
             r(o).set(0);
         }
     }
@@ -213,49 +199,50 @@ fn share_car_state_at(
         cell.set(zero);
     }
     o.morph_start.set(zero.to_bits());
-    if car.contact_found.get() != 0 {
+    if car.contact_found != 0 {
         for m in MOVES_B {
             m.apply(o, car);
         }
         for (cell, v) in o.records[4].place.iter().zip([
-            &car.contact_point_x,
-            &car.contact_point_ground,
-            &car.contact_point_z,
+            car.contact_point_x,
+            car.contact_point_ground,
+            car.contact_point_z,
         ]) {
-            cell.set(x87::from_int(v.get() as i32));
+            cell.set(x87::from_int(v as i32));
         }
-        o.records[4]
-            .size
-            .set(f32::from_bits(car.contact_value.get()));
+        o.records[4].size.set(f32::from_bits(car.contact_value));
     }
-    for (cell, mark) in o.factors.iter().zip(car.impact_octant_marks.floats()) {
-        cell.set(mark.get());
+    for (cell, mark) in o.factors.iter().zip(car.impact_octant_marks) {
+        cell.set(mark);
     }
     let kept_from = o.face_sums.each_ref().map(PlainDword::get);
     let mut kept = kept_from;
     sharing::fill_holes(&mut kept);
-    for (cell, v) in car.part_wake_counts.iter().zip(kept) {
-        cell.set(v);
+    for (cell, v) in car.part_wake_counts.iter_mut().zip(kept) {
+        *cell = v;
     }
     for (cell, to) in o.slot_sums.iter().zip(slot_cells(car)) {
-        to.set(cell.get());
+        *to = cell.get();
     }
     for (cell, to) in o.kind_sums.iter().zip(kind_cells(car)) {
-        to.set(cell.get());
+        *to = cell.get();
     }
     Ok(())
 }
 
-/// The car block `block`, its record `record`, its sound object `sound`.
+/// The car block of car `block` (as `RaceShared::race_car_or_end` names it), its record
+/// `record`, its sound object `sound`.
 pub fn share_car_state(
     race: &Race,
-    block: &Car,
+    block: usize,
     record: &CarEffects,
     sound: &SoundObjectCell,
 ) -> Result<(), Refused> {
+    let index = race.shared.race_index_or_end(block);
     share_car_state_at(
         race,
-        block,
+        &mut race.shared.car_blocks_mut().cars[index],
+        index,
         record,
         sound,
         // A local for a scratch dword nothing reads.
@@ -266,9 +253,7 @@ pub fn share_car_state(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::physics::car_offsets_1999::{
-        bytes_1999, car_with_1999_bytes, load_1999, offset_1999,
-    };
+    use crate::physics::car_offsets_1999::{bytes_1999, car_with_1999_bytes, load_1999};
     use crate::race::effects_settings_store::EFFECTS_SETTINGS;
     use crate::race::light_records_store::LightRecords;
 
@@ -276,23 +261,23 @@ mod tests {
         core::ptr::from_ref(f(o)).addr() - core::ptr::from_ref(o).addr()
     }
 
+    /// A car whose every dword holds its own 1999 offset: a selector's value names the field.
+    fn offset_car() -> Car {
+        car_with_1999_bytes(|n| ((n & !3) as u32).to_le_bytes()[n & 3])
+    }
+
     fn blk_off(c: &Car, f: BlockFloat) -> usize {
-        offset_1999(c, core::ptr::from_ref(f(c)).addr())
+        f(c).to_bits() as usize
     }
 
     fn move_offs(o: &CarEffects, c: &Car, m: Move) -> (usize, usize) {
         let (r, b) = match m {
-            Move::Word(r, b) => (
-                core::ptr::from_ref(r(o)).addr(),
-                core::ptr::from_ref(b(c)).addr(),
-            ),
-            Move::Float(r, b) => (
-                core::ptr::from_ref(r(o)).addr(),
-                core::ptr::from_ref(b(c)).addr(),
-            ),
-            Move::Part(r, b) => (core::ptr::from_ref(r(o)).addr(), b(c).addr()),
+            Move::Word(r, b) => (core::ptr::from_ref(r(o)).addr(), b(c) as usize),
+            Move::Float(r, b) | Move::Part(r, b) => {
+                (core::ptr::from_ref(r(o)).addr(), b(c).to_bits() as usize)
+            }
         };
-        (r - core::ptr::from_ref(o).addr(), offset_1999(c, b))
+        (r - core::ptr::from_ref(o).addr(), b)
     }
 
     fn at(car: &Car, offset: usize) -> u32 {
@@ -302,25 +287,26 @@ mod tests {
     #[test]
     fn the_gauges_and_figures_are_the_offsets_they_replace() {
         let pattern = |n: usize| (n * 7 + 3) as u8;
-        let car = car_with_1999_bytes(pattern);
-        assert_eq!(car.engine_heat.bits(), at(&car, 0x2B4));
-        assert_eq!(car.engine_damage.bits(), at(&car, 0x2B8));
-        let slots: Vec<u32> = slot_cells(&car).map(PlainDword::get).collect();
+        let mut car = car_with_1999_bytes(pattern);
+        assert_eq!(car.engine_heat.to_bits(), at(&car, 0x2B4));
+        assert_eq!(car.engine_damage.to_bits(), at(&car, 0x2B8));
+        let slots: Vec<u32> = slot_cells(&mut car).map(|c| *c).collect();
         assert_eq!(slots.len(), 8);
         for (k, v) in slots.into_iter().enumerate() {
             assert_eq!(v, at(&car, 0xA3C + 4 * k));
         }
-        for (k, c) in kind_cells(&car).iter().enumerate() {
-            assert_eq!(c.get(), at(&car, 0xA5C + 4 * k));
+        let kinds: Vec<u32> = kind_cells(&mut car).to_vec();
+        for (k, c) in kinds.into_iter().enumerate() {
+            assert_eq!(c, at(&car, 0xA5C + 4 * k));
         }
         // The writes land on the same bytes.
         let mut expected = bytes_1999(&car);
-        for (k, c) in slot_cells(&car).enumerate() {
-            c.set(0x1111_0000 + k as u32);
+        for (k, c) in slot_cells(&mut car).enumerate() {
+            *c = 0x1111_0000 + k as u32;
             expected[0xA3C + 4 * k..][..4].copy_from_slice(&(0x1111_0000 + k as u32).to_le_bytes());
         }
-        for (k, c) in kind_cells(&car).iter().enumerate() {
-            c.set(0x2222_0000 + k as u32);
+        for (k, c) in kind_cells(&mut car).iter_mut().enumerate() {
+            *c = 0x2222_0000 + k as u32;
             expected[0xA5C + 4 * k..][..4].copy_from_slice(&(0x2222_0000 + k as u32).to_le_bytes());
         }
         assert_eq!(bytes_1999(&car), expected);
@@ -329,7 +315,7 @@ mod tests {
     #[test]
     fn the_tables_sit_where_the_original_moved_them() {
         let o = &EFFECTS_SETTINGS.cars[0];
-        let car = &crate::test_support::own::race().car_blocks().cars[0];
+        let car = &offset_car();
         let records = LightRecords::new();
         let light = &records.records[0];
         let lbase = core::ptr::from_ref(light).addr();

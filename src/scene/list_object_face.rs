@@ -48,7 +48,7 @@ struct GameFace<'a>(
     &'a crate::scene::object_place::ObjectPlace,
     &'a crate::race::car_draw_state::CarDrawState,
     &'a crate::physics::car_store::ViewCar,
-    &'a crate::race::view_vars_store::ViewVarsCopy,
+    &'a crate::race::plain_slot::PlainSlot<crate::race::view_vars_store::ViewVarsCopy>,
     crate::scene::workers::DrawReads<'a>,
 );
 
@@ -106,7 +106,7 @@ impl FaceWorld for GameFace<'_> {
         )))
     }
     fn no_second_mask(&self) -> u32 {
-        self.5.camera_switch_active.get()
+        self.5.camera_switch_active
     }
     fn second_mask(&self) -> u32 {
         self.4.borrow().group_mask
@@ -131,20 +131,24 @@ impl FaceWorld for GameFace<'_> {
     }
     fn line_value(&self, extra: u32) -> Result<u32, rc2k_core::Invalid> {
         {
-            let which: u32 = self.6.drawn_car.get();
+            let which: u32 = self.6.borrow().drawn_car;
             if which >= BLOCKS || !self.7.work.has_car_block(which as usize) {
                 return Err(rc2k_core::Invalid("no block for a face of kind 0x1C"));
             }
             // The core asks for 1 ..= 6: the six parts' wake counts.
-            crate::race::owner_shared::RaceShared::race_car_or_end_in(
-                self.7.work,
-                self.7.car_blocks,
-                which as usize,
-            )
-            .part_wake_counts
-            .get((extra as usize).wrapping_sub(1))
-            .map(crate::memory::session::PlainDword::get)
-            .ok_or(rc2k_core::Invalid("a wake count past the six"))
+            self.7
+                .car_blocks
+                .read(|blocks| {
+                    crate::race::owner_shared::RaceShared::race_car_or_end_in(
+                        &self.7.work.borrow(),
+                        blocks,
+                        which as usize,
+                    )
+                    .part_wake_counts
+                    .get((extra as usize).wrapping_sub(1))
+                    .copied()
+                })
+                .ok_or(rc2k_core::Invalid("a wake count past the six"))
         }
     }
     fn kind_byte(&self, kind: u32) -> u32 {
@@ -192,7 +196,7 @@ pub fn list_object_face(
         marks,
         &ctx.view.object,
         &ctx.view.cars,
-        &ctx.view.car,
+        &ctx.view.car.borrow(),
         &ctx.view.vars,
         ctx.reads,
     );

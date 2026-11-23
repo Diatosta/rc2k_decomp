@@ -249,7 +249,7 @@ pub(crate) fn driving(race: &crate::race::owner::Race) -> bool {
 #[cfg(touch_screen)]
 pub(crate) fn touch_controls_live(race: &crate::race::owner::Race) -> bool {
     driving(race)
-        && !race.shared.work.get().in_credits.is_set()
+        && race.shared.work().in_credits == 0
         && !rc2k_core::drive::replay_frames::plays_inputs(race.course.replay_mode())
         && race.shared.vars.get().scene_switch.get() == 0
 }

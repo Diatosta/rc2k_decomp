@@ -12,13 +12,15 @@ in general (textures, fonts) is on [Textures (PCX)](Textures-PCX).
 
 | File | Made by |
 | --- | --- |
-| `NNN.png` in the game's folder | The screenshot key (numeric keypad 0), in the menus and in a race. Only when `screensnapshot=1` is set in `var/ral.cfg` (see [Settings files](Settings-files)). |
-| `savedata/snapshot/NNN.png` | The replay viewer's snapshot button. |
+| `savedata/snapshot/NNN.png` | The screenshot key (numeric keypad 0), in the menus, in a race and in the replay viewer, only when `screensnapshot=1` is set in `var/ral.cfg` (see [Settings files](Settings-files)); and the replay viewer's snapshot button. |
 | `rpl/NNNNNN.png` | The replay viewer's picture sequence: one file for each picture drawn while it is switched on (a developers' feature; its keys work only with `wrreplayenable=1` in `var/ral.cfg`). |
 
-`NNN` is a three-digit number. The screenshot key starts at `001` each time the program is
-started, so a new session writes over the last one's files. The viewer's snapshots carry on
-from the highest number already in the folder. Both go back to `000` after `999`.
+`NNN` is a three-digit number. Each picture, the key's or the viewer's, takes the number one past
+the highest already in the folder, so no picture is written over, whichever session took it
+(after `999` the count goes back to `000`). The folder is made with the first picture when it is
+not there. (The original put the key's pictures in the game's folder and counted them from `001`
+at each start, writing over the last session's; pictures already in the game's folder stay where
+they are.)
 
 In the web build every screenshot is also downloaded by the browser, under the file's name
 (`NNN.png`), because the files in the browser's own storage are out of the player's reach.

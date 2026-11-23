@@ -1,11 +1,10 @@
 //! `scene::add_car_lights`: which cars' lamps light an object.
 //!
-//! Returns the number of cars and the last car's block. Calls `scene::add_car_light` for:
-//! - in a network session: the network player's car, or every car while the split-screen
-//!   setting is 1;
-//! - else: the cars under the player count (every car while the split-screen setting is 1),
-//!   but not the car being drawn (the drawn-car light cell), and of those all of them if
-//!   the player count is 1 or the run kind is 0 or 2, else only the drawn view's car.
+//! Calls `scene::add_car_light` for each race car whose lamps light what the drawn view shows,
+//! by the road's rule (`race::frame_draw::lamp_cars`, `rc2k_core::race::lights::LampCars`): one
+//! car's lamps alone (a network race's own car, a network race's replay followed in one view), or
+//! the players' cars but the car being drawn (the drawn-car light cell), every car's with the
+//! headlights option "all cars".
 //!
 //! Refuses no cars or more than the eight blocks.
 
@@ -16,43 +15,9 @@ use rc2k_core::net::net_race::NetRace;
 // ---- game data ----
 const BLOCKS: u32 = 8;
 
-/// The game's variables the choice reads.
-struct GameCars<'a>(
-    crate::scene::reading::Reading,
-    u32,
-    u32,
-    Option<NetRace>,
-    crate::scene::workers::DrawReads<'a>,
-);
-
-impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
-    fn one_car(&self) -> bool {
-        self.3.is_some()
-    }
-    fn the_car(&self) -> u32 {
-        self.3.map_or(0, |net_race| net_race.player)
-    }
-    fn all_cars(&self) -> bool {
-        self.4.vars.settings_word(4) == 1
-    }
-    fn near(&self) -> u32 {
-        self.4.view.players()
-    }
-    fn view(&self) -> u32 {
-        self.4.vars.run_kind()
-    }
-    fn drawn(&self) -> u32 {
-        self.1
-    }
-    fn viewed(&self) -> u32 {
-        // The drawn view is 0 or 1: a part's own view number modulo 2, or a players'
-        // scene's, which only `race::draw_race_scene` writes (0, or the player 0 .. 1).
-        self.0.keep(self.4.view.drawn_view_car(self.2))
-    }
-}
-
-// Logic: `rc2k_core::scene::lamps::car_lights`
-/// `drawn`: the car whose lights are skipped, or -1 (`ObjectLight::drawn_car_light`).
+// Logic: `rc2k_core::race::lights::LampCars::light`
+/// `drawn`: the car whose lights are skipped, or -1 (`ObjectLight::drawn_car_light`); `view`:
+/// the drawn view.
 pub fn add_car_lights(
     reads: crate::scene::workers::DrawReads<'_>,
     net_race: Option<NetRace>,
@@ -60,43 +25,41 @@ pub fn add_car_lights(
     view: u32,
     add: &mut dyn FnMut(&CarView, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    {
-        let cars: u32 = reads.view.race_cars();
-        if cars == 0 || cars > BLOCKS {
-            return Err(BadInput("no cars, or more than their blocks").into());
-        }
-        let lights = GameCars(
-            crate::scene::reading::Reading::new(),
-            drawn,
-            view,
-            net_race,
-            reads,
+    let cars: u32 = reads.view.race_cars();
+    if cars == 0 || cars > BLOCKS {
+        return Err(BadInput("no cars, or more than their blocks").into());
+    }
+    let lamps = crate::race::frame_draw::lamp_cars(reads.view, net_race, view)?;
+    let all = reads.vars.settings_word(4) == 1;
+    for car in 0..cars {
+        let reading = crate::scene::reading::Reading::new();
+        let lit = lamps.light(
+            car,
+            all,
+            Some(drawn),
+            || reads.vars.run_kind(),
+            || reading.keep(reads.view.drawn_view_car(view)),
         );
-        for car in 0..cars {
-            let lit = rc2k_core::scene::lamps::car_lights(&lights, car);
-            lights.0.finish()?;
-            if lit {
-                // The car as the drawing sees it, and its marks count (the drawing's own, in
-                // the block: `race::car_parts`).
+        reading.finish()?;
+        if lit {
+            // The car as the drawing sees it, and its marks count (the drawing's own, in
+            // the block: `race::car_parts`).
+            let marks = reads.car_blocks.read(|blocks| {
                 let block = crate::race::owner_shared::RaceShared::race_car_or_in(
-                    reads.work,
-                    reads.car_blocks,
+                    &reads.work.borrow(),
+                    blocks,
                     car as usize,
                     "no car",
                 )?;
-                let marks = reads
-                    .car_blocks
-                    .parts_of(reads.car_parts, block)
-                    .marks_count
-                    .get();
-                add(
-                    reads
-                        .frame_cars
-                        .car(reads.work.block_number(car as usize)?)?,
-                    marks,
-                )?;
-            }
+                Ok::<_, BadInput>(blocks.parts_of(reads.car_parts, block).marks_count)
+            })?;
+            add(
+                reads
+                    .frame_cars
+                    .car(reads.work.block_number(car as usize)?)?,
+                marks,
+            )?;
         }
-        Ok(())
     }
+    Ok(())
 }

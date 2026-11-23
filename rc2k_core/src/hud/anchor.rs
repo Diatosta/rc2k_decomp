@@ -1,9 +1,11 @@
 //! Where the HUD's 800 x 600 layout lands on a screen of another shape.
 //!
-//! On a screen as wide as 4:3 or narrower the layout fills it, each axis scaled by its own
-//! factor, as it always did. On a wider screen the layout keeps its shape: one factor for both
-//! axes (the screen's height over 600), and the pieces keep to the left edge, the middle or the
-//! right edge, so a dial stays in its corner at any width, 16:9 to 32:9 and beyond.
+//! On a screen of exactly 4:3 the layout fills it. On a wider screen the layout keeps its shape:
+//! one factor for both axes (the screen's height over 600), and the pieces keep to the left edge,
+//! the middle or the right edge, so a dial stays in its corner at any width, 16:9 to 32:9 and
+//! beyond. One player's HUD on a narrower screen does the same, at the same size, until the
+//! corner pieces would reach the car (`CLEAR_ASPECT`); narrower than that the whole layout
+//! shrinks just enough to stay clear.
 
 /// The layout's width.
 pub(crate) const VIRTUAL_WIDTH: f32 = 800.0;
@@ -192,10 +194,65 @@ pub fn is_wide(width: u32, height: u32) -> bool {
     u64::from(width) * 3 > u64::from(height) * 4
 }
 
-/// The factors from the layout to the screen: across and down.
+/// Whether the screen (or part) is narrower than 4:3: the layout then keeps its shape (one
+/// player's HUD at `layout_scale`, a part's at the width over 800), each piece keeping to the
+/// top, bottom or middle (`narrow_y`).
+pub fn is_narrow(width: u32, height: u32) -> bool {
+    u64::from(width) * 3 < u64::from(height) * 4
+}
+
+/// How far the rev counter reaches in from the screen's left edge in the layout: its sprite
+/// lies from x 33 and is 128 wide (the widest of the bottom left corner's pieces: the gear lamp
+/// and the speed digits lie inside it).
+pub(crate) const DIAL_REACH: f64 = 161.0;
+/// How far the map reaches in from the right edge: its sprite lies from x 642 of 800.
+pub(crate) const MAP_REACH: f64 = 158.0;
+
+/// Half the car's width as a part of the screen's width in the first chase view of one player's
+/// race, at the start. Measured on Langton with each of the game's 19 cars, at 800 x 600 and
+/// 660 x 1088: the frame drawn with the cars and again with them left out, the car being the
+/// pixels that differ (more than 24 of 255 in brightness; rows and columns holding at least 8
+/// of them). The widest is the Citroen Saxo, 0.1319 of the width at 800 x 600 and 0.1303 at
+/// 660 x 1088; the narrowest the Nissan Micra Maxi, 0.1013. (Two readings of 0.15 at 660 x 1088,
+/// the Puma's and the 206's, were the countdown's digit changing between the two frames.) The
+/// 3D's scale is made from the screen's width on a screen narrower than 4:3
+/// (`scene::view_window::design_width`), so the car keeps this part of the width at every such
+/// aspect: the two sizes agree. The value is the Saxo's, rounded up.
+pub(crate) const CAR_HALF_WIDTH: f64 = 0.132;
+
+/// The narrowest width over height at which one player's HUD at full size (the layout's height
+/// the screen's height) keeps its bottom corner pieces clear of the car: the corner piece's
+/// inner edge (its reach times the scale) meets the car's edge, half the screen less the car's
+/// half width from the screen's edge. The pieces are taken as lying at the car's rows
+/// throughout (they do only near this limit), so that a narrower screen never makes the HUD
+/// grow again.
+pub const CLEAR_ASPECT: f64 = max_reach() / (VIRTUAL_HEIGHT as f64 * (0.5 - CAR_HALF_WIDTH));
+
+const fn max_reach() -> f64 {
+    if DIAL_REACH > MAP_REACH {
+        DIAL_REACH
+    } else {
+        MAP_REACH
+    }
+}
+
+/// The size of one layout pixel for one player's HUD where it keeps its shape: the screen's
+/// height over 600, but on a screen narrower than `CLEAR_ASPECT` that of such an aspect at the
+/// screen's width, so the corner pieces' inner edges meet the car's.
+pub fn layout_scale(width: u32, height: u32) -> f64 {
+    let mut high = f64::from(height);
+    if is_narrow(width, height) {
+        high = high.min(f64::from(width) / CLEAR_ASPECT);
+    }
+    high / f64::from(VIRTUAL_HEIGHT)
+}
+
+/// The factors from the layout to the screen: across and down. Exactly 4:3 fills the screen; a
+/// wider or narrower one keeps the shape (`layout_scale`; a narrow one is one player's: a split
+/// screen's parts do not call this).
 pub fn factors(width: u32, height: u32) -> (f64, f64) {
-    if is_wide(width, height) {
-        let s = f64::from(height) / f64::from(VIRTUAL_HEIGHT);
+    if is_wide(width, height) || is_narrow(width, height) {
+        let s = layout_scale(width, height);
         (s, s)
     } else {
         (
@@ -205,9 +262,10 @@ pub fn factors(width: u32, height: u32) -> (f64, f64) {
     }
 }
 
-/// How far the layout's left edge lies from the screen's: 0 unless the screen is wider than 4:3.
+/// How far the layout's left edge lies from the screen's: 0 on a screen of 4:3, negative on a
+/// narrower one whose layout spills past the edges (a piece at an edge keeps to it).
 pub fn offset(width: u32, height: u32, anchor: Anchor) -> f64 {
-    if !is_wide(width, height) {
+    if !is_wide(width, height) && !is_narrow(width, height) {
         return 0.0;
     }
     let spare = f64::from(width) - f64::from(VIRTUAL_WIDTH) * factors(width, height).0;
@@ -263,7 +321,7 @@ pub(crate) const BAR_WINDOW: (f32, f32) = (137.0, 687.0);
 /// width: the left cap keeps to the screen's left edge and the right cap to its right edge, both
 /// in the layout's shape, and the middle part takes the width between them.
 pub(crate) fn bar_x(x: f32, width: u32, height: u32) -> f32 {
-    let s = f64::from(height) / f64::from(VIRTUAL_HEIGHT);
+    let s = layout_scale(width, height);
     let (low, high) = (f64::from(BAR_WINDOW.0), f64::from(BAR_WINDOW.1));
     let x = f64::from(x);
     let right = f64::from(width) - (f64::from(VIRTUAL_WIDTH) - x) * s;
@@ -297,19 +355,19 @@ pub(crate) fn marker_edge_x(left: f32, scale: f32, start: f32, width: u32, heigh
     bar_x((from + progress * (to - from)) as f32, width, height)
 }
 
-/// A layout y on a part narrower than 4:3 `width` x `height`, the layout across the part's width at
-/// one factor (width over 800): a piece whose middle `mid` lies in the layout's top third keeps to
-/// the part's top, one in the bottom third to its bottom, the others to the middle.
-pub(crate) fn narrow_y(y: f32, mid: f32, width: u32, height: u32) -> f32 {
-    let s = f64::from(width) / f64::from(VIRTUAL_WIDTH);
+/// A layout y on a screen or part `height` high where the layout keeps its shape at `scale` (a
+/// part's width over 800; one player's `layout_scale`): a piece whose middle `mid` lies in the
+/// layout's top third keeps to the top, one in the bottom third to the bottom, the others to the
+/// middle.
+pub(crate) fn narrow_y(y: f32, mid: f32, height: u32, scale: f64) -> f32 {
     let (y, mid) = (f64::from(y), f64::from(mid));
     let third = f64::from(VIRTUAL_HEIGHT) / 3.0;
     (if mid < third {
-        y * s
+        y * scale
     } else if mid > 2.0 * third {
-        f64::from(height) - (f64::from(VIRTUAL_HEIGHT) - y) * s
+        f64::from(height) - (f64::from(VIRTUAL_HEIGHT) - y) * scale
     } else {
-        f64::from(height) / 2.0 + (y - f64::from(VIRTUAL_HEIGHT) / 2.0) * s
+        f64::from(height) / 2.0 + (y - f64::from(VIRTUAL_HEIGHT) / 2.0) * scale
     }) as f32
 }
 
@@ -410,15 +468,95 @@ pub fn across(length: u32, width: u32, height: u32) -> Option<u32> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn narrow_and_wide_leave_4_3_between() {
+        assert!(is_narrow(660, 1088) && is_narrow(1280, 1024));
+        assert!(!is_narrow(800, 600) && !is_wide(800, 600));
+        assert!(is_wide(1280, 720) && !is_narrow(1280, 720));
+    }
+
     use super::*;
+
+    #[test]
+    fn the_limit_aspect_follows_from_the_measurements() {
+        // 161 / (600 x (0.5 - 0.132)): the dial's reach over the room left of the car, per
+        // layout row.
+        assert!((CLEAR_ASPECT - 0.7292).abs() < 1e-3, "{CLEAR_ASPECT}");
+        assert!(CLEAR_ASPECT < 0.75 && is_narrow(1, 1));
+    }
+
+    #[test]
+    fn a_narrow_screen_down_to_the_limit_keeps_the_normal_size() {
+        // 4:3 itself, and narrower: the height over 600, whatever the width.
+        for (w, h) in [
+            (800, 600),
+            (760, 600),
+            (700, 600),
+            (640, 600),
+            (600, 700),
+            (450, 600),
+        ] {
+            assert_eq!(layout_scale(w, h), f64::from(h) / 600.0, "{w} x {h}");
+        }
+        assert_eq!(factors(700, 600), (1.0, 1.0));
+        // The corner pieces keep to the edges: the layout's right edge at the screen's.
+        assert_eq!(screen_x(0.0, 700, 600, Anchor::Left), 0.0);
+        assert_eq!(screen_x(800.0, 700, 600, Anchor::Right), 700.0);
+        assert_eq!(screen_x(642.0, 700, 600, Anchor::Right), 542.0);
+        assert_eq!(screen_x(400.0, 700, 600, Anchor::Centre), 350.0);
+        // 4:3 itself is unchanged.
+        assert_eq!(factors(800, 600), (1.0, 1.0));
+        assert_eq!(offset(800, 600, Anchor::Right), 0.0);
+    }
+
+    #[test]
+    fn a_screen_narrower_than_the_limit_shrinks_to_keep_clear_of_the_car() {
+        // 660 x 1088: the scale of the limit aspect at the width (660 over 0.7292 x 600).
+        let s = layout_scale(660, 1088);
+        assert!((s - 660.0 / (CLEAR_ASPECT * 600.0)).abs() < 1e-12);
+        assert!(s < 1088.0 / 600.0 && s > 825.0 / 1000.0);
+        // The dial's inner edge meets the car's left edge (the car's half width either side of
+        // the middle).
+        let dial = DIAL_REACH * s;
+        assert!(
+            (dial - 660.0 * (0.5 - CAR_HALF_WIDTH)).abs() < 1e-9,
+            "{dial}"
+        );
+        // Continuous at the limit: nearly the same scale just either side of it.
+        let limit = (600.0 * CLEAR_ASPECT) as u32;
+        let (a, b) = (layout_scale(limit - 1, 600), layout_scale(limit + 1, 600));
+        assert!((a - b).abs() < 0.01 && b <= 1.0, "{a} {b}");
+    }
+
+    #[test]
+    fn the_corner_pieces_stay_clear_of_the_car_at_every_narrow_shape() {
+        for h in [480u32, 600, 720, 1088, 2000] {
+            for w in (200..=(h * 4 / 3)).step_by(37) {
+                let s = layout_scale(w, h);
+                let room = f64::from(w) * (0.5 - CAR_HALF_WIDTH);
+                assert!(s <= f64::from(h) / 600.0 + 1e-12, "{w} x {h}");
+                assert!(DIAL_REACH * s <= room + 1e-9, "{w} x {h}");
+                assert!(MAP_REACH * s <= room + 1e-9, "{w} x {h}");
+            }
+        }
+    }
+
+    #[test]
+    fn the_bar_spans_a_narrow_screen_too() {
+        assert_eq!(bar_x(0.0, 700, 600), 0.0);
+        assert_eq!(bar_x(800.0, 700, 600), 700.0);
+        // 660 x 1088: the caps keep their (shrunk) shape at the edges.
+        let s = layout_scale(660, 1088);
+        assert!((f64::from(bar_x(137.0, 660, 1088)) - 137.0 * s).abs() < 1e-3);
+    }
 
     #[test]
     fn a_narrow_part_keeps_the_layouts_shape() {
         // A 400 x 800 part: one factor of 0.5 down as across.
-        assert_eq!(narrow_y(20.0, 20.0, 400, 800), 10.0);
-        assert_eq!(narrow_y(600.0, 560.0, 400, 800), 800.0);
-        assert_eq!(narrow_y(500.0, 540.0, 400, 800), 800.0 - 50.0);
-        assert_eq!(narrow_y(300.0, 300.0, 400, 800), 400.0);
+        assert_eq!(narrow_y(20.0, 20.0, 800, 0.5), 10.0);
+        assert_eq!(narrow_y(600.0, 560.0, 800, 0.5), 800.0);
+        assert_eq!(narrow_y(500.0, 540.0, 800, 0.5), 800.0 - 50.0);
+        assert_eq!(narrow_y(300.0, 300.0, 800, 0.5), 400.0);
     }
 
     #[test]

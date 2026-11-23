@@ -40,24 +40,22 @@ pub fn show_replay_still(race: &Race, o: crate::owners::Owners<'static>) -> Resu
         load_frame(race);
         load_replay_cars::load_replay_cars(race);
     }
-    race.shared.work.get().current_car.set(0);
+    race.shared.work_mut().current_car = 0;
     loop {
         load_car::load_car(&race.shared)?;
-        if !matches!(race.shared.car().driver_kind.get(), 0 | 2) {
+        if !matches!(race.shared.car().driver_kind, 0 | 2) {
             race.replay.replay_frames_mut().step_first = 1;
             crate::physics::camera_frame::camera_frame(
                 &crate::physics::step_inputs::StepInputs::of(race).camera(),
                 scene,
+                &mut race.shared.car_mut(),
             )?;
             race.replay.replay_frames_mut().step_first = 0;
         }
         store_car::store_car(&race.shared)?;
-        race.shared
-            .work
-            .get()
-            .current_car
-            .set(race.shared.work.get().current_car.get().wrapping_add(1));
-        if race.shared.work.get().current_car.get() == race.shared.view.get().race_cars.get() {
+        let next = race.shared.work().current_car.wrapping_add(1);
+        race.shared.work_mut().current_car = next;
+        if race.shared.work().current_car == race.shared.view.get().race_cars.get() {
             break;
         }
     }

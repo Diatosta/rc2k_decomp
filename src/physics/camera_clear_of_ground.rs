@@ -4,22 +4,27 @@
 //! Refuses what `count_ground_probe` refuses.
 
 use crate::errors::Refused;
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::camera_ground::probe_at;
+use crate::physics::car_store::Car;
 use crate::physics::step_families::CameraGroundInputs;
 use rc2k_core::physics::camera_ground::{is_clear, over};
 
 /// Whether the camera is clear of the ground.
 // Core: `rc2k_core::physics::camera_ground::{over, is_clear}`.
-pub(super) fn camera_clear_of_ground(c: &CameraGroundInputs<'_>) -> Result<bool, Refused> {
+pub(super) fn camera_clear_of_ground(
+    c: &CameraGroundInputs<'_>,
+    car: &mut Car,
+) -> Result<bool, Refused> {
     let mut clear = probe_at(
         c,
-        c.car.camera_position.bits_at(0),
-        c.car.camera_position.bits_at(2),
-        &c.car.camera_ground_faces[0],
+        car.camera_position.bits_at(0),
+        car.camera_position.bits_at(2),
+        &mut car.camera_ground_faces[0],
     )?;
     if clear {
         clear = is_clear(over(
-            c.car.camera_position.bits_at(1),
+            car.camera_position.bits_at(1),
             c.search.borrow().height,
         ));
     }

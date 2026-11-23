@@ -5,6 +5,8 @@
 
 use crate::math::matrix3::extended;
 use crate::math::x87::mul2_to_int;
+use crate::memory::plain_floats::FloatRow;
+use crate::memory::plain_floats::FloatRowMut;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::vector_bits::{bits_of, cross, scale, turn};
@@ -13,7 +15,7 @@ use crate::race::numbers_store::Numbers;
 /// One lever push: `lever` is the lever's vector (x, y and z as float bits), `share_left` the
 /// share of the push this lever takes.
 pub(super) fn lever_push(
-    car: &Car,
+    car: &mut Car,
     tables: &PhysicsTables,
     numbers: &Numbers,
     lever: [u32; 3],
@@ -21,7 +23,7 @@ pub(super) fn lever_push(
 ) {
     let place = turn(&car.car_inverse_matrix, bits_of(&car.spin));
     let mut turned = turn(&car.crash_matrix, cross(lever, place));
-    for factor in [share_left, tables.lever_share.get()] {
+    for factor in [share_left, tables.lever_share] {
         turned = scale(turned, extended(factor));
     }
     for (from, axis) in [(turned[0], 0), (turned[2], 2)] {

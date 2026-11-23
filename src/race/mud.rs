@@ -82,7 +82,7 @@ fn load_mud(
     // Logic in `rc2k_core::race::mud::file_digits`.
     let (tens, units) = rc2k_core::race::mud::file_digits(car_file_number(
         kinds,
-        shared.own_car(net_race).car_kind.get(),
+        shared.own_car(net_race).car_kind,
     ));
     shared.vars.get().mud_path.set(0x11, tens as u8);
     shared.vars.get().mud_path.set(0x12, units as u8);

@@ -5,13 +5,13 @@ use crate::physics::car_store::Car;
 use rc2k_core::physics::start::CarStart;
 
 // Core: `rc2k_core::physics::start::CarStart::mark_started`.
-pub(super) fn mark_car_started(car: &Car) {
+pub(super) fn mark_car_started(car: &mut Car) {
     let was = CarStart {
-        started: car.started_stand_timer.get(),
-        moving: car.damage_failed.get(),
+        started: car.started_stand_timer,
+        moving: car.damage_failed,
         ..CarStart::default()
     };
     let mut c = was;
     c.mark_started();
-    crate::physics::cells::set_changed(&car.started_stand_timer, was.started, c.started);
+    crate::physics::cells::set_changed(&mut car.started_stand_timer, was.started, c.started);
 }

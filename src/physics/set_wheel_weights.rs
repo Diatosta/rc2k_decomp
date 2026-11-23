@@ -15,7 +15,7 @@ use std::cell::RefCell;
 
 pub(super) fn set_wheel_weights(
     car: &Car,
-    tables: &PhysicsTables,
+    tables: &mut PhysicsTables,
     contact: &RefCell<ContactWork>,
     numbers: &Numbers,
 ) {
@@ -29,35 +29,25 @@ pub(super) fn set_wheel_weights(
     if compare_full(share, high) & 0x100 == 0 {
         share = x87::loaded(high).to_bits();
     }
-    let f = weight_force(share, one, k, &tables.gravity, &tables.weight);
-    let wheels = &tables.forces[..4];
-    for w in wheels {
-        w.force[1].set(f);
+    let f = weight_force(share, one, k, tables.gravity, tables.weight);
+    let wheels = &mut tables.forces[..4];
+    for w in wheels.iter_mut() {
+        w.force[1] = f;
     }
-    for w in wheels {
-        turn_by_inverse(car, &w.force);
+    for w in wheels.iter_mut() {
+        turn_by_inverse(car, &mut w.force);
     }
     let plus = x87::loaded(1.0f32);
     let minus = x87::negated(plus);
     // The wheels' points: x and z of +1 or -1 (0x2C, 0x6C, 0x14, 0x34 plus; 0x0C, 0x4C,
     // 0x54, 0x74 minus).
-    for cell in [
-        &wheels[1].point[0],
-        &wheels[3].point[0],
-        &wheels[0].point[2],
-        &wheels[1].point[2],
-    ] {
-        cell.set(plus);
+    for (wheel, axis) in [(1, 0), (3, 0), (0, 2), (1, 2)] {
+        wheels[wheel].point[axis] = plus;
     }
-    for cell in [
-        &wheels[0].point[0],
-        &wheels[2].point[0],
-        &wheels[2].point[2],
-        &wheels[3].point[2],
-    ] {
-        cell.set(minus);
+    for (wheel, axis) in [(0, 0), (2, 0), (2, 2), (3, 2)] {
+        wheels[wheel].point[axis] = minus;
     }
-    for w in wheels {
-        turn_by_inverse(car, &w.point);
+    for w in wheels.iter_mut() {
+        turn_by_inverse(car, &mut w.point);
     }
 }

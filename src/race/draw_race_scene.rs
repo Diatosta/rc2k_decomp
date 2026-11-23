@@ -88,8 +88,8 @@ fn load_car(
     car: usize,
 ) -> Result<(), Refused> {
     crate::race::frame::load_view_car(
-        race.shared.work.get(),
-        race.shared.car_blocks(),
+        &race.shared.work(),
+        crate::memory::drawn_table::DrawnTable::Store(&race.shared.car_blocks),
         race.shared.view.get().into(),
         car,
         scratch.main_view(car),
@@ -189,7 +189,13 @@ fn view_mirror(
     let crate::scene::workers::PartRun {
         part, view: mirror, ..
     } = run;
-    crate::race::frame::load_view_car(reads.work, reads.car_blocks, reads.view, car, mirror)?;
+    crate::race::frame::load_view_car(
+        &reads.work.borrow(),
+        reads.car_blocks,
+        reads.view,
+        car,
+        mirror,
+    )?;
     let begun = crate::debug::timing::start();
     let output = crate::race::draw_mirror_view::draw_mirror_view(
         o.race, o.scene, o.input, mirror, part, reads,
@@ -420,7 +426,7 @@ fn check_light_texture_slots(race: &Race, scene: &Scene) -> Result<(), Refused> 
 
 /// The hud flags of the views: the first views take their car's option bits (`blocks`), the
 /// further views of a split screen their own player's car's (none past the views shown), and a
-/// view that is off has none.
+/// view whose HUD switch is off (`view::hud_switch_of`) has none.
 fn set_hud_flags(race: &Race, blocks: &[usize], views: u32) -> Result<(), Refused> {
     for (n, block) in blocks.iter().copied().enumerate().take(4) {
         let bits = race.frame.cars.car(block)?.option_bits.get();
@@ -437,8 +443,11 @@ fn set_hud_flags(race: &Race, blocks: &[usize], views: u32) -> Result<(), Refuse
             }
         }
     }
-    for (n, on) in race.shared.view.get().view_on.iter().enumerate().take(4) {
-        if on.get() == 0 {
+    // A view whose HUD switch is off shows no HUD; a split's further parts follow a switch of the
+    // first two (a replay's still frame turns both off).
+    for n in 0..4 {
+        let switch = rc2k_core::race::view::hud_switch_of(n);
+        if race.shared.view.get().view_on[switch].get() == 0 {
             race.frame.panel.borrow_mut().hud_flags[n] = 0;
         }
     }
@@ -596,9 +605,10 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         )?;
     } else {
         let side_by_side = race.shared.vars.get().split.get() == 1;
-        // The views' parts of the screen: the two players' split, or the layout chosen for more.
+        // The views' parts of the screen: the two players' split, or for more the layout shown
+        // (`split_layout::shown_split`).
         let split = if views > 2 {
-            rc2k_core::race::view::Split::many(views, crate::race::split_layout::index())
+            crate::race::split_layout::shown_split(race, views)
         } else {
             rc2k_core::race::view::Split::of(2, side_by_side)
         };
@@ -636,7 +646,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
                     (w, h)
                 },
                 own,
-                &reads.view_and_records.view_vars,
+                &reads.view_and_records.read(|records| records.view_vars),
                 &crate::race::vars_store::SCALE_FACTOR,
             );
         };
@@ -680,7 +690,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     for state in [0x11, 0x12] {
         set_render_state(part, 2, state);
     }
-    if !race.shared.work.get().in_credits.is_set() && race.replay.no_place() == 0 {
+    if race.shared.work().in_credits == 0 && race.replay.no_place() == 0 {
         crate::hud::overlay_pass::overlay_pass(
             &mut race.hud.get().borrow_mut(),
             race,

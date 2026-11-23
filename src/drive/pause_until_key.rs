@@ -33,9 +33,9 @@ pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result
     stop_race_sounds(o)?;
     shared.vars.get().scene_switch.set(1);
     for c in 0..2 {
-        race.car_blocks().cars[c as usize].notice_id.set(0xCB);
-        race.car_blocks().cars[c as usize].notice_time_b.set(0);
-        race.car_blocks().cars[c as usize].notice_time.set(u32::MAX);
+        race.car_blocks_mut().cars[c as usize].notice_id = 0xCB;
+        race.car_blocks_mut().cars[c as usize].notice_time_b = 0;
+        race.car_blocks_mut().cars[c as usize].notice_time = u32::MAX;
     }
     shared.vars.get().pause_wait.set(0x1E);
     // Entered from the wait held, or from a turn.
@@ -73,13 +73,13 @@ pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result
         }
     }
     for c in 0..2 {
-        race.car_blocks().cars[c as usize].notice_shown.set(0);
-        race.car_blocks().cars[c as usize].notice_id.set(0);
-        race.car_blocks().cars[c as usize].notice_last.set(0);
+        race.car_blocks_mut().cars[c as usize].notice_shown = 0;
+        race.car_blocks_mut().cars[c as usize].notice_id = 0;
+        race.car_blocks_mut().cars[c as usize].notice_last = 0;
     }
     shared.vars.get().scene_switch.set(0);
     wake_car_sounds(race, o.sound, o.audio, &o.system.session.picture_clock)?;
     take_key(input);
-    race.car_blocks().cars[0].input_keys.set(0);
+    race.car_blocks_mut().cars[0].input_keys = 0;
     Ok(())
 }

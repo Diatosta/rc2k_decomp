@@ -237,37 +237,68 @@ pub fn check_count_run_on(table: CheckpointsRef, n: usize) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::memory::cells::{ByteView, CellRun};
-    use crate::memory::session::PlainDword;
 
-    /// The tables as cells in one record, as they once were: found by byte offset.
+    /// The tables in one record of plain words, as they once were: found by byte offset.
     #[repr(C)]
-    #[derive(rc2k_derive::Cells)]
     struct Layout {
-        checkpoint_faces: [PlainDword; ROOM],
-        check_counts: [PlainDword; ROOM - 2],
-        angles: [PlainDword; ROOM],
-        reserved_f130: [PlainDword; GAP],
-        distances: [PlainDword; ROOM],
-        map_x: [PlainDword; ROOM],
-        map_y: [PlainDword; ROOM],
-        nearest_camera_1: [PlainDword; ROOM],
-        nearest_camera_2: [PlainDword; ROOM],
-        line_length: PlainDword,
-        replay_cameras_1: [PlainDword; 1024],
-        replay_cameras_2: [PlainDword; 1024],
+        checkpoint_faces: [u32; ROOM],
+        check_counts: [u32; ROOM - 2],
+        angles: [u32; ROOM],
+        reserved_f130: [u32; GAP],
+        distances: [u32; ROOM],
+        map_x: [u32; ROOM],
+        map_y: [u32; ROOM],
+        nearest_camera_1: [u32; ROOM],
+        nearest_camera_2: [u32; ROOM],
+        line_length: u32,
+        replay_cameras_1: [u32; 1024],
+        replay_cameras_2: [u32; 1024],
+    }
+
+    impl Layout {
+        /// Every word in field order (no padding: all are words).
+        fn words(&self) -> Vec<u32> {
+            [
+                &self.checkpoint_faces[..],
+                &self.check_counts,
+                &self.angles,
+                &self.reserved_f130,
+                &self.distances,
+                &self.map_x,
+                &self.map_y,
+                &self.nearest_camera_1,
+                &self.nearest_camera_2,
+                core::slice::from_ref(&self.line_length),
+                &self.replay_cameras_1,
+                &self.replay_cameras_2,
+            ]
+            .concat()
+        }
     }
 
     /// Both records with a different nonzero value in every word but the gap's zeros.
     fn filled() -> (Box<Layout>, Box<Checkpoints>) {
-        let layout: Box<Layout> = Box::new(crate::memory::cells::zeroed_cells());
+        let mut layout = Box::new(Layout {
+            checkpoint_faces: [0; ROOM],
+            check_counts: [0; ROOM - 2],
+            angles: [0; ROOM],
+            reserved_f130: [0; GAP],
+            distances: [0; ROOM],
+            map_x: [0; ROOM],
+            map_y: [0; ROOM],
+            nearest_camera_1: [0; ROOM],
+            nearest_camera_2: [0; ROOM],
+            line_length: 0,
+            replay_cameras_1: [0; 1024],
+            replay_cameras_2: [0; 1024],
+        });
         let mut plain = Box::new(Checkpoints::new());
         let mut next = 0u32;
         macro_rules! fill {
             ($($field:ident),*) => {$(
-                for (cell, word) in layout.$field.iter().zip(plain.$field.iter_mut()) {
+                for (cell, word) in layout.$field.iter_mut().zip(plain.$field.iter_mut()) {
                     next += 1;
-                    cell.set(next);
+                    *cell = next;
                     *word = next;
                 }
             )*};
@@ -275,23 +306,19 @@ mod tests {
         fill!(checkpoint_faces, check_counts, angles);
         fill!(distances, map_x, map_y, nearest_camera_1, nearest_camera_2);
         next += 1;
-        layout.line_length.set(next);
+        layout.line_length = next;
         plain.line_length = next;
         fill!(replay_cameras_1, replay_cameras_2);
         (layout, plain)
     }
 
-    /// The earlier way: the word found by byte offset in the record's cell runs.
-    fn oracle(layout: &Layout, field: usize, n: usize) -> Option<u32> {
+    /// The earlier way: the word found by byte offset in the record.
+    fn oracle(words: &[u32], field: usize, n: usize) -> Option<u32> {
         let offset = field.wrapping_add(((n as u32).wrapping_mul(4)) as usize);
-        (offset < core::mem::size_of::<Layout>())
-            .then(|| layout.cell_run(offset))
-            .and_then(|(start, run)| match run {
-                CellRun::PlainDword(cells) if (offset - start).is_multiple_of(4) => {
-                    cells.get((offset - start) / 4).map(PlainDword::get)
-                }
-                _ => None,
-            })
+        offset
+            .is_multiple_of(4)
+            .then(|| words.get(offset / 4).copied())
+            .flatten()
     }
 
     /// The new reader's word, or none past the record (where it ends the program).
@@ -335,13 +362,15 @@ mod tests {
     #[test]
     fn the_run_on_readers_reach_what_the_byte_offset_found() {
         let (layout, plain) = filled();
-        let end = core::mem::size_of::<Layout>() / 4 + 3;
+        let words = layout.words();
+        assert_eq!(words.len() * 4, core::mem::size_of::<Layout>());
+        let end = words.len() + 3;
         macro_rules! check {
             ($field:ident, $skip:expr, $at:expr, $reader:ident) => {
                 for n in 0..end {
                     let field = core::mem::offset_of!(Layout, $field) + 4 * $skip;
                     let new = reach(&plain, field / 4, n);
-                    assert_eq!(new, oracle(&layout, field, n), "{} {n}", stringify!($field));
+                    assert_eq!(new, oracle(&words, field, n), "{} {n}", stringify!($field));
                     assert_eq!(field / 4, $at + $skip);
                     if let Some(word) = new {
                         assert_eq!($reader(CheckpointsRef::Copy(&plain), n), word);
@@ -362,7 +391,7 @@ mod tests {
             .chain(wide)
         {
             let field = core::mem::offset_of!(Layout, map_x);
-            assert_eq!(reach(&plain, field / 4, n), oracle(&layout, field, n));
+            assert_eq!(reach(&plain, field / 4, n), oracle(&words, field, n));
         }
     }
 

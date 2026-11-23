@@ -9,6 +9,8 @@
 //! Refuses what its calls refuse.
 
 use crate::errors::Refused;
+use crate::memory::plain_floats::FloatRow;
+use crate::memory::plain_floats::FloatRowMut;
 use crate::physics::figures::GROUND_DROP;
 use crate::race::owner::Race;
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
@@ -25,11 +27,11 @@ pub fn simple_car_step(
     crate::drive::pedal_inputs::pedal_inputs(race);
     // The keys `drive::pedal_inputs` leaves (`reset_request` loads the same again
     // before `physics::reset_car`): the turn's y.
-    let keys = race.shared.car().input_keys.get();
+    let keys = race.shared.car().input_keys;
     { crate::drive::reset_request::reset_request(race, scene) }?;
     let distance = roam_distance(
-        race.car_blocks().cars[0].throttle.get(),
-        race.car_blocks().cars[0].brake.get(),
+        race.car_blocks().cars[0].throttle,
+        race.car_blocks().cars[0].brake,
         input.devices.keys_now.get(0x1D) != 0, // Devices.keys_now
     );
     let [x, _, z, _] = {
@@ -38,22 +40,24 @@ pub fn simple_car_step(
             0,
             keys as i32,
             distance as i32,
-            race.car_blocks().cars[0].car_heading.get(),
+            race.car_blocks().cars[0].car_heading,
         )
     };
-    let position = &race.car_blocks().cars[0].position;
-    position.set_bits_at(0, position.bits_at(0).wrapping_add(x));
-    position.set_bits_at(2, position.bits_at(2).wrapping_add(z));
-    race.car_blocks().cars[0].car_heading.set(
-        race.car_blocks().cars[0]
-            .car_heading
-            .get()
-            .wrapping_add(roam_turn(race.car_blocks().cars[0].steering.get())),
-    );
+    {
+        let mut blocks = race.car_blocks_mut();
+        let position = &mut blocks.cars[0].position;
+        position.set_bits_at(0, position.bits_at(0).wrapping_add(x));
+        position.set_bits_at(2, position.bits_at(2).wrapping_add(z));
+    }
+    let value = race.car_blocks().cars[0]
+        .car_heading
+        .wrapping_add(roam_turn(race.car_blocks().cars[0].steering));
+    race.car_blocks_mut().cars[0].car_heading = value;
     {
         crate::physics::wheel_surfaces::wheel_surfaces(
             &crate::physics::step_inputs::StepInputs::of(race).wheels(),
             scene,
+            &mut race.shared.car_mut(),
         )
     }?;
     {
@@ -77,14 +81,14 @@ pub fn simple_car_step(
             .height
             .wrapping_add(GROUND_DROP);
         race.course.course.borrow_mut().place_y = y;
-        race.car_blocks().cars[0].position.set_bits_at(1, y);
+        race.car_blocks_mut().cars[0].position.set_bits_at(1, y);
     }
-    race.car_blocks().cars[0].car_pitch.set(0);
-    race.car_blocks().cars[0].car_roll.set(0);
+    race.car_blocks_mut().cars[0].car_pitch = 0;
+    race.car_blocks_mut().cars[0].car_roll = 0;
     crate::race::stage_prefs::get_mat_crash(
         race.engine_tables(),
         &race.frame.matrices,
-        race.shared.car(),
+        &mut race.shared.car_mut(),
         scene,
     );
     Ok(())

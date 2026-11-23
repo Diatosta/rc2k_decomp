@@ -24,7 +24,8 @@ use crate::scene::rotate_point::rotate_point;
 
 /// `o` is the car's object.
 pub fn emit_car_particles(effects: &Effects, o: &CarEffects) -> Result<(), Refused> {
-    o.whole(effects.car_parts()?)?;
+    // Refused when the car names no block.
+    o.whole(&*effects.car_parts()?)?;
     let k = effects.kinds.emitter.borrow().place_k.map(f32::to_bits);
     let place = |wheel: usize, axis: usize| &o.records[wheel].place[axis];
     let z1 = x87::int_times(o.axles[0].get() as i32, k[0]);
@@ -48,7 +49,7 @@ pub fn emit_car_particles(effects: &Effects, o: &CarEffects) -> Result<(), Refus
         (bh::ld(o.records[0].place[2].get()).abs() + bh::ld(o.records[2].place[2].get()).abs())
             * bh::ld(effects.setup.floats.half),
     ) as u32;
-    let m = o.whole(effects.car_parts()?)?;
+    let m = &o.whole(&*effects.car_parts()?)?;
     for wheel in [0, 1, 2, 3] {
         let at = &o.records[wheel].place;
         let turned = rotate_point(

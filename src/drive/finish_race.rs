@@ -6,8 +6,7 @@
 
 use crate::drive::race_parts::log_line;
 use crate::errors::Refused;
-use crate::memory::plain_floats::WordRef;
-use crate::memory::session::Cell32;
+use crate::memory::plain_place::WordMut;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use rc2k_core::drive::finish_routine::{self, Lead, Set, Var};
@@ -44,22 +43,22 @@ fn set_var(race: &Race, v: Var, value: u32) {
         Var::D64BB18 => race.replay.finish_mut().no_place = value,
         Var::D5C2F88 => race.effects_settings().race_done.set(value),
         // View record 6's first two angles (the finish camera's).
-        Var::D606744 => race.frame.view_and_records.get().records[6].angles[0].set(value),
-        Var::D606748 => race.frame.view_and_records.get().records[6].angles[1].set(value),
+        Var::D606744 => race.frame.view_and_records.borrow_mut().records[6].angles[0] = value,
+        Var::D606748 => race.frame.view_and_records.borrow_mut().records[6].angles[1] = value,
         Var::D63DB84 => view.after_credits.set(value),
     }
 }
 
-fn lead_cell(car: &Car, field: Lead) -> WordRef<'_> {
+fn lead_cell(car: &mut Car, field: Lead) -> WordMut<'_> {
     match field {
-        Lead::CameraView => WordRef::Cell(&car.camera_view),
-        Lead::GearRatioSetting => WordRef::Cell(&car.gear_ratio_setting),
-        Lead::SuspensionStiffness => WordRef::Cell(&car.suspension_stiffness),
-        Lead::RideHeight => WordRef::Cell(&car.ride_height),
-        Lead::BrakeBalance => WordRef::Cell(&car.brake_balance),
-        Lead::SteeringSensitivity => WordRef::Cell(&car.steering_sensitivity),
-        Lead::PartsPresent => WordRef::Cell(&car.parts_present),
-        Lead::ImpactMark(k) => WordRef::Element(car.impact_octant_marks.cell_at(k as usize)),
+        Lead::CameraView => (&mut car.camera_view).into(),
+        Lead::GearRatioSetting => (&mut car.gear_ratio_setting).into(),
+        Lead::SuspensionStiffness => (&mut car.suspension_stiffness).into(),
+        Lead::RideHeight => (&mut car.ride_height).into(),
+        Lead::BrakeBalance => (&mut car.brake_balance).into(),
+        Lead::SteeringSensitivity => (&mut car.steering_sensitivity).into(),
+        Lead::PartsPresent => (&mut car.parts_present).into(),
+        Lead::ImpactMark(k) => (&mut car.impact_octant_marks[k as usize]).into(),
     }
 }
 
@@ -67,7 +66,7 @@ fn set_up(race: &Race) {
     for (at, v) in finish_routine::set_up() {
         match at {
             Set::Var(x) => set_var(race, x, v),
-            Set::Lead(field) => lead_cell(&race.car_blocks().cars[0], field).set_bits(v),
+            Set::Lead(field) => lead_cell(&mut race.car_blocks_mut().cars[0], field).set_bits(v),
         }
     }
 }
@@ -84,12 +83,9 @@ pub fn finish_race(race: &'static Race, o: crate::owners::Owners<'static>) -> Re
     );
     race_owner.shared.vars.get().race_car_kinds[0]
         .set(race_owner.shared.state.results.finish_kind.get());
-    race.car_blocks().cars[0]
-        .car_kind
-        .set(race_owner.shared.vars.get().race_car_kinds[0].get());
-    race.car_blocks().cars[0]
-        .start_slot_value
-        .set(race_owner.shared.state.results.finish_player.get());
+    race.car_blocks_mut().cars[0].car_kind = race_owner.shared.vars.get().race_car_kinds[0].get();
+    race.car_blocks_mut().cars[0].start_slot_value =
+        race_owner.shared.state.results.finish_player.get();
     log_line(c"----------------------");
     log_line(c"CALLING FINISH ROUTINE");
     log_text(c"[shauntracknum]");
@@ -97,7 +93,7 @@ pub fn finish_race(race: &'static Race, o: crate::owners::Owners<'static>) -> Re
     log_text(c"[shauncarnum1]");
     log_number(race_owner.shared.vars.get().race_car_kinds[0].get());
     log_text(c"[car1.ctd_carnum]");
-    log_number(race.car_blocks().cars[0].start_slot_value.get());
+    log_number(race.car_blocks().cars[0].start_slot_value);
     set_up(race);
     crate::race::stage_loading::load_stage(race, o)?;
     set_var(race, finish_routine::BEFORE_RUN, 0);
@@ -134,13 +130,13 @@ mod tests {
     fn the_lead_fields_are_the_offsets_they_replace() {
         use crate::physics::car_offsets_1999::{bytes_1999, car_with_1999_bytes, store_1999};
         let pattern = |n: usize| (n * 11 + 1) as u8;
-        let named = car_with_1999_bytes(pattern);
-        let by_offset = car_with_1999_bytes(pattern);
+        let mut named = car_with_1999_bytes(pattern);
+        let mut by_offset = car_with_1999_bytes(pattern);
         let before = bytes_1999(&named);
         for (at, v) in finish_routine::set_up() {
             if let Set::Lead(field) = at {
-                lead_cell(&named, field).set_bits(v);
-                store_1999(&by_offset, old_offset(field), v);
+                lead_cell(&mut named, field).set_bits(v);
+                store_1999(&mut by_offset, old_offset(field), v);
             }
         }
         assert!(

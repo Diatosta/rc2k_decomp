@@ -7,38 +7,40 @@
 //! (what was written is put back).
 
 use crate::errors::Refused;
+use crate::memory::plain_floats::FloatRowMut;
+use crate::physics::car_store::Car;
 use crate::physics::contact_store::ProbeLists;
 use crate::physics::crossed_edge_contact::check_probe;
 use crate::physics::step_families::ContactInputs;
 
 /// The steps, not guarded (the probe checked before).
 // Core: `rc2k_core::physics::walls::{NONE_CROSSED, raised_hit}`.
-pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
+pub fn steps(c: &ContactInputs<'_>, car: &mut Car) -> Result<(), Refused> {
     let n = c.ground.probes.borrow().crossed_probe;
     if n == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
     }
     let k = n as usize;
-    c.car.contact_point.set_at(0, c.car.probe_point_x[k].get());
-    c.car.contact_point.set_at(1, c.car.probe_point_y[k].get());
-    c.car.contact_point.set_at(2, c.car.probe_point_z[k].get());
+    car.contact_point.set_at(0, car.probe_point_x[k]);
+    car.contact_point.set_at(1, car.probe_point_y[k]);
+    car.contact_point.set_at(2, car.probe_point_z[k]);
     {
         crate::physics::restore_saved_car::restore_saved_car(
-            c.car,
-            c.tables,
+            car,
+            &mut c.tables.borrow_mut(),
             &c.ground.probes.borrow(),
         )
     }?;
-    crate::physics::crossed_edge_contact::steps(c)?;
+    crate::physics::crossed_edge_contact::steps(c, car)?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
         f32::from_bits(c.contact.borrow().contact_speed_length),
-        c.car.contact_depth.get(),
+        car.contact_depth,
     ) {
-        c.car.contact_depth.set(hit);
+        car.contact_depth = hit;
     }
-    c.car.contact_flag.set(1);
-    c.car.wall_hit_timer.set(0x32);
-    crate::physics::feel_ground::feel_ground(&c.ground)
+    car.contact_flag = 1;
+    car.wall_hit_timer = 0x32;
+    crate::physics::feel_ground::feel_ground(&c.ground, car)
 }
 
 /// The probe checked (-1 is none).
@@ -49,7 +51,7 @@ pub fn check(probes: &ProbeLists) -> Result<(), Refused> {
     check_probe(probes)
 }
 
-pub fn crossed_edge(c: &ContactInputs<'_>) -> Result<(), Refused> {
+pub fn crossed_edge(c: &ContactInputs<'_>, car: &mut Car) -> Result<(), Refused> {
     check(&c.ground.probes.borrow())?;
-    steps(c)
+    steps(c, car)
 }

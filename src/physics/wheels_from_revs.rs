@@ -9,6 +9,6 @@ use crate::physics::gearing::*;
 use crate::physics::tables_store::PhysicsTables;
 
 /// The exact version, for the gearbox's Rust callers, on the game's variables.
-pub fn wheels_from_revs(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
-    wheels_from_revs_at(&GearPlaces::game(car, tables))
+pub fn wheels_from_revs(car: &mut Car, tables: &PhysicsTables) -> Result<(), Refused> {
+    wheels_from_revs_at(car, &tables.gear_ratios)
 }

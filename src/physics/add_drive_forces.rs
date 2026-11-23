@@ -14,12 +14,12 @@ use std::cell::RefCell;
 /// The forces' step.
 pub fn add_drive_forces(car: &Car, tables: &PhysicsTables, work: &RefCell<WheelWork>) {
     let mut factor = DRIVE_FORCE_FACTOR[0];
-    if car.drive_kind.get() != 0 {
+    if car.drive_kind != 0 {
         factor = DRIVE_FORCE_FACTOR[1];
     }
     let loads = &tables.wheel_loads;
-    let scale = x87::sum4_times(&loads[0], &loads[1], &loads[2], &loads[3], factor);
-    let share = tables.drive_shares[2].get();
+    let scale = x87::sum4_times(loads[0], loads[1], loads[2], loads[3], factor);
+    let share = tables.drive_shares[2];
     let mut work = work.borrow_mut();
     for axle in 0..2 {
         work.drive_forces[axle] = mul2_plus(

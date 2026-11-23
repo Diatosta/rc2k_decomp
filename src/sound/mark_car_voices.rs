@@ -25,7 +25,7 @@ fn pairs<'a>(
         .collect::<Result<Vec<_>, BadInput>>()?;
     if pairs
         .iter()
-        .any(|&(_, c)| !race.shared.work.get().has_car_block(c))
+        .any(|&(_, c)| !race.shared.work().has_car_block(c))
     {
         return Err(BadInput("a null car"));
     }
@@ -41,7 +41,7 @@ pub fn mark_car_voices(sound: &crate::sound::owner::Sound, race: &Race) -> Resul
         let kind = race
             .frame
             .cars
-            .car(race.shared.work.get().block_number(car)?)?
+            .car(race.shared.work().block_number(car)?)?
             .driver_kind
             .get();
         let (sounds, voice) = rc2k_core::sound::cars::voice_mark(n as u32, kind);

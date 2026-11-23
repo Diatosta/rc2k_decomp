@@ -31,7 +31,7 @@ impl rc2k_core::scene::shown::RaceObject for Game<'_> {
         self.0.borrow().object_number
     }
     fn kind_switch(&self) -> bool {
-        self.2.work.in_credits.is_set()
+        self.2.work.in_credits()
     }
     fn kind_mode(&self) -> u32 {
         self.2.vars.run_kind()
@@ -46,7 +46,7 @@ impl rc2k_core::scene::shown::RaceObject for Game<'_> {
         self.2.stage_prefs.read(|p| p.shown)
     }
     fn which(&self) -> u32 {
-        self.2.work.stage_direction.get()
+        self.2.work.borrow().stage_direction
     }
     fn only(&self) -> u32 {
         self.1.borrow().only_object

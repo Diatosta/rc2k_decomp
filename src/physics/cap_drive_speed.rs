@@ -5,6 +5,7 @@
 
 use crate::math::x87;
 use crate::math::x87::over_abs_plus_minus;
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::physics::figures::{DRIVE_SPEED_CAP, DRIVE_SPEED_CAP_A, DRIVE_SPEED_CAP_B};
 use crate::physics::flow::ZERO_BITS as ZERO;
@@ -18,22 +19,18 @@ fn below(a: f32, b: f32) -> bool {
 
 /// The cap of this step: the allowance over the forward speed, the speed plus it, and the first
 /// drive speed held to that.
-pub fn cap_drive_speed(car: &Car, tables: &PhysicsTables) {
-    let allowance = &tables.drive_speed_figure;
+pub fn cap_drive_speed(car: &mut Car, tables: &PhysicsTables) {
+    let _allowance = &tables.drive_speed_figure;
     let speed = car.local_velocity.at(2);
-    let drive_speed = &car.drive_speed_a;
+    let drive_speed = &mut car.drive_speed_a;
     let zero = f32::from_bits(ZERO);
-    allowance.set(over_abs_plus_minus(
-        DRIVE_SPEED_CAP,
-        speed,
-        DRIVE_SPEED_CAP_A,
-        DRIVE_SPEED_CAP_B,
-    ));
-    if below(allowance.get(), zero) {
-        allowance.set(x87::loaded(zero));
+    let mut allowance =
+        over_abs_plus_minus(DRIVE_SPEED_CAP, speed, DRIVE_SPEED_CAP_A, DRIVE_SPEED_CAP_B);
+    if below(allowance, zero) {
+        allowance = x87::loaded(zero);
     }
-    let cap = x87::add(allowance.get(), speed);
-    if !below(drive_speed.get(), cap) {
-        drive_speed.set(x87::loaded(cap));
+    let cap = x87::add(allowance, speed);
+    if !below(*drive_speed, cap) {
+        *drive_speed = x87::loaded(cap);
     }
 }

@@ -5,6 +5,7 @@ use crate::errors::{BadInput, Refused};
 use crate::race::owner_course::CourseReads;
 use crate::race::trap::Trap;
 use crate::race::view_scratch::DrawCtx;
+use rc2k_core::race::lights::{LampCars, ViewCars};
 
 /// Sets the cars' light modes: the shown car (`shown_car`) is the drawn view's car
 /// (`crate::test_support::own::race().shared.view.view_cars[drawn_view]`); every car's state bits
@@ -193,14 +194,35 @@ pub(super) fn car_light_on_point(
     Ok(())
 }
 
-/// The cars' headlights on the lit place: in a network game the chosen car or all (when
-/// `settings_words[4]` is 1), and the same in a replay of a network race, where the chosen car
-/// is the drawn view's; else the players' cars (all with `settings_words[4]` 1), only the
-/// drawn view's car outside one player and modes 0 and 2.
-#[allow(
-    clippy::too_many_arguments,
-    reason = "the drawing's stores the part reads, as they are lent"
-)]
+/// Whose lamps light what drawn view `drawn_view` shows (`LampCars::of_view`): in a network game
+/// this machine's car (`net_race`); in a replay of a network race (`lights_follow_view`) the cars
+/// its views show, or with one view the car it follows; else the race's players. Refused: more
+/// views than four.
+pub fn lamp_cars(
+    race_view: crate::race::view_store::DrawnViewRef<'_>,
+    net_race: Option<rc2k_core::net::net_race::NetRace>,
+    drawn_view: u32,
+) -> Result<LampCars, BadInput> {
+    let replay_views = if net_race.is_none() && race_view.lights_follow_view() != 0 {
+        Some(ViewCars::try_from_fn(race_view.views(), |n| {
+            race_view.view_car_number(n)
+        })?)
+    } else {
+        None
+    };
+    let trap = Trap::new();
+    let lamps = LampCars::of_view(
+        net_race.map(|n| n.player),
+        replay_views,
+        || trap.keep_read(race_view.drawn_view_car(drawn_view)),
+        || race_view.players(),
+    );
+    trap.finish()?;
+    Ok(lamps)
+}
+
+/// The cars' headlights on the lit place: the cars `lamp_cars` names, every car's when
+/// `settings_words[4]` (the headlights option) is 1 (`LampCars::light`).
 pub(super) fn car_lights_on_point(
     reads: crate::scene::workers::DrawReads<'_>,
     net_race: Option<rc2k_core::net::net_race::NetRace>,
@@ -208,27 +230,19 @@ pub(super) fn car_lights_on_point(
     drawn_view: u32,
 ) -> Result<(), BadInput> {
     let light_tables = reads.light_tables;
-    let blocks = &reads.car_blocks;
+    let blocks = reads.car_blocks;
     let (race_work, race_vars, race_view) = (reads.work, reads.vars, reads.view);
     let cars: u32 = race_view.race_cars();
     let all = race_vars.settings_word(4) == 1;
-    let one = net_race.is_some() || race_view.lights_follow_view() != 0;
+    let lamps = lamp_cars(race_view, net_race, drawn_view)?;
     for n in 0..cars {
         let trap = Trap::new();
-        let view_car = || {
-            race_view.drawn_view_car(drawn_view).unwrap_or_else(|e| {
-                trap.keep(e);
-                0
-            })
-        };
-        let lit = rc2k_core::race::lights::headlights_light(
+        let lit = lamps.light(
             n,
-            one,
-            || net_race.map_or_else(view_car, |n| n.player),
             all,
-            || race_view.players(),
+            None,
             || race_vars.run_kind(),
-            view_car,
+            || trap.keep_read(race_view.drawn_view_car(drawn_view)),
         );
         trap.finish()?;
         if lit {
@@ -236,15 +250,20 @@ pub(super) fn car_lights_on_point(
             car_light_on_point(
                 reads.course(),
                 reads.frame_cars.car(n as usize)?,
-                blocks
-                    .parts_of(
-                        reads.car_parts,
-                        crate::race::owner_shared::RaceShared::race_car_in(
-                            race_work, blocks, n as usize,
-                        )?,
+                blocks.read(|blocks| {
+                    Ok::<_, BadInput>(
+                        blocks
+                            .parts_of(
+                                reads.car_parts,
+                                crate::race::owner_shared::RaceShared::race_car_in(
+                                    &race_work.borrow(),
+                                    blocks,
+                                    n as usize,
+                                )?,
+                            )
+                            .marks_count,
                     )
-                    .marks_count
-                    .get(),
+                })?,
                 light_tables,
                 object_light,
             )?;
@@ -317,7 +336,7 @@ pub fn light_colour_at(
     drawn_view: u32,
 ) -> Result<(), Refused> {
     // The turned place, the spreads and the lamps' distances are the x87's and the scene's.
-    check_light_colour(reads.work, reads.view, lamps)?;
+    check_light_colour(&reads.work.borrow(), reads.view, lamps)?;
     object_light.borrow_mut().light_colour = 0u32;
     car_lights_on_point(reads, net_race, object_light, drawn_view)?;
     lamp_lights_on_point(reads.course(), points, lamps, object_light)?;
@@ -332,8 +351,8 @@ pub fn view_light(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let (race, view) = (ctx.race, ctx.view);
     let (lamps, object_light, car) = (&view.lamps, &view.light, &view.car);
     let drawn_view = view.drawn_view(race);
-    check_light_colour(ctx.reads.work, ctx.reads.view, lamps)?;
-    let car_place: [u32; 3] = car.position.bits();
+    check_light_colour(&ctx.reads.work.borrow(), ctx.reads.view, lamps)?;
+    let car_place: [u32; 3] = car.borrow().position.map(f32::to_bits);
     object_light.borrow_mut().lit_place = car_place;
     light_colour_at(
         ctx.reads,
@@ -344,6 +363,6 @@ pub fn view_light(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         drawn_view,
     )?;
     let light: u32 = object_light.borrow().light_colour;
-    object_light.borrow_mut().view_light = add_colours(car.light_colour.get(), light);
+    object_light.borrow_mut().view_light = add_colours(car.borrow().light_colour, light);
     Ok(())
 }

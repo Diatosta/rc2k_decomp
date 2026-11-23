@@ -8,7 +8,6 @@
 //! Refuses (before anything) a null sound object when it would be written.
 
 use crate::errors::Refused;
-use crate::memory::session::PlainInt;
 use crate::physics::car_store::Car;
 use rc2k_core::physics::gearbox::{GearChange, gear_change};
 
@@ -16,9 +15,9 @@ use rc2k_core::physics::gearbox::{GearChange, gear_change};
 // Core: `rc2k_core::physics::gearbox::gear_change`.
 fn gear_change_sound_at(
     o: &crate::sound::store::SoundObjectCell,
-    word: &PlainInt,
+    word: i32,
 ) -> Result<(), Refused> {
-    if let Some(change) = gear_change(word.get()) {
+    if let Some(change) = gear_change(word) {
         match change {
             GearChange::Up => o.borrow_mut().slots[2].start = 1,
             GearChange::Down => o.borrow_mut().slots[3].start = 1,
@@ -35,6 +34,6 @@ pub(super) fn gear_change_sound(
 ) -> Result<(), Refused> {
     gear_change_sound_at(
         crate::sound::store::current_object(sound, work),
-        &car.gear_changed,
+        car.gear_changed,
     )
 }

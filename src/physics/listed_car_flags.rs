@@ -14,7 +14,7 @@ pub fn set_flag(
     work: &RaceWork,
     flag: &mut u32,
 ) -> Result<(), Refused> {
-    let current = work.current_car.get();
+    let current = work.current_car;
     let (_, listed) = listed_entry(current, |car| {
         frame_work.borrow().listed_car_sounds[car as usize]
     })?;

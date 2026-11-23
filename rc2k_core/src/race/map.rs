@@ -30,6 +30,17 @@ pub fn picture_place(corner: u32, place: u32) -> u32 {
         << 1
 }
 
+/// The map pictures: the first and the second view's (one view's alone in a network race), and
+/// the third and the fourth part's of a split screen.
+pub const PICTURES: usize = 4;
+
+/// Whether a map picture is drawn again for the car it shows: when the car's picture corner moved,
+/// or when the picture holds another corner than the car's (`held`: the corner it was last drawn
+/// at, none before the first): a replay's view can show another car than the one it drew for.
+pub fn redraws(moved: bool, held: Option<[u32; 2]>, corner: [u32; 2]) -> bool {
+    moved || held != Some(corner)
+}
+
 /// The first tile of a corner (>> 4, signed).
 pub fn first_tile(corner: u32) -> u32 {
     ((corner as i32) >> 4) as u32
@@ -106,6 +117,14 @@ pub fn pixel_width(bytes: u32) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_picture_is_drawn_again_when_it_holds_another_corner() {
+        assert!(redraws(true, Some([1, 2]), [1, 2]));
+        assert!(!redraws(false, Some([1, 2]), [1, 2]));
+        assert!(redraws(false, Some([1, 3]), [1, 2]));
+        assert!(redraws(false, None, [1, 2]));
+    }
 
     #[test]
     fn tiles() {

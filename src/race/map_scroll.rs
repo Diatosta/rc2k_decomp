@@ -4,15 +4,18 @@
 //! when the picture was redrawn, the car on the map (16.16) and its place in the picture.
 
 use crate::errors::{BadInput, Refused};
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 
-/// Draws the map picture's slot `Textures::first_textures[198]` (+ `current_car`
-/// unless `session`) from tile (corner x >> 4, corner y >> 4).
+/// Draws the map picture's slot `Textures::first_textures[198]` (+ the view's number, 0 or 1,
+/// unless one view is shown) from tile (corner x >> 4, corner y >> 4). The slot goes by the view,
+/// as the views read their maps, not by the car the view shows (a replay's view may show any of
+/// eight cars, past the two map textures).
 pub(super) fn map_tiles(
     race: &Race,
     car: &Car,
-    car_number: u32,
+    view: u32,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
     net_race: &rc2k_core::net::net_race::NetRaceSlot,
@@ -25,14 +28,14 @@ pub(super) fn map_tiles(
     let slot = picture_slot(
         scene.textures.first_textures()[198],
         one_view,
-        if one_view { 0 } else { car_number },
+        if one_view { 0 } else { view },
     );
     crate::race::blit_map_tiles::blit_map_tiles(
         frame,
         &race.course.stage.game_map,
         slot,
-        first_tile(car.map_corner[0].get()),
-        first_tile(car.map_corner[1].get()),
+        first_tile(car.map_corner[0]),
+        first_tile(car.map_corner[1]),
         gfx,
     )
 }
@@ -50,10 +53,10 @@ pub(super) fn scroll_refuses(race: &Race) -> Result<(), Refused> {
 
 /// Puts the car on the map: `map_place` at its last checkpoint's place plus its distance from that
 /// checkpoint's face's point (x as it is, z negated, both on the map's scale).
-pub(super) fn place_on_map(race: &Race, car: &Car) -> Result<(), Refused> {
+pub(super) fn place_on_map(race: &Race, car: &mut Car) -> Result<(), Refused> {
     let [x, y] = map_position(race, car)?;
-    car.map_place[0].set(x);
-    car.map_place[1].set(y);
+    car.map_place[0] = x;
+    car.map_place[1] = y;
     Ok(())
 }
 
@@ -61,7 +64,7 @@ pub(super) fn place_on_map(race: &Race, car: &Car) -> Result<(), Refused> {
 /// written nowhere.
 pub(super) fn map_position(race: &Race, car: &Car) -> Result<[u32; 2], Refused> {
     use rc2k_core::race::map::on_map;
-    let n = car.checkpoint.get();
+    let n = car.checkpoint;
     let map_x = crate::race::checkpoints_store::map_x_run_on(race.checkpoints(), n as usize);
     let map_y = crate::race::checkpoints_store::map_y_run_on(race.checkpoints(), n as usize);
     let face = crate::race::checkpoints_store::face_run_on(race.checkpoints(), n as usize);
@@ -87,20 +90,28 @@ pub(super) fn map_position(race: &Race, car: &Car) -> Result<[u32; 2], Refused> 
 /// With two checkpoints or more, puts the car on the map (`map_x` / `map_y` at its last
 /// checkpoint, plus its distance from that checkpoint's face's point x 0x60 / 1000, z negated);
 /// unless it is still 0x34 .. 0x4B pixels inside the picture, moves the picture's corner (centred,
-/// 16-pixel steps), redraws it (`map_tiles`) and sets the redrawn flag; then sets its place in the
-/// picture ((place - corner << 16 - 0x300000) x 2). Refuses (before anything) no course faces or
-/// points.
+/// 16-pixel steps); redraws the view's picture (`map_tiles`) when the corner moved or the picture
+/// holds another (`map::redraws`) and sets the redrawn flag; then sets its place in the picture
+/// ((place - corner << 16 - 0x300000) x 2). Refuses (before anything) no course faces or points.
 fn scroll_map(
     race: &Race,
-    car: &Car,
-    car_number: u32,
+    car: &mut Car,
+    view: u32,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
     net_race: &rc2k_core::net::net_race::NetRaceSlot,
 ) -> Result<(), Refused> {
-    scroll_map_with(race, car, || {
-        map_tiles(race, car, car_number, scene, gfx, net_race)
+    // The picture the view's map is drawn into (`map_tiles`): the first alone in a network race.
+    let picture = if net_race.is_on() { 0 } else { view as usize };
+    scroll_map_with(race, car, picture, |car| {
+        map_tiles(race, car, view, scene, gfx, net_race)
     })
+}
+
+/// No map picture holds a drawn map any more (their textures took their kinds' pictures again):
+/// each is drawn at its next scroll.
+pub fn forget_map_pictures(race: &Race) {
+    race.frame.frame_work.borrow_mut().map_pictures = [None; rc2k_core::race::map::PICTURES];
 }
 
 /// Draws the map picture of the further player `n` (2 or 3) into the player's own texture and
@@ -122,8 +133,8 @@ fn further_map_tiles(
         &race.frame,
         &race.course.stage.game_map,
         texture,
-        first_tile(car.map_corner[0].get()),
-        first_tile(car.map_corner[1].get()),
+        first_tile(car.map_corner[0]),
+        first_tile(car.map_corner[1]),
         gfx,
     )?;
     crate::scene::forget_slot_texture::forget_slot_texture(
@@ -132,38 +143,49 @@ fn further_map_tiles(
     )
 }
 
-/// `scroll_map` with the picture's redraw (`redraw`, run once the corner has moved) left to the
-/// caller.
+/// `scroll_map` into map picture `picture` (`map::PICTURES`), with the picture's redraw
+/// (`redraw`) left to the caller.
 fn scroll_map_with(
     race: &Race,
-    car: &Car,
-    redraw: impl FnOnce() -> Result<(), Refused>,
+    car: &mut Car,
+    picture: usize,
+    redraw: impl FnOnce(&Car) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    // Logic in `rc2k_core::race::map::{on_map, pixel, well_inside, centred_corner,
+    // Logic in `rc2k_core::race::map::{on_map, pixel, well_inside, centred_corner, redraws,
     // picture_place}`.
-    use rc2k_core::race::map::{centred_corner, picture_place, pixel, well_inside};
+    use rc2k_core::race::map::{centred_corner, picture_place, pixel, redraws, well_inside};
     scroll_refuses(race)?;
-    car.map_redrawn.set(0);
+    let held = race
+        .frame
+        .frame_work
+        .borrow()
+        .map_pictures
+        .get(picture)
+        .copied()
+        .ok_or(BadInput("a map picture past the four"))?;
+    car.map_redrawn = 0;
     if race.shared.vars.get().checkpoint_count.get() < 2 {
         return Ok(());
     }
-    let [corner_x, corner_y] = &car.map_corner;
-    let [map_x, map_y] = &car.map_place;
     place_on_map(race, car)?;
-    let x = pixel(map_x.get());
-    let y = pixel(map_y.get());
-    let (dx, dy) = (
-        x.wrapping_sub(corner_x.get()),
-        y.wrapping_sub(corner_y.get()),
-    );
-    if !(well_inside(dx) && well_inside(dy)) {
-        corner_x.set(centred_corner(x));
-        corner_y.set(centred_corner(y));
-        redraw()?;
-        car.map_redrawn.set(1);
+    let [map_x, map_y] = car.map_place;
+    let [mut corner_x, mut corner_y] = car.map_corner;
+    let x = pixel(map_x);
+    let y = pixel(map_y);
+    let (dx, dy) = (x.wrapping_sub(corner_x), y.wrapping_sub(corner_y));
+    let moved = !(well_inside(dx) && well_inside(dy));
+    if moved {
+        corner_x = centred_corner(x);
+        corner_y = centred_corner(y);
+        car.map_corner = [corner_x, corner_y];
     }
-    car.map_picture_place[0].set(picture_place(corner_x.get(), map_x.get()));
-    car.map_picture_place[1].set(picture_place(corner_y.get(), map_y.get()));
+    if redraws(moved, held, car.map_corner) {
+        redraw(car)?;
+        car.map_redrawn = 1;
+        race.frame.frame_work.borrow_mut().map_pictures[picture] = Some(car.map_corner);
+    }
+    car.map_picture_place[0] = picture_place(corner_x, map_x);
+    car.map_picture_place[1] = picture_place(corner_y, map_y);
     Ok(())
 }
 
@@ -191,24 +213,29 @@ pub(super) fn scroll_maps(
     );
     for &v in views {
         let car = view_car(race.shared.view.get(), v).get() & 7;
-        if !race.shared.work.get().has_car_block(car as usize) {
+        if !race.shared.work().has_car_block(car as usize) {
             return Err(BadInput("a view car without its block").into());
         }
     }
     scroll_refuses(race)?;
     for &v in views {
         let n = view_car(race.shared.view.get(), v).get();
-        let car = race
+        let mut car = race
             .shared
-            .race_car_or((n & 7) as usize, "a view car's block")?;
-        scroll_map(race, car, n, scene, gfx, net_race)?;
+            .race_car_or_mut((n & 7) as usize, "a view car's block")?;
+        scroll_map(race, &mut car, v as u32, scene, gfx, net_race)?;
     }
     // A split screen of three or four: the further players' maps, each in a texture of its own.
     if !third_only {
-        let players = race.shared.view.get().players.get().min(4) as usize;
+        let players = race.shared.view.get().split_parts().min(4) as usize;
         for n in 2..players {
-            let car = race.shared.race_car_or(n, "a further player's car block")?;
-            scroll_map_with(race, car, || further_map_tiles(race, car, n, scene, gfx))?;
+            let mut car = race.shared.race_car_or_mut(
+                race.shared.view.get().view_number(n)?,
+                "a further player's car block",
+            )?;
+            scroll_map_with(race, &mut car, n, |car| {
+                further_map_tiles(race, car, n, scene, gfx)
+            })?;
         }
     }
     // Three players with the overview map in the free part: every car's place on it.

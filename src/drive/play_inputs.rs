@@ -9,7 +9,7 @@ use rc2k_core::drive::replay_frames::on_tape;
 pub fn play_inputs(race: &Race) -> Result<(), BadInput> {
     let shared = &race.shared;
     let replay = &race.replay;
-    let car = shared.work.get().current_car.get();
+    let car = shared.work().current_car;
     let extended = race.viewer_buffers().extra_tape.is_set();
     let tail = race.viewer_buffers().v2.is_set() && (4..8).contains(&car);
     if !on_tape(car, extended) && !tail {
@@ -48,18 +48,17 @@ mod tests {
     fn four_cars_inputs_go_through_the_block() {
         let _g = crate::test_support::test_lock();
         let race = race();
-        let car_cell = &race.shared.work.get().current_car;
         let kept_block = race.viewer_buffers().block_bytes();
         let kept_flag = race.viewer_buffers().extra_tape.is_set();
         let kept = race.shared.run().input_words;
-        let kept_car = car_cell.get();
+        let kept_car = race.shared.work().current_car;
         let kept_tenth = race.replay.replay_frames().tenth;
         race.viewer_buffers().extra_tape.set(true);
         race.replay.staging_mut().clear_extra_tape();
         race.replay.replay_frames_mut().tenth = 37;
         let value = |car: u32, k: u32| (car + 1) * 0x101 + k * 0x20;
         for car in 0..4u32 {
-            car_cell.set(car);
+            race.shared.work_mut().current_car = car;
             // Throttle, keys, steering and brake in the ranges the packing keeps.
             for k in 0..4 {
                 race.shared.run_mut().input_words[k] = if k == 1 {
@@ -75,7 +74,7 @@ mod tests {
         race.replay.staging_mut().clear_extra_tape();
         crate::race::replay_staging_store::load_from_block(race);
         for car in 0..4u32 {
-            car_cell.set(car);
+            race.shared.work_mut().current_car = car;
             race.replay.replay_frames_mut().step_frame = 37;
             race.shared.run_mut().input_words = [0; 4];
             play_inputs(race).unwrap();
@@ -83,13 +82,13 @@ mod tests {
         }
         // Without the extra tape cars 2 and 3 are not on the tape.
         race.viewer_buffers().extra_tape.set(false);
-        car_cell.set(2);
+        race.shared.work_mut().current_car = 2;
         race.shared.run_mut().input_words[1] = 77;
         play_inputs(race).unwrap();
         assert_eq!(race.shared.run().input_words[1], 77);
         race.viewer_buffers().extra_tape.set(kept_flag);
         race.replay.staging_mut().clear_extra_tape();
-        car_cell.set(kept_car);
+        race.shared.work_mut().current_car = kept_car;
         race.replay.replay_frames_mut().tenth = kept_tenth;
         race.shared.run_mut().input_words = kept;
         race.viewer_buffers()

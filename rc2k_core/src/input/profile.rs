@@ -615,6 +615,7 @@ impl Profile {
                 profile.settings_mut(1).dead_zone = 100;
             }
         }
+        crate::input::known_devices::apply_defaults(&mut profile);
         profile
     }
 

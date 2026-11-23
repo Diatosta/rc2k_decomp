@@ -8,91 +8,53 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::memory::session::PlainDword;
 use crate::physics::figures::{SETTLE_FAST_STEP, SETTLE_SLOW_STEP};
-use crate::physics::flow::FloatView;
-use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
+use crate::physics::gearing::revs_from_wheels_at;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 
-/// The switches: the game's or a test's.
-#[derive(Clone, Copy)]
-struct SettlePlaces<'a> {
-    /// `front_wheels_off`: settle the first driven speed (in neutral).
-    pub first: &'a PlainDword,
-    /// `rear_wheels_off`: settle the second.
-    pub second: &'a PlainDword,
-    /// `brake`: the big step.
-    pub fast: &'a PlainDword,
-}
-
-impl<'a> SettlePlaces<'a> {
-    pub fn game(shared: &'a RaceShared) -> Self {
-        Self {
-            first: &shared.car().front_wheels_off,
-            second: &shared.car().rear_wheels_off,
-            fast: &shared.car().brake,
-        }
-    }
-}
-
 /// One speed `v` toward 0 by the step `step`.
-fn settle(v: &(impl FloatView + ?Sized), step: f32) {
-    let x = v.float();
+fn settle(v: &mut f32, step: f32) {
+    let x = *v;
     if x == 0.0 || x.is_nan() {
         return;
     }
     if x < 0.0 {
         let y = x87::add(x, step);
-        v.set_float(y);
+        *v = y;
         if y >= 0.0 {
-            v.set_float(0.0);
+            *v = 0.0;
         }
     } else {
         let y = x87::sub(x, step);
-        v.set_float(y);
+        *v = y;
         if y < 0.0 || y.is_nan() {
-            v.set_float(0.0);
+            *v = 0.0;
         }
     }
-}
-
-/// The steps.
-fn settle_drive_speeds_at(
-    numbers: &Numbers,
-    g: &GearPlaces<'_>,
-    s: &SettlePlaces<'_>,
-) -> Result<(), Refused> {
-    let gear = g.gear.get();
-    if gear != 0 && !(-1..=7).contains(&gear) {
-        return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
-    }
-    let step = || {
-        if s.fast.is_set() {
-            SETTLE_FAST_STEP
-        } else {
-            SETTLE_SLOW_STEP
-        }
-    };
-    if s.first.is_set() && gear == 0 {
-        let step = step();
-        settle(g.drive_speed, step);
-    }
-    if s.second.is_set() {
-        let step = step();
-        settle(g.drive_speed_b, step);
-    }
-    if gear != 0 {
-        return revs_from_wheels_at(numbers, g);
-    }
-    Ok(())
 }
 
 /// The exact version, for `physics::car_physics_step`.
 pub(super) fn settle_drive_speeds(numbers: &Numbers, shared: &RaceShared) -> Result<(), Refused> {
-    settle_drive_speeds_at(
-        numbers,
-        &GearPlaces::game(shared.car(), shared.physics_tables.get()),
-        &SettlePlaces::game(shared),
-    )
+    let ratios = &shared.physics_tables().gear_ratios.clone();
+    let mut car = shared.car_mut();
+    let gear = car.gear;
+    if gear != 0 && !(-1..=7).contains(&gear) {
+        return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
+    }
+    let step = if car.brake != 0 {
+        SETTLE_FAST_STEP
+    } else {
+        SETTLE_SLOW_STEP
+    };
+    if car.front_wheels_off != 0 && gear == 0 {
+        settle(&mut car.drive_speed_a, step);
+    }
+    if car.rear_wheels_off != 0 {
+        settle(&mut car.drive_speed_b, step);
+    }
+    if gear != 0 {
+        return revs_from_wheels_at(numbers, &mut car, ratios);
+    }
+    Ok(())
 }

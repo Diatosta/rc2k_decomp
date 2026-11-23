@@ -7,22 +7,22 @@ fn shares_and_wheels() {
         scale_car_figures(&s.car, &mut s.damage);
     });
     prove("wheel_stiffness_from_share", |s| {
-        let (d, c) = (&s.damage, &s.car);
-        wheel_stiffness_from_share(d, d.wheel_stiffness_lerp[1], &c.wheel_stiffness.float_at(1));
+        let (d, c) = (&s.damage, &mut s.car);
+        wheel_stiffness_from_share(d, d.wheel_stiffness_lerp[1], &mut c.wheel_stiffness[1]);
     });
     prove("wheel_ride_height_from_share", |s| {
-        wheel_ride_height_from_share(&s.damage, &s.car.wheel_ride_height.float_at(2));
+        wheel_ride_height_from_share(&s.damage, &mut s.car.wheel_ride_height[2]);
     });
     prove("fail_wheel", |s| {
         fail_wheel(
             &s.damage,
-            &s.car.wheel_stiffness.float_at(3),
-            &s.car.wheel_ride_height.float_at(3),
+            &mut s.car.wheel_stiffness[3],
+            &mut s.car.wheel_ride_height[3],
         );
     });
     prove("means_and_engine_speed", |s| {
-        s.car.drive_kind.set(s.car.drive_kind.get() & 3);
-        means_and_engine_speed(&s.car, &mut s.damage);
+        s.car.drive_kind &= 3;
+        means_and_engine_speed(&mut s.car, &mut s.damage);
     });
 }
 

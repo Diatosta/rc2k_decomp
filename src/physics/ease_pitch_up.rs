@@ -10,9 +10,9 @@ use rc2k_core::physics::easing::ease_up;
 
 /// On the variables' cells.
 // Core: `rc2k_core::physics::easing::ease_up`.
-pub(super) fn ease_pitch_up(car: &Car, camera: &mut CameraWork) {
-    let mut value = car.camera_pitch.get();
+pub(super) fn ease_pitch_up(car: &mut Car, camera: &mut CameraWork) {
+    let mut value = car.camera_pitch;
     let step = ease_up(&mut value, camera.pitch_ceiling);
     camera.pitch_step = step;
-    car.camera_pitch.set(value);
+    car.camera_pitch = value;
 }

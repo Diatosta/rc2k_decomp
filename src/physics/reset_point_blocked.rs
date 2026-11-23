@@ -16,10 +16,10 @@ pub fn reset_point_blocked(
     block: &crate::physics::car_store::Car,
 ) -> bool {
     line_places::reset_point_blocked(
-        block.driver_kind.get(),
-        tables.reset_candidate.get(),
+        block.driver_kind,
+        tables.reset_candidate,
         || vars.checkpoint_count.get(),
-        || block.reset_checkpoint.get(),
+        || block.reset_checkpoint,
     )
     .carry()
 }

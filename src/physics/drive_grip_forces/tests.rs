@@ -1,6 +1,7 @@
 use super::*;
 use crate::math::x87_mem::{HostCell, view};
 use crate::memory::session::Cell32;
+use crate::memory::session::PlainFloat;
 use crate::test_support::own::race;
 use crate::test_support::own::scene;
 use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
@@ -23,8 +24,8 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 steer_sine_force(
-                    race().shared.car(),
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.car_mut(),
+                    &mut race().shared.physics_tables_mut(),
                     race().engine_tables(),
                     a[1],
                 );
@@ -46,8 +47,8 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 steer_sine_force(
-                    race().shared.car(),
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.car_mut(),
+                    &mut race().shared.physics_tables_mut(),
                     race().engine_tables(),
                     a[1],
                 );
@@ -69,8 +70,8 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 steer_sine_force(
-                    race().shared.car(),
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.car_mut(),
+                    &mut race().shared.physics_tables_mut(),
                     race().engine_tables(),
                     a[1],
                 );
@@ -85,8 +86,8 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |_| {
                 lever_share_from_timer(
-                    race().shared.car(),
-                    race().shared.physics_tables.get(),
+                    &race().shared.car(),
+                    &mut race().shared.physics_tables_mut(),
                     &crate::test_support::race_places::numbers(),
                     &crate::test_support::own::scene().scratch_cell(),
                 );
@@ -112,8 +113,8 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 grip_limit_for(
-                    race().shared.car(),
-                    race().shared.physics_tables.get(),
+                    &race().shared.car(),
+                    &mut race().shared.physics_tables_mut(),
                     view::<PlainFloat>(a[1], 0).get(),
                 );
             },
@@ -128,7 +129,7 @@ fn blocks() -> Vec<Block> {
             plain: |_| {
                 let scratch = scene().scratch_cell();
                 divide_into_scratch(
-                    &crate::test_support::own::race().shared.car().grip_forces[0],
+                    crate::test_support::own::race().shared.car().grip_forces[0],
                     scratch.float(),
                     &scratch,
                 );
@@ -143,7 +144,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |_| {
                 scale_steering(
-                    race().shared.car(),
+                    &mut race().shared.car_mut(),
                     &crate::test_support::own::scene().scratch_cell(),
                 );
             },
@@ -157,7 +158,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |_| {
                 ground_speed_into_scratch(
-                    race().shared.car(),
+                    &race().shared.car(),
                     &crate::test_support::own::scene().scratch_cell(),
                 );
             },
@@ -186,7 +187,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 lean_force(
-                    race().shared.car(),
+                    &mut race().shared.car_mut(),
                     &crate::test_support::race_places::numbers(),
                     race().engine_tables(),
                     a[2],
@@ -218,7 +219,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 lean_force(
-                    race().shared.car(),
+                    &mut race().shared.car_mut(),
                     &crate::test_support::race_places::numbers(),
                     race().engine_tables(),
                     a[2],
@@ -250,7 +251,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 lean_force(
-                    race().shared.car(),
+                    &mut race().shared.car_mut(),
                     &crate::test_support::race_places::numbers(),
                     race().engine_tables(),
                     a[2],
@@ -267,8 +268,8 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |_| {
                 braking_count_geared(
-                    race().shared.car(),
-                    race().shared.physics_tables.get(),
+                    &race().shared.car(),
+                    &mut race().shared.physics_tables_mut(),
                     &crate::test_support::race_places::numbers(),
                     &crate::test_support::own::scene().scratch_cell(),
                 );
@@ -283,8 +284,8 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |_| {
                 braking_count_neutral(
-                    race().shared.car(),
-                    race().shared.physics_tables.get(),
+                    &race().shared.car(),
+                    &mut race().shared.physics_tables_mut(),
                     &crate::test_support::own::scene().scratch_cell(),
                 );
             },
@@ -304,8 +305,8 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |_| {
                 engine_braking_force(
-                    race().shared.car(),
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.car_mut(),
+                    &mut race().shared.physics_tables_mut(),
                     &crate::test_support::race_places::numbers(),
                 );
             },
@@ -318,7 +319,7 @@ fn blocks() -> Vec<Block> {
             }],
             ulps: 0,
             plain: |_| {
-                abs_speed_into_work(race().shared.car(), crate::test_support::own::scene());
+                abs_speed_into_work(&race().shared.car(), crate::test_support::own::scene());
             },
         },
         Block {
@@ -345,7 +346,7 @@ fn blocks() -> Vec<Block> {
             plain: |_| {
                 let scratch = scene().scratch_cell();
                 divide_into_scratch(
-                    &*scratch,
+                    scratch.float(),
                     crate::test_support::race_places::numbers()
                         .grip_force_limit
                         .get(),
@@ -376,8 +377,8 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 yaw_force(
-                    race().shared.car(),
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.car_mut(),
+                    &mut race().shared.physics_tables_mut(),
                     &crate::test_support::race_places::numbers(),
                     race().engine_tables(),
                     a[1],
@@ -409,8 +410,8 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 yaw_force(
-                    race().shared.car(),
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.car_mut(),
+                    &mut race().shared.physics_tables_mut(),
                     &crate::test_support::race_places::numbers(),
                     race().engine_tables(),
                     a[1],
@@ -442,8 +443,8 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 yaw_force(
-                    race().shared.car(),
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.car_mut(),
+                    &mut race().shared.physics_tables_mut(),
                     &crate::test_support::race_places::numbers(),
                     race().engine_tables(),
                     a[1],
@@ -464,7 +465,7 @@ fn blocks() -> Vec<Block> {
                 writes: &[(0x31A1DC, Out::F)],
             }],
             ulps: 0,
-            plain: |_| sum_grip_forces(race().shared.car()),
+            plain: |_| sum_grip_forces(&mut race().shared.car_mut()),
         },
         Block {
             name: "drive_grip_forces line 253",
@@ -502,8 +503,8 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 ease_yaw_twist(
-                    race().shared.car(),
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.car_mut(),
+                    &mut race().shared.physics_tables_mut(),
                     &crate::test_support::race_places::numbers(),
                     race().course.grip_change(),
                     HostCell(a[1]).bits(),

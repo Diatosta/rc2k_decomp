@@ -13,8 +13,10 @@ use crate::hud::owner::Hud;
 use crate::hud::pen::Pen;
 use crate::race::owner_frame::Frame;
 use crate::race::panel_store::{Lights, Marks, Panel, ViewA};
-use rc2k_core::race::view::{PlayerPart, Split};
+use rc2k_core::race::view::PlayerPart;
 
+/// The HUD flag of the stage bar, which `Panel::flat` holds of the HUD being drawn.
+const FLAT_BIT: u32 = 0x40;
 /// The thickness of the dividers between parts, in pixels.
 const DIVIDER: u32 = 2;
 /// The overview map picture's side, in texels.
@@ -131,6 +133,7 @@ fn overview(
 struct Slots {
     view: ViewA,
     flags: u32,
+    flat: u32,
     start: u32,
     distance: u32,
     lights: Lights,
@@ -142,6 +145,7 @@ impl Slots {
         Slots {
             view: panel.view_a,
             flags: panel.hud_flags[0],
+            flat: panel.flat,
             start: panel.start_values[0],
             distance: panel.distance[0],
             lights: panel.lights[0],
@@ -152,6 +156,7 @@ impl Slots {
     fn put_back(&self, panel: &mut Panel) {
         panel.view_a = self.view;
         panel.hud_flags[0] = self.flags;
+        panel.flat = self.flat;
         panel.start_values[0] = self.start;
         panel.distance[0] = self.distance;
         panel.lights[0] = self.lights;
@@ -165,7 +170,7 @@ impl Slots {
 pub fn layout_many(frame: &Frame, hud: &mut Hud, pen: Pen, views: u32) -> Result<(), Refused> {
     let screen = pen.system.session.screen.get();
     let size = (screen.width.get(), screen.height.get());
-    let Some(split) = Split::many(views, crate::race::split_layout::index()) else {
+    let Some(split) = frame.panel.borrow().many_split else {
         return Ok(());
     };
     // The part no player has: black, or the overview map.
@@ -210,6 +215,8 @@ pub fn layout_many(frame: &Frame, hud: &mut Hud, pen: Pen, views: u32) -> Result
             }
             let flags = panel.hud_flags[n];
             panel.hud_flags[0] = flags;
+            // The pieces placed by whether the HUD has its stage bar go by the part's own.
+            panel.flat = flags & FLAT_BIT;
             panel.start_values[0] = kept_start(&panel, n, kept.start);
             panel.distance[0] = panel.car_distances[n];
             panel.lights[0] = panel.lights[n.min(1)];
@@ -217,10 +224,12 @@ pub fn layout_many(frame: &Frame, hud: &mut Hud, pen: Pen, views: u32) -> Result
         }
         crate::hud::tenths::tenths(frame, hud);
         start_keep(hud, Keep::Thirds);
+        let car = frame.panel.borrow().part_cars[n] as usize;
         let part_pen = Pen {
             scope: crate::hud::pen::PartScope {
                 part: Some(part),
-                icon: Some(n),
+                player: Some(n),
+                icon: Some(car),
             },
             ..pen
         };

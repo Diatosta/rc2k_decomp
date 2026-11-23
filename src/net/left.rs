@@ -128,19 +128,19 @@ pub fn session_ended() -> bool {
 /// The step of the car being stepped, a remote player's: when its player has left, and the car
 /// had not finished, it is taken out of the race and the others are told.
 pub fn apply(race: &Race, net: &Net) {
-    let number = race.shared.work.get().current_car.get() as usize;
+    let number = race.shared.work().current_car as usize;
     if number >= PLAYERS || net.race_slot.player() as usize == number {
         return;
     }
     if !LEFT[number].swap(false, Ordering::SeqCst) {
         return;
     }
-    let car = race.shared.car();
+    let mut car = race.shared.car_mut();
     // A player who finished keeps the car and the time.
-    if car.finish_flag.get() != 0 {
+    if car.finish_flag != 0 {
         return;
     }
-    car.driver_kind.set(0u32);
+    car.driver_kind = 0u32;
     let block = net.vars.player_block(number as u32);
     let name = block.map(|b| b.name.text().to_vec()).unwrap_or_default();
     let id = rc2k_core::strings::own::id::LEFT_RACE;

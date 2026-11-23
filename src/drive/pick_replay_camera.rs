@@ -13,8 +13,8 @@ use rc2k_core::drive::replay_views::{MODES as MODE_COUNT, draw, fits, kept_mode,
 fn kind_of(race: &Race, reading: &crate::scene::reading::Reading, mode: u32) -> u32 {
     // `view_records`
     reading.keep(
-        ViewVars::record_of(race.frame.view_and_records.get(), mode as usize)
-            .map(|record| record.kind.get()),
+        ViewVars::record_of(&race.frame.view_and_records.borrow(), mode as usize)
+            .map(|record| record.kind),
     )
 }
 
@@ -40,9 +40,9 @@ pub fn pick_replay_camera(race: &Race, wish: u32) -> Result<Option<u32>, Refused
     };
     let mode = kept_mode(
         mode,
-        || race.car_blocks().cars[0].car_kind.get(),
+        || race.car_blocks().cars[0].car_kind,
         || race.shared.view.get().players.get() != 1,
-        || race.car_blocks().cars[1].car_kind.get(),
+        || race.car_blocks().cars[1].car_kind,
     );
     Ok(Some(mode))
 }

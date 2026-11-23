@@ -8,25 +8,7 @@
 //!   out: the kept switches go back and are applied again.
 
 use crate::errors::Refused;
-use crate::memory::session::DwordLike;
-use crate::memory::session::PlainDword;
 use crate::race::owner::Race;
-use crate::race::owner_shared::RaceShared;
-
-/// `patch_switch` and the twelve settings after it (13 dwords).
-pub fn switches(shared: &RaceShared) -> impl Iterator<Item = &PlainDword> {
-    shared.work.get().patches.iter()
-}
-
-/// Copies the dwords, forwards.
-fn move_dwords<'a, T: DwordLike + 'a, F: DwordLike + 'a>(
-    to: impl Iterator<Item = &'a T>,
-    from: impl Iterator<Item = &'a F>,
-) {
-    for (to, from) in to.zip(from) {
-        to.set(from.get());
-    }
-}
 
 /// `apply_replay_patches`.
 pub(super) fn apply_replay_patches(race: &Race) -> Result<(), Refused> {
@@ -39,18 +21,23 @@ pub(super) fn apply_replay_patches(race: &Race) -> Result<(), Refused> {
         false,
     ) {
         race.viewer_panel().patches_in_force.set(1);
-        move_dwords(
-            race.viewer_panel().kept_patch_switches.iter(),
-            switches(shared),
-        );
-        for (to, from) in switches(shared).zip(race.replay_work().header_patches) {
+        let current = shared.work().patches;
+        for (to, from) in race.viewer_panel().kept_patch_switches.iter().zip(current) {
             to.set(from);
         }
-        shared.work.get().patches_applied.set(0);
+        let mut work = shared.work_mut();
+        for (to, from) in work
+            .patches
+            .iter_mut()
+            .zip(race.replay_work().header_patches)
+        {
+            *to = from;
+        }
+        work.patches_applied = 0;
         crate::physics::apply_patches::apply_patches(
-            race.shared.physics_tables.get(),
+            &mut race.shared.physics_tables_mut(),
             &race.course.numbers,
-            race.shared.work.get(),
+            &mut work,
         );
     }
     Ok(())
@@ -67,15 +54,19 @@ pub(super) fn restore_replay_patches(race: &Race) -> Result<(), Refused> {
         true,
     ) {
         race.viewer_panel().patches_in_force.set(0);
-        move_dwords(
-            switches(shared),
-            race.viewer_panel().kept_patch_switches.iter(),
-        );
-        shared.work.get().patches_applied.set(0);
+        let mut work = shared.work_mut();
+        for (to, from) in work
+            .patches
+            .iter_mut()
+            .zip(race.viewer_panel().kept_patch_switches.iter())
+        {
+            *to = from.get();
+        }
+        work.patches_applied = 0;
         crate::physics::apply_patches::apply_patches(
-            race.shared.physics_tables.get(),
+            &mut race.shared.physics_tables_mut(),
             &race.course.numbers,
-            race.shared.work.get(),
+            &mut work,
         );
     }
     Ok(())

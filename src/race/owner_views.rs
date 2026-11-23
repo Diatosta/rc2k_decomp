@@ -18,21 +18,30 @@ use crate::scene::polygon_store::PolygonTablesRef;
 #[allow(dead_code, reason = "the call sites move to it in the M6 rounds")]
 impl Race {
     /// The ten cars' blocks.
-    pub fn car_blocks(&self) -> &CarBlocks {
-        self.shared.car_blocks.get()
+    pub fn car_blocks(&self) -> std::cell::Ref<'_, CarBlocks> {
+        self.shared.car_blocks()
+    }
+
+    /// The ten cars' blocks, to write: no other borrow of them may be held.
+    pub fn car_blocks_mut(&self) -> std::cell::RefMut<'_, CarBlocks> {
+        self.shared.car_blocks_mut()
     }
 
     /// The cars' drawing state.
-    pub fn car_parts(&self) -> &crate::race::car_parts_store::CarParts {
-        self.shared.car_parts.get()
+    pub fn car_parts(&self) -> std::cell::Ref<'_, crate::race::car_parts_store::CarParts> {
+        self.shared.car_parts()
+    }
+
+    /// The cars' drawing state, to write.
+    pub fn car_parts_mut(&self) -> std::cell::RefMut<'_, crate::race::car_parts_store::CarParts> {
+        self.shared.car_parts_mut()
     }
 
     /// Car record `n` (`car_records[n]`, the name of one of the effects' car records).
     /// Refused past the eight and for a name that is not a record's start.
     pub fn car_record(&self, n: usize) -> Result<&CarEffects, BadInput> {
         self.shared
-            .work
-            .get()
+            .work()
             .car_record_number(n)
             .map(|k| &self.effects_settings().cars[k])
     }

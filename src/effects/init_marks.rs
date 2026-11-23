@@ -38,8 +38,8 @@ pub fn init_marks(
             return Err(BadInput("a marks kind of 0x22 or more").into());
         }
         effects.setup.marks.set(Some(marks));
-        effects.setup.car_blocks.set(Some(race.car_blocks()));
-        effects.setup.car_parts.set(Some(race.car_parts()));
+        effects.setup.car_blocks.set(Some(&race.shared.car_blocks));
+        effects.setup.car_parts.set(Some(&race.shared.car_parts));
         effects.setup.stage.set(Some(&race.course.stage));
         effects.setup.settings.is_set.set(1);
         effects.setup.work.borrow_mut().seed = seed;

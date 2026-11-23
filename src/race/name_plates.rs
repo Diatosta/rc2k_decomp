@@ -108,7 +108,7 @@ pub(super) fn update_name_plates(
     let frame = &race.frame;
     let shared = &race.shared;
     let textures = &scene.textures;
-    let (Some(a), Some(b)) = (shared.view_car(0), shared.view_car(1)) else {
+    let (Some(a), Some(b)) = (shared.view_index(0), shared.view_index(1)) else {
         return Err(crate::errors::BadInput("a view without its car block").into());
     };
     // Their notice fields: `notice_id` asked, `notice_counter` the plate flag, `notice_last` the
@@ -141,11 +141,11 @@ pub(super) fn update_name_plates(
             overlay.kept_ahead = overlay.label_ahead;
         }
         for &b in &blocks {
-            b.notice_counter.set(1);
+            race.car_blocks_mut().cars[b].notice_counter = 1;
         }
     }
     for (b, slot) in blocks.into_iter().zip([196, 197]) {
-        let asked = b.notice_id.get();
+        let asked = race.car_blocks().cars[b].notice_id;
         match NameAsk::of(asked) {
             NameAsk::Nothing => continue,
             NameAsk::Id(_) => {
@@ -161,10 +161,12 @@ pub(super) fn update_name_plates(
             }
         }
         // The store takes the name asked for.
-        b.notice_last.set(asked);
-        b.notice_id.set(0);
-        b.notice_counter.set(1);
-        b.notice_shown.set(1);
+        let mut cars = race.car_blocks_mut();
+        let b = &mut cars.cars[b];
+        b.notice_last = asked;
+        b.notice_id = 0;
+        b.notice_counter = 1;
+        b.notice_shown = 1;
     }
     Ok(())
 }

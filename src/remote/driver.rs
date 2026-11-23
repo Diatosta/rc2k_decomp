@@ -324,13 +324,22 @@ pub fn note_open(path: &[u8]) {
 
 /// The car `state` reports: the viewed car's block in a race. With several cars the work car
 /// holds whichever was stepped last between frames.
-fn driven_car<'a>(race: &'a Race, course: &Course) -> &'a crate::physics::car_store::Car {
-    let viewed = race
-        .car_blocks()
-        .of(race.shared.view.get().view_blocks[0].get());
+fn driven_car(race: &Race, course: &Course) -> crate::physics::car_store::Car {
+    let viewed =
+        crate::race::blocks_store::CarBlocks::index_of(race.shared.view.get().view_blocks[0].get());
     match viewed {
-        Some(car) if course.in_race() => car,
-        _ => race.shared.car(),
+        Some(n) if course.in_race() => race.car_blocks().cars[n].clone(),
+        _ => race.shared.car().clone(),
+    }
+}
+
+/// Sets the driven car's time left (the car `driven_car` names).
+fn set_driven_time_left(race: &Race, course: &Course, value: u32) {
+    let viewed =
+        crate::race::blocks_store::CarBlocks::index_of(race.shared.view.get().view_blocks[0].get());
+    match viewed {
+        Some(n) if course.in_race() => race.car_blocks_mut().cars[n].time_left = value,
+        _ => race.shared.car_mut().time_left = value,
     }
 }
 
@@ -339,7 +348,7 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
     let screens = &o.menus.screens;
     #[allow(non_snake_case)]
     let CAR = driven_car(race, course);
-    let at = CAR.checkpoint.get() as usize;
+    let at = CAR.checkpoint as usize;
     // The stage line ahead, for `tools/remote.py pilot`.
     let (ahead_map, near_map) = race.checkpoints().read(|tables| {
         let last = tables.map_x.len() - 1;
@@ -358,32 +367,32 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
         screens.loop_flags.menu.get().ok(),
         screens.loop_flags.read().item,
         o.system.session.flags.window_focused.get(),
-        CAR.speed.get(),
-        CAR.stage_time.get(),
-        CAR.splits_passed.get(),
-        CAR.finish_flag.get(),
-        CAR.stuck_count.get(),
+        CAR.speed,
+        CAR.stage_time,
+        CAR.splits_passed,
+        CAR.finish_flag,
+        CAR.stuck_count,
         race.shared.vars.get().checkpoint_count.get(),
         at,
-        CAR.map_place[0].get() as i32,
-        CAR.map_place[1].get() as i32,
+        CAR.map_place[0] as i32,
+        CAR.map_place[1] as i32,
         ahead_map.0,
         ahead_map.1,
         near_map.0,
         near_map.1,
         o.audio.state.channels_used.get(),
         LAST_PEAK.swap(0, std::sync::atomic::Ordering::Relaxed),
-        CAR.car_heading.get() as i32,
-        CAR.gear.get(),
-        CAR.gearbox_kind.get(),
-        CAR.driver_kind.get(),
+        CAR.car_heading as i32,
+        CAR.gear,
+        CAR.gearbox_kind,
+        CAR.driver_kind,
         race.shared.run().gear_inputs.steer as i32,
         race.shared.run().gear_inputs.first,
         race.shared.run().gear_inputs.second,
         race.shared.run().gear_inputs.hold,
         race.shared.run().gear_inputs.gear_up,
         race.shared.run().gear_inputs.gear_down,
-        CAR.crash_matrix.get()[..12]
+        CAR.crash_matrix[..12]
             .iter()
             .map(|value| format!("{value:.2}"))
             .collect::<Vec<_>>()
@@ -399,9 +408,9 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
 }
 
 /// The cars of the race in progress.
-fn race_cars(race: &Race) -> &[crate::physics::car_store::Car] {
+fn race_cars(race: &Race) -> Vec<crate::physics::car_store::Car> {
     let n = (race.shared.view.get().race_cars.get() as usize).min(8);
-    &race.car_blocks().cars[..n]
+    race.car_blocks().cars[..n].to_vec()
 }
 
 /// The lobby chat box's text as the player sees it: its lines joined by `|`.
@@ -455,7 +464,7 @@ pub fn autodrive_keys(race: &Race, checkpoint: u32) -> u32 {
         if *held == 0 {
             crate::program_log::log(&format!(
                 "remote: the reset key let go at checkpoint {checkpoint} (stage time {})",
-                race.shared.car().stage_time.get()
+                race.shared.car().stage_time
             ));
         }
         return rc2k_core::drive::controls::RESET_KEY;
@@ -490,7 +499,7 @@ fn run(o: &Owners<'static>, line: &str) {
     let answer = match (*command, rest) {
         // The arcade's countdown, so a test can reach a level's end whatever the pilot's pace.
         ("time", [n]) => n.parse().ok().map(|n: u32| {
-            driven_car(o.race, course).time_left.set(n);
+            set_driven_time_left(o.race, course, n);
             "ok".to_string()
         }),
         ("key", [name, tail @ ..]) => scancode(name).map(|code| {
@@ -576,9 +585,9 @@ fn run(o: &Owners<'static>, line: &str) {
                 .map(|(n, car)| {
                     format!(
                         "{n}:{}@{},{}",
-                        car.checkpoint.get(),
-                        car.position.bits_at(0) as i32,
-                        car.position.bits_at(2) as i32
+                        car.checkpoint,
+                        car.position[0].to_bits() as i32,
+                        car.position[2].to_bits() as i32
                     )
                 })
                 .collect::<Vec<_>>()
@@ -727,7 +736,7 @@ fn note_slow_frame(race: &Race, gfx: &Gfx, course: &Course, now: Instant) {
         let car = driven_car(race, course);
         crate::program_log::log(&format!(
             "remote: slow frame {ms} ms at checkpoint {} (frame {})",
-            car.checkpoint.get(),
+            car.checkpoint,
             gfx.drawing.draw_surface.frames.get()
         ));
     }
@@ -1202,20 +1211,14 @@ pub fn sim_hash_step(race: &Race) {
     if !*ON.get_or_init(|| std::env::var_os("RC2K_SIM_HASH").is_some()) {
         return;
     }
-    let mut groups = crate::drive::sim_hash::car_blocks_groups(
-        race.shared.car_blocks.get(),
-        race.shared.car_parts.get(),
-    );
+    let mut groups =
+        crate::drive::sim_hash::car_blocks_groups(&race.car_blocks(), &race.shared.car_parts());
     let staging = race.replay.staging();
     let bytes = staging.to_bytes();
     groups.push(crate::drive::sim_hash::staging_group(&bytes));
     let tick = TICKS.fetch_add(1, Relaxed);
     if std::env::var_os("RC2K_SIM_FIELDS").is_some() && tick < 40 {
-        crate::drive::sim_hash::log_fields(
-            race.shared.car_blocks.get(),
-            race.shared.car_parts.get(),
-            tick,
-        );
+        crate::drive::sim_hash::log_fields(&race.car_blocks(), &race.shared.car_parts(), tick);
     }
     crate::program_log::log(&format!(
         "sim hash {tick}: {:016x}, random {:08x}",

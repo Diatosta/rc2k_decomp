@@ -18,9 +18,9 @@ use crate::physics::cells::{set_changed, set_values_changed, values};
 use rc2k_core::physics::notices::NoticeQueue;
 
 /// The work car's notice queue.
-pub fn load(car: &Car) -> NoticeQueue {
+pub fn load(car: &mut Car) -> NoticeQueue {
     NoticeQueue {
-        count: car.notice_count.get(),
+        count: car.notice_count,
         ids: values(&car.notice_ids),
         values: values(&car.notice_values),
         levels: values(&car.notice_ranks),
@@ -28,17 +28,22 @@ pub fn load(car: &Car) -> NoticeQueue {
 }
 
 /// What changed from `was` to `now` stored back.
-pub fn store(car: &Car, was: &NoticeQueue, now: &NoticeQueue) {
-    set_values_changed(&car.notice_ids, &was.ids, &now.ids);
-    set_values_changed(&car.notice_values, &was.values, &now.values);
-    set_values_changed(&car.notice_ranks, &was.levels, &now.levels);
-    set_changed(&car.notice_count, was.count, now.count);
+pub fn store(car: &mut Car, was: &NoticeQueue, now: &NoticeQueue) {
+    set_values_changed(&mut car.notice_ids, &was.ids, &now.ids);
+    set_values_changed(&mut car.notice_values, &was.values, &now.values);
+    set_values_changed(&mut car.notice_ranks, &was.levels, &now.levels);
+    set_changed(&mut car.notice_count, was.count, now.count);
 }
 
-pub(super) fn queue_notice(car: &Car, notice: u32, rank: u32, value: u32) -> Result<(), Refused> {
+pub(super) fn queue_notice(
+    car: &mut Car,
+    notice: u32,
+    rank: u32,
+    value: u32,
+) -> Result<(), Refused> {
     let was = load(car);
     let mut q = was;
-    q.queue(car.option_bits.get(), notice, rank, value)?;
+    q.queue(car.option_bits, notice, rank, value)?;
     store(car, &was, &q);
     Ok(())
 }

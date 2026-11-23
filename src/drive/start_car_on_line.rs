@@ -9,6 +9,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87;
+use crate::memory::plain_floats::FloatRow;
+use crate::memory::plain_floats::FloatRowMut;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::scene::rotate_point::rotate_point;
@@ -31,22 +33,14 @@ pub fn start_car_on_line(
 ) -> Result<(), Refused> {
     let start = race.shared.tables().start_slot.get();
     start_places::check_start(start)?;
-    race.shared
-        .car()
-        .start_slot_value
-        .set(car_number(&race.shared, start as usize)?);
-    race.shared
-        .car()
-        .driver_kind
-        .set(start_places::STARTED_MODE);
-    let checkpoint =
-        start_places::start_checkpoint(race.car_blocks().cars[0].checkpoint.get(), distance);
-    for cell in [
-        &race.shared.car().checkpoint,
-        &race.shared.car().reset_checkpoint,
-        &race.shared.car().last_pace_call,
-    ] {
-        cell.set(checkpoint);
+    race.shared.car_mut().start_slot_value = car_number(&race.shared, start as usize)?;
+    race.shared.car_mut().driver_kind = start_places::STARTED_MODE;
+    let checkpoint = start_places::start_checkpoint(race.car_blocks().cars[0].checkpoint, distance);
+    {
+        let mut car = race.shared.car_mut();
+        car.checkpoint = checkpoint;
+        car.reset_checkpoint = checkpoint;
+        car.last_pace_call = checkpoint;
     }
     scene.line_and_shake_mut().line_place = checkpoint;
     scene.line_and_shake_mut().line_fraction = checkpoint;
@@ -58,29 +52,35 @@ pub fn start_car_on_line(
         race.shared.tables().start_share_last.get(),
     );
     race.shared.tables().start_share.set(share);
-    race.shared.car().start_share.set(share);
+    race.shared.car_mut().start_share = share;
     crate::race::start_place::place_car_on_line(&race.shared, &race.course, scene)?;
     crate::race::car_starts::reset_car_motion(
         &crate::physics::step_inputs::StepInputs::of(race).reset(),
         scene,
     )?;
-    race.shared.car().local_velocity.set_at(0, 0.0);
-    race.shared.car().local_velocity.set_at(1, 0.0);
-    race.shared
-        .car()
-        .local_velocity
-        .set_at(2, x87::loaded(&race.shared.tables().start_speed));
-    let m = &race.shared.car().crash_matrix;
+    race.shared.car_mut().local_velocity[0] = 0.0;
+    race.shared.car_mut().local_velocity[1] = 0.0;
+    race.shared.car_mut().local_velocity[2] = x87::loaded(&race.shared.tables().start_speed);
+    let m = race.shared.car().crash_matrix;
     let out = rotate_point(
-        m,
+        &m,
         [
             extended(race.shared.car().local_velocity.at(0)),
             extended(race.shared.car().local_velocity.at(1)),
             extended(race.shared.car().local_velocity.at(2)),
         ],
     );
-    race.shared.car().velocity.set_at(0, rounded_value(out[0]));
-    race.shared.car().velocity.set_at(1, rounded_value(out[1]));
-    race.shared.car().velocity.set_at(2, rounded_value(out[2]));
+    race.shared
+        .car_mut()
+        .velocity
+        .set_at(0, rounded_value(out[0]));
+    race.shared
+        .car_mut()
+        .velocity
+        .set_at(1, rounded_value(out[1]));
+    race.shared
+        .car_mut()
+        .velocity
+        .set_at(2, rounded_value(out[2]));
     Ok(())
 }

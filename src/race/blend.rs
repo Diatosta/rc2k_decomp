@@ -11,7 +11,6 @@
 //! exactly. A car or camera that moved a long way in one tick (a reset, a camera cut) is not
 //! blended across it.
 
-use crate::memory::session::{read_all, write_all};
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::BLOCK_COUNT;
 use crate::race::owner::Race;
@@ -50,55 +49,64 @@ struct Snap {
     camera: Camera,
 }
 
+/// The bits of a row of floats.
+fn bits_of<const N: usize>(row: &[f32; N]) -> [u32; N] {
+    row.map(f32::to_bits)
+}
+
+/// A row of floats from their bits.
+fn floats_of<const N: usize>(bits: [u32; N]) -> [f32; N] {
+    bits.map(f32::from_bits)
+}
+
 fn read(car: &Car) -> Snap {
     Snap {
         body: Body {
-            position: car.position.bits(),
-            crash_matrix: car.crash_matrix.bits(),
-            inverse_matrix: car.car_inverse_matrix.bits(),
-            wheel_turns: read_all(&car.driven_wheel_turns),
-            squeeze: read_all(&car.wheel_squeeze),
-            spring_force: read_all(&car.wheel_spring_force),
-            ground_x: read_all(&car.wheel_ground_x),
-            ground_height: read_all(&car.wheel_ground_height),
-            ground_z: read_all(&car.wheel_ground_z),
+            position: bits_of(&car.position),
+            crash_matrix: bits_of(&car.crash_matrix),
+            inverse_matrix: bits_of(&car.car_inverse_matrix),
+            wheel_turns: car.driven_wheel_turns,
+            squeeze: bits_of(&car.wheel_squeeze),
+            spring_force: car.wheel_spring_force,
+            ground_x: car.wheel_ground_x,
+            ground_height: car.wheel_ground_height,
+            ground_z: car.wheel_ground_z,
         },
         camera: Camera {
-            mode: car.camera_view.get(),
-            position: car.camera_position.bits(),
+            mode: car.camera_view,
+            position: bits_of(&car.camera_position),
             angles: [
-                car.camera_heading.get(),
-                car.camera_pitch.get(),
-                car.camera_roll_turn.get(),
-                car.camera_offset_turns.bits_at(0),
-                car.camera_offset_turns.bits_at(1),
-                car.camera_offset_turns.bits_at(2),
+                car.camera_heading,
+                car.camera_pitch,
+                car.camera_roll_turn,
+                car.camera_offset_turns[0].to_bits(),
+                car.camera_offset_turns[1].to_bits(),
+                car.camera_offset_turns[2].to_bits(),
             ],
-            zoom: car.camera_zoom.bits(),
-            roll: car.camera_roll.bits(),
+            zoom: car.camera_zoom.to_bits(),
+            roll: car.camera_roll.to_bits(),
         },
     }
 }
 
-fn write(car: &Car, snap: &Snap) {
+fn write(car: &mut Car, snap: &Snap) {
     let (b, c) = (&snap.body, &snap.camera);
-    car.position.set_bits(b.position);
-    car.crash_matrix.set_bits(b.crash_matrix);
-    car.car_inverse_matrix.set_bits(b.inverse_matrix);
-    write_all(&car.driven_wheel_turns, b.wheel_turns);
-    write_all(&car.wheel_squeeze, b.squeeze);
-    write_all(&car.wheel_spring_force, b.spring_force);
-    write_all(&car.wheel_ground_x, b.ground_x);
-    write_all(&car.wheel_ground_height, b.ground_height);
-    write_all(&car.wheel_ground_z, b.ground_z);
-    car.camera_position.set_bits(c.position);
-    car.camera_heading.set(c.angles[0]);
-    car.camera_pitch.set(c.angles[1]);
-    car.camera_roll_turn.set(c.angles[2]);
-    car.camera_offset_turns
-        .set_bits(std::array::from_fn(|k| c.angles[3 + k]));
-    car.camera_zoom.set_bits(c.zoom);
-    car.camera_roll.set_bits(c.roll);
+    car.position = floats_of(b.position);
+    car.crash_matrix = floats_of(b.crash_matrix);
+    car.car_inverse_matrix = floats_of(b.inverse_matrix);
+    car.driven_wheel_turns = b.wheel_turns;
+    car.wheel_squeeze = floats_of(b.squeeze);
+    car.wheel_spring_force = b.spring_force;
+    car.wheel_ground_x = b.ground_x;
+    car.wheel_ground_height = b.ground_height;
+    car.wheel_ground_z = b.ground_z;
+    car.camera_position = floats_of(c.position);
+    car.camera_heading = c.angles[0];
+    car.camera_pitch = c.angles[1];
+    car.camera_roll_turn = c.angles[2];
+    car.camera_offset_turns = floats_of(std::array::from_fn(|k| c.angles[3 + k]));
+    car.camera_zoom = f32::from_bits(c.zoom);
+    car.camera_roll = f32::from_bits(c.roll);
 }
 
 fn words<const N: usize>(
@@ -266,7 +274,11 @@ impl<'a> Blended<'a> {
         let mut saved = Vec::new();
         if smooth_on() && alpha < 1.0 {
             let pairs = race.frame.blend.pairs();
-            for (n, (pair, car)) in pairs.iter().zip(&race.car_blocks().cars).enumerate() {
+            for (n, (pair, car)) in pairs
+                .iter()
+                .zip(&mut race.car_blocks_mut().cars)
+                .enumerate()
+            {
                 let (Some(prev), Some(cur)) = (&pair.prev, &pair.cur) else {
                     continue;
                 };
@@ -286,7 +298,7 @@ impl<'a> Blended<'a> {
 impl Blended<'_> {
     fn restore(&mut self) {
         for (n, snap, _) in self.saved.drain(..) {
-            write(&self.race.car_blocks().cars[n], &snap);
+            write(&mut self.race.car_blocks_mut().cars[n], &snap);
         }
     }
 
@@ -294,11 +306,11 @@ impl Blended<'_> {
     /// next that depends on the places it saw (the maps' scroll).
     pub(super) fn at_the_tick<T>(&self, f: impl FnOnce() -> T) -> T {
         for (n, tick, _) in &self.saved {
-            write(&self.race.car_blocks().cars[*n], tick);
+            write(&mut self.race.car_blocks_mut().cars[*n], tick);
         }
         let out = f();
         for (n, _, blended) in &self.saved {
-            write(&self.race.car_blocks().cars[*n], blended);
+            write(&mut self.race.car_blocks_mut().cars[*n], blended);
         }
         out
     }
@@ -328,6 +340,7 @@ impl Drop for Blended<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::memory::plain_floats::FloatRow;
 
     fn snap(x: u32) -> Snap {
         let mut s = read(&Car::new());
@@ -360,22 +373,21 @@ mod tests {
     fn the_blocks_get_the_blend_for_a_frame_only() {
         let race = crate::test_support::own::race();
         let _lock = crate::test_support::test_lock();
-        let car = &race.car_blocks().cars[0];
         let (a, b) = (snap(1000), snap(2000));
-        write(car, &a);
+        write(&mut race.car_blocks_mut().cars[0], &a);
         note_tick(race);
-        write(car, &b);
+        write(&mut race.car_blocks_mut().cars[0], &b);
         note_tick(race);
         race.frame.blend.alpha.store(0.5f32.to_bits(), Relaxed);
         {
             let _blended = Blended::new(race);
-            assert_eq!(car.position.bits_at(0), 1500);
+            assert_eq!(race.car_blocks().cars[0].position.bits_at(0), 1500);
         }
-        assert_eq!(car.position.bits_at(0), 2000);
+        assert_eq!(race.car_blocks().cars[0].position.bits_at(0), 2000);
         // The frame after is the tick itself.
         {
             let _blended = Blended::new(race);
-            assert_eq!(car.position.bits_at(0), 2000);
+            assert_eq!(race.car_blocks().cars[0].position.bits_at(0), 2000);
         }
         race.frame.blend.reset();
     }

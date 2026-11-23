@@ -9,7 +9,7 @@ pub(super) fn record_inputs_if(race: &Race, net: &Net) -> Result<(), crate::erro
     let shared = &race.shared;
     let records = rc2k_core::drive::replay_frames::records_inputs(
         race.course.replay_mode(),
-        shared.work.get().current_car.get(),
+        shared.work().current_car,
         || {
             if net.race_slot.is_on() {
                 shared.view.get().race_cars.get()

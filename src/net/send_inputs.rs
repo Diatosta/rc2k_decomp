@@ -3,8 +3,7 @@
 //! step.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::plain_floats::WordRef;
-use crate::memory::session::Cell32;
+use crate::memory::plain_place::WordMut;
 use crate::net::log_send;
 use crate::net::owner::Net;
 use crate::net::send_message::send_payload;
@@ -28,7 +27,7 @@ const INPUTS: Message = Message {
 
 /// A car block's field a message carries, as a dword's bits, and the limit of what a car
 /// could hold in it.
-pub type Field = (fn(&Car) -> WordRef<'_>, Limit);
+pub type Field = (for<'a> fn(&'a mut Car) -> WordMut<'a>, Limit);
 
 /// The car block's dwords each kind carries, in the message's order.
 pub fn fields(kind: Kind) -> &'static [Field] {
@@ -41,113 +40,92 @@ pub fn fields(kind: Kind) -> &'static [Field] {
 
 /// The kept throttle, key bits, steering and brake words.
 const INPUT_FIELDS: [Field; 4] = [
-    (|c| WordRef::Cell(&c.kept_throttle_word), Free),
-    (|c| WordRef::Cell(&c.kept_keys_word), Free),
-    (|c| WordRef::Cell(&c.kept_steering_word), Free),
-    (|c| WordRef::Cell(&c.kept_brake_word), Free),
+    (|c| (&mut c.kept_throttle_word).into(), Free),
+    (|c| (&mut c.kept_keys_word).into(), Free),
+    (|c| (&mut c.kept_steering_word).into(), Free),
+    (|c| (&mut c.kept_brake_word).into(), Free),
 ];
 
 /// The place (put where the car is to be on arrival), the matrix's first
 /// twelve, the spin, the velocities, and others.
 const POSITION_FIELDS: [Field; 40] = [
-    (|c| WordRef::Element(c.position.cell_at(0)), Free),
-    (|c| WordRef::Element(c.position.cell_at(1)), Free),
-    (|c| WordRef::Element(c.position.cell_at(2)), Free),
-    (|c| WordRef::Element(c.crash_matrix.cell_at(0)), Gauge),
-    (|c| WordRef::Element(c.crash_matrix.cell_at(1)), Gauge),
-    (|c| WordRef::Element(c.crash_matrix.cell_at(2)), Gauge),
-    (|c| WordRef::Element(c.crash_matrix.cell_at(3)), Gauge),
-    (|c| WordRef::Element(c.crash_matrix.cell_at(4)), Gauge),
-    (|c| WordRef::Element(c.crash_matrix.cell_at(5)), Gauge),
-    (|c| WordRef::Element(c.crash_matrix.cell_at(6)), Gauge),
-    (|c| WordRef::Element(c.crash_matrix.cell_at(7)), Gauge),
-    (|c| WordRef::Element(c.crash_matrix.cell_at(8)), Gauge),
-    (|c| WordRef::Element(c.crash_matrix.cell_at(9)), Gauge),
-    (|c| WordRef::Element(c.crash_matrix.cell_at(10)), Gauge),
-    (|c| WordRef::Element(c.crash_matrix.cell_at(11)), Gauge),
-    (|c| WordRef::Element(c.velocity.cell_at(0)), Large),
-    (|c| WordRef::Element(c.velocity.cell_at(1)), Large),
-    (|c| WordRef::Element(c.velocity.cell_at(2)), Large),
-    (|c| WordRef::Element(c.local_velocity.cell_at(0)), Large),
-    (|c| WordRef::Element(c.local_velocity.cell_at(1)), Large),
-    (|c| WordRef::Element(c.local_velocity.cell_at(2)), Large),
-    (|c| WordRef::Element(c.spin.cell_at(0)), Large),
-    (|c| WordRef::Element(c.spin.cell_at(1)), Large),
-    (|c| WordRef::Element(c.spin.cell_at(2)), Large),
-    (|c| WordRef::Cell(&c.checkpoint), Free),
-    (|c| WordRef::Cell(&c.reset_checkpoint), Free),
-    (|c| WordRef::Cell(&c.gear), Gear),
-    (|c| WordRef::Cell(&c.engine_speed), Large),
-    (|c| WordRef::Cell(&c.drive_speed_a), Large),
-    (|c| WordRef::Cell(&c.drive_speed_b), Large),
-    (|c| WordRef::Cell(&c.wheel_squeeze[0]), Gauge),
-    (|c| WordRef::Cell(&c.wheel_squeeze[1]), Gauge),
-    (|c| WordRef::Cell(&c.wheel_squeeze[2]), Gauge),
-    (|c| WordRef::Cell(&c.wheel_squeeze[3]), Gauge),
-    (|c| WordRef::Cell(&c.throttle), Pedal),
-    (|c| WordRef::Cell(&c.brake), Pedal),
-    (|c| WordRef::Cell(&c.handbrake), Pedal),
-    (|c| WordRef::Cell(&c.steering), Pedal),
-    (|c| WordRef::Cell(&c.steering_raw), Pedal),
-    (|c| WordRef::Cell(&c.position_message_word), Free),
+    (|c| (&mut c.position[0]).into(), Free),
+    (|c| (&mut c.position[1]).into(), Free),
+    (|c| (&mut c.position[2]).into(), Free),
+    (|c| (&mut c.crash_matrix[0]).into(), Gauge),
+    (|c| (&mut c.crash_matrix[1]).into(), Gauge),
+    (|c| (&mut c.crash_matrix[2]).into(), Gauge),
+    (|c| (&mut c.crash_matrix[3]).into(), Gauge),
+    (|c| (&mut c.crash_matrix[4]).into(), Gauge),
+    (|c| (&mut c.crash_matrix[5]).into(), Gauge),
+    (|c| (&mut c.crash_matrix[6]).into(), Gauge),
+    (|c| (&mut c.crash_matrix[7]).into(), Gauge),
+    (|c| (&mut c.crash_matrix[8]).into(), Gauge),
+    (|c| (&mut c.crash_matrix[9]).into(), Gauge),
+    (|c| (&mut c.crash_matrix[10]).into(), Gauge),
+    (|c| (&mut c.crash_matrix[11]).into(), Gauge),
+    (|c| (&mut c.velocity[0]).into(), Large),
+    (|c| (&mut c.velocity[1]).into(), Large),
+    (|c| (&mut c.velocity[2]).into(), Large),
+    (|c| (&mut c.local_velocity[0]).into(), Large),
+    (|c| (&mut c.local_velocity[1]).into(), Large),
+    (|c| (&mut c.local_velocity[2]).into(), Large),
+    (|c| (&mut c.spin[0]).into(), Large),
+    (|c| (&mut c.spin[1]).into(), Large),
+    (|c| (&mut c.spin[2]).into(), Large),
+    (|c| (&mut c.checkpoint).into(), Free),
+    (|c| (&mut c.reset_checkpoint).into(), Free),
+    (|c| (&mut c.gear).into(), Gear),
+    (|c| (&mut c.engine_speed).into(), Large),
+    (|c| (&mut c.drive_speed_a).into(), Large),
+    (|c| (&mut c.drive_speed_b).into(), Large),
+    (|c| (&mut c.wheel_squeeze[0]).into(), Gauge),
+    (|c| (&mut c.wheel_squeeze[1]).into(), Gauge),
+    (|c| (&mut c.wheel_squeeze[2]).into(), Gauge),
+    (|c| (&mut c.wheel_squeeze[3]).into(), Gauge),
+    (|c| (&mut c.throttle).into(), Pedal),
+    (|c| (&mut c.brake).into(), Pedal),
+    (|c| (&mut c.handbrake).into(), Pedal),
+    (|c| (&mut c.steering).into(), Pedal),
+    (|c| (&mut c.steering_raw).into(), Pedal),
+    (|c| (&mut c.position_message_word).into(), Free),
 ];
 
 /// The eight gauges and the lights.
 const EXTRA_FIELDS: [Field; 9] = [
-    (
-        |c| WordRef::Element(c.impact_octant_marks.cell_at(0)),
-        Gauge,
-    ),
-    (
-        |c| WordRef::Element(c.impact_octant_marks.cell_at(1)),
-        Gauge,
-    ),
-    (
-        |c| WordRef::Element(c.impact_octant_marks.cell_at(2)),
-        Gauge,
-    ),
-    (
-        |c| WordRef::Element(c.impact_octant_marks.cell_at(3)),
-        Gauge,
-    ),
-    (
-        |c| WordRef::Element(c.impact_octant_marks.cell_at(4)),
-        Gauge,
-    ),
-    (
-        |c| WordRef::Element(c.impact_octant_marks.cell_at(5)),
-        Gauge,
-    ),
-    (
-        |c| WordRef::Element(c.impact_octant_marks.cell_at(6)),
-        Gauge,
-    ),
-    (
-        |c| WordRef::Element(c.impact_octant_marks.cell_at(7)),
-        Gauge,
-    ),
-    (|c| WordRef::Cell(&c.lights_on), Free),
+    (|c| (&mut c.impact_octant_marks[0]).into(), Gauge),
+    (|c| (&mut c.impact_octant_marks[1]).into(), Gauge),
+    (|c| (&mut c.impact_octant_marks[2]).into(), Gauge),
+    (|c| (&mut c.impact_octant_marks[3]).into(), Gauge),
+    (|c| (&mut c.impact_octant_marks[4]).into(), Gauge),
+    (|c| (&mut c.impact_octant_marks[5]).into(), Gauge),
+    (|c| (&mut c.impact_octant_marks[6]).into(), Gauge),
+    (|c| (&mut c.impact_octant_marks[7]).into(), Gauge),
+    (|c| (&mut c.lights_on).into(), Free),
 ];
 
 /// The shared body: the car block, the message built at `RaceWork::net_message`.
 pub(super) fn send_fields(race: &Race, net: &Net, m: &Message) -> Result<(), Refused> {
     let shared = &race.shared;
-    let car = shared.car();
-    let message = &shared.work.get().net_message;
+    let mut car = shared.car_mut();
     log_send(race, net, m.text);
     let values: Vec<u32> = fields(m.kind)
         .iter()
-        .map(|(field, _)| field(car).bits())
+        .map(|(field, _)| field(&mut car).bits())
         .collect();
     // The work area keeps a copy of the message: the tag, then the kind's fields' bits.
-    let cells = message
-        .get(..1 + values.len())
-        .ok_or(BadInput("a network message past its buffer"))?;
-    for (cell, &v) in cells
-        .iter()
-        .zip(std::iter::once(&m.kind.tag()).chain(&values))
     {
-        cell.set(v);
+        let mut work = shared.work_mut();
+        let cells = work
+            .net_message
+            .get_mut(..1 + values.len())
+            .ok_or(BadInput("a network message past its buffer"))?;
+        for (cell, &v) in cells
+            .iter_mut()
+            .zip(std::iter::once(&m.kind.tag()).chain(&values))
+        {
+            *cell = v;
+        }
     }
     send_payload(net, Payload::of(m.kind, values))
 }
@@ -162,12 +140,12 @@ mod tests {
     /// Each field sits where the core's table had its position in the car's block.
     #[test]
     fn the_fields_sit_where_the_offsets_were() {
-        let car = crate::test_support::own::race().shared.car();
         let offsets = |kind| -> Vec<u32> {
             fields(kind)
                 .iter()
                 .map(|(field, _)| {
-                    crate::physics::car_offsets_1999::offset_1999(car, field(car).addr()) as u32
+                    crate::physics::car_offsets_1999::offset_changed_by(|c| field(c).set_bits(1))
+                        as u32
                 })
                 .collect()
         };
@@ -190,11 +168,11 @@ mod tests {
     /// The limits are the ranges the core's table matched by position.
     #[test]
     fn the_limits_are_the_old_ranges() {
-        let car = crate::test_support::own::race().shared.car();
         for kind in [Kind::Inputs, Kind::Position, Kind::Extra] {
             for (field, limit) in fields(kind) {
                 let at =
-                    crate::physics::car_offsets_1999::offset_1999(car, field(car).addr()) as u32;
+                    crate::physics::car_offsets_1999::offset_changed_by(|c| field(c).set_bits(1))
+                        as u32;
                 let old = match at {
                     0x1D4 => Limit::Gear,
                     0x64..=0x80 | 0xB4..=0xE0 | 0x600..=0x60C => Limit::Gauge,

@@ -5,15 +5,16 @@
 
 use crate::math::x87;
 use crate::math::x87::{compare_full, toward_one};
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::physics::figures::WHEEL_LOAD_LIMIT;
 use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::race::numbers_store::Numbers;
 /// The blend of this step.
-pub(super) fn blend_wheel_load(car: &Car, numbers: &Numbers) {
+pub(super) fn blend_wheel_load(car: &mut Car, numbers: &Numbers) {
     let depth = &car.contact_depth;
     let less = |a: f32, b: f32| compare_full(a, b) & 0x100 != 0;
-    if less(depth.get(), WHEEL_LOAD_LIMIT) {
+    if less(*depth, WHEEL_LOAD_LIMIT) {
         return;
     }
     let zero = f32::from_bits(ZERO);
@@ -24,13 +25,13 @@ pub(super) fn blend_wheel_load(car: &Car, numbers: &Numbers) {
             slot += add;
         }
     }
-    let mut share = x87::div(depth.get(), numbers.sixty_four);
+    let mut share = x87::div(*depth, numbers.sixty_four);
     if less(share, zero) {
         share = x87::loaded(zero);
     }
     if !less(share, one) {
         share = x87::loaded(one);
     }
-    let mark = car.impact_octant_marks.float_at(slot);
-    mark.set(toward_one(mark.get(), share));
+    let mark = &mut car.impact_octant_marks[slot];
+    *mark = toward_one(*mark, share);
 }

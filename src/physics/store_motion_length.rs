@@ -8,6 +8,6 @@ use crate::physics::vector_length::vector_length;
 
 /// The exact version, for `physics::car_physics_step` and `physics::keep_motion_vectors`: the
 /// length of the car's motion.
-pub(super) fn store_motion_length(car: &Car) {
-    car.speed.set(rounded_value(vector_length(&car.velocity)));
+pub(super) fn store_motion_length(car: &mut Car) {
+    car.speed = rounded_value(vector_length(&car.velocity));
 }

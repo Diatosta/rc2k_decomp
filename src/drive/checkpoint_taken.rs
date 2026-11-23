@@ -15,7 +15,8 @@ pub fn taken_at(cars: [&Car; 4], count: u32, checkpoint: u32) -> bool {
 }
 
 pub fn checkpoint_taken(race: &Race, checkpoint: u32) -> bool {
-    let cars = [0, 1, 2, 3].map(|n| &race.car_blocks().cars[n]);
+    let blocks = race.car_blocks();
+    let cars = [0, 1, 2, 3].map(|n| &blocks.cars[n]);
     taken_at(
         cars,
         race.shared.vars.get().checkpoint_count.get(),

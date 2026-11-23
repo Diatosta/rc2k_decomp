@@ -35,23 +35,27 @@ pub fn step_camera(race: &Race, step: i8) -> Result<(), Refused> {
         return Ok(());
     }
     // The camera edited is the one of the car shown: the first or second, or in a replay with the
-    // extra tape the third or fourth when the layout shows it alone.
-    let mut edited = 0u32
+    // extra tape the camera of the car a layout shows alone (the third to the eighth).
+    let edited = 0u32
         .wrapping_sub(1)
         .wrapping_add(race.viewer_buffers().camera_edit.get());
-    if race.viewer_buffers().extra_tape.is_set() {
-        let layout: u8 = crate::race::viewer::camera_byte(5u32.wrapping_add(block.wrapping_mul(8)))
-            .read(race, "a replay camera byte")?;
-        edited = rc2k_core::race::viewer::shown_camera_byte(layout, edited);
-    }
-    let at = crate::race::viewer::camera_byte(edited.wrapping_add(block.wrapping_mul(8)));
-    let old: u8 = at.read(race, "a replay camera byte")?;
+    let shown = crate::race::viewer::shown_camera(race, block, edited)?;
+    let old = shown.read(race)?;
     use rc2k_core::race::viewer::{camera_skipped, every_camera, step_camera};
     let every = every_camera(
         race.replay_work().header_one_player == 1,
         race.replay_work().header_kind_0,
     );
     let new_camera = step_camera(old, step > 0, every, |n| camera_skipped(name_of(race, n)))?;
+    let at = match shown {
+        crate::race::viewer::ShownCamera::Block(at) => at,
+        // The choice for a car the blocks hold no byte for lasts for the viewing: it is the
+        // camera from here on, with nothing to spread.
+        crate::race::viewer::ShownCamera::Live(n) => {
+            race.viewer_buffers().live_cameras[n].set(u32::from(new_camera));
+            return Ok(());
+        }
+    };
     at.write(race, new_camera, "a replay camera byte")?;
     let spread = crate::race::spread_camera::spread_camera(race, at, old);
     if spread.is_err() {

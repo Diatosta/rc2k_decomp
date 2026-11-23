@@ -23,19 +23,25 @@ use crate::math::x87::int_hypot;
 use crate::math::x87::length_80;
 use crate::math::x87_float::to_int;
 use crate::math::x87_float::{int, st};
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::flow::{ZERO_BITS as ZERO, negated_velocity};
 use crate::physics::step_families::ContactInputs;
+use crate::physics::tables_store::RecordAt;
 use crate::physics::touch_face::touch_face;
 use crate::physics::vector_bits::bits_of;
 use crate::race::norms::normalise_work_vector;
 use crate::race::numbers_store::Numbers;
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
 
-fn touch(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    { touch_face(c, scene) }?;
+fn touch(
+    c: &ContactInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+    car: &mut Car,
+) -> Result<(), Refused> {
+    { touch_face(c, scene, car) }?;
     Ok(())
 }
 
@@ -45,6 +51,7 @@ pub fn steps(
     c: &ContactInputs<'_>,
     number: u32,
     scene: &crate::scene::owner::Scene,
+    car: &mut Car,
 ) -> Result<(), Refused> {
     c.contact.borrow_mut().face_number = number;
     let face = number;
@@ -79,7 +86,7 @@ pub fn steps(
         FaceObject::NotObject => return Ok(()),
         FaceObject::TouchOnly => {
             c.contact.borrow_mut().contact_kind = 0xFF;
-            return touch(c, scene);
+            return touch(c, scene, car);
         }
         FaceObject::Object(object) => object,
     };
@@ -89,8 +96,8 @@ pub fn steps(
         crate::program_log::log(&format!(
             "physics::face_contact: face {}: object {object}, kind {kind:#x}, car {} at {:?}",
             face,
-            c.work.current_car.get(),
-            c.car.position.bits().map(|c| c as i32),
+            c.work.borrow().current_car,
+            car.position.map(f32::to_bits).map(|c| c as i32),
         ));
         return Err(e.into());
     }
@@ -99,7 +106,7 @@ pub fn steps(
         crate::scene::polygon::material_run_byte(c.shared.buffers.polygon_tables(), kind, 0x1C)?
             .into();
     c.contact.borrow_mut().contact_kind = material_kind;
-    if contacts::object_tried(face_byte(0x25)?, c.work.stage_direction.get(), object).is_err() {
+    if contacts::object_tried(face_byte(0x25)?, c.work.borrow().stage_direction, object).is_err() {
         return Ok(());
     }
     for (k, o) in [8u32, 0xC, 0x10].iter().enumerate() {
@@ -107,7 +114,8 @@ pub fn steps(
     }
     scene.object_work_mut().size = face_byte(0x18)?;
     // The face is both the record and the object here.
-    let (inside, point) = { crate::physics::scene_point_hits_car::scene_point_hits_car(c, face) }?;
+    let (inside, point) =
+        { crate::physics::scene_point_hits_car::scene_point_hits_car(c, face, car) }?;
     if !inside {
         let contact_kind = c.contact.borrow().contact_kind;
         if !contacts::tries_points(contact_kind) {
@@ -120,7 +128,7 @@ pub fn steps(
             0,
         )?
         .wrapping_add(face_dword(0x30)?)
-        .wrapping_sub(c.car.position.bits_at(0));
+        .wrapping_sub(car.position.bits_at(0));
         let dz = crate::race::scene_points::point_word(
             c.course.reads(),
             &crate::race::scene_points::no_own(),
@@ -128,7 +136,7 @@ pub fn steps(
             2,
         )?
         .wrapping_add(face_dword(0x38)?)
-        .wrapping_sub(c.car.position.bits_at(2));
+        .wrapping_sub(car.position.bits_at(2));
         let distance = int_hypot(dx as i32, dz as i32) as u32;
         let face_object = c.contact.borrow().face_object;
         let (reach, _) = contacts::reach(
@@ -139,7 +147,7 @@ pub fn steps(
             return Ok(());
         }
         // The scene point is the record, the face the object.
-        if !{ crate::physics::object_hits_car::object_hits_car(c, point, face, scene) }? {
+        if !{ crate::physics::object_hits_car::object_hits_car(c, point, face, scene, car) }? {
             return Ok(());
         }
     }
@@ -148,26 +156,26 @@ pub fn steps(
         let mut work = c.contact.borrow_mut();
         x87_1(&mut work, c.numbers);
         work.face_angle = work.face_angle.wrapping_add(0x80) & 0xFF;
-        x87_2(&mut work, c.car, c.numbers);
+        x87_2(&mut work, car, c.numbers);
         work.contact_kind
     };
     match contacts::inside(contact_kind) {
         Inside::PushBack => {}
-        Inside::Touch => return touch(c, scene),
+        Inside::Touch => return touch(c, scene, car),
         Inside::Nothing => return Ok(()),
     }
     {
         crate::physics::restore_saved_car::restore_saved_car(
-            c.car,
-            c.tables,
+            car,
+            &mut c.tables.borrow_mut(),
             &c.ground.probes.borrow(),
         )
     }?;
-    { crate::physics::feel_ground::feel_ground(&c.ground) }?;
-    touch(c, scene)?;
+    { crate::physics::feel_ground::feel_ground(&c.ground, car) }?;
+    touch(c, scene, car)?;
     // Pushed back against the motion, level.
     let mut scratch = c.frame.scratch_mut();
-    scratch.work_vector = negated_velocity(c.car);
+    scratch.work_vector = negated_velocity(car);
     if compare_80(length_80(scratch.work_vector), ZERO) & 0x4000 != 0 {
         scratch.work_vector = [0.0f32.to_bits(); 3];
     }
@@ -178,13 +186,19 @@ pub fn steps(
     {
         let mut work = c.contact.borrow_mut();
         work.contact_normal = normal;
-        work.contact_car_speed = bits_of(&c.car.velocity);
-        work.contact_turn_speed = bits_of(&c.car.spin);
+        work.contact_car_speed = bits_of(&car.velocity);
+        work.contact_turn_speed = bits_of(&car.spin);
         work.contact_point = work.object_point_scaled;
         work.contact_point[1] = 0;
         work.contact_slide_limit = 0;
     }
-    contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[0]);
+    contact_force(
+        c.contact,
+        c.numbers,
+        &mut c.tables.borrow_mut(),
+        car,
+        RecordAt::Contact(0),
+    );
     Ok(())
 }
 

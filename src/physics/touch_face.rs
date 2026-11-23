@@ -14,6 +14,7 @@
 //! refuses (its writes are put back).
 
 use crate::errors::{BadInput, Refused};
+use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::step_families::ContactInputs;
 use crate::race::owner_course::Course;
@@ -42,6 +43,7 @@ fn mark(
 pub fn touch_face(
     c: &ContactInputs<'_>,
     scene: &crate::scene::owner::Scene,
+    car: &mut Car,
 ) -> Result<(), Refused> {
     let (number, kind, speed) = {
         let work = c.contact.borrow();
@@ -62,7 +64,7 @@ pub fn touch_face(
         c.lit_faces.borrow_mut().faces[count as usize] = number;
         match touch(kind) {
             Touch::MarkIfFast => {
-                if c0(&c.car.speed, c.numbers.eight) {
+                if c0(car.speed, c.numbers.eight) {
                     return Ok(());
                 }
                 mark(c.course, c.contact, face, 1, true)?;
@@ -81,7 +83,7 @@ pub fn touch_face(
             }
             Touch::Sound => {}
         }
-        { place_sound_object(&c.sound, scene) }?;
+        { place_sound_object(&c.sound, scene, car) }?;
         c.lit_faces.borrow_mut().count = count + 1;
         Ok(())
     })()

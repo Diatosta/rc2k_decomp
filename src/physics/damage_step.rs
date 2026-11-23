@@ -7,7 +7,7 @@ use crate::physics::store::DamageModel;
 use crate::race::work_store::RaceWork;
 
 pub(super) fn damage_step(
-    car: &Car,
+    car: &mut Car,
     damage: &mut DamageModel,
     work: &RaceWork,
 ) -> Result<(), BadInput> {

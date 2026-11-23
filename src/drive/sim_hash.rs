@@ -10,7 +10,9 @@
 //! the 1999 layout kept in car blocks 8 and 9, the tail and the replay tape) is hashed as one
 //! group of its bytes, `.staging`, so that it hashes the same wherever it is kept.
 
-use crate::memory::cells::{CellVisitor, Cells};
+use crate::memory::cells::CellVisitor;
+#[cfg(test)]
+use crate::memory::cells::Cells;
 use crate::race::blocks_store::CarBlocks;
 
 const GAP_PREFIXES: [&str; 4] = ["_gap_", "_lead", "_pad", "_tail"];
@@ -37,9 +39,9 @@ pub fn car_blocks_groups(
     parts: &crate::race::car_parts_store::CarParts,
 ) -> Vec<(String, u64)> {
     let mut hasher = GroupHasher::default();
-    blocks.visit(&mut hasher);
+    crate::memory::plain_record::PlainRecord::visit(blocks, &mut hasher);
     // The drawing's own fields of each car were once in its block: the same paths.
-    parts.visit(&mut hasher);
+    crate::memory::plain_record::PlainRecord::visit(parts, &mut hasher);
     #[cfg(any(test, feature = "remote"))]
     hasher.add_removed_fields();
     hasher.groups
@@ -83,8 +85,8 @@ pub fn log_fields(blocks: &CarBlocks, parts: &crate::race::car_parts_store::CarP
         marks: Vec::new(),
         tick,
     };
-    blocks.visit(&mut each);
-    parts.visit(&mut each);
+    crate::memory::plain_record::PlainRecord::visit(blocks, &mut each);
+    crate::memory::plain_record::PlainRecord::visit(parts, &mut each);
 }
 
 /// The hash of one whole record by field path and value (the cars' hash for any other store):
@@ -226,26 +228,18 @@ mod tests {
     use super::*;
     use crate::race::car_parts_store::CarParts;
 
-    /// Varied bytes through every run of the blocks (the gap fields too).
+    /// Varied bytes through every field of the blocks.
     fn filled(seed: u32) -> CarBlocks {
-        struct Fill(u32);
-        impl CellVisitor for Fill {
-            fn enter(&mut self, _: &'static str) {}
-            fn index(&mut self, _: usize) {}
-            fn leave(&mut self) {}
-            fn leaf(&mut self, _: &[u8]) {}
-            fn run(&mut self, run: crate::memory::cells::CellRun<'_>) {
-                let bytes: Vec<u8> = (0..run.len())
-                    .map(|_| {
-                        self.0 = self.0.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-                        (self.0 >> 24) as u8
-                    })
-                    .collect();
-                run.store(0, &bytes);
-            }
-        }
-        let blocks = CarBlocks::new();
-        blocks.visit(&mut Fill(seed));
+        use crate::test_support::plain_paths::{flat_bytes, set_flat_bytes};
+        let mut blocks = CarBlocks::new();
+        let mut state = seed;
+        let bytes: Vec<u8> = (0..flat_bytes(&blocks).len())
+            .map(|_| {
+                state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                (state >> 24) as u8
+            })
+            .collect();
+        set_flat_bytes(&mut blocks, &bytes);
         blocks
     }
 
@@ -259,15 +253,16 @@ mod tests {
 
     #[test]
     fn a_field_changes_the_hash() {
-        let (blocks, parts) = (&CarBlocks::new(), &CarParts::new());
+        let (mut blocks, mut parts) = (CarBlocks::new(), CarParts::new());
+        let (blocks, parts) = (&mut blocks, &mut parts);
         let first = total(&car_blocks_groups(blocks, parts));
         assert_eq!(first, total(&car_blocks_groups(blocks, parts)));
-        use crate::test_support::paths::set_u32;
+        use crate::test_support::plain_paths::set_u32;
         assert!(set_u32(blocks, ".cars[2].gear", 0x7B));
         assert_ne!(first, total(&car_blocks_groups(blocks, parts)));
         // A field of the drawing's state counts as one of the car's.
         let before = total(&car_blocks_groups(blocks, parts));
-        parts.cars[5].mode_on.set(1);
+        parts.cars[5].mode_on = 1;
         assert_ne!(before, total(&car_blocks_groups(blocks, parts)));
         let groups = car_blocks_groups(blocks, parts);
         assert_eq!(groups.len(), 8);

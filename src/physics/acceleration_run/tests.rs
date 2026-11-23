@@ -20,10 +20,10 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 x87_1(
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.physics_tables_mut(),
                     race().gear(),
                     &crate::test_support::race_places::numbers(),
-                    view(a[1], 0),
+                    view::<crate::memory::session::PlainFloat>(a[1], 0).get(),
                 );
             },
         },
@@ -43,8 +43,8 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |_| {
                 let drag = x87_2(
-                    race().shared.car(),
-                    race().shared.physics_tables.get(),
+                    &mut race().shared.car_mut(),
+                    &race().shared.physics_tables(),
                     &crate::test_support::race_places::numbers(),
                 );
                 // The original keeps the drag, stored as a float, in the shared work dword.
@@ -67,7 +67,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |_| {
                 x87_3(
-                    race().shared.car(),
+                    &race().shared.car(),
                     race().gear(),
                     &crate::test_support::race_places::numbers(),
                 );

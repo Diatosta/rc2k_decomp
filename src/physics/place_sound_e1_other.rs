@@ -8,6 +8,7 @@
 
 use crate::errors::Refused;
 use crate::physics::car_sounds::{cue_plain, listed, object};
+use crate::physics::car_store::Car;
 use crate::physics::sound_bands::bump_band_plain;
 use crate::physics::step_families::SoundInputs;
 use rc2k_core::physics::sound_places::{FIRST, SOUND_E1};
@@ -17,8 +18,10 @@ pub fn place_sound_e1_other(
     c: &SoundInputs<'_>,
     other_car_number: u32,
     bump_speed_length: f32,
+    car: &mut Car,
 ) -> Result<(), Refused> {
-    if !listed(c.frame_work, other_car_number)? && !listed(c.frame_work, c.work.current_car.get())?
+    if !listed(c.frame_work, other_car_number)?
+        && !listed(c.frame_work, c.work.borrow().current_car)?
     {
         return Ok(());
     }
@@ -26,6 +29,6 @@ pub fn place_sound_e1_other(
     if b == 0 {
         return Ok(());
     }
-    cue_plain(c, object(c), FIRST, SOUND_E1, b, None)?;
+    cue_plain(c, object(c), FIRST, SOUND_E1, b, None, car)?;
     Ok(())
 }

@@ -8,18 +8,18 @@ use crate::physics::car_store::Car;
 use rc2k_core::physics::start::CarStart;
 
 // Core: `rc2k_core::physics::start::CarStart::count_start_second`.
-pub fn count_start_second(car: &Car) {
+pub fn count_start_second(car: &mut Car) {
     let was = CarStart {
-        state: car.tyre_change_state.get(),
-        count: car.false_start_count.get(),
-        timer: car.run_ticks.get(),
-        finished: car.finish_flag.get(),
-        time: car.stage_time.get(),
+        state: car.tyre_change_state,
+        count: car.false_start_count,
+        timer: car.run_ticks,
+        finished: car.finish_flag,
+        time: car.stage_time,
         ..CarStart::default()
     };
     let mut c = was;
     c.count_start_second();
     if c.time != was.time {
-        car.stage_time.set(c.time);
+        car.stage_time = c.time;
     }
 }

@@ -20,6 +20,7 @@
 
 use crate::errors::Refused;
 use crate::math::x87::{mul_div_status, mul_status};
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::physics::figures::{AUTO_GEAR_ENGINE_SHARE, AUTO_GEAR_SPEED_DOWN, AUTO_GEAR_SPEED_UP};
 use crate::physics::gear_store::GearFigures;
@@ -32,43 +33,47 @@ use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 use rc2k_core::physics::gearbox::GearInputs;
 
 /// Up.
-fn up(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
-    if let Some(shift) = shifts::auto_up(car.gear.get(), tables.gear_count.get()) {
+fn up(car: &mut Car, tables: &mut PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
+    if let Some(shift) = shifts::auto_up(car.gear, tables.gear_count) {
         return Ok(shift);
     }
     wheels(car, tables)?;
-    car.gear.set(car.gear.get().wrapping_add(1));
+    car.gear = car.gear.wrapping_add(1);
     revs(car, tables, numbers)?;
     settle(car);
     Ok(Shift::Done)
 }
 
 /// Down.
-fn down(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
+fn down(car: &mut Car, tables: &mut PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
     wheels(car, tables)?;
-    car.gear.set(car.gear.get().wrapping_sub(1));
+    car.gear = car.gear.wrapping_sub(1);
     revs(car, tables, numbers)?;
-    if below(car.engine_speed.get(), tables.rev_limit.get()) {
+    if below(car.engine_speed, tables.rev_limit) {
         settle(car);
         return Ok(Shift::Done);
     }
-    car.gear.set(car.gear.get().wrapping_add(1));
+    car.gear = car.gear.wrapping_add(1);
     revs(car, tables, numbers)?;
     Ok(Shift::Neutral)
 }
 
 /// The automatic's tests.
-fn tests(car: &Car, tables: &PhysicsTables, gear_figures: &GearFigures) -> Result<Shift, Refused> {
+fn tests(
+    car: &mut Car,
+    tables: &mut PhysicsTables,
+    gear_figures: &GearFigures,
+) -> Result<Shift, Refused> {
     // `revs_from_speed` leaves the gear it reads in the same place.
-    let gear = car.gear.get();
-    let kept = car.engine_speed.get();
+    let gear = car.gear;
+    let kept = car.engine_speed;
     revs_speed(car, tables)?;
     let over = over_top(car).to_bits();
-    car.engine_speed.set(kept);
+    car.engine_speed = kept;
     shifts::auto_tests(
         gear,
-        || car.all_wheels_off.get() != 0,
-        || car.brake.get() != 0,
+        || car.all_wheels_off != 0,
+        || car.brake != 0,
         || !below(over, gear_figures.shift_up_point.get()),
         || !below(car.local_velocity.at(2), AUTO_GEAR_SPEED_DOWN),
         || {
@@ -80,7 +85,7 @@ fn tests(car: &Car, tables: &PhysicsTables, gear_figures: &GearFigures) -> Resul
             if mul_div_status(over, rb, rl, &gear_figures.shift_ratio_figure) & 0x100 == 0 {
                 return Ok(false);
             }
-            let point = if shifts::down_point_clutch(car.brake.get()) {
+            let point = if shifts::down_point_clutch(car.brake) {
                 gear_figures.shift_down_clutch_point.get()
             } else {
                 gear_figures.shift_down_point.get()
@@ -94,25 +99,25 @@ fn tests(car: &Car, tables: &PhysicsTables, gear_figures: &GearFigures) -> Resul
 /// The steps on `r`.
 // Core: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
 pub(super) fn auto_gearbox(
-    car: &Car,
-    tables: &PhysicsTables,
+    car: &mut Car,
+    tables: &mut PhysicsTables,
     inputs: &GearInputs,
     numbers: &Numbers,
     gear_figures: &GearFigures,
 ) -> Result<(), Refused> {
-    car.gear_changed.set(0);
+    car.gear_changed = 0;
     let mut to = 'first: {
-        if bit(car, car.gear.get())? {
+        if bit(car, car.gear)? {
             break 'first Shift::Neutral;
         }
-        if car.gear.get() != 0 && below(car.engine_speed.get(), tables.idle_engine_speed.get()) {
+        if car.gear != 0 && below(car.engine_speed, tables.idle_engine_speed) {
             break 'first Shift::Neutral;
         }
-        if car.gear.get() == 0 {
+        if car.gear == 0 {
             if mul_status(
-                &car.engine_speed_limit,
+                car.engine_speed_limit,
                 AUTO_GEAR_ENGINE_SHARE,
-                &car.engine_speed,
+                car.engine_speed,
             ) & 0x100
                 == 0
             {
@@ -124,15 +129,14 @@ pub(super) fn auto_gearbox(
                 Shift::Start
             };
         }
-        if car.forced_neutral.get() != 0 {
+        if car.forced_neutral != 0 {
             break 'first Shift::Neutral;
         }
-        if car.gear_change_hold.get() != 0 {
-            car.gear_change_hold
-                .set(car.gear_change_hold.get().wrapping_sub(1));
+        if car.gear_change_hold != 0 {
+            car.gear_change_hold = car.gear_change_hold.wrapping_sub(1);
             return Ok(());
         }
-        if car.gear_change_blocked.get() != 0 {
+        if car.gear_change_blocked != 0 {
             return Ok(());
         }
         tests(car, tables, gear_figures)?

@@ -7,17 +7,18 @@ use crate::strings::own::id;
 /// What has the highlight in the stopped viewer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Highlight {
-    /// A button of the two rows, by its number (0 ..= 25).
+    /// A button of the list, by its number (0 ..= 27: the two rows' and the third and fourth
+    /// camera button's).
     Button(u32),
     /// The "render to video" button under the rows.
     Render,
-    /// A camera is being edited (1 or 2): the highlight stays on its button, but the keys do
-    /// something else.
+    /// A camera is being edited (the camera button's number, 1 ..= 4): the highlight stays on its
+    /// button, but the keys do something else.
     Editing(u32),
 }
 
-/// The buttons of the two rows.
-pub const BUTTONS: u32 = 26;
+/// The buttons of the list: the two rows' and the camera buttons of the third and fourth part.
+pub const BUTTONS: u32 = crate::race::viewer::ITEMS;
 /// The lower row's button that cycles the replay speed, and the two that show or hide a car's HUD.
 pub const SPEED_BUTTON: u32 = 0x10;
 pub const HUD_BUTTONS: [u32; 2] = [0xE, 0x18];

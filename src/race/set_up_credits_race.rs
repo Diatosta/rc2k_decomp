@@ -112,10 +112,9 @@ pub(super) fn set_up_credits_race(
         .vars
         .get()
         .stage_number
-        .set(shared.work.get().credit_stages[stage as usize].get());
+        .set(shared.work().credit_stages[stage as usize]);
     let kind = drawn_index(shared, RACE_KINDS);
-    shared.vars.get().race_car_kinds[0]
-        .set(shared.work.get().credit_car_kinds[kind as usize].get());
+    shared.vars.get().race_car_kinds[0].set(shared.work().credit_car_kinds[kind as usize]);
     for (at, v) in WRITES {
         at.set_with(o, v);
     }

@@ -15,8 +15,8 @@ pub fn release_controls(input: &crate::input::owner::Input) {
 /// Clears the eight blocks' `stop_state`.
 pub fn clear_player_absences(race: &Race) {
     // Each car block's `stop_state`: the player absent.
-    for car in &race.car_blocks().cars[..8] {
-        car.stop_state.set(0);
+    for car in &mut race.car_blocks_mut().cars[..8] {
+        car.stop_state = 0;
     }
 }
 
@@ -51,7 +51,6 @@ pub fn set_race_screen_mode(gfx: &crate::gfx::owner::Gfx, system: &crate::system
 }
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::PlainDword;
 
 /// Releases the stage's textures (`gfx::release_all_textures`).
 pub(super) fn release_stage_textures(gfx: &crate::gfx::owner::Gfx) {
@@ -66,8 +65,8 @@ pub(super) fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
     {
         let key = replay.seal_key();
         let sealed = rc2k_core::race::seal::seal_time(
-            race.car_blocks().cars[0].stop_state.get(),
-            || race.car_blocks().cars[0].stage_time.get(),
+            race.car_blocks().cars[0].stop_state,
+            || race.car_blocks().cars[0].stage_time,
             key,
         );
         race.shared.replay_file().index.seal.set(sealed);
@@ -127,9 +126,9 @@ fn flagged(race: &Race, kind: u32) -> bool {
 }
 
 /// A block's camera view (`camera_view`) of 2 or 3 made 4.
-fn settle_state(view: &PlainDword) {
-    if let Some(v) = rc2k_core::race::cars::settled_state(view.get()) {
-        view.set(v);
+fn settle_state(view: &mut u32) {
+    if let Some(v) = rc2k_core::race::cars::settled_state(*view) {
+        *view = v;
     }
 }
 
@@ -166,19 +165,19 @@ pub fn set_start_states(
         frame.panel.borrow_mut().start_values[1] = v;
         if one {
             shared.vars.get().split.set(0u32);
-            let block = shared.race_car(chosen as usize)?;
-            if !flagged(race, block.car_kind.get()) {
-                settle_state(&block.camera_view);
+            let kind = shared.race_car(chosen as usize)?.car_kind;
+            if !flagged(race, kind) {
+                settle_state(&mut shared.race_car_mut(chosen as usize)?.camera_view);
             }
             return Ok(());
         }
         let two = shared.view.get().players.get() == 2;
         let held = rc2k_core::race::cars::held_split(two, shared.vars.get().split.get() as i32);
         shared.vars.get().split.set(held as u32);
-        let kind_0: u32 = race.car_blocks().cars[0].car_kind.get();
+        let kind_0: u32 = race.car_blocks().cars[0].car_kind;
         if !flagged(race, kind_0) || shared.view.get().players.get() >= 2 {
-            settle_state(&race.car_blocks().cars[0].camera_view);
-            settle_state(&race.car_blocks().cars[1].camera_view);
+            settle_state(&mut race.car_blocks_mut().cars[0].camera_view);
+            settle_state(&mut race.car_blocks_mut().cars[1].camera_view);
         }
     }
     Ok(())
@@ -201,31 +200,31 @@ pub(super) fn store_results_by_mode(race: &Race) {
                 .state
                 .results
                 .figure_ffc
-                .set(race.car_blocks().cars[0].time_left.get());
-            let v = race.car_blocks().cars[0].mode2_place.get();
+                .set(race.car_blocks().cars[0].time_left);
+            let v = race.car_blocks().cars[0].mode2_place;
             shared.state.results.figure_000.set(v);
             shared.tables().start_place.set(v);
             shared.state.results.results[0]
                 .time
-                .set(race.car_blocks().cars[0].stage_time.get());
+                .set(race.car_blocks().cars[0].stage_time);
         }
         0 => {
             shared.state.results.results[0]
                 .time
-                .set(race.car_blocks().cars[0].stage_time.get());
+                .set(race.car_blocks().cars[0].stage_time);
             shared.state.results.results[1]
                 .time
-                .set(race.car_blocks().cars[1].stage_time.get());
+                .set(race.car_blocks().cars[1].stage_time);
             let total = physics.split_tables().stage_car_total;
             shared.state.results.results[0]
                 .word
-                .set(margin(total, race.car_blocks().cars[0].stage_time.get()));
+                .set(margin(total, race.car_blocks().cars[0].stage_time));
             shared.state.results.results[1]
                 .word
-                .set(margin(total, race.car_blocks().cars[1].stage_time.get()));
+                .set(margin(total, race.car_blocks().cars[1].stage_time));
             // The third and fourth players of a larger split screen.
             for k in 2..(shared.view.get().players.get() as usize).min(4) {
-                let time = race.car_blocks().cars[k].stage_time.get();
+                let time = race.car_blocks().cars[k].stage_time;
                 shared.state.result(k).time.set(time);
                 shared.state.result(k).word.set(margin(total, time));
             }
@@ -233,16 +232,16 @@ pub(super) fn store_results_by_mode(race: &Race) {
         1 | 3 => {
             shared.state.results.results[0]
                 .time
-                .set(race.car_blocks().cars[0].stage_time.get());
+                .set(race.car_blocks().cars[0].stage_time);
             shared.state.results.results[1]
                 .time
-                .set(race.car_blocks().cars[1].stage_time.get());
+                .set(race.car_blocks().cars[1].stage_time);
             for k in 2..(shared.view.get().players.get() as usize).min(4) {
                 shared
                     .state
                     .result(k)
                     .time
-                    .set(race.car_blocks().cars[k].stage_time.get());
+                    .set(race.car_blocks().cars[k].stage_time);
             }
         }
         _ => {}

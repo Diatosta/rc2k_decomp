@@ -4,8 +4,6 @@
 //! triangle's flags and object. This file holds its leaves.
 
 use crate::errors::{BadInput, Refused};
-use crate::math::cell_x87::CellX87;
-use crate::memory::session::PlainFloat;
 use crate::race::face_work::FaceWork;
 use crate::race::owner_course::CourseReads;
 use crate::race::trap::Trap;
@@ -78,14 +76,7 @@ fn face_turned_to_view(
         &crate::race::scene_points::no_own(),
         &Face(bytes),
         (half / 4) as usize,
-        &race
-            .frame
-            .view_and_records
-            .get()
-            .view_vars
-            .view_place_f
-            .each_ref()
-            .map(|c| PlainFloat::from_bits(c.bits())),
+        &race.frame.view_and_records.borrow().view_vars.view_place_f,
     )
 }
 
@@ -96,7 +87,7 @@ fn turned_to_view(
     points: &crate::race::scene_points::OwnPoints,
     f: &Face,
     triangle: usize,
-    place: &[PlainFloat; 3],
+    place: &[f32; 3],
 ) -> Result<u32, BadInput> {
     use crate::math::x87_float::{X, compare, int, ld};
     if switches.scene_set_up() == 0 {
@@ -105,8 +96,8 @@ fn turned_to_view(
     let p = f.point(1 + triangle);
     let normal = f.normal(triangle);
     let at = crate::race::scene_points::point_number(course, points, p)?;
-    let along = |k: usize, view_at: &PlainFloat, normal: u32| -> Result<_, BadInput> {
-        Ok((int(at[k] as i32) - view_at.ld()) * ld(normal))
+    let along = |k: usize, view_at: &f32, normal: u32| -> Result<_, BadInput> {
+        Ok((int(at[k] as i32) - ld(*view_at)) * ld(normal))
     };
     let (x, y, z) = (
         along(0, &place[0], normal[0])?,
@@ -126,7 +117,7 @@ fn face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
         &ctx.part.points,
         face,
         0,
-        &ctx.view.vars.view_place_f,
+        &ctx.view.vars.borrow().view_place_f,
     )?;
     work.borrow_mut().turned[0] = first;
     work.borrow_mut().turned[1] = 1u32;
@@ -138,7 +129,7 @@ fn face_sides(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
             &ctx.part.points,
             face,
             1,
-            &ctx.view.vars.view_place_f,
+            &ctx.view.vars.borrow().view_place_f,
         )?;
         work.borrow_mut().turned[1] = second;
     }
@@ -260,7 +251,7 @@ fn face_lights(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         );
     if lit {
         crate::race::frame_draw::check_light_colour(
-            ctx.reads.work,
+            &ctx.reads.work.borrow(),
             ctx.reads.view,
             &ctx.view.lamps,
         )?;
@@ -715,7 +706,7 @@ fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         && rc2k_core::race::faces::corners_lit(wanted, ctx.view.face.borrow().texture_a, mode)
     {
         crate::race::frame_draw::check_light_colour(
-            ctx.reads.work,
+            &ctx.reads.work.borrow(),
             ctx.reads.view,
             &ctx.view.lamps,
         )?;
@@ -847,7 +838,11 @@ fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         return crate::scene::draw_clipped_polygon::draw_clipped_polygon_in_game(ctx);
     }
     crate::race::frame_draw::points_there(ctx)?;
-    crate::race::frame_draw::check_light_colour(ctx.reads.work, ctx.reads.view, &ctx.view.lamps)?;
+    crate::race::frame_draw::check_light_colour(
+        &ctx.reads.work.borrow(),
+        ctx.reads.view,
+        &ctx.view.lamps,
+    )?;
     ctx.view.polygon.scalars.borrow_mut().polygon_next_record = crate::scene::polygon::pool_start();
     let vertex_count = ctx.view.polygon.scalars.borrow().polygon_vertex_count;
     plain_list(&ctx.part.polygon, &ctx.view.polygon, vertex_count, 6);
@@ -1144,17 +1139,22 @@ mod vector_tests {
         let race = race();
         let kept_course = *race.course.course.borrow();
         let kept_switches = race.shared.switches.borrow().clone();
-        let kept = Snapshot::of(&["owners.race.frame.view_and_records"]);
+        let kept_place = race.frame.view_and_records.borrow().view_vars.view_place_f;
         let mut vectors = Vectors::open("race.course_faces.face_turned_to_view", Kind::Exact, 1);
         let mut r = Rng(11);
         let mut points = [0u32; 12];
         let mut face = [0u32; 0x20];
-        let place = &race.frame.view_and_records.get().view_vars.view_place_f;
         at_each_control_word(|| {
             for _ in 0..20000 {
                 race.shared.switches.borrow_mut().scene_set_up = r.below(8);
-                for cell in place {
-                    cell.set(f32::from_bits(r.float()));
+                for place in &mut race
+                    .frame
+                    .view_and_records
+                    .borrow_mut()
+                    .view_vars
+                    .view_place_f
+                {
+                    *place = f32::from_bits(r.float());
                 }
                 for q in points.iter_mut() {
                     *q = r.int() as u32;
@@ -1172,7 +1172,11 @@ mod vector_tests {
                 vectors.check(&[got], |a, b| a == b, || format!("{face:x?} {points:x?}"));
             }
         });
-        kept.restore();
+        race.frame
+            .view_and_records
+            .borrow_mut()
+            .view_vars
+            .view_place_f = kept_place;
         *race.shared.switches.borrow_mut() = kept_switches;
         *race.course.course.borrow_mut() = kept_course;
         vectors.finish();

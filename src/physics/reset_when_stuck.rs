@@ -13,14 +13,14 @@ pub(super) fn reset_when_stuck(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let shared = c.shared;
-    let mode = shared.car().driver_kind.get();
+    let mode = shared.car().driver_kind;
     let mut stuck = if mode == 2 || mode == 0 {
         0
     } else {
-        shared.car().stuck_count.get()
+        shared.car().stuck_count
     };
     let reset = stuck_tick(mode, &mut stuck);
-    shared.car().stuck_count.set(stuck);
+    shared.car_mut().stuck_count = stuck;
     if reset {
         crate::physics::reset_car::reset_car(c, scene)?;
     }

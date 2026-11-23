@@ -7,43 +7,43 @@
 //! end).
 
 use crate::errors::Refused;
-use crate::memory::session::Run;
+use crate::memory::plain_run::PlainRun;
 use crate::physics::car_store::{Car, put_dwords};
 use crate::physics::contact_store::ProbeLists;
 use crate::physics::tables_store::PhysicsTables;
 use rc2k_core::physics::saved_car::{restore_count, restored};
 
 /// The car's last-face list and the fields after it in the record, in order, to its end.
-fn faces_and_after(car: &Car) -> [&dyn Run; 28] {
+fn faces_and_after(car: &mut Car) -> [&mut dyn PlainRun; 28] {
     [
-        &car.probe_point_face,
-        &car.camera_ground_faces,
-        &car.group_mask,
-        &car.engine_speed_scaled,
-        &car.previous_step_clock,
-        &car.wheel_ground_x,
-        &car.wheel_ground_height,
-        &car.wheel_ground_z,
-        &car.skid_grip,
-        &car.skid_slots,
-        &car.car_event_times,
-        &car.car_event_codes,
-        &car.car_event_count,
-        &car.car_event_limit,
-        &car.car_event_position,
-        &car.two_car_place,
-        &car.view_covered,
-        &car.reset_marker,
-        &car.value_jump_steps,
-        &car.light_hold_steps,
-        &car.eased_target,
-        &car.eased_value,
-        &car.glide_target,
-        &car.glide_steps_left,
-        &car.kept_throttle_word,
-        &car.kept_keys_word,
-        &car.kept_steering_word,
-        &car.kept_brake_word,
+        &mut car.probe_point_face,
+        &mut car.camera_ground_faces,
+        &mut car.group_mask,
+        &mut car.engine_speed_scaled,
+        &mut car.previous_step_clock,
+        &mut car.wheel_ground_x,
+        &mut car.wheel_ground_height,
+        &mut car.wheel_ground_z,
+        &mut car.skid_grip,
+        &mut car.skid_slots,
+        &mut car.car_event_times,
+        &mut car.car_event_codes,
+        &mut car.car_event_count,
+        &mut car.car_event_limit,
+        &mut car.car_event_position,
+        &mut car.two_car_place,
+        &mut car.view_covered,
+        &mut car.reset_marker,
+        &mut car.value_jump_steps,
+        &mut car.light_hold_steps,
+        &mut car.eased_target,
+        &mut car.eased_value,
+        &mut car.glide_target,
+        &mut car.glide_steps_left,
+        &mut car.kept_throttle_word,
+        &mut car.kept_keys_word,
+        &mut car.kept_steering_word,
+        &mut car.kept_brake_word,
     ]
 }
 
@@ -59,22 +59,18 @@ fn saved_face_or_flip(probes: &ProbeLists, k: usize) -> u32 {
 
 /// Core: `rc2k_core::physics::saved_car::{restore_count, restored}`.
 pub(super) fn restore_saved_car(
-    car: &Car,
-    tables: &PhysicsTables,
+    car: &mut Car,
+    tables: &mut PhysicsTables,
     probes: &ProbeLists,
 ) -> Result<(), Refused> {
-    let n = restore_count(car.probe_count.get())?;
-    tables
-        .clear_place_count
-        .set(restored(tables.clear_place_count.get()));
-    car.position
-        .set_bits(std::array::from_fn(|k| tables.saved_place[k].get()));
-    car.crash_matrix
-        .set_bits(crate::memory::session::read_bits(&tables.saved_matrix));
+    let n = restore_count(car.probe_count)?;
+    tables.clear_place_count = restored(tables.clear_place_count);
+    car.position = std::array::from_fn(|k| f32::from_bits(tables.saved_place[k]));
+    car.crash_matrix = tables.saved_matrix;
     // Up to 0x7C dwords from the saved faces (0x40), on into the face-flip list after them, into
     // the car's faces (0x40), on through the fields after them to the record's end (0x7C in all).
     put_dwords(
-        &faces_and_after(car),
+        &mut faces_and_after(car),
         0,
         (0..n as usize).map(|k| saved_face_or_flip(probes, k)),
     )?;
@@ -107,18 +103,18 @@ mod tests {
             *cell = 0x200 + k as u32;
         }
         for n in 0..=0x7C {
-            let new = car_with_1999_bytes(|at| fill[at]);
-            let old = car_with_1999_bytes(|at| fill[at]);
+            let mut new = car_with_1999_bytes(|at| fill[at]);
+            let mut old = car_with_1999_bytes(|at| fill[at]);
             put_dwords(
-                &faces_and_after(&new),
+                &mut faces_and_after(&mut new),
                 0,
                 (0..n).map(|k| saved_face_or_flip(&probes, k)),
             )
             .unwrap();
             for k in 0..n {
                 write_on_1999(
-                    &old,
-                    &old.probe_point_face,
+                    &mut old,
+                    "probe_point_face",
                     k,
                     saved_face_or_flip(&probes, k),
                 );

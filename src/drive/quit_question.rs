@@ -50,7 +50,7 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
     // A button from before the question answers nothing.
     crate::input::menu_pad::take_answer(input);
     shared.vars.get().scene_switch.set(1);
-    let (best_frame, _) = race_ticks::best_frame(race.car_blocks().cars[0].step_clock.get());
+    let (best_frame, _) = race_ticks::best_frame(race.car_blocks().cars[0].step_clock);
     if race_ticks::keeps_frame(best_frame, replay.replay_frames().last_kept) {
         replay.replay_frames_mut().last_kept = best_frame;
     }
@@ -60,15 +60,13 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
     let third = shared.vars.get().no_replay.get() != 0 && shared.vars.get().run_kind.get() != 2;
     let inline = Inline::of(o, kind, third);
     for c in 0..8 {
-        race.car_blocks().cars[c as usize]
-            .notice_id
-            .set(if inline.is_some() { 0 } else { kind });
+        race.car_blocks_mut().cars[c as usize].notice_id = if inline.is_some() { 0 } else { kind };
     }
     for c in 0..8 {
-        race.car_blocks().cars[c as usize].notice_time_b.set(0);
+        race.car_blocks_mut().cars[c as usize].notice_time_b = 0;
     }
     for c in 0..8 {
-        race.car_blocks().cars[c as usize].notice_time.set(u32::MAX);
+        race.car_blocks_mut().cars[c as usize].notice_time = u32::MAX;
     }
     let answer = loop {
         // A gamepad's button answers directly: this question has no items on screen to choose from.
@@ -100,15 +98,16 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
         }
     };
     for c in 0..8 {
-        let car = &race.car_blocks().cars[c];
-        for cell in [&car.notice_shown, &car.notice_id, &car.notice_last] {
-            cell.set(0);
-        }
+        let mut blocks = race.car_blocks_mut();
+        let car = &mut blocks.cars[c];
+        car.notice_shown = 0;
+        car.notice_id = 0;
+        car.notice_last = 0;
     }
     shared.vars.get().scene_switch.set(0);
     wake_car_sounds(race, o.sound, o.audio, &o.system.session.picture_clock)?;
     for c in 0..8 {
-        race.car_blocks().cars[c as usize].input_keys.set(0);
+        race.car_blocks_mut().cars[c as usize].input_keys = 0;
     }
     Ok(answer)
 }

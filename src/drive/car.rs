@@ -4,32 +4,35 @@
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::race::owner_shared::RaceShared;
+use std::cell::{Ref, RefMut};
 
 /// The current car's block (by its handle), refused when null.
-pub(super) fn current_block(shared: &RaceShared) -> Result<&Car, Refused> {
+pub(super) fn current_block(shared: &RaceShared) -> Result<Ref<'_, Car>, Refused> {
     use rc2k_core::drive::work_car::{car_block, car_slot};
-    let slot = car_slot(shared.work.get().current_car.get());
-    car_block(u32::from(shared.work.get().has_car_block(slot as usize)))?;
+    let slot = car_slot(shared.work().current_car);
+    car_block(u32::from(shared.work().has_car_block(slot as usize)))?;
 
     Ok(shared.race_car(slot as usize)?)
 }
 
-/// Copies the car record, dword by dword upwards (the two never overlap in the game; the order
-/// is kept anyway).
-pub(super) fn copy_car(from: &Car, to: &Car) {
-    use crate::memory::cells::Cells;
-    to.copy_from(from);
+/// The current car's block, to write.
+pub(super) fn current_block_mut(shared: &RaceShared) -> Result<RefMut<'_, Car>, Refused> {
+    use rc2k_core::drive::work_car::{car_block, car_slot};
+    let slot = car_slot(shared.work().current_car);
+    car_block(u32::from(shared.work().has_car_block(slot as usize)))?;
+
+    Ok(shared.race_car_mut(slot as usize)?)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::paths::{field_bytes, set_field_range};
+    use crate::test_support::plain_paths::{flat_bytes, set_flat_bytes};
 
     #[test]
-    fn the_typed_copy_writes_every_field_of_the_source() {
+    fn a_copy_writes_every_field_of_the_source() {
         let mut seed = 0x1234_5678u32;
-        let flat_len = field_bytes(&Car::new(), "").len();
+        let flat_len = flat_bytes(&Car::new()).len();
         let mut random = || {
             let mut b = vec![0u8; flat_len];
             for x in &mut b {
@@ -39,11 +42,11 @@ mod tests {
             b
         };
         for _ in 0..20 {
-            let (from, typed): (Box<Car>, Box<Car>) = (Box::new(Car::new()), Box::new(Car::new()));
-            assert!(set_field_range(&*from, "", &random()));
-            assert!(set_field_range(&*typed, "", &random()));
-            copy_car(&from, &typed);
-            assert_eq!(field_bytes(&*from, ""), field_bytes(&*typed, ""));
+            let (mut from, mut copy) = (Car::new(), Car::new());
+            set_flat_bytes(&mut from, &random());
+            set_flat_bytes(&mut copy, &random());
+            copy.clone_from(&from);
+            assert_eq!(flat_bytes(&from), flat_bytes(&copy));
         }
     }
 }

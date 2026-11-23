@@ -13,12 +13,12 @@ use crate::math::x87;
 use crate::math::x87::{
     compare_full, float_hypot_to_int, int_toward_to_int, mul2_to_int, times_fist_compare,
 };
-use crate::memory::session::{PlainDword, PlainFloat};
+use crate::memory::plain_floats::FloatRow;
 use crate::race::norms::normalise_work_vector;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
-use crate::scene::view_matrix::cross_product;
+use crate::scene::view_matrix::cross_of;
 use rc2k_core::drive::computer_driver as driver;
 
 /// `table[n + k]`, the index held to the count less one (unsigned).
@@ -51,80 +51,67 @@ fn face_point(course: &Course, face: u32) -> Result<(u32, u32), BadInput> {
     ))
 }
 
-/// (to - from) in x and z, y 0, as floats, into `out` (the whole numbers written first, then
-/// each turned into a float in place).
-fn flat_way(from: &[PlainDword], to: &[PlainDword], out: &[PlainFloat]) {
-    let x = to[0].get().wrapping_sub(from[0].get());
-    let z = to[2].get().wrapping_sub(from[2].get());
-    for (o, v) in out.iter().zip([x, 0, z]) {
-        o.set(x87::from_int(v as i32));
-    }
+/// (to - from) in x and z, y 0, as floats (the whole numbers turned into floats).
+fn flat_way(from: &[u32], to: &[u32]) -> [f32; 3] {
+    let x = to[0].wrapping_sub(from[0]);
+    let z = to[2].wrapping_sub(from[2]);
+    [x, 0, z].map(|v| x87::from_int(v as i32))
 }
 
-/// The vector `from` made one long into `to`, through the work vector and
-/// `race::normalise_work_vector`.
-fn normalised(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
-    from: &[PlainFloat],
-    to: &[PlainFloat],
-) {
+/// The vector `from` made one long, through the work vector and `race::normalise_work_vector`.
+fn normalised(race: &Race, scene: &crate::scene::owner::Scene, from: &[f32]) -> [f32; 3] {
     let mut scratch = race.frame.scratch_mut();
     for k in 0..3 {
-        scratch.work_vector[k] = from[k].get().to_bits();
+        scratch.work_vector[k] = from[k].to_bits();
     }
     normalise_work_vector(&race.course.numbers, &mut scratch, scene);
-    for k in 0..3 {
-        to[k].set(f32::from_bits(scratch.work_vector[k]));
-    }
+    std::array::from_fn(|k| f32::from_bits(scratch.work_vector[k]))
 }
 
-/// The slot's point in `points` (`driver_points_now` / `_then`, four dwords a slot), where
+/// The range of the slot's point in `driver_points_now` / `_then` (four dwords a slot), where
 /// `driver_point_now` / `_then` point.
-fn slot_point(points: &[PlainDword; 40], slot: u32) -> Result<&[PlainDword], BadInput> {
+fn slot_point(slot: u32) -> Result<std::ops::Range<usize>, BadInput> {
     let at = 4 * slot as usize;
-    points
-        .get(at..at + 4)
-        .ok_or(BadInput("a computer driver's slot past the points"))
+    if at + 4 > 40 {
+        return Err(BadInput("a computer driver's slot past the points"));
+    }
+    Ok(at..at + 4)
 }
 
 pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
-    let reaches = race.shared.car().run_ticks.get() >= driver::FIRST_STEP
+    let reaches = race.shared.car().run_ticks >= driver::FIRST_STEP
         && compare_full(
             race.shared.car().crash_matrix.at(5),
-            race.shared.work.get().driver_tilt_limit.get(),
+            race.shared.work().driver_tilt_limit,
         ) & 0x100
             == 0;
     if reaches && race.shared.vars.get().checkpoint_count.get() == 0 {
         return Err(BadInput("no checkpoints (the tables' indices would be -1)").into());
     }
-    let w = race.shared.work.get();
-    for v in [
-        &w.driver_steer,
-        &w.driver_throttle,
-        &w.driver_brake,
-        &w.driver_flags[0],
-        &w.driver_flags[1],
-        &w.driver_flags[2],
-        &w.driver_lookahead,
-        &w.driver_flags[3],
-        &w.driver_aim,
-        &w.driver_flag_bc,
-        // The car's slot too: every computer car uses the per-car arrays' first entry
-        // (the game's own slip, kept as is).
-        &w.driver_slot,
-    ] {
-        v.set(0);
-    }
+    // Held to the end: nothing called below reads the race's work variables.
+    let mut w = race.shared.work_mut();
+    w.driver_steer = 0;
+    w.driver_throttle = 0;
+    w.driver_brake = 0;
+    w.driver_flags[0] = 0;
+    w.driver_flags[1] = 0;
+    w.driver_flags[2] = 0;
+    w.driver_lookahead = 0;
+    w.driver_flags[3] = 0;
+    w.driver_aim = 0;
+    w.driver_flag_bc = 0;
+    // The car's slot too: every computer car uses the per-car arrays' first entry
+    // (the game's own slip, kept as is).
+    w.driver_slot = 0;
     if !reaches {
         return Ok(());
     }
-    let slot = race.shared.work.get().driver_slot.get();
+    let slot = w.driver_slot;
     // The slot's points by their byte offset in the tables (only `slot_point` reads them).
-    race.shared.work.get().driver_point_now.set(slot << 4);
-    race.shared.work.get().driver_point_then.set(slot << 4);
-    let n = race.shared.car().checkpoint.get();
+    w.driver_point_now = slot << 4;
+    w.driver_point_then = slot << 4;
+    let n = race.shared.car().checkpoint;
     let f = held(
         &race.shared,
         crate::race::checkpoints_store::face_run_on,
@@ -133,23 +120,23 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     );
     let (b1, b2) = crate::race::course_places::face_number(race.course.reads(), f)?.bends();
     let (b1, b2) = (u32::from(b1), u32::from(b2));
-    race.shared.work.get().driver_bend_a.set(b1);
-    race.shared.work.get().driver_bend_b.set(b2);
+    w.driver_bend_a = b1;
+    w.driver_bend_b = b2;
     if driver::narrow(b1, b2) {
-        race.shared.work.get().driver_flag_bc.set(1);
-        race.shared.work.get().driver_lookahead.set(1);
+        w.driver_flag_bc = 1;
+        w.driver_lookahead = 1;
     }
-    race.shared.work.get().driver_lookahead.set(1);
+    w.driver_lookahead = 1;
     let speed = (float_hypot_to_int(
         race.shared.car().velocity.at(0),
         race.shared.car().velocity.at(2),
     ) as u32)
         << 1;
-    race.shared.work.get().driver_speed.set(speed);
-    let driver_slot = race.shared.work.get().driver_slot.get();
+    w.driver_speed = speed;
+    let driver_slot = w.driver_slot;
     let (first, second, ahead) = driver::lookahead(
-        race.shared.work.get().driver_lookahead.get() == 1,
-        race.shared.car().wheel_surface_a[0].get(),
+        w.driver_lookahead == 1,
+        race.shared.car().wheel_surface_a[0],
         speed,
     );
     let turn = driver::turn(
@@ -166,29 +153,22 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
             second,
         ),
     );
-    race.shared.work.get().driver_turn.set(turn);
-    if driver::bend_noted(turn, race.shared.work.get().driver_lookahead.get() == 1) {
+    w.driver_turn = turn;
+    if driver::bend_noted(turn, w.driver_lookahead == 1) {
         if driver::sharp(turn) {
-            race.shared.work.get().driver_bend_noted
-                [race.shared.work.get().driver_slot.get() as usize]
-                .set(1);
+            let at = w.driver_slot as usize;
+            w.driver_bend_noted[at] = 1;
         }
         let to = n.wrapping_add(ahead);
-        if driver::bigger_bend(
-            turn,
-            race.shared.work.get().driver_bend_turn[driver_slot as usize].get(),
-        ) {
-            race.shared.work.get().driver_bend_turn[driver_slot as usize].set(turn);
-            race.shared.work.get().driver_bend_to[driver_slot as usize].set(to);
+        if driver::bigger_bend(turn, w.driver_bend_turn[driver_slot as usize]) {
+            w.driver_bend_turn[driver_slot as usize] = turn;
+            w.driver_bend_to[driver_slot as usize] = to;
         }
     }
-    let driver_slot = race.shared.work.get().driver_slot.get();
-    if driver::bend_passed(
-        n,
-        race.shared.work.get().driver_bend_to[driver_slot as usize].get(),
-    ) {
-        race.shared.work.get().driver_bend_to[driver_slot as usize].set(0);
-        race.shared.work.get().driver_bend_turn[driver_slot as usize].set(0);
+    let driver_slot = w.driver_slot;
+    if driver::bend_passed(n, w.driver_bend_to[driver_slot as usize]) {
+        w.driver_bend_to[driver_slot as usize] = 0;
+        w.driver_bend_turn[driver_slot as usize] = 0;
     }
     let bend = driver::table_entry(
         held(
@@ -205,58 +185,46 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
         ),
     );
     if driver::tight(bend) {
-        race.shared.work.get().driver_aim.set(1);
+        w.driver_aim = 1;
     }
     let table = [0, 7, 14][driver::speed_table(
-        race.shared.work.get().driver_lookahead.get() == 1,
-        race.shared.car().wheel_surface_a[0].get(),
+        w.driver_lookahead == 1,
+        race.shared.car().wheel_surface_a[0],
     )];
     // The tables are bytes (`table_entry` at most 0x18: inside its table's 28).
     let byte = 4 * table + bend as usize;
-    let listed = u32::from(
-        race.shared.work.get().wanted_speeds[byte / 4]
-            .get()
-            .to_le_bytes()[byte % 4],
-    );
-    let s = race.shared.work.get().driver_slot.get();
-    let near = race.shared.work.get().driver_bend_to[s as usize].get() != 0;
+    let listed = u32::from(w.wanted_speeds[byte / 4].to_le_bytes()[byte % 4]);
+    let s = w.driver_slot;
+    let near = w.driver_bend_to[s as usize] != 0;
     let want = driver::wanted_speed(
         listed,
         near,
-        near && race.shared.work.get().driver_bend_noted[s as usize].get() != 0,
+        near && w.driver_bend_noted[s as usize] != 0,
         speed,
     );
     if !near {
-        race.shared.work.get().driver_bend_noted[s as usize].set(0);
+        w.driver_bend_noted[s as usize] = 0;
     }
-    race.shared.work.get().driver_wanted_speed.set(want);
+    w.driver_wanted_speed = want;
     if driver::eased(want) {
-        race.shared
-            .work
-            .get()
-            .driver_wanted_speed
-            .set(int_toward_to_int(
-                want as i32,
-                race.shared.tables().computer_ease_speed.get(),
-                race.shared.work.get().driver_start_blend.get(),
-            ) as u32);
+        w.driver_wanted_speed = int_toward_to_int(
+            want as i32,
+            race.shared.tables().computer_ease_speed.get(),
+            w.driver_start_blend,
+        ) as u32;
     }
-    let pedals = driver::pedals(speed, race.shared.work.get().driver_wanted_speed.get());
+    let pedals = driver::pedals(speed, w.driver_wanted_speed);
     if let Some(t) = pedals.throttle {
-        race.shared.work.get().driver_throttle.set(t);
+        w.driver_throttle = t;
     }
     if pedals.hard {
-        race.shared.work.get().driver_flags[0].set(1);
+        w.driver_flags[0] = 1;
     }
     if let Some(b) = pedals.brake {
-        race.shared.work.get().driver_brake.set(b);
+        w.driver_brake = b;
     }
-    let k = driver::offset_entry(n, race.shared.work.get().driver_slot.get());
-    race.shared
-        .work
-        .get()
-        .driver_speed_scale
-        .set(x87::loaded(&race.shared.work.get().bend_speeds[k as usize])); // RaceWork.bend_speeds[0], 0x20 of them
+    let k = driver::offset_entry(n, w.driver_slot);
+    w.driver_speed_scale = x87::loaded(w.bend_speeds[k as usize]);
     let (x, z) = face_point(
         &race.course,
         held(
@@ -266,18 +234,11 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
             0,
         ),
     )?;
-    race.shared.work.get().driver_from[0].set(x);
-    race.shared.work.get().driver_from[2].set(z);
-    race.shared.work.get().driver_from[1].set(0);
-    let sharp = race.shared.work.get().driver_bend_noted
-        [race.shared.work.get().driver_slot.get() as usize]
-        .get()
-        != 0;
-    let aim = driver::aim_ahead(
-        sharp,
-        !sharp && race.shared.work.get().driver_aim.get() == 1,
-        speed,
-    );
+    w.driver_from[0] = x;
+    w.driver_from[2] = z;
+    w.driver_from[1] = 0;
+    let sharp = w.driver_bend_noted[w.driver_slot as usize] != 0;
+    let aim = driver::aim_ahead(sharp, !sharp && w.driver_aim == 1, speed);
     let (x, z) = face_point(
         &race.course,
         held(
@@ -287,139 +248,92 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
             aim,
         ),
     )?;
-    race.shared.work.get().driver_to[0].set(x);
-    race.shared.work.get().driver_to[2].set(z);
-    race.shared.work.get().driver_to[1].set(0);
-    flat_way(
-        &race.shared.work.get().driver_from,
-        &race.shared.work.get().driver_to,
-        &race.shared.work.get().driver_flat,
-    );
-    normalised(
-        race,
-        scene,
-        &race.shared.work.get().driver_flat,
-        &race.shared.work.get().driver_flat_unit,
-    );
-    cross_product(
-        &race.shared.work.get().driver_flat_unit,
-        &race.shared.work.get().driver_vector,
-        &race.shared.work.get().driver_ahead,
-    );
-    normalised(
-        race,
-        scene,
-        &race.shared.work.get().driver_ahead,
-        &race.shared.work.get().driver_ahead,
-    );
-    let (k1, k2) = (
-        race.shared.work.get().driver_speed_scale.get(),
-        course.numbers.k65536.get(),
-    );
-    race.shared.work.get().driver_step_x.set(mul2_to_int(
-        race.shared.work.get().driver_ahead[0].get(),
-        k1,
-        k2,
-    ) as u32);
-    race.shared.work.get().driver_step_z.set(mul2_to_int(
-        race.shared.work.get().driver_ahead[2].get(),
-        k1,
-        k2,
-    ) as u32);
-    race.shared.work.get().driver_to[0].set(
-        race.shared.work.get().driver_to[0]
-            .get()
-            .wrapping_add(race.shared.work.get().driver_step_x.get()),
-    );
-    race.shared.work.get().driver_to[2].set(
-        race.shared.work.get().driver_to[2]
-            .get()
-            .wrapping_add(race.shared.work.get().driver_step_z.get()),
-    );
-    let here = slot_point(&race.shared.work.get().driver_points_now, slot)?;
-    here[0].set(race.shared.car().position.bits_at(0));
-    here[2].set(race.shared.car().position.bits_at(2));
-    here[1].set(0);
-    flat_way(
-        here,
-        &race.shared.work.get().driver_to,
-        &race.shared.work.get().driver_way,
-    );
-    normalised(
-        race,
-        scene,
-        &race.shared.work.get().driver_way,
-        &race.shared.work.get().driver_way_unit,
-    );
-    race.shared.work.get().driver_side[2].set(x87::loaded(race.shared.car().crash_matrix.at(10)));
-    race.shared.work.get().driver_side[0].set(x87::negated(race.shared.car().crash_matrix.at(2)));
-    race.shared.work.get().driver_side[1].set(0.0);
-    cross_product(
-        &race.shared.work.get().driver_side,
-        &race.shared.work.get().driver_way_unit,
-        &race.shared.work.get().driver_work,
-    );
+    w.driver_to[0] = x;
+    w.driver_to[2] = z;
+    w.driver_to[1] = 0;
+    let flat = flat_way(&w.driver_from, &w.driver_to);
+    w.driver_flat[..3].copy_from_slice(&flat);
+    let unit = normalised(race, scene, &w.driver_flat);
+    w.driver_flat_unit[..3].copy_from_slice(&unit);
+    let ahead = cross_of(&w.driver_flat_unit, &w.driver_vector);
+    w.driver_ahead[..3].copy_from_slice(&ahead);
+    let ahead = normalised(race, scene, &w.driver_ahead);
+    w.driver_ahead[..3].copy_from_slice(&ahead);
+    let (k1, k2) = (w.driver_speed_scale, course.numbers.k65536.get());
+    w.driver_step_x = mul2_to_int(w.driver_ahead[0], k1, k2) as u32;
+    w.driver_step_z = mul2_to_int(w.driver_ahead[2], k1, k2) as u32;
+    w.driver_to[0] = w.driver_to[0].wrapping_add(w.driver_step_x);
+    w.driver_to[2] = w.driver_to[2].wrapping_add(w.driver_step_z);
+    let here = slot_point(slot)?;
+    w.driver_points_now[here.start] = race.shared.car().position.bits_at(0);
+    w.driver_points_now[here.start + 2] = race.shared.car().position.bits_at(2);
+    w.driver_points_now[here.start + 1] = 0;
+    let way = flat_way(&w.driver_points_now[here], &w.driver_to);
+    w.driver_way[..3].copy_from_slice(&way);
+    let unit = normalised(race, scene, &w.driver_way);
+    w.driver_way_unit[..3].copy_from_slice(&unit);
+    w.driver_side[2] = x87::loaded(race.shared.car().crash_matrix.at(10));
+    w.driver_side[0] = x87::negated(race.shared.car().crash_matrix.at(2));
+    w.driver_side[1] = 0.0;
+    let cross = cross_of(&w.driver_side, &w.driver_way_unit);
+    for (k, v) in cross.into_iter().enumerate() {
+        w.driver_work[k] = v.to_bits();
+    }
     let (i, status) = times_fist_compare(
-        race.shared.work.get().driver_work[1].get(),
+        w.driver_work[1],
         course.numbers.k256.get(),
         course.numbers.zero.get(),
     );
-    race.shared.work.get().driver_bend_index.set(i as u32);
-    let steer = driver::steering(
-        i as u32,
-        status & 0x100 != 0,
-        race.shared.car().gear.get() == -1,
-    );
-    race.shared.work.get().driver_steer.set(steer);
-    let s = race.shared.work.get().driver_slot.get();
-    let (left, reversing, handbrake) = driver::reverse_step(
-        race.shared.work.get().driver_reverse_left[s as usize].get(),
-        race.shared.car().gear.get(),
-    );
+    w.driver_bend_index = i as u32;
+    let steer = driver::steering(i as u32, status & 0x100 != 0, race.shared.car().gear == -1);
+    w.driver_steer = steer;
+    let s = w.driver_slot;
+    let (left, reversing, handbrake) =
+        driver::reverse_step(w.driver_reverse_left[s as usize], race.shared.car().gear);
     if let Some(left) = left {
-        race.shared.work.get().driver_reverse_left[s as usize].set(left);
+        w.driver_reverse_left[s as usize] = left;
     }
     if reversing {
-        race.shared.work.get().driver_flags[2].set(1);
-        race.shared.work.get().driver_brake.set(0x100);
+        w.driver_flags[2] = 1;
+        w.driver_brake = 0x100;
     }
     if handbrake {
-        race.shared.work.get().driver_flags[1].set(1);
+        w.driver_flags[1] = 1;
     }
-    let s = race.shared.work.get().driver_slot.get();
-    let steps = race.shared.work.get().driver_steps[s as usize]
-        .get()
-        .wrapping_add(1);
-    race.shared.work.get().driver_steps[s as usize].set(steps);
+    let s = w.driver_slot;
+    let steps = w.driver_steps[s as usize].wrapping_add(1);
+    w.driver_steps[s as usize] = steps;
     if !driver::check_due(steps) {
         return Ok(());
     }
-    race.shared.work.get().driver_steps[s as usize].set(0);
-    let (now, then) = (
-        slot_point(&race.shared.work.get().driver_points_now, slot)?,
-        slot_point(&race.shared.work.get().driver_points_then, slot)?,
+    w.driver_steps[s as usize] = 0;
+    let (now, then) = (slot_point(slot)?, slot_point(slot)?);
+    let (ax, az) = (
+        w.driver_points_now[now.start],
+        w.driver_points_now[now.start + 2],
     );
-    let (ax, az, cx, cz) = (now[0].get(), now[2].get(), then[0].get(), then[2].get());
-    then[0].set(ax);
-    then[2].set(az);
+    let (cx, cz) = (
+        w.driver_points_then[then.start],
+        w.driver_points_then[then.start + 2],
+    );
+    w.driver_points_then[then.start] = ax;
+    w.driver_points_then[then.start + 2] = az;
     let moved = driver::moved((ax, az), (cx, cz));
-    race.shared.work.get().driver_moved.set(moved);
+    w.driver_moved = moved;
     if !driver::stuck(moved) {
         return Ok(());
     }
-    if race.shared.car().gear.get() != -1 {
-        race.shared.work.get().driver_reverse_left
-            [race.shared.work.get().driver_slot.get() as usize]
-            .set(driver::REVERSE_STEPS);
+    if race.shared.car().gear != -1 {
+        let at = w.driver_slot as usize;
+        w.driver_reverse_left[at] = driver::REVERSE_STEPS;
         return Ok(());
     }
-    let s = race.shared.work.get().driver_slot.get();
-    race.shared.work.get().driver_reverse_left[s as usize].set(0);
-    let (tries, fourth) =
-        driver::reverse_tries(race.shared.work.get().driver_reverse_tries[s as usize].get());
+    let s = w.driver_slot;
+    w.driver_reverse_left[s as usize] = 0;
+    let (tries, fourth) = driver::reverse_tries(w.driver_reverse_tries[s as usize]);
     if fourth {
-        race.shared.work.get().driver_flags[3].set(1);
+        w.driver_flags[3] = 1;
     }
-    race.shared.work.get().driver_reverse_tries[s as usize].set(tries);
+    w.driver_reverse_tries[s as usize] = tries;
     Ok(())
 }

@@ -66,7 +66,7 @@ pub(crate) mod lights_store;
 pub(crate) mod loading_bar_frame;
 mod loading_bar_quad;
 mod loadlevel;
-mod map_scroll;
+pub(crate) mod map_scroll;
 pub(crate) mod matrices_store;
 mod measure_frame_rate;
 pub(crate) mod mud;

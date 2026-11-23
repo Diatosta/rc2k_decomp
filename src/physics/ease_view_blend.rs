@@ -4,23 +4,25 @@
 //! `k65536`, negated and rounded, into `camera_offset_z`.
 
 use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::PlainX87;
 use crate::math::x87_float::to_int;
 use crate::math::x87_float::{X, ld};
 use crate::physics::camera_view::{record, share_done};
+use crate::physics::car_store::Car;
 use crate::physics::step_families::CameraInputs;
 use crate::race::owner_shared::RaceShared;
 
 /// The exact version, for `physics::update_camera`.
-pub fn ease_view_blend(c: &CameraInputs<'_>) -> Result<(), crate::errors::BadInput> {
-    let view_record = record(c.view_records, c.car)?;
-    if view_record.blend.get() == 0 || view_record.change_time.get() == 0 {
+pub fn ease_view_blend(c: &CameraInputs<'_>, car: &mut Car) -> Result<(), crate::errors::BadInput> {
+    let view_record = record(c.view_records, car)?;
+    if view_record.blend == 0 || view_record.change_time == 0 {
         return Ok(());
     }
-    share_done(c.shared, view_record);
-    if (view_record.blend.get() as i32) < 0 {
+    share_done(c.shared, car, &view_record);
+    if (view_record.blend as i32) < 0 {
         x87_1(c.shared);
     }
-    x87_2(c);
+    x87_2(c, car);
     Ok(())
 }
 
@@ -41,7 +43,7 @@ fn x87_1(shared: &RaceShared) {
 /// `[camera_zoom] = (([view_shift_b] - [view_shift_a]) * [view_share]) + [view_shift_a]`
 /// `int [camera_offset_z] = -(((([view_shift_d] - [view_shift_c]) * [view_share]) + [view_shift_c])
 ///  * [k65536])`
-fn x87_2(c: &CameraInputs<'_>) {
+fn x87_2(c: &CameraInputs<'_>, car: &mut Car) {
     let camera = c.camera.borrow();
     let t0 = ld(camera.view_shift_b);
     let t1 = ld(camera.view_shift_a);
@@ -50,7 +52,7 @@ fn x87_2(c: &CameraInputs<'_>) {
     let t4 = t2 * t3;
     let t5 = ld(camera.view_shift_a);
     let t6 = t4 + t5;
-    c.car.camera_zoom.st(t6);
+    car.camera_zoom.st(t6);
     let t7 = ld(camera.view_shift_d);
     let t8 = ld(camera.view_shift_c);
     let t9 = t7 - t8;
@@ -102,10 +104,13 @@ mod reference_vectors {
                         crate::test_support::own::race(),
                     )
                     .camera();
-                    x87_2(&CameraInputs {
-                        numbers: &numbers,
-                        ..inputs
-                    });
+                    x87_2(
+                        &CameraInputs {
+                            numbers: &numbers,
+                            ..inputs
+                        },
+                        &mut crate::test_support::own::race().shared.car_mut(),
+                    );
                 },
             },
         ]

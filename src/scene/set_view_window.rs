@@ -19,7 +19,6 @@
 
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::memory::session::{CellKind, FloatLike};
 use crate::race::view_vars_store::ViewVars;
 use crate::scene::draw_store::SceneDraw;
 use crate::scene::view_window::ViewWindow;
@@ -33,7 +32,7 @@ pub fn set_view_window(
     draw: &SceneDraw,
     screen: &crate::memory::session::Screen,
     window: &ViewWindow,
-    vars: &ViewVars<impl CellKind>,
+    vars: &ViewVars,
     scale_factor: &crate::memory::session::ConstFloat,
 ) {
     set_view_window_reaching(
@@ -54,7 +53,7 @@ pub fn set_view_window_reaching(
     draw: &SceneDraw,
     screen: &crate::memory::session::Screen,
     window: &ViewWindow,
-    vars: &ViewVars<impl CellKind>,
+    vars: &ViewVars,
     scale_factor: &crate::memory::session::ConstFloat,
     reach: u32,
 ) {
@@ -78,7 +77,7 @@ pub fn set_view_window_reaching(
         bh::int(
             rc2k_core::scene::view_window::design_width(screen.width.get(), screen.height.get())
                 as i32,
-        ) * bh::ld(vars.view_scale.get())
+        ) * bh::ld(vars.view_scale)
             * bh::int(zoom as i32)
             * bh::ld(scale_factor.get()),
     );
@@ -124,7 +123,7 @@ pub fn set_view_window_plain(
     draw: &SceneDraw,
     design: (u32, u32),
     window: &ViewWindow,
-    vars: &ViewVars<impl CellKind>,
+    vars: &ViewVars,
     scale_factor: &crate::memory::session::ConstFloat,
 ) {
     use rc2k_core::scene::view_window::{WindowInputs, window_settings};
@@ -138,7 +137,7 @@ pub fn set_view_window_plain(
         offsets,
         in_race: course.number_vars.in_race(),
         screen_width: rc2k_core::scene::view_window::design_width(design.0, design.1),
-        scale: (vars.view_scale.get(), zoom, scale_factor.get()),
+        scale: (vars.view_scale, zoom, scale_factor.get()),
         nearer: course.stage_prefs.read(|p| p.nearer),
         nearer_factor: course.numbers.hundredth_a.get(),
         fade: [draw.fade_a, draw.fade_b],

@@ -29,7 +29,7 @@ fn distance_and_angle_match_the_assembly() {
             ulps: 0,
             plain: |a| {
                 distance(
-                    crate::test_support::own::race().shared.physics_tables.get(),
+                    &mut crate::test_support::own::race().shared.physics_tables_mut(),
                     &crate::test_support::race_places::numbers(),
                     &crate::test_support::own::race()
                         .physics

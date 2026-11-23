@@ -7,8 +7,7 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::figures::GROUND_DROP;
 use crate::race::owner::Race;
 use crate::scene::matrix::{
-    PLACED_BASE, TURN_X_BASE, TURN_Y_BASE, matrix_of, placed, product, store_matrix, turned_x,
-    turned_y,
+    PLACED_BASE, TURN_X_BASE, TURN_Y_BASE, matrix_of, placed, product, turned_x, turned_y,
 };
 
 /// The five axle values (`rc2k_core::race::car_parts::axles`) from the model's record
@@ -43,20 +42,15 @@ fn car_part_matrices(
     use rc2k_core::race::car_parts::{PartState, mark_switches, marks_bytes, steering};
     // `c` is the block (the shown steering, the marks on), `part` the car's drawing state (the shown
     // speed, the switches, the marks), `p` the car as the drawing sees it (`frame_view`).
-    let c = race.shared.race_car(car)?;
-    let block_number = race.shared.work.get().block_number(car)?;
+    let mut c = race.shared.race_car_mut(car)?;
+    let block_number = race.shared.work().block_number(car)?;
     let p = race.frame.cars.car(block_number)?;
-    let part = &race.car_parts().cars[block_number];
     let Some(ax) = axles(race, p.car_kind.get())? else {
         return Err(BadInput("a car model whose axle scaling would fault").into());
     };
-    let shown = &part.shown_engine_speed;
-    shown.set(loaded(&p.engine_speed));
-    if below_or_unordered(
-        shown,
-        race.shared.physics_tables.get().idle_engine_speed.get(),
-    ) {
-        shown.set(loaded(&race.shared.physics_tables.get().idle_engine_speed));
+    let mut shown = loaded(&p.engine_speed);
+    if below_or_unordered(shown, race.shared.physics_tables().idle_engine_speed) {
+        shown = loaded(race.shared.physics_tables().idle_engine_speed);
     }
     let on = p.lights_on.get();
     let s = mark_switches(&PartState {
@@ -69,14 +63,17 @@ fn car_part_matrices(
         broken: std::array::from_fn(|k| p.electrical_failures[1 + k].get()),
         flags: p.parts_present.get(),
     });
-    c.marks_on.set(s.marks_on);
-    part.mode_on.set(s.mode_on);
-    for (k, &byte) in s.bytes.iter().enumerate() {
-        part.part_switches.set(k, byte);
-    }
+    c.marks_on = s.marks_on;
     let slow = below_or_unordered(p.electrics_damage.get(), race.course.numbers.hundred.get());
-    part.marks_count.set(marks_bytes(s.count, slow, on));
-    c.shown_steering.set(steering(p.steer_angle_visual.get()));
+    {
+        let mut parts = race.car_parts_mut();
+        let part = &mut parts.cars[block_number];
+        part.shown_engine_speed = shown;
+        part.mode_on = s.mode_on;
+        part.part_switches[..s.bytes.len()].copy_from_slice(&s.bytes);
+        part.marks_count = marks_bytes(s.count, slow, on);
+    }
+    c.shown_steering = steering(p.steer_angle_visual.get());
     let [front, rear_lift, height, front_z, _] = ax;
     {
         let mut camera = race.physics.camera_mut();
@@ -86,7 +83,7 @@ fn car_part_matrices(
         camera.axle_height = height;
         camera.axle_front_z = front_z;
     }
-    scene.object_work_mut().part_values[2] = c.shown_steering.get();
+    scene.object_work_mut().part_values[2] = c.shown_steering;
     scene.object_work_mut().part_values[0] = p.driven_wheel_turns[0].get();
     scene.object_work_mut().part_values[1] = p.driven_wheel_turns[1].get();
     race.frame.matrices.borrow_mut().body_turn_matrix = matrix_of(&p.crash_matrix);
@@ -189,7 +186,7 @@ pub(super) fn ready_car_parts(
     use rc2k_core::race::car_parts::{check_part_cars, parts_shown};
     let count = race.shared.view.get().race_cars.get();
     check_part_cars(count, |n| {
-        u32::from(race.shared.work.get().has_car_block(n as usize))
+        u32::from(race.shared.work().has_car_block(n as usize))
     })?;
     // With no cars the loop still looks at car 0.
     let mut c = 0u32;
@@ -197,21 +194,21 @@ pub(super) fn ready_car_parts(
         let car = c as usize;
         // Refused when the car has no block.
         race.shared.race_car(car)?;
-        let block_number = race.shared.work.get().block_number(car)?;
+        let block_number = race.shared.work().block_number(car)?;
         let view = race.frame.cars.car(block_number)?;
-        let part = &race.car_parts().cars[block_number];
         if parts_shown(view.driver_kind.get()) {
             car_part_matrices(race, car, scene)?;
             let work = *frame.frame_work.borrow();
-            part.part_matrices
-                .set(std::array::from_fn(|k| work.part_matrices[k / 16][k % 16]));
             let body_turn = frame.matrices.borrow().body_turn_matrix;
-            part.body_matrix.set(body_turn);
-            part.place_matrix.set(work.placed_matrix);
             let old_place = frame.view_kept.borrow().view_place;
             let whole = product(&body_turn, &work.placed_matrix, old_place);
             frame.view_kept.borrow_mut().view_place = whole;
-            store_matrix(&part.whole_matrix, &whole);
+            let mut parts = race.car_parts_mut();
+            let part = &mut parts.cars[block_number];
+            part.part_matrices = std::array::from_fn(|k| work.part_matrices[k / 16][k % 16]);
+            part.body_matrix = body_turn;
+            part.place_matrix = work.placed_matrix;
+            part.whole_matrix = whole;
         }
         c += 1;
         if c == count {

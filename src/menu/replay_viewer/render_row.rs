@@ -1,5 +1,6 @@
 //! The replay viewer's "render to video" button, a third row under the two rows of buttons: the
-//! snapshot button's camera picture, centred, which the down arrow reaches from the lower row.
+//! snapshot button's camera picture, centred, which the down arrow reaches from the lower row
+//! (the camera buttons of the third and fourth part of a split screen lie on either side of it).
 //! Enter on it opens the dialog of `menu::replay_viewer::render_dialog` (size, frame rate, part of
 //! the replay, quality, sound); "render" there has a program of its own render the part chosen into
 //! a video file in `savedata/videos`, named by the date and time
@@ -12,14 +13,22 @@ use crate::race::owner::Race;
 use crate::race::render_row::selected;
 use rc2k_core::race::render_dialog::Part;
 
-/// The viewer's number of the key table's down, up and left arrows, and Enter.
+/// The viewer's number of the key table's down, up, left and right arrows, and Enter.
 pub const KEY_UP: u8 = 0x66;
 pub const KEY_DOWN: u8 = 0x6B;
 pub const KEY_LEFT: u8 = 0x68;
+pub const KEY_RIGHT: u8 = 0x69;
 pub const KEY_ENTER: u8 = 0x1C;
 
-/// The lower row's buttons (the down arrow from them reaches the row).
+/// The lower row's buttons (the third row is as far below it as it is below the upper).
 pub const LOWER_ROW: std::ops::RangeInclusive<u32> = 13..=25;
+
+/// The items left and right of the render button, in its row: the camera buttons of the third
+/// and fourth part of a split screen (`rc2k_core::race::viewer::CAMERA_ITEMS`).
+pub const BESIDE_RENDER: [u32; 2] = [
+    rc2k_core::race::viewer::CAMERA_ITEMS[2],
+    rc2k_core::race::viewer::CAMERA_ITEMS[3],
+];
 
 /// The video file's name for a moment: `replay_YYYY-MM-DD_HH-MM-SS.mp4`.
 fn file_name(t: &rc2k_core::system::time::LocalTime) -> String {

@@ -40,7 +40,7 @@ pub fn choose_view_window(
         &draw,
         system.session.screen.get(),
         window,
-        &race.frame.view_and_records.get().view_vars,
+        &race.frame.view_and_records.borrow().view_vars,
         &crate::race::vars_store::SCALE_FACTOR,
     );
 }

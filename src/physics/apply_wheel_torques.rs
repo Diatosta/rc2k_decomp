@@ -13,7 +13,7 @@ pub(super) fn apply_wheel_torques(
     numbers: &Numbers,
     tables: &PhysicsTables,
     contact: &RefCell<ContactWork>,
-    car: &Car,
+    car: &mut Car,
 ) -> Result<(), Refused> {
     apply_torques(numbers, contact, car, &tables.forces[..COUNT])
 }

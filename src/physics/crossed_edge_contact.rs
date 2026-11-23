@@ -10,9 +10,11 @@
 
 use crate::errors::Refused;
 use crate::math::x87::mul;
+use crate::physics::car_store::Car;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ProbeLists;
 use crate::physics::step_families::ContactInputs;
+use crate::physics::tables_store::RecordAt;
 use crate::physics::vector_bits::bits_of;
 use crate::physics::wall_edge_contact::edge_normal;
 use rc2k_core::physics::walls;
@@ -32,7 +34,7 @@ fn side(path: &Path, x: u32, z: u32) -> bool {
 
 /// The steps, not guarded (the probe checked before).
 // Core: `rc2k_core::physics::walls::{path_side, crossed_edge}`.
-pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
+pub fn steps(c: &ContactInputs<'_>, car: &mut Car) -> Result<(), Refused> {
     let probes = c.ground.probes.borrow().clone();
     let k = probes.crossed_probe as usize;
     let path = Path {
@@ -84,13 +86,19 @@ pub fn steps(c: &ContactInputs<'_>) -> Result<(), Refused> {
     let point = [point[0], mul(point[1], c.numbers.tenth).to_bits(), point[2]];
     {
         let mut work = c.contact.borrow_mut();
-        work.contact_car_speed = bits_of(&c.car.velocity);
-        work.contact_turn_speed = bits_of(&c.car.spin);
+        work.contact_car_speed = bits_of(&car.velocity);
+        work.contact_turn_speed = bits_of(&car.spin);
         work.contact_point = point;
         work.contact_slide_limit = 0;
     }
-    contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[1]);
-    { crate::physics::place_sound_e1::place_sound_e1(&c.sound) }?;
+    contact_force(
+        c.contact,
+        c.numbers,
+        &mut c.tables.borrow_mut(),
+        car,
+        RecordAt::Contact(1),
+    );
+    { crate::physics::place_sound_e1::place_sound_e1(&c.sound, car) }?;
     Ok(())
 }
 

@@ -20,9 +20,9 @@ pub fn compare_split_times(
     league: &mut League,
     work: &RaceWork,
     state: &RaceState,
-    car: &Car,
+    car: &mut Car,
 ) -> Result<(), Refused> {
-    if car.splits_recorded.get() > LAST_COMPARED_SPLIT {
+    if car.splits_recorded > LAST_COMPARED_SPLIT {
         return Err(BadInput("a split past 27").into());
     }
     // A replay compares against the table its race had; one written before it was kept, against
@@ -40,10 +40,10 @@ pub fn compare_split_times(
         league.names = kept.names;
         league.rows = kept.rows;
     }
-    let time = car.stage_time.get();
+    let time = car.stage_time;
     league.car_time = time;
     // Splits 16 .. 27 read past the sixteen rows (a slip kept as is).
-    let first = car.splits_recorded.get().wrapping_mul(10) as usize;
+    let first = car.splits_recorded.wrapping_mul(10) as usize;
     let mut kept = [0u32; 10];
     for (k, part) in kept.iter_mut().enumerate() {
         *part = league.kept_time(first + k)?;
@@ -60,15 +60,15 @@ pub fn compare_split_times(
     .into_iter()
     .enumerate()
     {
-        car.split_gaps[k].set(v);
+        car.split_gaps[k] = v;
     }
-    let current = work.current_car.get();
+    let current = work.current_car;
     // The players' cars (the first four); the computer's have no record.
     let times = match current {
         0..=3 => state.result(current as usize),
         _ => return Ok(()),
     };
     // From the record's data on, and no further than the record.
-    times.set_split_time(car.splits_recorded.get() as usize, time)?;
+    times.set_split_time(car.splits_recorded as usize, time)?;
     Ok(())
 }

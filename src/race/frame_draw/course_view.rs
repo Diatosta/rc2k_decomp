@@ -40,11 +40,11 @@ pub fn checkpoint_colours(
     car: &crate::physics::car_store::ViewCar,
 ) -> Result<u32, BadInput> {
     {
-        let n: u32 = car.checkpoint.get();
+        let n: u32 = car.checkpoint;
         let face = crate::race::checkpoints_store::face_run_on(checkpoints, n as usize);
         let byte: u8 = face_field(course, face, 0x10)?;
         let along = crate::race::checkpoints_store::angle_run_on(checkpoints, n as usize);
-        let c = rc2k_core::race::frame::checkpoint_colours(byte, along, car.car_heading.get());
+        let c = rc2k_core::race::frame::checkpoint_colours(byte, along, car.car_heading);
         Ok(c.level)
     }
 }
@@ -102,7 +102,7 @@ fn face_hidden(
 ) -> Result<bool, Refused> {
     // The depths' roundings are the x87's.
     use rc2k_core::race::faces::{hidden_by_depth, hidden_by_switches};
-    let view: u32 = ctx.view.car.camera_view.get();
+    let view: u32 = ctx.view.car.borrow().camera_view;
     let shows: u32 = *crate::race::view_vars_store::VIEW_HIDES
         .get(view as usize)
         .ok_or(BadInput("the view hides: a camera view past the table"))?;
@@ -221,7 +221,7 @@ pub fn course_grid(
     use rc2k_core::race::frame::{GRID_EMPTY, GRID_SIDE, grid_cell, grid_corner, record_cell};
     let half = hold_to_limit(work, course.stage_prefs.read(|p| p.grid_reach));
     let span = half.wrapping_add(half);
-    let (gx, gz) = grid_corner(vars.view_x.get(), vars.view_z.get(), half);
+    let (gx, gz) = grid_corner(vars.view_x, vars.view_z, half);
     let mut grid = view.borrow_mut();
     let unchanged = gx == grid.x && gz == grid.z;
     let count: u32 = course.course.get().course_record_count;
@@ -335,14 +335,16 @@ pub fn face_hide_mask(
     crate::physics::probe_ground::probe_ground_in_view(
         &crate::physics::probe_ground::ProbeInputs {
             numbers: reads.numbers,
-            tables: reads.physics_tables,
+            handling: reads
+                .physics_tables
+                .read(|tables| [tables.handling[2], tables.handling[3]]),
             course: reads.course(),
             engine_tables: reads.engine_tables,
         },
-        &view.car,
+        &mut view.car.borrow_mut(),
         &part.points,
     )?;
-    let ground: u32 = view.car.probe_point_face[4].get();
+    let ground: u32 = view.car.borrow().probe_point_face[4];
     if ground == u32::MAX {
         return Ok(());
     }
@@ -427,12 +429,17 @@ pub fn prepare_course_view(
 ) -> Result<(), Refused> {
     check_course_grid(reads.course())?;
     face_hide_mask(reads, view, part)?;
-    course_grid(reads.course(), reads.work, &view.grid, &view.vars)?;
+    course_grid(
+        reads.course(),
+        &reads.work.borrow(),
+        &view.grid,
+        &view.vars.borrow(),
+    )?;
     if reads.switches.scene_set_up() == 0 {
         return Ok(());
     }
     let limit = if reads.vars.checkpoint_count() >= 2 {
-        checkpoint_colours(reads.checkpoints, reads.course(), &view.car)?
+        checkpoint_colours(reads.checkpoints, reads.course(), &view.car.borrow())?
     } else {
         0x10
     };

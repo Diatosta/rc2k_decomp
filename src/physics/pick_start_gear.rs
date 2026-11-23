@@ -22,38 +22,35 @@ use rc2k_core::physics::gear_shifts as shifts;
 /// The steps on `r`.
 // Core: `rc2k_core::physics::gear_shifts::pick_start` (the engine's sums and compares stay x87).
 pub(super) fn pick_start_gear(
-    car: &Car,
-    tables: &PhysicsTables,
+    car: &mut Car,
+    tables: &mut PhysicsTables,
     numbers: &Numbers,
     gear_figures: &GearFigures,
 ) -> Result<(), Refused> {
-    tables.start_gear_figures[2].set(car.engine_speed.get());
+    tables.start_gear_figures[2] = car.engine_speed;
     revs_speed(car, tables)?;
-    tables.start_gear_figures[1].set(0.0);
-    tables.start_gear_figures[0].set(x87::loaded(numbers.hundred));
+    tables.start_gear_figures[1] = 0.0;
+    tables.start_gear_figures[0] = x87::loaded(numbers.hundred);
     let taken = shifts::pick_start(|gear| {
         if bit(car, gear)? {
             return Ok::<_, Refused>(false);
         }
-        car.gear.set(gear);
+        car.gear = gear;
         revs_speed(car, tables)?;
-        car.engine_speed.set(over_top(car));
-        Ok(below(
-            car.engine_speed.get(),
-            gear_figures.shift_up_point.get(),
-        ))
+        car.engine_speed = over_top(car);
+        Ok(below(car.engine_speed, gear_figures.shift_up_point.get()))
     })?;
     let Some(gear) = taken else {
         return Ok(());
     };
-    car.gear.set(gear);
+    car.gear = gear;
     revs_speed(car, tables)?;
-    car.engine_speed.set(sub_mul_add(
-        tables.start_gear_figures[2].get(),
-        &car.engine_speed,
+    car.engine_speed = sub_mul_add(
+        tables.start_gear_figures[2],
+        car.engine_speed,
         START_GEAR_SHARE,
-        &car.engine_speed,
-    ));
+        car.engine_speed,
+    );
     wheels(car, tables)?;
     settle(car);
     Ok(())

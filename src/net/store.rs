@@ -334,7 +334,6 @@ pub fn put_bytes(cells: &[Dword], bytes: &[u8]) {
 }
 
 /// DirectPlay's `DPSESSIONDESC2` (80 bytes).
-#[derive(rc2k_derive::Cells)]
 pub struct SessionDesc {
     pub size: Dword,
     pub flags: Dword,
@@ -616,7 +615,6 @@ impl NetMain {
 }
 
 /// What the receiving thread works with and hands to the game thread.
-#[derive(rc2k_derive::Cells)]
 pub struct ReceiverState {
     /// The receiving thread is busy.
     pub receiving: Dword,
@@ -624,8 +622,6 @@ pub struct ReceiverState {
     pub messages_taken: Dword,
     /// The sync round, counted up at each lobby.
     pub sync: Byte,
-    /// One byte that aligns `sync_answer` (`Cells` takes no padding); nothing reads or writes it.
-    pub _pad_cells: Bytes<1>,
     /// The race-sync answer sent (0x41 or 0x51, the round).
     pub sync_answer: Word,
     /// This machine has joined a session and not yet heard the host's round. Every machine
@@ -657,7 +653,6 @@ impl ReceiverState {
             receiving: Dword::new(0),
             messages_taken: Dword::new(0),
             sync: Byte::new(0),
-            _pad_cells: Bytes::new([0; 1]),
             sync_answer: Word::new(0),
             round_unknown: Flag::new(false),
             receive_data: Bytes::new([0; 256]),

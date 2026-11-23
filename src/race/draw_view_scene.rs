@@ -57,12 +57,12 @@ pub fn draw_view_scene(
     // `wiki/Fixed-bugs.md`).
     view.course.borrow_mut().shine = reads.stage_prefs.read(|p| p.shine_from);
     let input = filter;
-    view.light.borrow_mut().car_light = view.car.light_colour.get();
+    view.light.borrow_mut().car_light = view.car.borrow().light_colour;
     view.polygon.scalars.borrow_mut().smooth = input[0];
     view.polygon.scalars.borrow_mut().plain_first = input[1];
     view.polygon.scalars.borrow_mut().plain_second = input[2];
     let lists = &view.lists;
-    if view.car.view_covered.get() != 0 {
+    if view.car.borrow().view_covered != 0 {
         draw_view_tint(&view.polygon, part, &view.face, reads, reads.screen, view)?;
         return Ok(ViewOutput::default());
     }
@@ -71,7 +71,7 @@ pub fn draw_view_scene(
     car_light_modes(
         reads.frame_cars,
         &view.cars,
-        reads.work,
+        &reads.work.borrow(),
         reads.vars,
         reads.view,
         view.polygon.scalars.borrow().view_mirrored != 0,
@@ -83,7 +83,7 @@ pub fn draw_view_scene(
         reads.stage_prefs,
         &view.fog,
         &view.polygon,
-        &view.car,
+        &view.car.borrow(),
         part,
     )?;
     camera_view(reads, &view.matrices, view)?;
@@ -94,7 +94,12 @@ pub fn draw_view_scene(
     prepare_course_view(reads, view, part)?;
     gather_visible_faces(&ctx)?;
     gather_lamps(&ctx)?;
-    lamps_wanted(reads.frame_cars, reads.work, reads.view, &view.lamps)?;
+    lamps_wanted(
+        reads.frame_cars,
+        &reads.work.borrow(),
+        reads.view,
+        &view.lamps,
+    )?;
     // From here the view's own car can be drawn aside (`race::car_part`): its drawing reads nothing
     // the rest of the view's drawing makes.
     let rest = |car: Option<&crate::race::car_part::CarAside<'_, '_>>| -> Result<(), Refused> {

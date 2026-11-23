@@ -55,7 +55,7 @@ pub fn rank_split_time(
     shared: &RaceShared,
 ) -> Result<(), Refused> {
     let (split, count) = (
-        shared.car().splits_recorded.get(),
+        shared.car().splits_recorded,
         split_tables.split_colour_count,
     );
     if split > 0x40 || count > 0x40 {
@@ -72,7 +72,7 @@ pub fn rank_split_time(
     };
     fill_rival_table(split_tables, &rivals);
     for k in 0..5 {
-        shared.car().split_gaps[k].set(u32::MAX);
+        shared.car_mut().split_gaps[k] = u32::MAX;
     }
     {
         let mut overlay = overlay.borrow_mut();
@@ -87,26 +87,26 @@ pub fn rank_split_time(
         split_tables.rival_scaled[c] = q;
     }
     // (A loop whose work was cut out: it left only registers, read by no one.)
-    let time = shared.car().stage_time.get();
+    let time = shared.car().stage_time;
     let (c, _) = rank(time, |c| split_tables.rival_scaled[c]);
-    shared.car().split_gaps[0].set(c);
+    shared.car_mut().split_gaps[0] = c;
     split_tables.car_time = time;
     let c = c as usize;
     if c != 1 {
         // The one ahead: rival c - 2 (its scaled time, car and name).
-        shared.car().split_gaps[1].set(gap(split_tables.rival_scaled[c - 2], time));
-        shared.car().split_gaps[3].set(split_tables.rival_cars[c - 2]);
+        shared.car_mut().split_gaps[1] = gap(split_tables.rival_scaled[c - 2], time);
+        shared.car_mut().split_gaps[3] = split_tables.rival_cars[c - 2];
         let id = split_tables.rival_names[c - 2];
-        shared.car().split_gaps[5].set(id.to_file());
+        shared.car_mut().split_gaps[5] = id.to_file();
         let label = name(o, id)?;
         overlay.borrow_mut().label_ahead = label;
     }
     if c != RIVALS {
         // The one behind: rival c - 1.
-        shared.car().split_gaps[2].set(gap(time, split_tables.rival_scaled[c - 1]));
-        shared.car().split_gaps[4].set(split_tables.rival_cars[c - 1]);
+        shared.car_mut().split_gaps[2] = gap(time, split_tables.rival_scaled[c - 1]);
+        shared.car_mut().split_gaps[4] = split_tables.rival_cars[c - 1];
         let id = split_tables.rival_names[c - 1];
-        shared.car().split_gaps[6].set(id.to_file());
+        shared.car_mut().split_gaps[6] = id.to_file();
         let label = name(o, id)?;
         overlay.borrow_mut().label_behind = label;
     }

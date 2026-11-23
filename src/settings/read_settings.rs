@@ -104,6 +104,26 @@ macro_rules! plain {
     };
 }
 
+/// `work_dword!(o => field)`: a field of the race's work variables as a `Target`.
+macro_rules! work_dword {
+    ($o:ident => $($field:tt)+) => {
+        Target::Plain {
+            get: {
+                fn get($o: Owners<'static>) -> u32 {
+                    $o.race.shared.work().$($field)+
+                }
+                get
+            },
+            set: {
+                fn set($o: Owners<'static>, number: u32) {
+                    $o.race.shared.work_mut().$($field)+ = number;
+                }
+                set
+            },
+        }
+    };
+}
+
 /// `framecounter`: whether the frame rate is shown.
 fn frame_counter_shown(o: Owners<'static>) -> u32 {
     o.race.frame.counter().show
@@ -270,17 +290,17 @@ const ENTRIES: [(&[u8], Target); 77] = [
         b"sensiblesaving",
         plain!(o => o.menus.screens.state; menus.review_kind),
     ),
-    (
-        b"noprecipitation",
-        dword!(o => o.race.shared.work.get().no_precipitation),
-    ),
+    (b"noprecipitation", work_dword!(o => no_precipitation)),
     (
         b"seasoncode",
         dword!(o => o.race.shared.replay_file().season_code),
     ),
     (
         b"noautoneutral",
-        dword!(o => o.race.shared.physics_tables.get().no_auto_neutral),
+        Target::Plain {
+            get: |o| o.race.shared.physics_tables().no_auto_neutral,
+            set: |o, number| o.race.shared.physics_tables_mut().no_auto_neutral = number,
+        },
     ),
     (
         b"nonlinearsteering",
@@ -289,58 +309,19 @@ const ENTRIES: [(&[u8], Target); 77] = [
     (b"wrreplayenable", Target::Unaligned(set_developer_keys)),
     (b"wrreplayrate", Target::Unaligned(set_picture_rate)),
     (b"alt2axcode", dword!(o => o.input.devices.alt_axes_code)),
-    (
-        b"fizpatch",
-        dword!(o => o.race.shared.work.get().patches[0]),
-    ),
-    (
-        b"patchmaxdrawdistance",
-        dword!(o => o.race.shared.work.get().patches[1]),
-    ),
-    (
-        b"patchstickygrass",
-        dword!(o => o.race.shared.work.get().patches[2]),
-    ),
-    (
-        b"patchgravity",
-        dword!(o => o.race.shared.work.get().patches[3]),
-    ),
-    (
-        b"patchdamages",
-        dword!(o => o.race.shared.work.get().patches[4]),
-    ),
-    (
-        b"patchbrakegrip",
-        dword!(o => o.race.shared.work.get().patches[5]),
-    ),
-    (
-        b"patchaccelgrip",
-        dword!(o => o.race.shared.work.get().patches[6]),
-    ),
-    (
-        b"patchslidegrip",
-        dword!(o => o.race.shared.work.get().patches[7]),
-    ),
-    (
-        b"patchgripgrass",
-        dword!(o => o.race.shared.work.get().patches[8]),
-    ),
-    (
-        b"patchgriptarmac",
-        dword!(o => o.race.shared.work.get().patches[9]),
-    ),
-    (
-        b"patchgripsnow",
-        dword!(o => o.race.shared.work.get().patches[10]),
-    ),
-    (
-        b"patchgripmud",
-        dword!(o => o.race.shared.work.get().patches[11]),
-    ),
-    (
-        b"patchgripgravel",
-        dword!(o => o.race.shared.work.get().patches[12]),
-    ),
+    (b"fizpatch", work_dword!(o => patches[0])),
+    (b"patchmaxdrawdistance", work_dword!(o => patches[1])),
+    (b"patchstickygrass", work_dword!(o => patches[2])),
+    (b"patchgravity", work_dword!(o => patches[3])),
+    (b"patchdamages", work_dword!(o => patches[4])),
+    (b"patchbrakegrip", work_dword!(o => patches[5])),
+    (b"patchaccelgrip", work_dword!(o => patches[6])),
+    (b"patchslidegrip", work_dword!(o => patches[7])),
+    (b"patchgripgrass", work_dword!(o => patches[8])),
+    (b"patchgriptarmac", work_dword!(o => patches[9])),
+    (b"patchgripsnow", work_dword!(o => patches[10])),
+    (b"patchgripmud", work_dword!(o => patches[11])),
+    (b"patchgripgravel", work_dword!(o => patches[12])),
     (
         b"lexcontrol",
         dword!(o => o.strings.lexicon.recompile_level),
@@ -391,7 +372,7 @@ mod tests {
 
     /// Where each setting's variable is: its store (a registry name) and the field in it, by
     /// path. The game's table holds the variables' addresses; these are the places of them.
-    const PLACES: [(&str, &str, &str); 31] = [
+    const PLACES: [(&str, &str, &str); 17] = [
         (
             "notaskswitch",
             "owners.system.window_loop",
@@ -420,11 +401,6 @@ mod tests {
             ".menus.review_kind",
         ),
         (
-            "noprecipitation",
-            "owners.race.shared.work",
-            ".no_precipitation",
-        ),
-        (
             "seasoncode",
             "owners.race.shared.replay_file.season_code",
             "",
@@ -444,23 +420,6 @@ mod tests {
             "owners.race.replay.viewer_panel.untyped_tail",
             "",
         ),
-        ("fizpatch", "owners.race.shared.work", ".patches[0]"),
-        (
-            "patchmaxdrawdistance",
-            "owners.race.shared.work",
-            ".patches[1]",
-        ),
-        ("patchstickygrass", "owners.race.shared.work", ".patches[2]"),
-        ("patchgravity", "owners.race.shared.work", ".patches[3]"),
-        ("patchdamages", "owners.race.shared.work", ".patches[4]"),
-        ("patchbrakegrip", "owners.race.shared.work", ".patches[5]"),
-        ("patchaccelgrip", "owners.race.shared.work", ".patches[6]"),
-        ("patchslidegrip", "owners.race.shared.work", ".patches[7]"),
-        ("patchgripgrass", "owners.race.shared.work", ".patches[8]"),
-        ("patchgriptarmac", "owners.race.shared.work", ".patches[9]"),
-        ("patchgripsnow", "owners.race.shared.work", ".patches[10]"),
-        ("patchgripmud", "owners.race.shared.work", ".patches[11]"),
-        ("patchgripgravel", "owners.race.shared.work", ".patches[12]"),
         ("lexcontrol", "owners.strings.lexicon.recompile_level", ""),
         ("sparksmode", "owners.menus.screens.event", ".sparks_mode"),
     ];

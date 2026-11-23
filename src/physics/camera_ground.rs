@@ -7,7 +7,6 @@
 //! This file holds the shared steps.
 
 use crate::errors::Refused;
-use crate::memory::session::PlainDword;
 use crate::physics::step_families::CameraGroundInputs;
 
 /// One probe at (x, z) from the face kept at `slot`; true when found (the face found
@@ -16,11 +15,11 @@ pub(super) fn probe_at(
     c: &CameraGroundInputs<'_>,
     x: u32,
     z: u32,
-    slot: &PlainDword,
+    slot: &mut u32,
 ) -> Result<bool, Refused> {
     {
         let mut search = c.search.borrow_mut();
-        search.last = slot.get();
+        search.last = *slot;
         search.x = x;
         search.z = z;
     }
@@ -33,6 +32,6 @@ pub(super) fn probe_at(
     if search.found == 0 {
         return Ok(false);
     }
-    slot.set(search.slot);
+    *slot = search.slot;
     Ok(true)
 }

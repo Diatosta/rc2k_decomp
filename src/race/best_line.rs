@@ -424,7 +424,7 @@ pub fn best_line(race: &Race, step: &mut dyn FnMut(Step)) -> Result<BestLine, Re
     let left = RefCell::new(Leftovers::default());
     step(Step::Sort);
     let line_face_kind =
-        rc2k_core::race::checkpoints::line_face_kind(race.shared.work.get().stage_direction.get());
+        rc2k_core::race::checkpoints::line_face_kind(race.shared.work().stage_direction);
     let (faces, chained) = sort_checkpoints(race, line_face_kind as u8)?;
     let count = chained.unwrap_or(0);
     if count < 2 {
@@ -586,7 +586,7 @@ pub(super) fn build_best_line(
     crate::logfile::load_times::mark("best_line summary");
     text(c"best line completed", true);
     let summary = [
-        (c"dir", race.shared.work.get().stage_direction.get()),
+        (c"dir", race.shared.work().stage_direction),
         (c": numblo", race.shared.vars.get().line_face_total.get()),
         (c"numsorted", race.shared.vars.get().checkpoint_count.get()),
         (c"numsortedm1", race.shared.vars.get().last_checkpoint.get()),
@@ -692,7 +692,7 @@ mod tests {
         ];
         let points = [[0, 0, 0], [100, 0, 0], [100, 0, 100]];
         let line = with_course(&faces, &points, |race| {
-            race.shared.work.get().stage_direction.set(0u32);
+            race.shared.work_mut().stage_direction = 0;
             best_line(race, &mut |_| {}).unwrap()
         });
         assert_eq!(line.line_face_kind, 0x3E);
@@ -717,7 +717,7 @@ mod tests {
     fn fewer_than_two_line_faces_make_no_line() {
         let faces = [line_face(1, 0, 0), [0u8; 64]];
         let line = with_course(&faces, &[[0; 3]], |race| {
-            race.shared.work.get().stage_direction.set(0u32);
+            race.shared.work_mut().stage_direction = 0;
             best_line(race, &mut |step| assert!(matches!(step, Step::Sort))).unwrap()
         });
         assert_eq!(line.faces, [0]);

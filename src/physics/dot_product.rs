@@ -2,10 +2,10 @@
 //! same operations as `scene::dot_product3`, whose version (`scene::vector3::dot_product3`) it
 //! uses.
 
-use crate::math::cells::{Cells, load};
+use crate::math::cells::{Words, load};
 use crate::scene::vector3::*;
 
 /// The product as it is left in st(0).
-pub(super) fn dot_product(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized)) -> [u8; 10] {
+pub(super) fn dot_product(a: &(impl Words + ?Sized), b: &(impl Words + ?Sized)) -> [u8; 10] {
     dot_product3(load(a), load(b))
 }

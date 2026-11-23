@@ -16,19 +16,19 @@ use rc2k_core::physics::start::{CarStart, StartCount};
 pub fn count_down_start(
     frame_work: &FrameWorkStore,
     work: &RaceWork,
-    car: &Car,
+    car: &mut Car,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
     let mut c = CarStart {
-        finished: car.finish_flag.get(),
-        timer: car.run_ticks.get(),
-        countdown: car.time_left.get(),
+        finished: car.finish_flag,
+        timer: car.run_ticks,
+        countdown: car.time_left,
         ..CarStart::default()
     };
     match c.count_down_start() {
         StartCount::Stopped | StartCount::Waiting(_) => Ok(()),
         StartCount::Counted { beep, .. } => {
-            car.time_left.set(c.countdown);
+            car.time_left = c.countdown;
             if beep {
                 set_flag(
                     frame_work,

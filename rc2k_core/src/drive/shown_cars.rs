@@ -41,6 +41,9 @@ pub struct ShownCars {
     pub blocks: [u32; 2],
     /// Each car's view (-1: not shown).
     pub listed: [u32; 8],
+    /// The first car of the group of players a layout splits the screen between, 0 for none:
+    /// the further views (the third, the fourth) show the cars after it.
+    pub split_first: u32,
 }
 
 pub use crate::race::replay_v2::SPLIT_LAYOUT;
@@ -75,18 +78,42 @@ impl ShownCars {
                     .unwrap_or(p)
             }
         };
-        let split_replay = s.replay_mode == 2 && s.layout == SPLIT_LAYOUT && s.player_count >= 3;
+        use crate::race::layouts::{Shown, shown};
+        // The groups and pairs of players a layout splits the screen between, if it is one (a
+        // replay of the first format has no player count: its layouts are named below).
+        let parts = u8::try_from(s.layout)
+            .ok()
+            .and_then(|l| shown(l, s.player_count as usize))
+            .filter(|shown| !matches!(shown, Shown::Player(_)));
+        let group = parts.filter(|shown| matches!(shown, Shown::Group { .. }));
+        let split_replay = s.replay_mode == 2 && group.is_some();
+        self.split_first = 0;
         if s.replay_mode == 2 {
-            let (views, first, second, split) = match s.layout {
-                // A local split-screen race's players, each in its part: as in the race.
-                SPLIT_LAYOUT if split_replay => (s.player_count.min(4), car(0), Some(car(1)), 0),
-                1 => (1, car(1), None, 0),
-                2 => (2, car(0), Some(car(1)), 1),
-                3 => (2, car(0), Some(car(1)), 2),
+            let (views, first, second, split) = match (parts, s.layout) {
+                // A group of players, each in its part: as in the race.
+                (Some(Shown::Group { first, count, .. }), _) => (
+                    count as u32,
+                    car(first as u32),
+                    Some(car(first as u32 + 1)),
+                    0,
+                ),
+                // Two players, side by side (split 1) or one above the other (split 2).
+                (Some(Shown::Pair { first, stacked }), _) => (
+                    2,
+                    car(first as u32),
+                    Some(car(first as u32 + 1)),
+                    if stacked { 2 } else { 1 },
+                ),
+                (_, 1) => (1, car(1), None, 0),
+                (_, 2) => (2, car(0), Some(car(1)), 1),
+                (_, 3) => (2, car(0), Some(car(1)), 2),
                 // A replay with the extra tape: the third player's car alone, the fourth's ...
-                l @ 4..=9 => (1, car(l - 2), None, 0),
+                (_, l @ 4..=9) => (1, car(l - 2), None, 0),
                 _ => (1, car(0), None, 0),
             };
+            if let Some(Shown::Group { first, .. }) = group {
+                self.split_first = first as u32;
+            }
             self.views = views;
             self.cars[0] = first;
             if let Some(c) = second {
@@ -110,7 +137,7 @@ impl ShownCars {
         }
         if (s.replay_mode != 2 || split_replay) && !network {
             for view in 2..self.views {
-                self.listed[car(view) as usize] = view;
+                self.listed[car(self.split_first + view) as usize] = view;
             }
         }
         // Every car of a replay of more than two is heard: each is its own sound object's.
@@ -219,6 +246,68 @@ mod tests {
         c.choose(&split, 0).unwrap();
         assert_eq!((c.cars, c.views, c.split), ([0, 1], 4, 0));
         assert_eq!(c.listed[..7].to_vec(), vec![0, 1, 2, 3, 4, 5, u32::MAX]);
+        // Eight players: the second group shows the last four, a view each; the first the first four.
+        let eight = ShownSetup {
+            players: 1,
+            replay_mode: 2,
+            layout: 11,
+            player_cars: [0, 1, 2, 3, 4, 5, 6, 7],
+            player_count: 8,
+            ..Default::default()
+        };
+        c.choose(&eight, 0).unwrap();
+        assert_eq!((c.cars, c.views, c.split_first), ([4, 5], 4, 4));
+        assert_eq!(c.listed[3..].to_vec(), vec![u32::MAX, 0, 1, 2, 3]);
+        c.choose(
+            &ShownSetup {
+                layout: 10,
+                ..eight
+            },
+            0,
+        )
+        .unwrap();
+        assert_eq!((c.cars, c.views, c.split_first), ([0, 1], 4, 0));
+        assert_eq!(c.listed[..5].to_vec(), vec![0, 1, 2, 3, u32::MAX]);
+        // Six players: layout 11 is the fifth and the sixth as a pair, side by side (split 1), 12
+        // the same one above the other (split 2): two views, no group.
+        for (layout, split) in [(11, 1), (12, 2)] {
+            c.choose(
+                &ShownSetup {
+                    layout,
+                    player_count: 6,
+                    ..eight
+                },
+                0,
+            )
+            .unwrap();
+            assert_eq!(
+                (c.cars, c.views, c.split, c.split_first),
+                ([4, 5], 2, split, 0)
+            );
+        }
+        // The pair takes the players' own cars when the players are not the first cars.
+        c.choose(
+            &ShownSetup {
+                layout: 12,
+                player_count: 6,
+                player_cars: [0, 1, 2, 3, 6, 7, 0, 0],
+                ..eight
+            },
+            0,
+        )
+        .unwrap();
+        assert_eq!((c.cars, c.views, c.split), ([6, 7], 2, 2));
+        // A layout the players do not have is none: the first car alone.
+        c.choose(
+            &ShownSetup {
+                layout: 11,
+                player_count: 5,
+                ..eight
+            },
+            0,
+        )
+        .unwrap();
+        assert_eq!((c.cars[0], c.views, c.split_first), (0, 1, 0));
         // The layout names nothing with fewer than three players.
         let two = ShownSetup {
             player_count: 2,

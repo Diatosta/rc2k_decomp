@@ -4,7 +4,6 @@
 //! is followed. Its inputs are not sent: every machine's computer driver works them out.
 
 use crate::errors::Refused;
-use crate::memory::session::Cell32;
 use crate::net::dplay_send::dplay_send;
 use crate::net::owner::Net;
 use crate::net::send_inputs::fields;
@@ -14,15 +13,15 @@ use rc2k_core::net::race::Kind;
 
 /// Sends the current (bot) car's messages that are due at its step count.
 pub(super) fn send_bot_turn(race: &Race, net: &Net) -> Result<(), Refused> {
-    let car = race.shared.car();
-    let number = race.shared.work.get().current_car.get() as u8;
+    let mut car = race.shared.car_mut();
+    let number = race.shared.work().current_car as u8;
     for kind in [Kind::Position, Kind::Extra] {
-        if !kind.due(car.step_clock.get()).0 {
+        if !kind.due(car.step_clock).0 {
             continue;
         }
         let values = fields(kind)
             .iter()
-            .map(|(field, _)| field(car).bits())
+            .map(|(field, _)| field(&mut car).bits())
             .collect();
         let message = Message::BotRace {
             car: number,

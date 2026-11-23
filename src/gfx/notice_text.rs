@@ -100,6 +100,23 @@ fn tap(picture: &Picture, x: f32, y: f32) -> ([f32; 3], f32) {
     (sum, share)
 }
 
+/// How much of the letters' fill the picture holds round `(x, y)`: the fill of its four nearest
+/// pixels weighted by their share (`Picture::fill`), 0 to 1.
+fn tap_fill(picture: &Picture, x: f32, y: f32) -> f32 {
+    let (x, y) = (x - 0.5, y - 0.5);
+    let (x0, y0) = (x.floor(), y.floor());
+    let (fx, fy) = (x - x0, y - y0);
+    [
+        (0, 0, (1.0 - fx) * (1.0 - fy)),
+        (1, 0, fx * (1.0 - fy)),
+        (0, 1, (1.0 - fx) * fy),
+        (1, 1, fx * fy),
+    ]
+    .into_iter()
+    .map(|(dx, dy, w)| w * picture.fill(x0 as i32 + dx, y0 as i32 + dy))
+    .sum()
+}
+
 /// The finished picture and how to read its pixels.
 struct Picture {
     pixels: Vec<u8>,
@@ -126,6 +143,22 @@ impl Picture {
     fn written(&self, x: i32, y: i32) -> Option<[u32; 3]> {
         self.raw(x, y)
             .map(|v| [v >> 16 & 0xFF, v >> 8 & 0xFF, v & 0xFF])
+    }
+
+    /// How much of the letters' fill the pixel is, 0 to 1: its brightness where it is written
+    /// (the font's fill is white, its outline black, the edge between them grey), 0 elsewhere.
+    fn fill(&self, x: i32, y: i32) -> f32 {
+        let Some(v) = self.raw(x, y) else {
+            return 0.0;
+        };
+        let [r, g, b] = if self.bytes == 4 {
+            [v >> 16 & 0xFF, v >> 8 & 0xFF, v & 0xFF]
+        } else {
+            // 5:6:5, each channel taken out to 8 bits.
+            let c = |value: u32, bits: u32| (value << (8 - bits)) | (value >> (2 * bits - 8));
+            [c(v >> 11 & 0x1F, 5), c(v >> 5 & 0x3F, 6), c(v & 0x1F, 5)]
+        };
+        (r + g + b) as f32 / 765.0
     }
 }
 
@@ -190,18 +223,7 @@ pub fn draw(o: Owners<'static>, text: &[u8], top: i32, strength: u8) {
 /// is centred across the area, enlarged by the area's height over 600 (less where the area is
 /// narrower than the text), and its letters' top lies `top` layout units down the area.
 pub fn draw_in(o: Owners<'static>, text: &[u8], area: [i32; 4], top: i32, strength: u8) {
-    use crate::gfx::surface::{Target, surface};
-    let screen = o.system.session.screen.get();
-    let (w, h) = (screen.width.get() as i32, screen.height.get() as i32);
     let [area_left, area_top, area_w, area_h] = area;
-    let real = surface(o.gfx);
-    let Some(Target::Locked(handle)) = real.target else {
-        return;
-    };
-    let bpp = real.bytes_per_pixel;
-    if !(bpp == 2 || bpp == 4) || real.pitch <= 0 || strength == 0 {
-        return;
-    }
     let Some(picture) = capture_picture(o, text) else {
         return;
     };
@@ -214,17 +236,104 @@ pub fn draw_in(o: Owners<'static>, text: &[u8], area: [i32; 4], top: i32, streng
     );
     let left = area_left + (area_w - dw) / 2;
     let top = area_top + ((top - MARGIN) as f32 * scale).round() as i32;
+    let lie = Lie {
+        left: left as f32,
+        top: top as f32,
+        across: scale,
+        down: scale,
+    };
+    paint(o, &picture, lie, [left, top, dw, dh], strength, None);
+}
+
+/// A text's letters without their outline as one shape of the colour `colour` (0xRRGGBB): where
+/// the font's fill is the colour is, its edges as soft as the fill's brightness says. The shape
+/// lies so that the centre of mass of the fill is at the screen's `centre_x` and the first row
+/// with any fill in it at `top`, one of the font's pixels `across` screen pixels wide and `down`
+/// high (the screen's pixels, as floats: a layout's picture is not set on whole pixels). Meant for
+/// the digits the replay viewer puts on its pictures (`rc2k_core::race::viewer_digits`), which
+/// the atlas' own digits are the shape of. The surface must be locked.
+pub fn draw_shape(
+    o: Owners<'static>,
+    text: &[u8],
+    colour: u32,
+    [centre_x, top]: [f32; 2],
+    [across, down]: [f32; 2],
+) {
+    let Some(picture) = capture_picture(o, text) else {
+        return;
+    };
+    let Some(ink) =
+        rc2k_core::race::viewer_digits::ink_of(picture.width, picture.height, |x, y| {
+            picture.fill(x, y)
+        })
+    else {
+        return;
+    };
+    let lie = Lie {
+        left: centre_x - ink.centre_x * across,
+        top: top - ink.top as f32 * down,
+        across,
+        down,
+    };
+    // The screen pixels the picture reaches, one more each side for its soft edge.
+    let rect = [
+        lie.left.floor() as i32 - 1,
+        lie.top.floor() as i32 - 1,
+        (picture.width as f32 * across).ceil() as i32 + 3,
+        (picture.height as f32 * down).ceil() as i32 + 3,
+    ];
+    paint(o, &picture, lie, rect, 255, Some(colour));
+}
+
+/// Where a picture lies on the screen: its top left corner, and how many screen pixels one of its
+/// pixels is wide and high.
+#[derive(Clone, Copy)]
+struct Lie {
+    left: f32,
+    top: f32,
+    across: f32,
+    down: f32,
+}
+
+/// `picture` blended over the screen's pixels in `rect` (left, top, width, height) as it lies
+/// (`lie`), at `strength` (0 ..= 255): the colours of its own pixels, or, with a `shape` colour
+/// (0xRRGGBB), the shape of its letters' fill (`Picture::fill`) in that colour. A picture pixel's
+/// share of the screen pixel decides the blend, so edges are soft; the surface must be locked, and
+/// the 16-bit screens take the nearest pixel whole.
+fn paint(
+    o: Owners<'static>,
+    picture: &Picture,
+    lie: Lie,
+    [rect_left, rect_top, rect_w, rect_h]: [i32; 4],
+    strength: u8,
+    shape: Option<u32>,
+) {
+    use crate::gfx::surface::{Target, surface};
+    let screen = o.system.session.screen.get();
+    let (w, h) = (screen.width.get() as i32, screen.height.get() as i32);
+    let real = surface(o.gfx);
+    let Some(Target::Locked(handle)) = real.target else {
+        return;
+    };
+    let bpp = real.bytes_per_pixel;
+    if !(bpp == 2 || bpp == 4) || real.pitch <= 0 || strength == 0 {
+        return;
+    }
     let place = crate::gfx::locked_pixels::Place::start(handle);
     // Smaller than the font's size: four taps cover what a screen pixel does.
-    let spread = if scale < 1.0 { 0.25 / scale } else { 0.0 };
-    let taps: &[(f32, f32)] = if scale < 1.0 {
+    let shrunk = lie.across < 1.0 || lie.down < 1.0;
+    let (spread_x, spread_y) = if shrunk {
+        (0.25 / lie.across, 0.25 / lie.down)
+    } else {
+        (0.0, 0.0)
+    };
+    let taps: &[(f32, f32)] = if shrunk {
         &[(-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)]
     } else {
         &[(0.0, 0.0)]
     };
-    for dy in 0..dh {
-        let y = top + dy;
-        let (from, to) = (left.max(0), (left + dw).min(w));
+    for y in rect_top..rect_top + rect_h {
+        let (from, to) = (rect_left.max(0), (rect_left + rect_w).min(w));
         if !(0..h).contains(&y) || to <= from {
             continue;
         }
@@ -235,18 +344,30 @@ pub fn draw_in(o: Owners<'static>, text: &[u8], area: [i32; 4], top: i32, streng
         };
         for x in from..to {
             let k = (x - from) as usize * bpp as usize;
-            let (sx, sy) = ((x - left) as f32 + 0.5, dy as f32 + 0.5);
-            let (sx, sy) = (sx / scale, sy / scale);
+            let sx = ((x as f32 + 0.5) - lie.left) / lie.across;
+            let sy = ((y as f32 + 0.5) - lie.top) / lie.down;
             if bpp == 2 {
-                // A 16-bit screen has no blend: the nearest written pixel, whole.
-                if let Some(v) = picture.raw(sx as i32, sy as i32) {
+                // A 16-bit screen has no blend: the nearest written pixel, whole (a shape: where the
+                // fill is more than half).
+                let at = (sx.floor() as i32, sy.floor() as i32);
+                let value = match shape {
+                    Some(rgb) => (picture.fill(at.0, at.1) >= 0.5)
+                        .then(|| crate::input::osk_draw::pixel(rgb, real.bits_per_pixel)),
+                    None => picture.raw(at.0, at.1),
+                };
+                if let Some(v) = value {
                     row[k..k + 2].copy_from_slice(&(v as u16).to_le_bytes());
                 }
                 continue;
             }
             let (mut sum, mut share) = ([0f32; 3], 0f32);
             for &(ox, oy) in taps {
-                let (s, c) = tap(&picture, sx + ox * spread, sy + oy * spread);
+                let (px, py) = (sx + ox * spread_x, sy + oy * spread_y);
+                if shape.is_some() {
+                    share += tap_fill(picture, px, py);
+                    continue;
+                }
+                let (s, c) = tap(picture, px, py);
                 for (a, b) in sum.iter_mut().zip(s) {
                     *a += b;
                 }
@@ -257,10 +378,10 @@ pub fn draw_in(o: Owners<'static>, text: &[u8], area: [i32; 4], top: i32, streng
             if alpha == 0 {
                 continue;
             }
-            let own = {
+            let own = shape.unwrap_or_else(|| {
                 let c = |i: usize| ((sum[i] / (share * taps.len() as f32)).round() as u32).min(255);
                 c(0) << 16 | c(1) << 8 | c(2)
-            };
+            });
             let under = u32::from_le_bytes([row[k], row[k + 1], row[k + 2], row[k + 3]]);
             let px = rc2k_core::race::viewer_tip::over(own, under, alpha);
             row[k..k + 4].copy_from_slice(&px.to_le_bytes());

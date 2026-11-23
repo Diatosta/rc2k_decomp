@@ -1,5 +1,5 @@
 use super::*;
-use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::PlainX87;
 use crate::math::x87_float::compare;
 use crate::physics::store::laid;
 use crate::test_support::own::race;
@@ -38,7 +38,7 @@ fn blocks() -> Vec<Block> {
                 },
             ],
             ulps: 0,
-            plain: |a| scale_car_figures(race().shared.car(), dm(a[1])),
+            plain: |a| scale_car_figures(&race().shared.car(), dm(a[1])),
         },
         Block {
             name: "damage_factors line 53",
@@ -61,11 +61,10 @@ fn blocks() -> Vec<Block> {
                 wheel_stiffness_from_share(
                     dm(a[0]),
                     dm(a[0]).wheel_stiffness_lerp[0],
-                    &crate::test_support::own::race()
+                    &mut crate::test_support::own::race()
                         .shared
-                        .car()
-                        .wheel_stiffness
-                        .float_at(0),
+                        .car_mut()
+                        .wheel_stiffness[0],
                 );
             },
         },
@@ -85,11 +84,10 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 wheel_ride_height_from_share(
                     dm(a[0]),
-                    &crate::test_support::own::race()
+                    &mut crate::test_support::own::race()
                         .shared
-                        .car()
-                        .wheel_ride_height
-                        .float_at(0),
+                        .car_mut()
+                        .wheel_ride_height[0],
                 );
             },
         },
@@ -107,18 +105,12 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let car = &mut *car;
                 fail_wheel(
                     dm(a[0]),
-                    &crate::test_support::own::race()
-                        .shared
-                        .car()
-                        .wheel_stiffness
-                        .float_at(0),
-                    &crate::test_support::own::race()
-                        .shared
-                        .car()
-                        .wheel_ride_height
-                        .float_at(0),
+                    &mut car.wheel_stiffness[0],
+                    &mut car.wheel_ride_height[0],
                 );
             },
         },
@@ -143,11 +135,10 @@ fn blocks() -> Vec<Block> {
                 wheel_stiffness_from_share(
                     dm(a[0]),
                     dm(a[0]).wheel_stiffness_lerp[1],
-                    &crate::test_support::own::race()
+                    &mut crate::test_support::own::race()
                         .shared
-                        .car()
-                        .wheel_stiffness
-                        .float_at(1),
+                        .car_mut()
+                        .wheel_stiffness[1],
                 );
             },
         },
@@ -167,11 +158,10 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 wheel_ride_height_from_share(
                     dm(a[0]),
-                    &crate::test_support::own::race()
+                    &mut crate::test_support::own::race()
                         .shared
-                        .car()
-                        .wheel_ride_height
-                        .float_at(1),
+                        .car_mut()
+                        .wheel_ride_height[1],
                 );
             },
         },
@@ -189,18 +179,12 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let car = &mut *car;
                 fail_wheel(
                     dm(a[0]),
-                    &crate::test_support::own::race()
-                        .shared
-                        .car()
-                        .wheel_stiffness
-                        .float_at(1),
-                    &crate::test_support::own::race()
-                        .shared
-                        .car()
-                        .wheel_ride_height
-                        .float_at(1),
+                    &mut car.wheel_stiffness[1],
+                    &mut car.wheel_ride_height[1],
                 );
             },
         },
@@ -225,11 +209,10 @@ fn blocks() -> Vec<Block> {
                 wheel_stiffness_from_share(
                     dm(a[0]),
                     dm(a[0]).wheel_stiffness_lerp[2],
-                    &crate::test_support::own::race()
+                    &mut crate::test_support::own::race()
                         .shared
-                        .car()
-                        .wheel_stiffness
-                        .float_at(2),
+                        .car_mut()
+                        .wheel_stiffness[2],
                 );
             },
         },
@@ -249,11 +232,10 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 wheel_ride_height_from_share(
                     dm(a[0]),
-                    &crate::test_support::own::race()
+                    &mut crate::test_support::own::race()
                         .shared
-                        .car()
-                        .wheel_ride_height
-                        .float_at(2),
+                        .car_mut()
+                        .wheel_ride_height[2],
                 );
             },
         },
@@ -271,18 +253,12 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let car = &mut *car;
                 fail_wheel(
                     dm(a[0]),
-                    &crate::test_support::own::race()
-                        .shared
-                        .car()
-                        .wheel_stiffness
-                        .float_at(2),
-                    &crate::test_support::own::race()
-                        .shared
-                        .car()
-                        .wheel_ride_height
-                        .float_at(2),
+                    &mut car.wheel_stiffness[2],
+                    &mut car.wheel_ride_height[2],
                 );
             },
         },
@@ -307,11 +283,10 @@ fn blocks() -> Vec<Block> {
                 wheel_stiffness_from_share(
                     dm(a[0]),
                     dm(a[0]).wheel_stiffness_lerp[3],
-                    &crate::test_support::own::race()
+                    &mut crate::test_support::own::race()
                         .shared
-                        .car()
-                        .wheel_stiffness
-                        .float_at(3),
+                        .car_mut()
+                        .wheel_stiffness[3],
                 );
             },
         },
@@ -331,11 +306,10 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 wheel_ride_height_from_share(
                     dm(a[0]),
-                    &crate::test_support::own::race()
+                    &mut crate::test_support::own::race()
                         .shared
-                        .car()
-                        .wheel_ride_height
-                        .float_at(3),
+                        .car_mut()
+                        .wheel_ride_height[3],
                 );
             },
         },
@@ -353,18 +327,12 @@ fn blocks() -> Vec<Block> {
             ],
             ulps: 0,
             plain: |a| {
+                let mut car = crate::test_support::own::race().shared.car_mut();
+                let car = &mut *car;
                 fail_wheel(
                     dm(a[0]),
-                    &crate::test_support::own::race()
-                        .shared
-                        .car()
-                        .wheel_stiffness
-                        .float_at(3),
-                    &crate::test_support::own::race()
-                        .shared
-                        .car()
-                        .wheel_ride_height
-                        .float_at(3),
+                    &mut car.wheel_stiffness[3],
+                    &mut car.wheel_ride_height[3],
                 );
             },
         },
@@ -392,7 +360,7 @@ fn blocks() -> Vec<Block> {
                 },
             ],
             ulps: 0,
-            plain: |a| means_and_engine_speed(race().shared.car(), dm(a[1])),
+            plain: |a| means_and_engine_speed(&mut race().shared.car_mut(), dm(a[1])),
         },
         Block {
             name: "damage_factors line 186",
@@ -407,7 +375,7 @@ fn blocks() -> Vec<Block> {
                 },
             ],
             ulps: 0,
-            plain: |a| engine_speed_share_step(race().shared.car(), dm(a[0])),
+            plain: |a| engine_speed_share_step(&race().shared.car(), dm(a[0])),
         },
         Block {
             name: "damage_factors line 198",
@@ -430,7 +398,7 @@ fn blocks() -> Vec<Block> {
                 },
             ],
             ulps: 0,
-            plain: |a| speed_share_step(race().shared.car(), dm(a[0])),
+            plain: |a| speed_share_step(&race().shared.car(), dm(a[0])),
         },
         Block {
             name: "damage_factors line 213",
@@ -445,7 +413,7 @@ fn blocks() -> Vec<Block> {
                 },
             ],
             ulps: 0,
-            plain: |a| drive_a_slip_step(race().shared.car(), dm(a[0])),
+            plain: |a| drive_a_slip_step(&race().shared.car(), dm(a[0])),
         },
         Block {
             name: "damage_factors line 225",
@@ -466,7 +434,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 dm(a[0]).drive_b_slip_share = drive_extrapolation_step(
-                    race().shared.car(),
+                    &race().shared.car(),
                     dm(a[0]),
                     &crate::test_support::own::race().shared.car().drive_speed_a,
                     &crate::test_support::own::race().shared.car().drive_speed_a,
@@ -492,7 +460,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 dm(a[0]).drive_a_extrapolated_share = drive_extrapolation_step(
-                    race().shared.car(),
+                    &race().shared.car(),
                     dm(a[0]),
                     &crate::test_support::own::race().shared.car().drive_speed_b,
                     &crate::test_support::own::race().shared.car().drive_speed_b,
@@ -539,7 +507,7 @@ fn blocks() -> Vec<Block> {
                 },
             ],
             ulps: 0,
-            plain: |a| brake_share_step(race().shared.car(), dm(a[1])),
+            plain: |a| brake_share_step(&race().shared.car(), dm(a[1])),
         },
         Block {
             name: "damage_factors line 287",
@@ -558,7 +526,7 @@ fn blocks() -> Vec<Block> {
                 },
             ],
             ulps: 0,
-            plain: |a| a[2].set_word(0, over_limit_status(race().shared.car(), dm(a[1]))),
+            plain: |a| a[2].set_word(0, over_limit_status(&race().shared.car(), dm(a[1]))),
         },
         Block {
             name: "damage_factors line 302",
@@ -586,7 +554,7 @@ fn blocks() -> Vec<Block> {
                 },
             ],
             ulps: 0,
-            plain: |a| hit_size_and_dive(race().shared.car(), dm(a[1])),
+            plain: |a| hit_size_and_dive(&race().shared.car(), dm(a[1])),
         },
         Block {
             name: "damage_factors line 337",

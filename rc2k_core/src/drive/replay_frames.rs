@@ -129,6 +129,13 @@ pub fn plays_inputs(mode: u32) -> bool {
     mode == PLAYING
 }
 
+/// Whether the frame drawn is a replay's, so drawn as its blocks' layouts say: while a replay
+/// plays, or while the replay viewer draws its still frame (`still`), which it does before the
+/// replay is first played too.
+pub fn draws_replay(mode: u32, still: bool) -> bool {
+    mode == PLAYING || still
+}
+
 /// Whether a car's inputs are recorded: None unless recording; else for the cars below the
 /// race's count (`RaceView.players`, asked only while recording).
 pub fn records_inputs(mode: u32, car: u32, cars: impl FnOnce() -> u32) -> Option<bool> {
@@ -274,6 +281,16 @@ impl Default for ReplayFrame {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_replay_is_drawn_while_it_plays_or_stands_still_in_the_viewer() {
+        assert!(draws_replay(PLAYING, false));
+        assert!(draws_replay(PLAYING, true));
+        // The viewer's still frame before the replay was first played.
+        assert!(draws_replay(0, true));
+        assert!(!draws_replay(RECORDING, false));
+        assert!(!draws_replay(0, false));
+    }
 
     #[test]
     fn frames() {

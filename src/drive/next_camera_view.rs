@@ -13,29 +13,25 @@ use rc2k_core::drive::camera_views::next_view;
 
 pub(super) fn next_view_at(
     kinds: &KindTables,
-    car: &Car,
+    car: &mut Car,
     players: &PlainDword,
-    step: &PlainDword,
+    step: u32,
 ) -> Result<(), BadInput> {
-    if car.camera_switch_active.get() != 0 {
+    if car.camera_switch_active != 0 {
         return Ok(());
     }
     let view = next_view(
-        car.camera_view.get(),
-        || car.car_kind.get(),
+        car.camera_view,
+        || car.car_kind,
         |car| kinds.kind_has_views[car as usize] != 0, /* by car (0x22) */
         || players.get(),
     );
-    car.camera_blend_view.set(view);
+    car.camera_blend_view = view;
     set_view_at(car, step)
 }
 
-pub fn next_camera_view(race: &Race, car: &Car) -> Result<(), BadInput> {
+pub fn next_camera_view(race: &Race, car: &mut Car) -> Result<(), BadInput> {
     let shared = &race.shared;
-    next_view_at(
-        race.kind_tables(),
-        car,
-        &shared.view.get().players,
-        &shared.car().step_clock,
-    )
+    let step = shared.car().step_clock;
+    next_view_at(race.kind_tables(), car, &shared.view.get().players, step)
 }

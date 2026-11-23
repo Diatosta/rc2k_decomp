@@ -5,11 +5,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float as bh;
-use crate::memory::plain_floats::FloatRef;
-use crate::memory::session::PlainDword;
 use crate::physics::car_store::Car;
-#[cfg(test)]
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::tables_store::Listed;
@@ -26,54 +22,55 @@ pub const TEXT_LEN: usize = 0x708;
 /// A selector of one 32-bit field of a car block: a whole number or a float.
 #[derive(Clone, Copy)]
 enum Field {
-    Word(fn(&Car) -> &PlainDword),
-    Float(for<'a> fn(&'a Car) -> FloatRef<'a>),
+    Word(fn(&mut Car) -> &mut u32),
+    Float(fn(&mut Car) -> &mut f32),
 }
 
 impl Field {
     /// Stores `v` into the field of `car` (a float field takes the float whose bits `v` is).
-    fn set(self, car: &Car, v: u32) {
+    fn set(self, car: &mut Car, v: u32) {
         match self {
-            Field::Word(field) => field(car).set(v),
-            Field::Float(field) => field(car).set(f32::from_bits(v)),
+            Field::Word(field) => *field(car) = v,
+            Field::Float(field) => *field(car) = f32::from_bits(v),
         }
     }
 }
 
 /// The block fields `reset_block` sets to 0, in order.
 const CLEARED: [Field; 22] = [
-    Field::Word(|c| &c.view_covered),
-    Field::Word(|c| &c.splits_recorded),
-    Field::Word(|c| &c.stage_time),
-    Field::Word(|c| &c.finish_flag),
-    Field::Word(|c| &c.go_stand_timer),
-    Field::Word(|c| &c.started_stand_timer),
-    Field::Word(|c| &c.damage_failed),
-    Field::Word(|c| &c.checkpoint),
-    Field::Float(|c| c.brake_heat.float_at(0).into()),
-    Field::Float(|c| c.brake_heat.float_at(1).into()),
-    Field::Float(|c| c.damper_wear.float_at(0).into()),
-    Field::Float(|c| c.damper_wear.float_at(1).into()),
-    Field::Float(|c| (&c.engine_heat).into()),
-    Field::Float(|c| (&c.brake_fade).into()),
-    Field::Word(|c| &c.handbrake_failed),
-    Field::Word(|c| &c.electrical_failures[0]),
-    Field::Word(|c| &c.electrical_failures[1]),
-    Field::Word(|c| &c.electrical_failures[2]),
-    Field::Word(|c| &c.electrical_failures[3]),
-    Field::Word(|c| &c.electrical_failures[4]),
-    Field::Word(|c| &c.electrical_failures[5]),
-    Field::Word(|c| &c.electrical_failures[6]),
+    Field::Word(|c| &mut c.view_covered),
+    Field::Word(|c| &mut c.splits_recorded),
+    Field::Word(|c| &mut c.stage_time),
+    Field::Word(|c| &mut c.finish_flag),
+    Field::Word(|c| &mut c.go_stand_timer),
+    Field::Word(|c| &mut c.started_stand_timer),
+    Field::Word(|c| &mut c.damage_failed),
+    Field::Word(|c| &mut c.checkpoint),
+    Field::Float(|c| &mut c.brake_heat[0]),
+    Field::Float(|c| &mut c.brake_heat[1]),
+    Field::Float(|c| &mut c.damper_wear[0]),
+    Field::Float(|c| &mut c.damper_wear[1]),
+    Field::Float(|c| &mut c.engine_heat),
+    Field::Float(|c| &mut c.brake_fade),
+    Field::Word(|c| &mut c.handbrake_failed),
+    Field::Word(|c| &mut c.electrical_failures[0]),
+    Field::Word(|c| &mut c.electrical_failures[1]),
+    Field::Word(|c| &mut c.electrical_failures[2]),
+    Field::Word(|c| &mut c.electrical_failures[3]),
+    Field::Word(|c| &mut c.electrical_failures[4]),
+    Field::Word(|c| &mut c.electrical_failures[5]),
+    Field::Word(|c| &mut c.electrical_failures[6]),
 ];
 
 /// What `race::reset_car_blocks` writes into car block `n` (field, value, in order): `driver_kind`
 /// 1 for the race's cars (`cars`, unsigned) else 0, the `CLEARED` fields 0, `gearbox_kind` 1,
 /// `time_left` the stage's number (`stage_numbers`) x 100.
 fn reset_block(n: u32, cars: u32, number: u32) -> Vec<(Field, u32)> {
-    let mut writes: Vec<(Field, u32)> = vec![(Field::Word(|c| &c.driver_kind), (n < cars) as u32)];
+    let mut writes: Vec<(Field, u32)> =
+        vec![(Field::Word(|c| &mut c.driver_kind), (n < cars) as u32)];
     writes.extend(CLEARED.iter().map(|&field| (field, 0)));
-    writes.push((Field::Word(|c| &c.gearbox_kind), 1));
-    writes.push((Field::Word(|c| &c.time_left), number.wrapping_mul(100)));
+    writes.push((Field::Word(|c| &mut c.gearbox_kind), 1));
+    writes.push((Field::Word(|c| &mut c.time_left), number.wrapping_mul(100)));
     writes
 }
 
@@ -87,15 +84,13 @@ fn reset_car_blocks(race: &Race) -> Result<(), BadInput> {
     {
         let cars: u32 = shared.view.get().race_cars.get();
         for n in 0..BLOCK_COUNT {
-            let car = shared.race_car(n as usize)?;
+            let mut car = shared.race_car_mut(n as usize)?;
             for (field, v) in reset_block(n, cars, physics.split_tables().stage_numbers[0]) {
-                field.set(car, v);
+                field.set(&mut car, v);
             }
         }
         for n in 0..BLOCK_COUNT as usize {
-            race.car_blocks().cars[n]
-                .car_kind
-                .set(shared.vars.get().race_car_kinds[n].get());
+            race.car_blocks_mut().cars[n].car_kind = shared.vars.get().race_car_kinds[n].get();
         }
     }
     Ok(())
@@ -105,17 +100,20 @@ fn reset_car_blocks(race: &Race) -> Result<(), BadInput> {
 /// `stop_state` is not 0 (the first, else the second) is out: `driver_kind` 0, `view_covered` 1.
 pub fn drop_absent_player(race: &Race) {
     let shared = &race.shared;
-    let blocks = race.car_blocks();
     // Logic in `rc2k_core::race::cars::absent_player`.
     {
-        let out = rc2k_core::race::cars::absent_player(
-            shared.vars.get().run_kind.get(),
-            || shared.view.get().players.get(),
-            |n| blocks.cars[n as usize].stop_state.get() != 0,
-        );
+        let out = {
+            let blocks = race.car_blocks();
+            rc2k_core::race::cars::absent_player(
+                shared.vars.get().run_kind.get(),
+                || shared.view.get().players.get(),
+                |n| blocks.cars[n as usize].stop_state != 0,
+            )
+        };
         if let Some(n) = out {
-            blocks.cars[n as usize].driver_kind.set(0u32);
-            blocks.cars[n as usize].view_covered.set(1u32);
+            let mut blocks = race.car_blocks_mut();
+            blocks.cars[n as usize].driver_kind = 0u32;
+            blocks.cars[n as usize].view_covered = 1u32;
         }
     }
 }
@@ -131,10 +129,11 @@ pub fn seats(race: &Race) -> usize {
 fn set_player_car_kinds(race: &Race) {
     let shared = &race.shared;
     for n in 0..seats(race) {
-        let car = &race.car_blocks().cars[n];
-        let to = [&car.car_kind, &car.tyre_kind, &car.gearbox_kind];
+        let mut blocks = race.car_blocks_mut();
+        let car = &mut blocks.cars[n];
+        let to = [&mut car.car_kind, &mut car.tyre_kind, &mut car.gearbox_kind];
         for (to, from) in to.into_iter().zip(player_kinds(shared, n)) {
-            to.set(from.get());
+            *to = from.get();
         }
     }
 }
@@ -224,18 +223,18 @@ pub(super) fn read_stage_car_numbers(race: &Race) -> Result<(), Refused> {
 /// (stage - 0x15) % 10 of `auto_setups`: `ride_height` its h, `suspension_stiffness` its s,
 /// `gear_ratio_setting` its gear-ratio figure less one, `tyre_kind` its tyre figure, each logged with its range, then a
 /// line break. Refuses stage 0x14, before anything.
-pub(super) fn auto_set_up_car(race: &Race, car: &Car) -> Result<(), Refused> {
+pub(super) fn auto_set_up_car(race: &Race, car: &mut Car) -> Result<(), Refused> {
     let course = &race.course;
     {
         // Logic in `rc2k_core::race::cars::set_up_pick`.
         let stage: u32 = race.shared.vars.get().stage_number.get();
         let pick = rc2k_core::race::cars::set_up_pick(stage)?;
-        car.brake_balance.set(0x80);
-        car.steering_sensitivity.set(0x80);
-        car.ride_height.set(0x80);
-        car.suspension_stiffness.set(0x80);
-        car.tyre_kind.set(u32::MAX);
-        car.gear_ratio_setting.set(2);
+        car.brake_balance = 0x80;
+        car.steering_sensitivity = 0x80;
+        car.ride_height = 0x80;
+        car.suspension_stiffness = 0x80;
+        car.tyre_kind = u32::MAX;
+        car.gear_ratio_setting = 2;
         text(word(0), false);
         text(word(1), false);
         number(stage, false);
@@ -252,12 +251,16 @@ pub(super) fn auto_set_up_car(race: &Race, car: &Car) -> Result<(), Refused> {
                 .ok_or(BadInput("the auto set-ups"))
         };
         for (value, field, words) in [
-            (set_up(0)?, &car.ride_height, [3, 4]),
-            (set_up(1)?, &car.suspension_stiffness, [5, 6]),
-            (set_up(3)?.wrapping_sub(1), &car.gear_ratio_setting, [7, 8]),
-            (set_up(2)?, &car.tyre_kind, [9, 10]),
+            (set_up(0)?, &mut car.ride_height, [3, 4]),
+            (set_up(1)?, &mut car.suspension_stiffness, [5, 6]),
+            (
+                set_up(3)?.wrapping_sub(1),
+                &mut car.gear_ratio_setting,
+                [7, 8],
+            ),
+            (set_up(2)?, &mut car.tyre_kind, [9, 10]),
         ] {
-            field.set(value);
+            *field = value;
             text(word(words[0]), false);
             number(value, false);
             text(word(words[1]), false);
@@ -298,16 +301,14 @@ fn set_up_mode_0_cars(
             drop_absent_player(race);
             set_player_car_kinds(race);
             for n in 0..seats(race) {
-                auto_set_up_car(race, &race.car_blocks().cars[n])?;
+                auto_set_up_car(race, &mut race.car_blocks_mut().cars[n])?;
             }
             for n in 0..seats(race) {
-                race.car_blocks().cars[n]
-                    .steering_sensitivity
-                    .set(brake_value(race, n));
+                race.car_blocks_mut().cars[n].steering_sensitivity = brake_value(race, n);
             }
         } else {
             for n in 0..cars {
-                auto_set_up_car(race, race.shared.race_car(n as usize)?)?;
+                auto_set_up_car(race, &mut *race.shared.race_car_mut(n as usize)?)?;
             }
             set_player_car_kinds(race);
         }
@@ -331,7 +332,7 @@ fn set_up_mode_1_cars(race: &Race) -> Result<(), BadInput> {
         .into_iter()
         .enumerate()
         {
-            race.car_blocks().cars[n].stage_time.set(from.get());
+            race.car_blocks_mut().cars[n].stage_time = from.get();
         }
     }
     Ok(())
@@ -357,25 +358,16 @@ fn set_up_mode_4_cars(race: &Race) -> Result<(), BadInput> {
 /// Zeroes entries 9 .. 0 of the thirteen tables (four of them overlap, one dword apart: the
 /// points' tables from entries 0 .. 3).
 fn clear_race_tables(shared: &RaceShared) {
-    let w = shared.work.get();
-    let tables: [(&[PlainDword], usize); 13] = [
-        (&w.driver_bend_to, 0),
-        (&w.driver_bend_noted, 0),
-        (&w.driver_steps, 0),
-        (&w.driver_reverse_left, 0),
-        (&w.driver_bend_turn, 0),
-        (&w.driver_points_now, 0),
-        (&w.driver_points_now, 1),
-        (&w.driver_points_now, 2),
-        (&w.driver_points_now, 3),
-        (&w.driver_points_then, 0),
-        (&w.driver_points_then, 1),
-        (&w.driver_points_then, 2),
-        (&w.driver_points_then, 3),
-    ];
+    let mut w = shared.work_mut();
     for k in (0..10).rev() {
-        for (table, first) in tables {
-            table[first + k].set(0);
+        w.driver_bend_to[k] = 0;
+        w.driver_bend_noted[k] = 0;
+        w.driver_steps[k] = 0;
+        w.driver_reverse_left[k] = 0;
+        w.driver_bend_turn[k] = 0;
+        for first in 0..4 {
+            w.driver_points_now[first + k] = 0;
+            w.driver_points_then[first + k] = 0;
         }
     }
 }
@@ -555,12 +547,10 @@ pub(super) fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     reset_car_blocks(race)?;
     drop_absent_player(race);
     for n in 1..4 {
-        race.car_blocks().cars[n as usize]
-            .steering_sensitivity
-            .set(0x80u32);
+        race.car_blocks_mut().cars[n as usize].steering_sensitivity = 0x80u32;
     }
     for n in 1..4 {
-        race.car_blocks().cars[n as usize].driver_kind.set(0u32);
+        race.car_blocks_mut().cars[n as usize].driver_kind = 0u32;
     }
     set_player_car_kinds(race);
     race.shared.run_mut().noise_state = race.shared.tables().noise_seed.get();
@@ -569,9 +559,9 @@ pub(super) fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     let mut number_next = 1u32;
     for car in 0..cars {
         let kind = loop {
-            let first: u32 = race.car_blocks().cars[0].start_slot_value.get();
+            let first: u32 = race.car_blocks().cars[0].start_slot_value;
             let second = (race.shared.view.get().players.get() != 1)
-                .then(|| race.car_blocks().cars[1].start_slot_value.get());
+                .then(|| race.car_blocks().cars[1].start_slot_value);
             number_next = arcade_number(number_next, first, second);
             let (_, kind) = arcade_type_draw(next_noise(&race.shared), car);
             if kind != last_type {
@@ -593,17 +583,16 @@ pub(super) fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     }
     clear_race_tables(&race.shared);
     for n in 0..4 {
-        auto_set_up_car(race, &race.car_blocks().cars[n as usize])?;
+        auto_set_up_car(race, &mut race.car_blocks_mut().cars[n as usize])?;
     }
-    race.car_blocks().cars[0]
-        .steering_sensitivity
-        .set(brake_value(race, 0));
-    let lead = &race.car_blocks().cars[0];
-    for cell in [&lead.pace_placed, &lead.pace_cars[0], &lead.pace_cars[1]] {
-        cell.set(0);
+    race.car_blocks_mut().cars[0].steering_sensitivity = brake_value(race, 0);
+    {
+        let lead = &mut race.car_blocks_mut().cars[0];
+        lead.pace_placed = 0;
+        lead.pace_cars = [0, 0];
     }
     let behind = cars.wrapping_sub(race.shared.tables().start_place.get());
-    race.car_blocks().cars[0].mode2_behind.set(behind);
+    race.car_blocks_mut().cars[0].mode2_behind = behind;
     text(w(6), false);
     number(behind, false);
     text(w(7), false);
@@ -619,12 +608,12 @@ pub(super) fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
 
 /// What `race::set_up_cars` writes into both players' blocks first (field, value).
 const PLAYER_RESETS: [(Field, u32); 6] = [
-    (Field::Float(|c| (&c.top_speed).into()), 0),
-    (Field::Word(|c| &c.split_gaps[0]), u32::MAX),
-    (Field::Word(|c| &c.split_gaps[2]), u32::MAX),
-    (Field::Word(|c| &c.split_gaps[1]), u32::MAX),
-    (Field::Word(|c| &c.split_gaps[4]), u32::MAX),
-    (Field::Word(|c| &c.split_gaps[3]), u32::MAX),
+    (Field::Float(|c| &mut c.top_speed), 0),
+    (Field::Word(|c| &mut c.split_gaps[0]), u32::MAX),
+    (Field::Word(|c| &mut c.split_gaps[2]), u32::MAX),
+    (Field::Word(|c| &mut c.split_gaps[1]), u32::MAX),
+    (Field::Word(|c| &mut c.split_gaps[4]), u32::MAX),
+    (Field::Word(|c| &mut c.split_gaps[3]), u32::MAX),
 ];
 
 /// Race init's "cars": logs "gamemode" and `run_kind`; sets both players' `top_speed` to 0 and
@@ -641,7 +630,7 @@ pub fn set_up_cars(
     use rc2k_core::race::cars::{CarsStep, cars_steps};
     for n in 0..2 {
         for (field, v) in PLAYER_RESETS {
-            field.set(race.shared.race_car(n as usize)?, v);
+            field.set(&mut *race.shared.race_car_mut(n as usize)?, v);
         }
     }
     for &step in cars_steps(race.shared.vars.get().run_kind.get()) {
@@ -753,9 +742,7 @@ pub fn set_up_arcade_cars(race: &Race) -> Result<(), Refused> {
         shared.view.get().race_cars.set(4u32);
     }
     for n in 0..8 {
-        race.car_blocks().cars[n]
-            .car_kind
-            .set(shared.vars.get().race_car_kinds[n].get());
+        race.car_blocks_mut().cars[n].car_kind = shared.vars.get().race_car_kinds[n].get();
     }
     Ok(())
 }
@@ -765,12 +752,10 @@ mod tests {
     use super::*;
 
     fn offset_of(field: Field) -> usize {
-        let car = &CAR_BLOCKS.cars[0];
-        let at = match field {
-            Field::Word(field) => core::ptr::from_ref(field(car)).cast::<u8>(),
-            Field::Float(field) => field(car).addr() as *const u8,
-        };
-        crate::physics::car_offsets_1999::offset_1999(car, at as usize)
+        crate::physics::car_offsets_1999::offset_changed_by(|car| match field {
+            Field::Word(field) => *field(car) = 1,
+            Field::Float(field) => *field(car) = f32::from_bits(1),
+        })
     }
 
     /// Every selector sits where the core's old table of byte offsets had it.

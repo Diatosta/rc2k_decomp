@@ -10,6 +10,6 @@ pub(super) fn keep_hud_options(
         .state
         .results
         .hud_bits_current
-        .set(own_block(shared, net.race_slot.player())?.option_bits.get());
+        .set(own_block(shared, net.race_slot.player())?.option_bits);
     Ok(())
 }

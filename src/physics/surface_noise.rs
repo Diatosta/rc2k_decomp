@@ -22,7 +22,7 @@ fn sample(
     shared: &crate::race::owner_shared::RaceShared,
     x: usize,
 ) -> Result<u32, crate::errors::BadInput> {
-    sample_noise(shared.buffers.engine_tables(), shared.car(), x)
+    sample_noise(shared.buffers.engine_tables(), &shared.car(), x)
 }
 
 // Core: `rc2k_core::physics::ground::{noise_level, rough_floor}` (the share / 256 stays x87).
@@ -37,23 +37,21 @@ pub fn surface_noise(
             stage_prefs.read(|p| p.precipitation_range[0]),
             stage_prefs.read(|p| p.precipitation_range[1]),
         );
-        shared.car().surface_noise_a.set(first);
-        shared.car().surface_noise_b.set(first);
+        shared.car_mut().surface_noise_a = first;
+        shared.car_mut().surface_noise_b = first;
         let second = scaled(
             sample(shared, 0x20)?,
             stage_prefs.read(|p| p.surface_scale[0]),
             stage_prefs.read(|p| p.surface_scale[1]),
         );
-        shared.car().surface_noise_second.set(second);
+        shared.car_mut().surface_noise_second = second;
         let floor = rough_floor(second, stage_prefs.read(|p| p.surface_floor));
-        shared
-            .car()
-            .surface_blend
-            .set(ext_div2(int_80(floor as i32, false), numbers.k256, 1.0f32));
+        shared.car_mut().surface_blend =
+            ext_div2(int_80(floor as i32, false), numbers.k256, 1.0f32);
         if stage_prefs.read(|p| p.noise_pick) != 0 {
-            shared.car().surface_noise_a.set(0);
+            shared.car_mut().surface_noise_a = 0;
         } else {
-            shared.car().surface_noise_b.set(0);
+            shared.car_mut().surface_noise_b = 0;
         }
     }
     Ok(())

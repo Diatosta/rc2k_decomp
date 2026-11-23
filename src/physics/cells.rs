@@ -1,20 +1,100 @@
 use crate::memory::session::DwordLike;
-/// `now` into the cell when it is not `was` (what was read from it).
-pub(super) fn set_changed(c: &(impl DwordLike + ?Sized), was: u32, now: u32) {
+
+/// A word the notice and event steps write only when it changed: a dword cell (by reference) or a
+/// plain word of a record (by mutable reference).
+pub trait DwordPlace {
+    fn put(&mut self, v: u32);
+}
+
+impl<T: DwordLike + ?Sized> DwordPlace for &T {
+    fn put(&mut self, v: u32) {
+        self.set(v);
+    }
+}
+
+impl DwordPlace for &mut u32 {
+    fn put(&mut self, v: u32) {
+        **self = v;
+    }
+}
+
+/// `now` into the word when it is not `was` (what was read from it).
+pub(super) fn set_changed(mut c: impl DwordPlace, was: u32, now: u32) {
     if now != was {
-        c.set(now);
+        c.put(now);
+    }
+}
+
+/// A row of words: cells by reference, or the plain words of a record.
+pub trait DwordRow<const N: usize> {
+    fn row(&self) -> [u32; N];
+}
+
+impl<C: DwordLike, const N: usize> DwordRow<N> for [C; N] {
+    fn row(&self) -> [u32; N] {
+        std::array::from_fn(|k| self[k].get())
+    }
+}
+
+impl<const N: usize> DwordRow<N> for [u32; N] {
+    fn row(&self) -> [u32; N] {
+        *self
     }
 }
 
 /// The values of `cells`.
-pub fn values<const N: usize>(cells: &[impl DwordLike; N]) -> [u32; N] {
-    std::array::from_fn(|k| cells[k].get())
+pub fn values<const N: usize>(cells: &impl DwordRow<N>) -> [u32; N] {
+    cells.row()
+}
+
+/// A run of words written one by one: cells by reference, or the plain words of a record.
+pub trait DwordPlaces {
+    fn put_at(&mut self, k: usize, v: u32);
+    fn len(&self) -> usize;
+}
+
+impl<C: DwordLike> DwordPlaces for &[C] {
+    fn put_at(&mut self, k: usize, v: u32) {
+        self[k].set(v);
+    }
+    fn len(&self) -> usize {
+        <[C]>::len(self)
+    }
+}
+
+impl<C: DwordLike, const N: usize> DwordPlaces for &[C; N] {
+    fn put_at(&mut self, k: usize, v: u32) {
+        self[k].set(v);
+    }
+    fn len(&self) -> usize {
+        N
+    }
+}
+
+impl DwordPlaces for &mut [u32] {
+    fn put_at(&mut self, k: usize, v: u32) {
+        self[k] = v;
+    }
+    fn len(&self) -> usize {
+        <[u32]>::len(self)
+    }
+}
+
+impl<const N: usize> DwordPlaces for &mut [u32; N] {
+    fn put_at(&mut self, k: usize, v: u32) {
+        self[k] = v;
+    }
+    fn len(&self) -> usize {
+        N
+    }
 }
 
 /// What changed from `was` to `now` stored into `cells`.
-pub(super) fn set_values_changed(cells: &[impl DwordLike], was: &[u32], now: &[u32]) {
-    for ((c, &w), &n) in cells.iter().zip(was).zip(now) {
-        set_changed(c, w, n);
+pub(super) fn set_values_changed(mut cells: impl DwordPlaces, was: &[u32], now: &[u32]) {
+    for (k, (&w, &n)) in was.iter().zip(now).enumerate().take(cells.len()) {
+        if n != w {
+            cells.put_at(k, n);
+        }
     }
 }
 

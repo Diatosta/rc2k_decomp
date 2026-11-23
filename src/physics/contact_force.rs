@@ -16,18 +16,17 @@
 //!
 //! Takes: the record the force goes to.
 
-use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::PlainX87;
 use crate::math::matrix3::{extended, rounded_value};
 use crate::math::x87::{compare_80, neg_rounded};
 use crate::math::x87_float::compare;
 use crate::math::x87_float::int;
 use crate::math::x87_float::{X, f80, ld, st};
-use crate::memory::session::PlainFloat;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::flow::ZERO_BITS as ZERO;
-use crate::physics::tables_store::ForceRecord;
 use crate::physics::tables_store::PhysicsTables;
+use crate::physics::tables_store::RecordAt;
 use crate::physics::vector_bits::{
     add, cross, dot, hold_low, length, multiply, negate, scale, turn,
 };
@@ -44,9 +43,9 @@ const NORMAL_FACTOR: f32 = 0.1;
 pub(super) fn contact_force(
     contact: &RefCell<ContactWork>,
     numbers: &Numbers,
-    physics_tables: &PhysicsTables,
+    physics_tables: &mut PhysicsTables,
     car: &Car,
-    record: &ForceRecord,
+    record: RecordAt,
 ) {
     let (turn_speed, point, car_speed, normal, slide_limit) = {
         let work = contact.borrow();
@@ -77,7 +76,7 @@ pub(super) fn contact_force(
     let speed_length = rounded_value(length(normal_speed)).to_bits();
     let contact_value = rounded_value(length(side_speed)).to_bits();
     let mut extra = [0; 3];
-    if physics_tables.contact_step.get() != 0 {
+    if physics_tables.contact_step != 0 {
         normal_push = [0; 3];
         extra = normal;
         let part = x87_5(ld(NORMAL_FACTOR.to_bits()), physics_tables);
@@ -96,11 +95,10 @@ pub(super) fn contact_force(
     }
     // The sum into the record.
     let total = turn(&car.car_inverse_matrix, add(slide, normal_push));
-    x87_8(total, numbers, &record.force);
+    let record = physics_tables.record_mut(record);
+    x87_8(total, numbers, &mut record.force);
     let turned_point = turn(&car.car_inverse_matrix, point);
-    for k in 0..3 {
-        record.point[k].set_bits(turned_point[k]);
-    }
+    record.point = turned_point.map(f32::from_bits);
     let mut work = contact.borrow_mut();
     work.contact_speed_length = speed_length;
     work.contact_value = contact_value;
@@ -144,9 +142,9 @@ fn x87_4(side_speed: [u32; 3], normal_speed: [u32; 3]) -> [u32; 3] {
 /// The part of the normal a contact step adds, `(factor * contact_step) / contact_steps`, as 80
 /// bits.
 fn x87_5(normal_factor: X, tables: &PhysicsTables) -> [u8; 10] {
-    let t1 = int(tables.contact_step.get() as i32);
+    let t1 = int(tables.contact_step as i32);
     let t2 = normal_factor * t1;
-    let t3 = int(tables.contact_steps.get() as i32);
+    let t3 = int(tables.contact_steps as i32);
     let t4 = t2 / t3;
     f80(t4)
 }
@@ -177,7 +175,7 @@ fn x87_7(slide_limit_held: u32, slide: [u32; 3], scratch: u32) -> ([u32; 3], u32
 }
 
 /// One straight x87 run as plain Rust over `X`: the total over the step time.
-fn x87_8(total: [u32; 3], numbers: &Numbers, d: &[PlainFloat; 3]) {
+fn x87_8(total: [u32; 3], numbers: &Numbers, d: &mut [f32; 3]) {
     for k in 0..3 {
         let t2 = ld(total[k]) / numbers.step_time.ld();
         d[k].st(t2);

@@ -8,40 +8,42 @@
 //! Refuses what `count_ground_probe` refuses.
 
 use crate::errors::Refused;
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::camera_ground::probe_at;
+use crate::physics::car_store::Car;
 use crate::physics::flow::{ZERO_BITS as ZERO, c0};
 use crate::physics::step_families::CameraGroundInputs;
 use rc2k_core::physics::camera_ground::{is_low, low_switch, low_switch_looks, over};
 
 // Core: `rc2k_core::physics::camera_ground::{low_switch_looks, is_low, low_switch}`.
-pub(super) fn camera_low_switch(c: &CameraGroundInputs<'_>) -> Result<(), Refused> {
+pub(super) fn camera_low_switch(c: &CameraGroundInputs<'_>, car: &mut Car) -> Result<(), Refused> {
     if !low_switch_looks(
-        c0(c.car.crash_matrix.at(5), ZERO),
-        c.car.camera_switch_active.get(),
-        c.car.camera_view.get(),
+        c0(car.crash_matrix.at(5), ZERO),
+        car.camera_switch_active,
+        car.camera_view,
     ) {
         return Ok(());
     }
     if !probe_at(
         c,
-        c.car.camera_position.bits_at(0),
-        c.car.camera_position.bits_at(2),
-        &c.car.camera_ground_faces[0],
+        car.camera_position.bits_at(0),
+        car.camera_position.bits_at(2),
+        &mut car.camera_ground_faces[0],
     )? {
         return Ok(());
     }
     if !is_low(over(
-        c.car.camera_position.bits_at(1),
+        car.camera_position.bits_at(1),
         c.search.borrow().height,
     )) {
         return Ok(());
     }
-    let s = low_switch(c.car.camera_blend_view.get(), c.car.step_clock.get());
-    c.car.camera_view_return.set(s.before);
-    c.car.camera_blend_view.set(s.mode);
-    c.car.camera_switch_active.set(s.switching);
-    c.car.camera_switch_share.set_bits(s.switch_share);
-    c.car.camera_switch_length.set(s.switch_length);
-    c.car.camera_switch_clock.set(s.clock);
+    let s = low_switch(car.camera_blend_view, car.step_clock);
+    car.camera_view_return = s.before;
+    car.camera_blend_view = s.mode;
+    car.camera_switch_active = s.switching;
+    car.camera_switch_share = f32::from_bits(s.switch_share);
+    car.camera_switch_length = s.switch_length;
+    car.camera_switch_clock = s.clock;
     Ok(())
 }

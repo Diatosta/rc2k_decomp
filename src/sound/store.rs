@@ -211,7 +211,7 @@ pub fn current_object<'a>(
     sound: &'a crate::sound::owner::Sound,
     work: &crate::race::work_store::RaceWork,
 ) -> &'a RefCell<SoundObject> {
-    &sound.race.objects.get()[(work.current_car.get() & 7) as usize]
+    &sound.race.objects.get()[(work.current_car & 7) as usize]
 }
 
 impl SoundObject {

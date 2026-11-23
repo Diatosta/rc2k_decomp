@@ -11,7 +11,7 @@ use crate::race::numbers_store::Numbers;
 
 /// `records` (a whole table, the wheels' 0x17 or the contacts' 7) on the work car.
 pub(super) fn apply_forces(
-    car: &Car,
+    car: &mut Car,
     numbers: &Numbers,
     records: &[ForceRecord],
 ) -> Result<(), Refused> {

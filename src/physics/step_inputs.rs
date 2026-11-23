@@ -1,7 +1,7 @@
 //! What the contact, wall, ground-touch, camera and checkpoint steps read of the race, borrowed
 //! once at the step's entry (`car_physics_step`) and handed down in place of the whole race.
 
-use crate::physics::car_store::Car;
+use crate::memory::session::DrawArc;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner::Race;
@@ -22,9 +22,8 @@ pub struct StepInputs<'a> {
     pub course: &'a Course,
     pub numbers: &'a Numbers,
     pub frame: &'a Frame,
-    pub car: &'a Car,
-    pub tables: &'a PhysicsTables,
-    pub work: &'a RaceWork,
+    pub tables: &'a DrawArc<PhysicsTables>,
+    pub work: &'a DrawArc<RaceWork>,
     pub shared: &'a RaceShared,
     pub vars: &'a RaceVars,
     pub view: &'a RaceView,
@@ -41,9 +40,8 @@ impl<'a> StepInputs<'a> {
             course: &race.course,
             numbers: &race.course.numbers,
             frame: &race.frame,
-            car: race.shared.car(),
-            tables: race.shared.physics_tables.get(),
-            work: race.shared.work.get(),
+            tables: &race.shared.physics_tables,
+            work: &race.shared.work,
             shared: &race.shared,
             vars: race.shared.vars.get(),
             view: race.shared.view.get(),

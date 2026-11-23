@@ -15,6 +15,8 @@ use crate::math::matrix3::rounded_value;
 use crate::math::x87_float::X;
 use crate::math::x87_float::int;
 use crate::math::x87_float::{ld, st, to_int};
+use crate::memory::plain_floats::FloatRow;
+use crate::memory::plain_floats::FloatRowMut;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::step_families::ContactInputs;
@@ -30,6 +32,7 @@ pub(super) fn point_hits_car(
     c: &ContactInputs<'_>,
     point: [u32; 3],
     face: u32,
+    car: &mut Car,
 ) -> Result<bool, Refused> {
     let rd =
         |offset: u32| crate::race::course_places::face_field::<u32>(c.course.reads(), face, offset);
@@ -40,7 +43,7 @@ pub(super) fn point_hits_car(
             point[k as usize],
             rd(0x30 + 4 * k)?,
             offset,
-            c.car.position.bits_at(k as usize),
+            car.position.bits_at(k as usize),
         );
         c.contact.borrow_mut().object_point_offset[k as usize] = v;
         if k == 1 {
@@ -53,7 +56,7 @@ pub(super) fn point_hits_car(
         work.object_point_turned = work.object_point_scaled;
         work.object_point_turned
     };
-    let turned = turn_by_heading(c.shared.buffers.engine_tables(), c.car, scaled, y);
+    let turned = turn_by_heading(c.shared.buffers.engine_tables(), car, scaled, y);
     let (x, z, kind) = {
         let mut work = c.contact.borrow_mut();
         work.object_point_turned = turned;
@@ -67,23 +70,21 @@ pub(super) fn point_hits_car(
     if !contacts::inside_box(
         x,
         z,
-        c.tables.spec_ints[2].get(),
-        c.tables.spec_ints[0].get(),
-        c.tables.spec_ints[1].get(),
+        c.tables.borrow().spec_ints[2],
+        c.tables.borrow().spec_ints[0],
+        c.tables.borrow().spec_ints[1],
     ) {
         return Ok(false);
     }
     if contacts::kind_hits(kind) {
-        x87_3(&c.contact.borrow(), c.numbers, c.car);
-        let speed_length = rounded_value(vector_length(&c.car.velocity));
+        x87_3(&c.contact.borrow(), c.numbers, car);
+        let speed_length = rounded_value(vector_length(&car.velocity));
         c.contact.borrow_mut().contact_speed_length = speed_length.to_bits();
-        if let Some(hit) =
-            rc2k_core::physics::walls::raised_hit(speed_length, c.car.contact_depth.get())
-        {
-            c.car.contact_depth.set(hit);
+        if let Some(hit) = rc2k_core::physics::walls::raised_hit(speed_length, car.contact_depth) {
+            car.contact_depth = hit;
         }
-        c.car.contact_flag.set(1);
-        c.car.wall_hit_timer.set(0x32);
+        car.contact_flag = 1;
+        car.wall_hit_timer = 0x32;
     }
     Ok(true)
 }
@@ -111,7 +112,7 @@ fn x87_2(contact: &mut ContactWork, numbers: &Numbers) {
 }
 
 /// One straight x87 run as plain Rust over `X`.
-fn x87_3(contact: &ContactWork, numbers: &Numbers, car: &Car) {
+fn x87_3(contact: &ContactWork, numbers: &Numbers, car: &mut Car) {
     let t0 = int(contact.contact_point[0] as i32);
     let t1 = numbers.k65536.ld();
     let t2 = t0 / t1;

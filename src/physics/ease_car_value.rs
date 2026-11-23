@@ -8,14 +8,14 @@ use crate::physics::cells::set_changed;
 use crate::race::vars_store::RaceVars;
 use rc2k_core::physics::easing::ease_value;
 
-pub(super) fn ease_car_value(car: &Car, vars: &RaceVars) {
-    let was = car.eased_value.get();
+pub(super) fn ease_car_value(car: &mut Car, vars: &RaceVars) {
+    let was = car.eased_value;
     let mut value = was;
     ease_value(
         vars.scene_switch.get(),
-        car.value_jump_steps.get(),
-        car.eased_target.get(),
+        car.value_jump_steps,
+        car.eased_target,
         &mut value,
     );
-    set_changed(&car.eased_value, was, value);
+    set_changed(&mut car.eased_value, was, value);
 }

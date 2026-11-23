@@ -47,6 +47,7 @@ fn choose_at(
     view.view_cars[0].set(shown.cars[0]);
     view.view_cars[1].set(shown.cars[1]);
     view.views.set(shown.views);
+    view.split_first.set(shown.split_first);
     if shown.split != split {
         vars.split.set(shown.split);
     }

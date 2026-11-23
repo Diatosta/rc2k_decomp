@@ -20,7 +20,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 x87_1(
-                    race().shared.car(),
+                    &mut race().shared.car_mut(),
                     &crate::test_support::race_places::numbers(),
                     *view(a[0], 0),
                 );
@@ -42,10 +42,7 @@ fn blocks() -> Vec<Block> {
             plain: |a| {
                 x87_2(
                     &crate::test_support::race_places::numbers(),
-                    crate::test_support::own::race()
-                        .frame
-                        .view_and_records
-                        .get(),
+                    &crate::test_support::own::race().frame.view_and_records,
                     *view(a[0], 0),
                 );
             },
@@ -58,16 +55,14 @@ fn blocks() -> Vec<Block> {
             }],
             ulps: 0,
             plain: |_| {
-                let car = crate::test_support::own::race().shared.car();
+                let mut car = crate::test_support::own::race().shared.car_mut();
                 // The block reads the zoom as a whole number (the 384 the step puts there).
+                let zoom = car.camera_zoom.to_bits() as i32;
                 x87_3(
-                    car,
+                    &mut car,
                     &crate::test_support::race_places::numbers(),
-                    crate::test_support::own::race()
-                        .frame
-                        .view_and_records
-                        .get(),
-                    car.camera_zoom.get().to_bits() as i32,
+                    &crate::test_support::own::race().frame.view_and_records,
+                    zoom,
                 );
             },
         },
@@ -104,9 +99,9 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 x87_4(
-                    race().shared.physics_tables.get(),
+                    &race().shared.physics_tables(),
                     &crate::test_support::race_places::numbers(),
-                    race().frame.view_and_records.get(),
+                    &race().frame.view_and_records,
                     &core::array::from_fn(|k| {
                         if k < 10 {
                             crate::math::x87_mem::Base::dword(a[0], 4 * k)
@@ -124,7 +119,7 @@ fn blocks() -> Vec<Block> {
                 writes: &[(0x31A674, Out::F)],
             }],
             ulps: 0,
-            plain: |_| x87_5(race().shared.car()),
+            plain: |_| x87_5(&mut race().shared.car_mut()),
         },
         Block {
             name: "update_camera line 205",
@@ -141,7 +136,9 @@ fn blocks() -> Vec<Block> {
                 writes: &[(0x208B50, Out::I), (0x208B54, Out::I), (0x208B58, Out::I)],
             }],
             ulps: 0,
-            plain: |_| x87_6(&mut race().physics.camera_mut(), race().shared.car()),
+            plain: |_| {
+                x87_6(&mut race().physics.camera_mut(), &race().shared.car());
+            },
         },
         Block {
             name: "update_camera line 235",
@@ -166,7 +163,7 @@ fn blocks() -> Vec<Block> {
             ulps: 0,
             plain: |a| {
                 let result = x87_7(
-                    race().shared.car(),
+                    race().shared.car().camera_switch_share,
                     &crate::test_support::race_places::numbers(),
                     view::<crate::memory::session::Float>(a[0], 0).get(),
                     view::<crate::memory::session::Float>(a[1], 0).get(),
@@ -181,7 +178,7 @@ fn blocks() -> Vec<Block> {
                 writes: &[(0x31A6A0, Out::F)],
             }],
             ulps: 0,
-            plain: |_| x87_8(&race().physics.camera(), race().shared.car()),
+            plain: |_| x87_8(&race().physics.camera(), &mut race().shared.car_mut()),
         },
         Block {
             name: "update_camera line 266",

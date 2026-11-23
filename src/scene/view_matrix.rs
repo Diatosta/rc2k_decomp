@@ -4,7 +4,7 @@
 //! cosine out (`fsincos`), where `scene::set_turn_x` and `_y` look sixteen bits up in
 //! tables; the first two write the same matrices as those.
 
-use crate::math::cells::{Cells, Off};
+use crate::math::cells::{Cells, Off, Words};
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::memory::session::PlainFloat;
@@ -59,7 +59,7 @@ pub fn set_fine_turn(course: CourseReads<'_>, matrices: &ViewMatrices, axis: Axi
 /// equal to `Numbers.zero` (0, or no number). Minus zero made zero. Returns the length.
 pub fn unit_vector(
     course: CourseReads<'_>,
-    from: &(impl Cells + ?Sized),
+    from: &(impl crate::math::cells::Words + ?Sized),
     out: &(impl Cells + ?Sized),
 ) -> u32 {
     // `x87::length`: sqrt(x x + (y y + z z)).
@@ -94,12 +94,18 @@ pub fn cross_product(
     c: &(impl Cells + ?Sized),
     out: &(impl Cells + ?Sized),
 ) {
+    let [x, y, z] = cross_of(b, c);
+    out.set_float(0, x);
+    out.set_float(1, y);
+    out.set_float(2, z);
+}
+
+/// `b` x `c` as three floats (the part `cross_product` writes).
+pub fn cross_of(b: &(impl Words + ?Sized), c: &(impl Words + ?Sized)) -> [f32; 3] {
     let part = |x: usize, y: usize| {
         x87::product_difference(c.float(x), b.float(y), b.float(x), c.float(y))
     };
-    out.set_float(0, part(2, 1));
-    out.set_float(1, part(0, 2));
-    out.set_float(2, part(1, 0));
+    [part(2, 1), part(0, 2), part(1, 0)]
 }
 
 /// `scene::square_matrix`: a turning's three rows made one long and at right angles again, from its
@@ -120,7 +126,7 @@ pub fn square_matrix(course: CourseReads<'_>, at: &(impl Cells + ?Sized)) -> u32
 /// floats' cofactors laid out the other way round, then squared. Returns `square_matrix`'s length.
 pub fn invert_turn(
     course: CourseReads<'_>,
-    from: &(impl Cells + ?Sized),
+    from: &(impl crate::math::cells::Words + ?Sized),
     out: &(impl Cells + ?Sized),
 ) -> u32 {
     let mut m = [0f32; 9];
@@ -163,15 +169,17 @@ pub fn set_view_matrices(
     scratch: &ViewMatrices,
 ) {
     let old_view_matrix = frame.view_kept.borrow().view_matrix;
-    let angles: [u32; 3] =
-        crate::memory::session::read_first(&frame.view_and_records.get().view_vars.view_angles);
+    let [a0, a1, a2, ..] = frame.view_and_records.borrow().view_vars.view_angles;
+    let angles = [a0, a1, a2];
     set_fine_turn(course, scratch, Axis::Y, angles[0].wrapping_neg());
     set_fine_turn(course, scratch, Axis::X, angles[1].wrapping_neg());
     set_fine_turn(course, scratch, Axis::Z, angles[2].wrapping_neg());
-    let place = crate::memory::session::read_bits::<_, 3>(
-        &frame.view_and_records.get().view_vars.view_place,
-    )
-    .map(u32::wrapping_neg);
+    let place = frame
+        .view_and_records
+        .borrow()
+        .view_vars
+        .view_place
+        .map(u32::wrapping_neg);
     let (view_turn, view_place_matrix, view_matrix) = {
         let mut kept = scratch.borrow_mut();
         let v = &mut *kept;

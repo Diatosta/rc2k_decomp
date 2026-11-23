@@ -91,9 +91,10 @@ pub(super) fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> R
                 *cell = value;
             }
         }
-        for car in 0..race.shared.work.get().car_blocks.len() {
+        for car in 0..race.shared.work().car_blocks.len() {
             for word in OVERLAY_CLEARED {
-                crate::race::race_init::block_word(race.shared.race_car(car)?, word)?.set(0);
+                *crate::race::race_init::block_word(&mut *race.shared.race_car_mut(car)?, word)? =
+                    0;
             }
         }
         race.frame.panel.borrow_mut().distance = [0; 2];

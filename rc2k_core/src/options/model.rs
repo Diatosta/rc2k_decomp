@@ -140,6 +140,13 @@ pub struct Display {
     /// race cycles through (only in the new file; the first when missing).
     #[serde(default, skip_serializing_if = "is_zero")]
     pub split_layout: u32,
+    /// Whether the status in the Discord app is kept (only in the new file; on when missing).
+    #[serde(default = "on", skip_serializing_if = "is_on")]
+    pub discord_status: bool,
+    /// The Discord application whose status is set, in place of the one built in (only in the
+    /// new file; left out for the built-in one).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discord_application_id: Option<String>,
     /// What the replay viewer's render dialog was last set to (only in the new file; the
     /// defaults when missing).
     #[serde(default, skip_serializing_if = "VideoChoices::is_default")]
@@ -203,6 +210,8 @@ impl Default for Display {
             quit_pictures: true,
             smooth_frames: true,
             split_layout: 0,
+            discord_status: true,
+            discord_application_id: None,
             video: VideoChoices::default(),
         }
     }

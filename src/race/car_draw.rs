@@ -56,12 +56,12 @@ fn car_body_matrix(course: CourseReads<'_>, cars: &CarDrawState, m: &ViewMatrice
 fn number_name_byte(work: &RaceWork, offset: u32) -> Result<u8, BadInput> {
     let dword = (offset / 4) as usize;
     let bits = match dword.checked_sub(work.number_texture_names.len()) {
-        None => work.number_texture_names[dword].bits(),
-        Some(0) => work.car_nearness.bits(),
-        Some(1) => work.car_draw_word.bits(),
-        Some(n @ 2..9) => work.number_tens_textures[n - 2].bits(),
-        Some(n @ 9..16) => work.part_break_limits[n - 9].bits(),
-        Some(n @ 16..32) => work.part_matrix_still[n - 16].bits(),
+        None => work.number_texture_names[dword],
+        Some(0) => work.car_nearness.to_bits(),
+        Some(1) => work.car_draw_word,
+        Some(n @ 2..9) => work.number_tens_textures[n - 2],
+        Some(n @ 9..16) => work.part_break_limits[n - 9],
+        Some(n @ 16..32) => work.part_matrix_still[n - 16],
         Some(_) => return Err(BadInput("a car kind's number texture name past the table")),
     };
     Ok(bits.to_le_bytes()[(offset % 4) as usize])
@@ -81,7 +81,7 @@ pub fn car_number_textures(
     marks: &crate::scene::car_marks::CarMarks,
 ) -> Result<(), BadInput> {
     let cars = reads.frame_cars;
-    let (parts, numbers) = (reads.car_parts, reads.numbers);
+    let (part, numbers) = (reads.car_parts.car(car), reads.numbers);
     let (vars, work) = (reads.vars, reads.work);
     // `shown_engine_speed` is rounded as the x87 does, under the game's control word.
     use rc2k_core::race::car_marks::{
@@ -98,9 +98,10 @@ pub fn car_number_textures(
         marks.mark(2).set(side);
         marks.mark(3).set(side);
         let name = cars.car(car)?.car_kind.get().wrapping_mul(0x30);
-        let n = crate::math::x87::to_int(&parts.cars[car].shown_engine_speed);
+        let n = crate::math::x87::to_int(part.shown_engine_speed);
         let (place, _) = letter_place(n);
-        let letter = letter_number(number_name_byte(work, name.wrapping_add(place))?) as u32;
+        let letter =
+            letter_number(number_name_byte(&work.borrow(), name.wrapping_add(place))?) as u32;
         marks.mark(5).set(letter);
         let d = number_digits(cars.car(car)?.start_slot_value.get());
         marks.mark(6).set(d.tens);
@@ -109,10 +110,10 @@ pub fn car_number_textures(
         let (tens, _) = stage_plate(vars.stage_number());
         marks
             .mark(8)
-            .set(work.number_tens_textures[tens as usize].get());
+            .set(work.borrow().number_tens_textures[tens as usize]);
         if decals_shown(float(&block.electrics_damage), numbers.hundred.get()) {
             for k in 0..0x11u32 {
-                let byte = parts.cars[car].part_switches.get(k as usize) as u32;
+                let byte = u32::from(part.part_switches[k as usize]);
                 let to = crate::race::frame_store::CAR_DECAL_PLACES[k as usize] as usize;
                 if to >= crate::scene::car_marks::MARKS {
                     return Err(BadInput("a decal place past the car's marks"));
@@ -240,15 +241,14 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
         marks: &marks,
         ..*ctx
     };
-    let c = &ctx.reads.car_parts.cars[car];
-    let kept = &c.part_matrices;
+    let c = ctx.reads.car_parts.car(car);
     {
         let mut cars = ctx.view.cars.borrow_mut();
-        cars.part_matrices = kept.get();
+        cars.part_matrices = c.part_matrices;
         cars.car_turn = matrix_of(&c.place_matrix);
     }
     ctx.view.matrices.borrow_mut().body_turn_matrix = matrix_of(&c.body_matrix);
-    ctx.view.cars.borrow_mut().groups_which = ctx.reads.car_parts.cars[car].mode_on.get();
+    ctx.view.cars.borrow_mut().groups_which = c.mode_on;
     let model = ctx.reads.frame_cars.car(car)?.car_kind.get();
     ctx.view.matrices.borrow_mut().known_object = model;
     set_group_masks(ctx.reads.light_records, &ctx.view.cars, model)?;
@@ -290,8 +290,11 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     if !below(stage, 0x33) {
         stage = 0x33;
     }
-    let record = ViewVars::record_of(ctx.reads.view_and_records, stage as usize)?;
-    if record.fixed_zoom.get() != 0 {
+    let record = ctx
+        .reads
+        .view_and_records
+        .read(|records| ViewVars::record_of(records, stage as usize).copied())?;
+    if record.fixed_zoom != 0 {
         ctx.view.cars.borrow_mut().car_depth = 0x5_0000;
     }
     let and = |mask: u32| {
@@ -487,7 +490,7 @@ pub fn draw_car_entry(
         return Err(BadInput("a car without its block").into());
     }
     let car = ctx.reads.work.block_number(n as usize)?;
-    ctx.view.vars.drawn_car.set(n);
+    ctx.view.vars.borrow_mut().drawn_car = n;
     ctx.view.state.borrow_mut().drawn_car = n;
     ctx.view.light.borrow_mut().car_light = ctx.reads.frame_cars.car(car)?.light_colour.get();
     let t = crate::scene::rotate_point::rotate_point_by(
@@ -550,7 +553,7 @@ mod vector_tests {
         let race = race();
         [
             race.frame.frame_work.borrow().car_depth,
-            race.shared.work.get().car_nearness.get().to_bits(),
+            race.shared.work().car_nearness.to_bits(),
             SHINE.get(),
             ZERO_AND_ONE.get()[0],
             ZERO_AND_ONE.get()[1],
@@ -562,11 +565,7 @@ mod vector_tests {
         scene().draw_work_mut().scratch = 0xAAAA_AAAAu32;
         // the depth is a whole number around the view's reach
         race.frame.frame_work.borrow_mut().car_depth = (r.int() as u32) & 0x3F_FFFF;
-        race.shared
-            .work
-            .get()
-            .car_nearness
-            .set(f32::from_bits(r.float()));
+        race.shared.work_mut().car_nearness = f32::from_bits(r.float());
         SHINE.set(r.int() as u32);
         let zero = if r.below(4) == 0 {
             f32::from_bits(r.float())
@@ -598,11 +597,7 @@ mod vector_tests {
         };
         nearness(&numbers, &cars, &mine);
         SHINE.set(mine.borrow().shine);
-        race.shared
-            .work
-            .get()
-            .car_nearness
-            .set(cars.borrow().car_nearness);
+        race.shared.work_mut().car_nearness = cars.borrow().car_nearness;
         let mut out = state().to_vec();
         out.push(near_size(&cars));
         assert_eq!(state()[..], out[..5]);

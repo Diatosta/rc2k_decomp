@@ -7,6 +7,7 @@
 //! The x87 run is plain Rust over `X` (`math/x87_float.rs`).
 
 use crate::math::cell_x87::CellX87;
+use crate::math::cell_x87::PlainX87;
 use crate::math::x87;
 use crate::math::x87_float::int;
 use crate::physics::car_store::Car;
@@ -18,7 +19,12 @@ use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 
 /// The drag and the engine speed's step.
-fn run(numbers: &Numbers, physics_tables: &PhysicsTables, car: &Car, gear: &GearFigures) -> u32 {
+fn run(
+    numbers: &Numbers,
+    physics_tables: &mut PhysicsTables,
+    car: &mut Car,
+    gear: &GearFigures,
+) -> u32 {
     x87_1(numbers, physics_tables, car, gear)
 }
 
@@ -32,25 +38,25 @@ pub fn free_rev(
     engine_torque(course, shared, scene);
     let drag = run(
         &course.numbers,
-        shared.physics_tables.get(),
-        shared.car(),
+        &mut shared.physics_tables_mut(),
+        &mut shared.car_mut(),
         gear,
     );
-    let e = shared.car().engine_speed.get();
+    let e = shared.car().engine_speed;
     if e == 0.0 || e.is_nan() {
         return;
     }
     if e < 0.0 {
         let y = x87::add(e, drag);
-        shared.car().engine_speed.set(y);
+        shared.car_mut().engine_speed = y;
         if !below(y, 0.0) {
-            shared.car().engine_speed.set(0.0);
+            shared.car_mut().engine_speed = 0.0;
         }
     } else {
         let y = x87::sub(e, drag);
-        shared.car().engine_speed.set(y);
+        shared.car_mut().engine_speed = y;
         if below(y, 0.0) {
-            shared.car().engine_speed.set(0.0);
+            shared.car_mut().engine_speed = 0.0;
         }
     }
 }
@@ -58,7 +64,12 @@ pub fn free_rev(
 // ---- the x87 arithmetic ----
 
 /// One straight x87 run as plain Rust over `X`; the drag's float bits.
-fn x87_1(numbers: &Numbers, physics_tables: &PhysicsTables, car: &Car, gear: &GearFigures) -> u32 {
+fn x87_1(
+    numbers: &Numbers,
+    physics_tables: &mut PhysicsTables,
+    car: &mut Car,
+    gear: &GearFigures,
+) -> u32 {
     let t0 = physics_tables.drive_ratio.ld();
     let t1 = gear.drive_torque_figure.ld();
     let t2 = t0 * t1;
@@ -66,7 +77,7 @@ fn x87_1(numbers: &Numbers, physics_tables: &PhysicsTables, car: &Car, gear: &Ge
     let t4 = t2 / t3;
     let t5 = numbers.k10000.ld();
     let t6 = t4 / t5;
-    let t7 = int(car.throttle.get() as i32);
+    let t7 = int(car.throttle as i32);
     let t8 = t6 * t7;
     let t9 = numbers.k256.ld();
     let t10 = t8 / t9;
@@ -116,8 +127,8 @@ mod reference_vectors {
             plain: |_| {
                 let drag = x87_1(
                     &crate::test_support::race_places::numbers(),
-                    race().shared.physics_tables.get(),
-                    race().shared.car(),
+                    &mut race().shared.physics_tables_mut(),
+                    &mut race().shared.car_mut(),
                     race().gear(),
                 );
                 crate::test_support::own::scene().draw_work_mut().scratch = drag;

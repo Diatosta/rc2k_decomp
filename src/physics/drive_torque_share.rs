@@ -6,6 +6,7 @@
 use crate::math::x87;
 use crate::math::x87::toward_one;
 use crate::math::x87_float as bh;
+use crate::memory::plain_floats::FloatRow;
 use crate::physics::car_store::Car;
 use crate::physics::figures::{TORQUE_SHARE_A, TORQUE_SHARE_B, TORQUE_SHARE_C};
 use crate::physics::tables_store::PhysicsTables;
@@ -17,7 +18,7 @@ use std::cmp::Ordering;
 /// less the gear ratio setting word.
 pub fn drive_torque_share(
     car: &Car,
-    tables: &PhysicsTables,
+    tables: &mut PhysicsTables,
     numbers: &Numbers,
     scene: &crate::scene::owner::Scene,
 ) -> u32 {
@@ -27,7 +28,7 @@ pub fn drive_torque_share(
     );
     // The step's count: stored before it is read, as a whole number.
     let count = crate::memory::session::PlainDword::new(0);
-    let n = if car.drive_kind.get() == 1 {
+    let n = if car.drive_kind == 1 {
         TORQUE_SHARE_A
     } else {
         TORQUE_SHARE_B
@@ -46,15 +47,10 @@ pub fn drive_torque_share(
     }
     // The gears left go through the cell as a whole number, then their share of the count
     // replaces it.
-    let gears_left = count.get().wrapping_sub(car.gear_ratio_setting.get());
+    let gears_left = count.get().wrapping_sub(car.gear_ratio_setting);
     gears_share.set(x87::int_ratio(gears_left as i32, count.get() as i32));
-    tables
-        .torque_share
-        .set(toward_one(gears_share.get(), speed_share.get()));
-    tables.drive_torque.set(x87::mul(
-        tables.drive_torque.get(),
-        tables.torque_share.get(),
-    ));
+    tables.torque_share = toward_one(gears_share.get(), speed_share.get());
+    tables.drive_torque = x87::mul(tables.drive_torque, tables.torque_share);
     {
         let mut work = scene.draw_work_mut();
         work.work_float_a = speed_share.get();

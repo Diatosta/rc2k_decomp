@@ -411,7 +411,11 @@ impl SdlBackend {
         };
         let info = DeviceInfo {
             kind,
-            icon_family: is_pad.then(|| sdl_input::pad_family(id)),
+            icon_family: if is_pad {
+                Some(sdl_input::pad_family(id))
+            } else {
+                rc2k_core::input::known_devices::family(&name)
+            },
             profile_axes: if is_pad {
                 6
             } else {

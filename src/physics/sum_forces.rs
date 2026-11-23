@@ -12,9 +12,9 @@ use std::cell::RefCell;
 
 /// The exact x87 version, for `physics::car_physics_step`.
 pub fn sum_forces(numbers: &Numbers, tables: &PhysicsTables, work: &RefCell<WheelWork>) {
-    let g = tables.gravity.get();
+    let g = tables.gravity;
     let dt = numbers.step_time.get();
-    let up = |k: usize| tables.forces[k].force[1].get();
+    let up = |k: usize| tables.forces[k].force[1];
     let (drive_slip, axle_slips) = {
         let work = work.borrow();
         (

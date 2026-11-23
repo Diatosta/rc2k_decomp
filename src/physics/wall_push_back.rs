@@ -7,17 +7,23 @@
 
 use crate::errors::Refused;
 use crate::math::x87::{compare_80, length_80};
+use crate::physics::car_store::Car;
 use crate::physics::contact_force::contact_force;
 use crate::physics::flow::{ZERO_BITS as ZERO, negated_velocity};
 use crate::physics::step_families::ContactInputs;
+use crate::physics::tables_store::RecordAt;
 use crate::physics::vector_bits::bits_of;
 use crate::race::norms::normalise_work_vector;
 
 /// The steps, not guarded.
-pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn steps(
+    c: &ContactInputs<'_>,
+    scene: &crate::scene::owner::Scene,
+    car: &mut Car,
+) -> Result<(), Refused> {
     {
         let mut scratch = c.frame.scratch_mut();
-        scratch.work_vector = negated_velocity(c.car);
+        scratch.work_vector = negated_velocity(car);
         if compare_80(length_80(scratch.work_vector), ZERO) & 0x4000 != 0 {
             scratch.work_vector = [0.0f32.to_bits(); 3];
         }
@@ -26,12 +32,18 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     }
     {
         let mut work = c.contact.borrow_mut();
-        work.contact_car_speed = bits_of(&c.car.velocity);
-        work.contact_turn_speed = bits_of(&c.car.spin);
+        work.contact_car_speed = bits_of(&car.velocity);
+        work.contact_turn_speed = bits_of(&car.spin);
         work.contact_point = [0; 3];
         work.contact_slide_limit = 0;
     }
-    contact_force(c.contact, c.numbers, c.tables, c.car, &c.tables.contacts[4]);
-    { crate::physics::place_sound_e1::place_sound_e1(&c.sound) }?;
+    contact_force(
+        c.contact,
+        c.numbers,
+        &mut c.tables.borrow_mut(),
+        car,
+        RecordAt::Contact(4),
+    );
+    { crate::physics::place_sound_e1::place_sound_e1(&c.sound, car) }?;
     Ok(())
 }

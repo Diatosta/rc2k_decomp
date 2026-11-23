@@ -16,7 +16,6 @@
 //! The arithmetic is plain floats (`rc2k_core::physics::patches`): each figure is one correctly
 //! rounded quotient or product at the game's double and extended precision.
 
-use crate::memory::session::PlainFloat;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::tables_store::Surface;
 use crate::race::numbers_store::Numbers;
@@ -29,63 +28,71 @@ fn records(tables: &PhysicsTables) -> &[Surface] {
 }
 
 /// A record's three grips: slide, acceleration, brake.
-fn grips(r: &Surface) -> [&PlainFloat; 3] {
-    [&r.slide_grip, &r.accel_grip, &r.brake_grip]
+fn grips(r: &mut Surface) -> [&mut f32; 3] {
+    [&mut r.slide_grip, &mut r.accel_grip, &mut r.brake_grip]
 }
 
 /// The two drags (10.0) the sticky grass setting keeps: grass, records 7 and 8.
-fn tens(tables: &PhysicsTables) -> [&PlainFloat; 2] {
-    [&tables.surfaces[7].drag, &tables.surfaces[8].drag]
+fn tens(tables: &PhysicsTables) -> [f32; 2] {
+    [tables.surfaces[7].drag, tables.surfaces[8].drag]
 }
 
 /// The patch settings and the figures they act on, as bits.
 fn load(tables: &PhysicsTables, work: &RaceWork) -> Patches {
-    let w = &work;
+    let w = work;
     Patches {
-        switch: w.patch_switch().get(),
-        settings: std::array::from_fn(|n| w.patch_settings()[n].get()),
-        factors: std::array::from_fn(|n| w.patch_factors[n].bits()),
-        applied: w.patches_applied.get(),
-        gravity: tables.gravity.bits(),
-        records: std::array::from_fn(|r| grips(&records(tables)[r]).map(PlainFloat::bits)),
-        tens: tens(tables).map(PlainFloat::bits),
+        switch: w.patch_switch(),
+        settings: std::array::from_fn(|n| w.patch_settings()[n]),
+        factors: std::array::from_fn(|n| w.patch_factors[n].to_bits()),
+        applied: w.patches_applied,
+        gravity: tables.gravity.to_bits(),
+        records: std::array::from_fn(|r| {
+            let s = &records(tables)[r];
+            [s.slide_grip, s.accel_grip, s.brake_grip].map(f32::to_bits)
+        }),
+        tens: tens(tables).map(f32::to_bits),
     }
 }
 
 /// The places that changed, written back.
-fn store(tables: &PhysicsTables, work: &RaceWork, before: &Patches, after: &Patches) {
-    let w = &work;
+fn store(tables: &mut PhysicsTables, work: &mut RaceWork, before: &Patches, after: &Patches) {
     if before.applied != after.applied {
-        w.patches_applied.set(after.applied);
+        work.patches_applied = after.applied;
     }
     for n in 0..12 {
         if before.settings[n] != after.settings[n] {
-            w.patch_settings()[n].set(after.settings[n]);
+            work.patches[1 + n] = after.settings[n];
         }
     }
-    let put = |f: &dyn crate::memory::session::Cell32, old: u32, new: u32| {
+    let put = |f: &mut f32, old: u32, new: u32| {
         if old != new {
-            f.set_bits(new);
+            *f = f32::from_bits(new);
         }
     };
-    put(&tables.gravity, before.gravity, after.gravity);
-    for (r, record) in records(tables).iter().enumerate() {
+    put(&mut tables.gravity, before.gravity, after.gravity);
+    for (r, record) in tables.surfaces[1..13].iter_mut().enumerate() {
         for (n, f) in grips(record).into_iter().enumerate() {
             put(f, before.records[r][n], after.records[r][n]);
         }
     }
-    for (k, f) in tens(tables).into_iter().enumerate() {
-        put(f, before.tens[k], after.tens[k]);
+    for (k, surface) in [7, 8].into_iter().enumerate() {
+        put(
+            &mut tables.surfaces[surface].drag,
+            before.tens[k],
+            after.tens[k],
+        );
     }
     for n in 0..10 {
-        put(&w.patch_factors[n], before.factors[n], after.factors[n]);
+        if before.factors[n] != after.factors[n] {
+            work.patch_factors[n] = f32::from_bits(after.factors[n]);
+        }
     }
 }
 
 /// Applies the patches at the game's double and extended precision: each figure is one
 /// quotient, or a product whose first step is exact.
 // Core: `rc2k_core::physics::patches::apply_patches`.
-pub fn apply_patches(tables: &PhysicsTables, numbers: &Numbers, work: &RaceWork) {
+pub fn apply_patches(tables: &mut PhysicsTables, numbers: &Numbers, work: &mut RaceWork) {
     let before = load(tables, work);
     if before.applied != 0 {
         return;

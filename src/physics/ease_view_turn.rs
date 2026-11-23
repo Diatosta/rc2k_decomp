@@ -10,7 +10,7 @@ use crate::physics::camera_store::CameraWork;
 use crate::physics::car_store::Car;
 
 /// The exact version, for `physics::camera_avoid_ground`.
-pub fn ease_view_turn(camera: &mut CameraWork, step_first: u32, car: &Car) {
+pub fn ease_view_turn(camera: &mut CameraWork, step_first: u32, car: &mut Car) {
     if step_first != 0 {
         camera.view_share_pitch = 1.0;
         camera.view_share_heading = 1.0;
@@ -19,22 +19,22 @@ pub fn ease_view_turn(camera: &mut CameraWork, step_first: u32, car: &Car) {
     for (target, turn, share) in [
         (
             camera.start_heading,
-            &car.camera_heading,
+            &mut car.camera_heading,
             camera.view_share_heading,
         ),
         (
             camera.start_pitch,
-            &car.camera_pitch,
+            &mut car.camera_pitch,
             camera.view_share_pitch,
         ),
         (
             camera.start_roll,
-            &car.camera_roll_turn,
+            &mut car.camera_roll_turn,
             camera.view_share_roll,
         ),
     ] {
-        let step = x87_1(share, target.wrapping_sub(turn.get()));
-        turn.set(turn.get().wrapping_add(step));
+        let step = x87_1(share, target.wrapping_sub(*turn));
+        *turn = turn.wrapping_add(step);
     }
 }
 

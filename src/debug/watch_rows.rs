@@ -26,7 +26,7 @@ pub static GROUPS: &[Group] = &[
                 "Steering used",
                 "usesteer",
                 Shown::Float,
-                indexed_cell!(|o| o.race.shared.physics_tables.get(), handling[7]),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), handling[7]),
                 false,
                 (0, 0),
             ),
@@ -188,7 +188,7 @@ pub static GROUPS: &[Group] = &[
                 "Split point's distance",
                 "bloffst3",
                 Shown::Float,
-                indexed_cell!(|o| o.race.shared.physics_tables.get(), split_point_distance),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), split_point_distance),
                 false,
                 (0, 0),
             ),
@@ -1988,7 +1988,7 @@ pub static GROUPS: &[Group] = &[
                 "Front z size",
                 "car fzsi",
                 Shown::Whole,
-                indexed_cell!(|o| o.race.shared.physics_tables.get(), spec_ints[0]),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), spec_ints[0]),
                 false,
                 (0, 0),
             ),
@@ -1996,7 +1996,7 @@ pub static GROUPS: &[Group] = &[
                 "Rear z size",
                 "car rzsi",
                 Shown::Whole,
-                indexed_cell!(|o| o.race.shared.physics_tables.get(), spec_ints[1]),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), spec_ints[1]),
                 false,
                 (0, 0),
             ),
@@ -2004,7 +2004,7 @@ pub static GROUPS: &[Group] = &[
                 "Side size",
                 "car sisi",
                 Shown::Whole,
-                indexed_cell!(|o| o.race.shared.physics_tables.get(), spec_ints[2]),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), spec_ints[2]),
                 false,
                 (0, 0),
             ),
@@ -2017,10 +2017,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 1: steering grip",
                 "s1.sgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[1].slide_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[1].slide_grip),
                 false,
                 (0, 0),
             ),
@@ -2028,10 +2025,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 1: acceleration grip",
                 "s1.agrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[1].accel_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[1].accel_grip),
                 false,
                 (0, 0),
             ),
@@ -2039,10 +2033,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 1: braking grip",
                 "s1.bgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[1].brake_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[1].brake_grip),
                 false,
                 (0, 0),
             ),
@@ -2050,10 +2041,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 2: steering grip",
                 "s2.sgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[2].slide_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[2].slide_grip),
                 false,
                 (0, 0),
             ),
@@ -2061,10 +2049,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 2: acceleration grip",
                 "s2.agrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[2].accel_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[2].accel_grip),
                 false,
                 (0, 0),
             ),
@@ -2072,10 +2057,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 2: braking grip",
                 "s2.bgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[2].brake_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[2].brake_grip),
                 false,
                 (0, 0),
             ),
@@ -2083,10 +2065,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 3: steering grip",
                 "s3.sgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[3].slide_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[3].slide_grip),
                 false,
                 (0, 0),
             ),
@@ -2094,10 +2073,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 3: acceleration grip",
                 "s3.agrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[3].accel_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[3].accel_grip),
                 false,
                 (0, 0),
             ),
@@ -2105,10 +2081,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 3: braking grip",
                 "s3.bgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[3].brake_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[3].brake_grip),
                 false,
                 (0, 0),
             ),
@@ -2116,10 +2089,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 4: steering grip",
                 "s4.sgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[4].slide_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[4].slide_grip),
                 false,
                 (0, 0),
             ),
@@ -2127,10 +2097,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 4: acceleration grip",
                 "s4.agrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[4].accel_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[4].accel_grip),
                 false,
                 (0, 0),
             ),
@@ -2138,10 +2105,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 4: braking grip",
                 "s4.bgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[4].brake_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[4].brake_grip),
                 false,
                 (0, 0),
             ),
@@ -2149,10 +2113,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 5: steering grip",
                 "s5.sgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[5].slide_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[5].slide_grip),
                 false,
                 (0, 0),
             ),
@@ -2160,10 +2121,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 5: acceleration grip",
                 "s5.agrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[5].accel_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[5].accel_grip),
                 false,
                 (0, 0),
             ),
@@ -2171,10 +2129,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 5: braking grip",
                 "s5.bgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[5].brake_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[5].brake_grip),
                 false,
                 (0, 0),
             ),
@@ -2182,10 +2137,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 6: steering grip",
                 "s6.sgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[6].slide_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[6].slide_grip),
                 false,
                 (0, 0),
             ),
@@ -2193,10 +2145,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 6: acceleration grip",
                 "s6.agrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[6].accel_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[6].accel_grip),
                 false,
                 (0, 0),
             ),
@@ -2204,10 +2153,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 6: braking grip",
                 "s6.bgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[6].brake_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[6].brake_grip),
                 false,
                 (0, 0),
             ),
@@ -2215,10 +2161,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 7: steering grip",
                 "s7.sgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[7].slide_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[7].slide_grip),
                 false,
                 (0, 0),
             ),
@@ -2226,10 +2169,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 7: acceleration grip",
                 "s7.agrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[7].accel_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[7].accel_grip),
                 false,
                 (0, 0),
             ),
@@ -2237,10 +2177,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 7: braking grip",
                 "s7.bgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[7].brake_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[7].brake_grip),
                 false,
                 (0, 0),
             ),
@@ -2248,10 +2185,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 8: steering grip",
                 "s8.sgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[8].slide_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[8].slide_grip),
                 false,
                 (0, 0),
             ),
@@ -2259,10 +2193,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 8: acceleration grip",
                 "s8.agrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[8].accel_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[8].accel_grip),
                 false,
                 (0, 0),
             ),
@@ -2270,10 +2201,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 8: braking grip",
                 "s8.bgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[8].brake_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[8].brake_grip),
                 false,
                 (0, 0),
             ),
@@ -2281,10 +2209,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 9: steering grip",
                 "s9.sgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[9].slide_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[9].slide_grip),
                 false,
                 (0, 0),
             ),
@@ -2292,10 +2217,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 9: acceleration grip",
                 "s9.agrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[9].accel_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[9].accel_grip),
                 false,
                 (0, 0),
             ),
@@ -2303,10 +2225,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 9: braking grip",
                 "s9.bgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[9].brake_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[9].brake_grip),
                 false,
                 (0, 0),
             ),
@@ -2314,10 +2233,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 10: braking grip",
                 "sa.bgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[10].brake_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[10].brake_grip),
                 false,
                 (0, 0),
             ),
@@ -2325,10 +2241,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 11: braking grip",
                 "sb.bgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[11].brake_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[11].brake_grip),
                 false,
                 (0, 0),
             ),
@@ -2336,10 +2249,7 @@ pub static GROUPS: &[Group] = &[
                 "Surface 12: braking grip",
                 "sc.bgrip",
                 Shown::Float,
-                indexed_cell!(
-                    |o| o.race.shared.physics_tables.get(),
-                    surfaces[12].brake_grip
-                ),
+                indexed_cell!(|o| &o.race.shared.physics_tables(), surfaces[12].brake_grip),
                 false,
                 (0, 0),
             ),
@@ -2797,7 +2707,7 @@ pub static GROUPS: &[Group] = &[
                 "trackdis",
                 Shown::Float,
                 store_cell!(
-                    |o| o.race.frame.view_and_records.get(),
+                    |o| o.race.frame.view_and_records.borrow(),
                     view_vars.camera_distance
                 ),
                 false,
@@ -2840,7 +2750,7 @@ pub static GROUPS: &[Group] = &[
                 "rcamjump",
                 Shown::Float,
                 store_cell!(
-                    |o| o.race.frame.view_and_records.get(),
+                    |o| o.race.frame.view_and_records.borrow(),
                     view_vars.camera_height_bias
                 ),
                 false,
@@ -3046,7 +2956,7 @@ pub static GROUPS: &[Group] = &[
                 "Car parts allocated",
                 "cpartsal",
                 Shown::Whole,
-                store_cell!(|o| o.race.shared.work.get(), slot_count),
+                store_cell!(|o| o.race.shared.work(), slot_count),
                 false,
                 (0, 0),
             ),

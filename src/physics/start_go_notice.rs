@@ -14,16 +14,16 @@ use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
 pub(super) fn start_go_notice(
     frame_work: &FrameWorkStore,
     work: &RaceWork,
-    car: &Car,
+    car: &mut Car,
     sound: &crate::sound::owner::Sound,
     cheats: u32,
 ) -> Result<(), Refused> {
-    let c = car;
+    let c: &mut crate::physics::car_store::Car = car;
     let facts = GoFacts {
-        mode: c.driver_kind.get(),
-        countdown: c.time_left.get(),
-        gone: c.go_stand_timer.get(),
-        finished: c.finish_flag.get(),
+        mode: c.driver_kind,
+        countdown: c.time_left,
+        gone: c.go_stand_timer,
+        finished: c.finish_flag,
         cheats,
     };
     if !facts.go_due() {
@@ -34,9 +34,9 @@ pub(super) fn start_go_notice(
         work,
         &mut sound.race.stage.get().borrow_mut().once[2],
     )?;
-    c.go_stand_timer.set(1);
-    c.notice_id.set(GO_NOTICE);
-    c.notice_time_b.set(0x32);
-    c.notice_time.set(u32::MAX);
+    c.go_stand_timer = 1;
+    c.notice_id = GO_NOTICE;
+    c.notice_time_b = 0x32;
+    c.notice_time = u32::MAX;
     Ok(())
 }

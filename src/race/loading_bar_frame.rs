@@ -137,9 +137,7 @@ fn frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
     // Logic in `rc2k_core::race::loading::{frame_tried}`.
     use crate::scene::*;
     use rc2k_core::race::loading::frame_tried;
-    if !shared.work.get().in_credits.is_set()
-        && !STAGE_LOADING.load(std::sync::atomic::Ordering::Relaxed)
-    {
+    if shared.work().in_credits == 0 && !STAGE_LOADING.load(std::sync::atomic::Ordering::Relaxed) {
         return Ok(());
     }
     if session.flags.quitting.is_set() {

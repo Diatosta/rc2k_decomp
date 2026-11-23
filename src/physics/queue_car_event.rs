@@ -13,27 +13,27 @@ use crate::physics::cells::{set_changed, set_values_changed, values};
 use rc2k_core::physics::car_events::CarEvents;
 
 /// The work car's queue.
-pub fn load(car: &Car) -> CarEvents {
+pub fn load(car: &mut Car) -> CarEvents {
     CarEvents {
         times: values(&car.car_event_times),
         events: values(&car.car_event_codes),
-        count: car.car_event_count.get(),
-        level: car.car_event_limit.get(),
-        shown: car.car_event_position.get(),
+        count: car.car_event_count,
+        level: car.car_event_limit,
+        shown: car.car_event_position,
     }
 }
 
 /// What changed from `was` to `now` stored back.
-pub fn store(car: &Car, was: &CarEvents, now: &CarEvents) {
-    set_values_changed(&car.car_event_times, &was.times, &now.times);
-    set_values_changed(&car.car_event_codes, &was.events, &now.events);
-    set_changed(&car.car_event_count, was.count, now.count);
-    set_changed(&car.car_event_limit, was.level, now.level);
-    set_changed(&car.car_event_position, was.shown, now.shown);
+pub fn store(car: &mut Car, was: &CarEvents, now: &CarEvents) {
+    set_values_changed(&mut car.car_event_times, &was.times, &now.times);
+    set_values_changed(&mut car.car_event_codes, &was.events, &now.events);
+    set_changed(&mut car.car_event_count, was.count, now.count);
+    set_changed(&mut car.car_event_limit, was.level, now.level);
+    set_changed(&mut car.car_event_position, was.shown, now.shown);
 }
 
 pub(super) fn queue_car_event(
-    car: &Car,
+    car: &mut Car,
     scene_clock: u32,
     esi: u32,
     ebx: u32,

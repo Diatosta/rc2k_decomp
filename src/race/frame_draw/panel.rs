@@ -73,13 +73,13 @@ pub fn panel_players(race: &Race) -> Result<(), BadInput> {
         }
         frame.panel.borrow_mut().view_a.back = u32::MAX;
         frame.panel.borrow_mut().view_a.front = u32::MAX;
-        // Each view block's `two_car_place`.
+        // Each view block's `two_car_place`, as far as the race works it out (`shown_place`).
         let field = |n: usize| -> Result<u32, BadInput> {
-            Ok(shared
+            let kept = shared
                 .view_car(n)
                 .ok_or(BadInput("a view without its car block"))?
-                .two_car_place
-                .get())
+                .two_car_place;
+            Ok(shown_place(race, shared.view.get().view_number(n)?, kept))
         };
         frame.panel.borrow_mut().view_a.place = field(0)?;
         frame.panel.borrow_mut().view_b.place = field(1)?;
@@ -136,7 +136,7 @@ pub fn view_value(
 
 /// The value into the view's block `eased_target` (`view_value`).
 pub fn store_view_value(race: &Race, block: usize, value: u32) -> Result<(), Refused> {
-    race.car_blocks().cars[block].eased_target.set(value);
+    race.car_blocks_mut().cars[block].eased_target = value;
     Ok(())
 }
 
@@ -245,7 +245,7 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
     // Each write is its own short borrow: the network helpers below borrow the panel too.
     let put = |k: usize, value: u32| put_shown(&mut race.frame.panel.borrow_mut(), first, k, value);
     // The shown engine speed is the drawing's own (`race::car_parts`), in the block.
-    let whole = shown_whole(race.car_parts().cars[car].shown_engine_speed.get());
+    let whole = shown_whole(race.car_parts().cars[car].shown_engine_speed);
     let car = race.frame.cars.car(car)?;
     put(0, whole as u32);
     put(1, car.engine_sound_speed_int.get());
@@ -327,14 +327,14 @@ fn network_disc_cars(race: &Race) {
     if count > 1 && race.shared.vars.get().checkpoint_count.get() >= 2 {
         let at = |n: usize| {
             let car = race.shared.race_car(n).ok()?;
-            crate::race::map_scroll::map_position(race, car).ok()
+            crate::race::map_scroll::map_position(race, &car).ok()
         };
         if let Some(from) = at(own) {
             for n in (0..count).filter(|&n| n != own) {
                 let in_race = race
                     .shared
                     .race_car(n)
-                    .is_ok_and(|car| car.driver_kind.get() != 0);
+                    .is_ok_and(|car| car.driver_kind != 0);
                 let Some(place) = at(n).filter(|_| in_race) else {
                     continue;
                 };
@@ -351,6 +351,16 @@ fn network_disc_cars(race: &Race) {
     panel.disc_cars = shown;
 }
 
+/// The place car `car` shows from its kept `two_car_place` (`places::shown_place`).
+fn shown_place(race: &Race, car: usize, kept: u32) -> u32 {
+    rc2k_core::drive::places::shown_place(
+        race.shared.vars.get().run_kind.get(),
+        race.shared.view.get().players.get(),
+        car,
+        kept,
+    )
+}
+
 /// The players a split screen of three or four shows on every part's stage bar.
 fn panel_split_players(race: &Race, players: usize) {
     let shown = if players > 2 { players.min(4) } else { 0 };
@@ -363,14 +373,14 @@ fn panel_split_players(race: &Race, players: usize) {
 /// first) or show nothing (the others).
 fn split_disc_cars(race: &Race) -> Result<(), BadInput> {
     let view = race.shared.view.get();
-    let players = (view.players.get() as usize).min(4);
+    let players = (view.split_parts() as usize).min(4);
     if players < 2 {
         race.frame.panel.borrow_mut().disc_cars_more = [0; 3];
         return Ok(());
     }
     let at = |car: usize| {
         let car = race.shared.race_car(car).ok()?;
-        crate::race::map_scroll::map_position(race, car).ok()
+        crate::race::map_scroll::map_position(race, &car).ok()
     };
     let enough = race.shared.vars.get().checkpoint_count.get() >= 2;
     let cars = (0..players)
@@ -424,7 +434,11 @@ fn car_distances(
 ) -> Result<(), BadInput> {
     use rc2k_core::race::panel::{distance_shown, travelled};
     for n in 0..count.min(8) {
-        let car = race.frame.cars.car(n)?;
+        // Part `n` shows the car `view_number(n)`: the same car but in a group of players.
+        let car = race
+            .frame
+            .cars
+            .car(race.shared.view.get().view_number(n)?)?;
         let at = |n: u32| {
             crate::race::checkpoints_store::distance_run_on(race.checkpoints(), n as usize)
         };
@@ -440,14 +454,17 @@ pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
     {
         // A split screen of more than two players: each player's values for the HUD of the
         // player's part, taken the way the first view's are, before the two views' own.
-        let players = race.shared.view.get().players.get() as usize;
+        let players = race.shared.view.get().split_parts() as usize;
         if players > 2 {
             for n in 0..players.min(4) {
-                panel_half(race, n, true)?;
-                let place = race.frame.cars.car(n)?.two_car_place.get();
+                // The part's own player's car (the first to the fourth, or those of a group).
+                let car = race.shared.view.get().view_number(n)?;
+                panel_half(race, car, true)?;
+                let place = shown_place(race, car, race.frame.cars.car(car)?.two_car_place.get());
                 let mut panel = race.frame.panel.borrow_mut();
                 panel.parts[n] = panel.view_a;
                 panel.parts[n].place = place;
+                panel.part_cars[n] = car as u32;
             }
         }
         panel_half(race, race.shared.view.get().view_number(0)?, true)?;
@@ -455,7 +472,7 @@ pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
         split_disc_cars(race)?;
         // A split screen of more than two players shows each player's progress on its own part's
         // bar (`hud::layout_many`), from the same distances the network markers use.
-        let players = race.shared.view.get().players.get() as usize;
+        let players = race.shared.view.get().split_parts() as usize;
         panel_split_players(race, players);
         if players > 2 {
             let (unit, miles) = (
@@ -482,27 +499,28 @@ pub fn wake_part_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Resu
     if cars > 8 {
         return Err(BadInput("more than eight race cars").into());
     }
-    let current: u32 = shared.work.get().current_car.get();
+    let current: u32 = shared.work().current_car;
     // The plan: (block slot to set, whether to wake the object) by car.
-    let mut plan: Vec<&dyn crate::memory::session::DwordLike> = Vec::new();
+    let mut plan: Vec<(usize, usize)> = Vec::new();
     let mut woken: Vec<&crate::sound::store::SoundObjectCell> = Vec::new();
     for car in 0..cars {
         let object = crate::sound::store::SoundObject::of(sound, car & 7)?;
         let mut wake = false;
-        let block = shared.race_car_or(car as usize, "a null car block")?;
+        let block_number = shared.race_index_or_in_pub(car as usize, "a null car block")?;
+        let block = std::cell::Ref::map(shared.car_blocks(), |blocks| &blocks.cars[block_number]);
         // Every flag set: each slot is `Left` whatever its count, nothing to plan (the flags only
         // go 0 -> 1, `part_woken` has no other writer).
-        if block.part_woken.iter().all(|flag| flag.get() != 0) {
+        if block.part_woken.iter().all(|flag| *flag != 0) {
             continue;
         }
         for slot in 0..6usize {
             use rc2k_core::race::lights::{PartWake, part_wake};
-            let count = block.part_wake_counts[slot].get();
-            let part = part_wake(block.part_woken[slot].get(), count);
+            let count = block.part_wake_counts[slot];
+            let part = part_wake(block.part_woken[slot], count);
             if part == PartWake::Left {
                 continue;
             }
-            plan.push(&block.part_woken[slot]);
+            plan.push((block_number, slot));
             if part != PartWake::WokenNow {
                 continue;
             }
@@ -518,8 +536,8 @@ pub fn wake_part_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Resu
             woken.push(object);
         }
     }
-    for cell in plan {
-        cell.set(1);
+    for (block, slot) in plan {
+        shared.car_blocks_mut().cars[block].part_woken[slot] = 1;
     }
     for object in woken {
         let mut object = object.borrow_mut();
@@ -552,13 +570,13 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
         if car > 7 {
             return Err(BadInput("a neighbour's car past the eight").into());
         }
-        if !shared.work.get().has_car_block(car as usize) {
+        if !shared.work().has_car_block(car as usize) {
             return Err(BadInput("a neighbour's block is null").into());
         }
         Ok(race
             .frame
             .cars
-            .car(shared.work.get().block_number(car as usize)?)?)
+            .car(shared.work().block_number(car as usize)?)?)
     };
     let behind = block_of(on(Listed::ComputerEaseSpeed, place.wrapping_add(1))?)?;
     let ahead = block_of(on(Listed::ComputerEaseSpeed, place)?)?;
@@ -597,8 +615,8 @@ pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
             let b = race.shared.view.get().view_number(view)?;
             let car = &race.car_blocks().cars[b];
             let mut out = [0; 3];
-            out[0] = motion(car.map_picture_place[0].get() as i32, half, small).to_bits();
-            out[1] = motion(car.map_picture_place[1].get() as i32, half, small).to_bits();
+            out[0] = motion(car.map_picture_place[0] as i32, half, small).to_bits();
+            out[1] = motion(car.map_picture_place[1] as i32, half, small).to_bits();
             let turn = heading_turn(race.frame.cars.car(b)?.car_heading.get());
             out[2] = heading(turn as i32, half, big).to_bits();
             let mut panel = race.frame.panel.borrow_mut();
@@ -609,13 +627,19 @@ pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
             }
         }
         // A split screen of three or four: the further players' maps move with their cars too.
-        let players = race.shared.view.get().players.get() as usize;
+        let players = race.shared.view.get().split_parts() as usize;
         for n in 2..players.min(4) {
             let car = &race.car_blocks().cars[race.shared.view.get().view_number(n)?];
             let mut out = [0; 3];
-            out[0] = motion(car.map_picture_place[0].get() as i32, half, small).to_bits();
-            out[1] = motion(car.map_picture_place[1].get() as i32, half, small).to_bits();
-            let turn = heading_turn(race.frame.cars.car(n)?.car_heading.get());
+            out[0] = motion(car.map_picture_place[0] as i32, half, small).to_bits();
+            out[1] = motion(car.map_picture_place[1] as i32, half, small).to_bits();
+            let turn = heading_turn(
+                race.frame
+                    .cars
+                    .car(race.shared.view.get().view_number(n)?)?
+                    .car_heading
+                    .get(),
+            );
             out[2] = heading(turn as i32, half, big).to_bits();
             race.frame.panel.borrow_mut().parts[n].motion = out;
         }
@@ -777,7 +801,7 @@ pub(super) fn check_panel_neighbours(
         let car = shared
             .tables()
             .dword_from(Listed::ComputerEaseSpeed, n as usize)?;
-        if car > 7 || !shared.work.get().has_car_block(car as usize) {
+        if car > 7 || !shared.work().has_car_block(car as usize) {
             return Err(BadInput("a neighbour's car past the eight or null").into());
         }
     }
@@ -812,5 +836,5 @@ pub fn reset_lamps(ctx: &crate::race::view_scratch::DrawCtx) -> Result<(), BadIn
 
 /// Holds `value` to `patch_settings` (unsigned).
 pub fn hold_to_limit(work: &crate::race::work_store::RaceWork, value: u32) -> u32 {
-    rc2k_core::race::frame::hold_to_limit(value, work.patch_settings()[0].get())
+    rc2k_core::race::frame::hold_to_limit(value, work.patch_settings()[0])
 }

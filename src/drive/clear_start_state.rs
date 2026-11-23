@@ -5,11 +5,11 @@
 use crate::race::owner_shared::RaceShared;
 
 pub fn clear_start_state(shared: &RaceShared) {
-    let car = shared.car();
-    car.driver_kind.set(0);
-    car.checkpoint.set(0);
-    car.engine_sound_speed_int.set(0);
-    car.start_share.set(0.0);
-    car.start_blend.set(0.0);
-    car.reserved_44.set(0);
+    let mut car = shared.car_mut();
+    car.driver_kind = 0;
+    car.checkpoint = 0;
+    car.engine_sound_speed_int = 0;
+    car.start_share = 0.0;
+    car.start_blend = 0.0;
+    car.reserved_44 = 0;
 }

@@ -57,7 +57,7 @@ pub unsafe trait Cells {
 ///
 /// # Safety
 /// The type is `#[repr(C)]` (or transparent) over `ByteView` fields with no padding, so any bit
-/// pattern of `size_of::<Self>()` bytes is a valid value (`cells_of_bytes` relies on it). Every
+/// pattern of `size_of::<Self>()` bytes is a valid value. Every
 /// byte is inside an `UnsafeCell` or an atomic (`Cells`). `cell_run` is safe to get wrong (it
 /// hands out references): a wrong run is a wrong read, which the tests of every store look for
 /// (`cells_tests`).
@@ -177,6 +177,10 @@ pub trait CellVisitor {
 /// (`#[derive(Cells)]`); primitive 32-bit cells and arrays of them implement it here.
 pub trait SameShape<To: ?Sized> {
     /// Every cell of `to` set from the same cell of `self`, in field order.
+    #[cfg_attr(
+        not(test),
+        allow(dead_code, reason = "the tests copy records cell by cell")
+    )]
     fn copy_cells_to(&self, to: &To);
 
     /// The cells of `self` that differ from the same cells of `start` set into `to`, the
@@ -215,6 +219,7 @@ impl<A: SameShape<B>, B, const N: usize> SameShape<[B; N]> for [A; N] {
     }
 }
 
+#[cfg(test)]
 /// Every primitive run's bytes of `record` one after another, whatever kinds of cells hold
 /// them: two records of one shape in other cells give equal bytes when their values are equal.
 pub fn flatten<T: Cells>(record: &T) -> Vec<u8> {
@@ -1280,20 +1285,15 @@ plain_record!(
     rc2k_core::menu::player::Player = 0x28C,
 );
 
-/// A record whose every byte is a cell, read and written by byte offset through its own cells
-/// (`load_cells`, `store_cells`): the tests' reference for the typed reads.
+/// A record whose every byte is a cell, written by byte offset through its own cells
+/// (`store_cells`): the tests' reference for the typed writes.
 #[cfg(test)]
 pub trait Store {
-    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput>;
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput>;
 }
 
 #[cfg(test)]
 impl<T: ByteView> Store for T {
-    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
-        load_cells(self, offset, to)
-    }
-
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput> {
         store_cells(self, offset, from)
     }
@@ -1410,6 +1410,7 @@ fn store_bytes(run: &[AtomicU8], from: &[u8]) {
     }
 }
 
+#[cfg(test)]
 /// A record of cells with every byte zero, as a constant (a store's `new()`).
 pub const fn zeroed_cells<T: Cells>() -> T {
     // SAFETY: `T` is made of cells over plain integers (`Cells`), so the all-zero value is
@@ -1424,31 +1425,6 @@ pub fn boxed_zeroed_cells<T: Cells>() -> Box<T> {
     // SAFETY: as `zeroed_cells`: `T` is made of cells over plain integers (`Cells`), so the
     // all-zero value is valid.
     unsafe { Box::<T>::new_zeroed().assume_init() }
-}
-
-#[cfg(test)]
-/// A record of cells with these bytes as its first values (a static's, at compile time: a
-/// race-block piece that left the block takes the starting bytes).
-pub const fn cells_of_bytes<T: ByteView, const N: usize>(bytes: [u8; N]) -> T {
-    assert!(core::mem::size_of::<T>() == N, "the record's size");
-    union Bits<T, const N: usize> {
-        bytes: core::mem::ManuallyDrop<[u8; N]>,
-        record: core::mem::ManuallyDrop<T>,
-    }
-    let bits = Bits::<T, N> {
-        bytes: core::mem::ManuallyDrop::new(bytes),
-    };
-    // SAFETY: `T` is made of cells over plain integers with no padding (`ByteView`), so any
-    // bytes are a valid value, and the sizes are equal (checked above).
-    core::mem::ManuallyDrop::into_inner(unsafe { bits.record })
-}
-
-/// The `T` at byte `offset` of `store` (any alignment; a run past the store is refused).
-#[cfg(test)]
-pub fn load_value<T: Plain>(store: &dyn Store, offset: usize) -> Result<T, BadInput> {
-    let mut value = zeroed::<T>();
-    store.load(offset, bytes_mut(&mut value))?;
-    Ok(value)
 }
 
 /// `value` written at byte `offset` of `store` (a run past the store is refused).

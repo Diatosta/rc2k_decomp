@@ -16,12 +16,11 @@ pub fn reset_car_on_line(
 ) -> Result<(), Refused> {
     let nearest =
         crate::race::start_place::nearest_checkpoint(c.physics, c.course, c.shared, scene)?;
-    for cell in [
-        &c.car.checkpoint,
-        &c.car.reset_checkpoint,
-        &c.car.last_pace_call,
-    ] {
-        cell.set(nearest);
+    {
+        let mut car = c.shared.car_mut();
+        car.checkpoint = nearest;
+        car.reset_checkpoint = nearest;
+        car.last_pace_call = nearest;
     }
     {
         let mut line = scene.line_and_shake_mut();
@@ -30,8 +29,9 @@ pub fn reset_car_on_line(
     }
     crate::race::start_place::place_car_on_line(c.shared, c.course, scene)?;
     crate::race::car_starts::reset_car_motion(c, scene)?;
-    c.car.value_jump_steps.set(8u32);
-    c.car.light_hold_steps.set(8u32);
-    c.car.reset_marker.set(10u32);
+    let mut car = c.shared.car_mut();
+    car.value_jump_steps = 8u32;
+    car.light_hold_steps = 8u32;
+    car.reset_marker = 10u32;
     Ok(())
 }

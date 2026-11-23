@@ -8,33 +8,13 @@
 //! and what `gear_bit` refuses.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::session::{PlainDword, PlainInt};
+use crate::physics::car_store::Car;
 use crate::physics::gear_bit::gear_bit_at;
-use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_at};
+use crate::physics::gearing::{revs_from_wheels_at, wheels_from_revs_at};
+use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::gear_shifts::Change;
-
-/// The other places: the asked gear, the gear bits, the two words set.
-#[derive(Clone, Copy)]
-struct ChangePlaces<'a> {
-    pub wanted: &'a PlainInt,
-    /// By address: `bt` on memory, its bit number past the first dword.
-    pub bits: &'a PlainDword,
-    pub changed: &'a PlainInt,
-    pub pending: &'a PlainDword,
-}
-
-impl<'a> ChangePlaces<'a> {
-    pub fn game(shared: &'a RaceShared) -> Self {
-        Self {
-            wanted: &shared.physics_tables.get().gear_asked,
-            bits: &shared.car().lost_gear_bits,
-            changed: &shared.car().gear_changed,
-            pending: &shared.car().gear_change_pending,
-        }
-    }
-}
 
 fn ratio_gear(g: i32) -> Result<(), Refused> {
     if (-1..=7).contains(&g) {
@@ -44,54 +24,47 @@ fn ratio_gear(g: i32) -> Result<(), Refused> {
     }
 }
 
-/// The core.
+/// The core, on the car and the physics tables (the asked gear, the gear ratios).
 // Core: `rc2k_core::physics::gear_shifts::change`.
-fn change_gear_at(
-    numbers: &Numbers,
-    gp: &GearPlaces<'_>,
-    c: &ChangePlaces<'_>,
-) -> Result<(), Refused> {
-    let gear = gp.gear.get();
-    let w = c.wanted.get();
+fn change_gear_at(numbers: &Numbers, car: &mut Car, tables: &PhysicsTables) -> Result<(), Refused> {
+    let gear = car.gear;
+    let w = tables.gear_asked;
+    let ratios = &tables.gear_ratios;
     let way = rc2k_core::physics::gear_shifts::change(gear, w);
     if way == Change::Same {
         return Ok(());
     }
-    let mark = || {
-        c.changed.set(1);
-        c.pending.set(1);
+    let mark = |car: &mut Car| {
+        car.gear_changed = 1;
+        car.gear_change_pending = 1;
     };
-    let neutral = || {
-        gp.gear.set(0);
-        mark();
+    let neutral = |car: &mut Car| {
+        car.gear = 0;
+        mark(car);
         Ok(())
     };
     if way == Change::FromNeutral {
         ratio_gear(w)?;
-        gp.gear.set(w);
-        wheels_from_revs_at(gp)?;
-        mark();
+        car.gear = w;
+        wheels_from_revs_at(car, ratios)?;
+        mark(car);
         return Ok(());
     }
     if way == Change::ToNeutral {
-        return neutral();
+        return neutral(car);
     }
-    if gear_bit_at(c.bits, w)? {
-        return neutral();
+    if gear_bit_at(car.lost_gear_bits, w)? {
+        return neutral(car);
     }
     ratio_gear(gear)?;
     ratio_gear(w)?;
-    wheels_from_revs_at(gp)?;
-    gp.gear.set(w);
-    revs_from_wheels_at(numbers, gp)?;
-    mark();
+    wheels_from_revs_at(car, ratios)?;
+    car.gear = w;
+    revs_from_wheels_at(numbers, car, ratios)?;
+    mark(car);
     Ok(())
 }
 
 pub fn change_gear(numbers: &Numbers, shared: &RaceShared) -> Result<(), Refused> {
-    change_gear_at(
-        numbers,
-        &GearPlaces::game(shared.car(), shared.physics_tables.get()),
-        &ChangePlaces::game(shared),
-    )
+    change_gear_at(numbers, &mut shared.car_mut(), &shared.physics_tables())
 }

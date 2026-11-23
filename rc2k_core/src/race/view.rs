@@ -215,6 +215,17 @@ pub fn device_fog_colour(colour: u32) -> u32 {
     colour | 0xFF00_0000
 }
 
+/// The HUD switches the views have (the race's view switches; in a replay the head's bytes 2 and
+/// 3, the viewer panel's left and right HUD buttons).
+pub const HUD_SWITCHES: usize = 2;
+
+/// The HUD switch that part `part` of the screen follows: the first two parts their own; the
+/// further parts of a split screen, which have none, the one on their side of the panel, as their
+/// camera buttons lie (the third part the left, the fourth the right).
+pub fn hud_switch_of(part: usize) -> usize {
+    part % HUD_SWITCHES
+}
+
 /// A player's part of the screen: its corner and size in pixels.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PlayerPart {
@@ -368,9 +379,28 @@ pub fn mirror_window(
     screen: (u32, u32),
     rule: crate::hud::anchor::Rule,
     hud_box: crate::hud::anchor::BoxRatio,
+    one_player: bool,
 ) -> Option<MirrorRect> {
     use crate::hud::anchor;
     let (left, width) = hud_box.area(screen.0, screen.1);
+    if one_player && anchor::is_narrow(width, screen.1) {
+        // One player on a narrow screen: the layout keeps its shape at its full size (down to the
+        // limit `anchor::CLEAR_ASPECT`), the mirror keeping to its edge or the middle across and
+        // to the top, bottom or middle down by where it lies.
+        let s = anchor::layout_scale(width, screen.1);
+        let middle = place.0 as f32 + MIRROR_SIZE.0 as f32 / 2.0;
+        let at = anchor::offset(width, screen.1, anchor::anchor_of(middle, rule));
+        let x = (f64::from(left) + at + f64::from(place.0) * s).floor();
+        let mid = place.1 as f32 + MIRROR_SIZE.1 as f32 / 2.0;
+        let y = anchor::narrow_y(place.1 as f32, mid, screen.1, s).floor();
+        let size = |n: u32| (f64::from(n) * s).floor() as u32 & !1;
+        return Some(MirrorRect {
+            x: x.max(0.0) as u32 & !1,
+            y: y.max(0.0) as u32,
+            width: size(MIRROR_SIZE.0),
+            height: size(MIRROR_SIZE.1),
+        });
+    }
     if anchor::is_wide(width, screen.1) {
         let middle = place.0 as f32 + MIRROR_SIZE.0 as f32 / 2.0;
         let at = anchor::offset(width, screen.1, anchor::anchor_of(middle, rule));
@@ -384,6 +414,18 @@ pub fn mirror_window(
             y: scaled(place.1, screen.1, 600)?,
             width: anchor::across(MIRROR_SIZE.0, width, screen.1)? & !1,
             height: scaled(MIRROR_SIZE.1, screen.1, 600)?,
+        });
+    }
+    if crate::hud::anchor::is_narrow(width, screen.1) {
+        // Narrower than 4:3: the layout keeps its shape, one factor (the width over 800) down as
+        // across, the mirror keeping to the top, bottom or middle by where it lies.
+        let mid = place.1 as f32 + MIRROR_SIZE.1 as f32 / 2.0;
+        let y = anchor::narrow_y(place.1 as f32, mid, screen.1, f64::from(width) / 800.0).floor();
+        return Some(MirrorRect {
+            x: (left + scaled(place.0, width, 800)?) & !1,
+            y: y.max(0.0) as u32,
+            width: scaled(MIRROR_SIZE.0, width, 800)?,
+            height: scaled(MIRROR_SIZE.1, width, 800)?,
         });
     }
     Some(MirrorRect {
@@ -412,6 +454,11 @@ mod tests {
     use super::*;
 
     #[test]
+    fn each_part_follows_a_hud_switch() {
+        assert_eq!([0, 1, 2, 3].map(hud_switch_of), [0, 1, 0, 1]);
+    }
+
+    #[test]
     fn fog_and_mirror() {
         assert_eq!(fog_colour(0x12, 0x34, 0x56), 0x12_3456);
         assert_eq!(fog_colour(0x100, 0, 0), 0x0100_0000);
@@ -423,7 +470,8 @@ mod tests {
                 (0x139, 0x10),
                 (1024, 768),
                 crate::hud::anchor::Rule::Thirds,
-                crate::hud::anchor::BoxRatio::Full
+                crate::hud::anchor::BoxRatio::Full,
+                false
             ),
             Some(MirrorRect {
                 x: 0x190,
@@ -437,10 +485,65 @@ mod tests {
                 (u32::MAX, 0),
                 (u32::MAX, 600),
                 crate::hud::anchor::Rule::Thirds,
-                crate::hud::anchor::BoxRatio::Full
+                crate::hud::anchor::BoxRatio::Full,
+                false
             ),
             None
         );
+    }
+
+    #[test]
+    fn a_split_screens_portrait_mirror_keeps_its_shape_at_the_top() {
+        // 660 x 1088: the layout at one factor (660 / 800) both ways (sizes even, as the mirror's
+        // always are), the mirror at the top.
+        let m = mirror_window(
+            (0x139, 0x10),
+            (660, 1088),
+            crate::hud::anchor::Rule::Thirds,
+            crate::hud::anchor::BoxRatio::Full,
+            false,
+        )
+        .unwrap();
+        assert_eq!(
+            (m.width, m.height),
+            (
+                (MIRROR_SIZE.0 * 660 / 800) & !1,
+                (MIRROR_SIZE.1 * 660 / 800) & !1
+            )
+        );
+        assert!(m.y < 0x20, "the mirror keeps to the top: {m:?}");
+    }
+
+    #[test]
+    fn one_players_mirror_on_a_narrow_screen_keeps_the_normal_size_in_the_middle() {
+        use crate::hud::anchor::{BoxRatio, CLEAR_ASPECT, Rule};
+        // 700 x 600: the 4:3 size for the height; the mirror (laid out at 0x139) in the middle.
+        let m = mirror_window(
+            (0x139, 0x10),
+            (700, 600),
+            Rule::Thirds,
+            BoxRatio::Full,
+            true,
+        )
+        .unwrap();
+        assert_eq!(
+            (m.width, m.height, m.y),
+            (MIRROR_SIZE.0 & !1, MIRROR_SIZE.1, 0x10)
+        );
+        assert_eq!(m.x, (0x139 - 50) & !1);
+        // 660 x 1088: shrunk to the limit aspect's scale, at the top.
+        let k = 660.0 / (CLEAR_ASPECT * 600.0);
+        let m = mirror_window(
+            (0x139, 0x10),
+            (660, 1088),
+            Rule::Thirds,
+            BoxRatio::Full,
+            true,
+        )
+        .unwrap();
+        assert_eq!(m.width, (f64::from(MIRROR_SIZE.0) * k).floor() as u32 & !1);
+        assert_eq!(m.height, (f64::from(MIRROR_SIZE.1) * k).floor() as u32 & !1);
+        assert!(m.y < 0x20, "the mirror keeps to the top: {m:?}");
     }
 
     #[test]

@@ -3,7 +3,7 @@
 //! map.
 
 use crate::memory::MemoryList;
-use crate::memory::session::{DrawArc, DrawPlain, DrawShared, GameThread};
+use crate::memory::session::{DrawArc, DrawPlain, GameThread};
 use crate::race::clock_ticks_store::ClockTicks;
 use crate::race::error_list_store::ErrorList;
 use crate::race::frame_counter_store::FrameCounter;
@@ -59,7 +59,7 @@ pub struct Frame {
     pub panel: DrawPlain<Panel>,
     /// One copy, lent to the drawing parts (`scene::workers::DrawReads`): no part writes it. Each
     /// view draws on its own view variables (`ViewScratch::vars`).
-    pub view_and_records: DrawShared<ViewAndRecords>,
+    pub view_and_records: DrawArc<ViewAndRecords>,
     /// The models' light records, shared with the drawing parts (`scene::workers::DrawReads`):
     /// no part writes them. `scene::load_object` reads a kind's record past the 34 (an unbounded
     /// kind) on into the gear figures (`LightRecords::group_at`).
@@ -99,7 +99,7 @@ impl Frame {
             view_kept: DrawPlain::new(ViewKept::new()),
             shadow_skids: DrawArc::new(ShadowSkids::new),
             panel: DrawPlain::new(Panel::new()),
-            view_and_records: DrawShared::new(ViewAndRecords::new()),
+            view_and_records: DrawArc::new(ViewAndRecords::new),
             light_records: DrawArc::new(LightRecords::new),
             cars: crate::race::frame_view::FrameCars::new(),
             main: GameThread::new(FrameMain {
