@@ -491,8 +491,8 @@ mod tests {
         assert_eq!(
             (m.width, m.height),
             (
-                MIRROR_SIZE.0 * 660 / 800 & !1,
-                MIRROR_SIZE.1 * 660 / 800 & !1
+                (MIRROR_SIZE.0 * 660 / 800) & !1,
+                (MIRROR_SIZE.1 * 660 / 800) & !1
             )
         );
         assert!(m.y < 0x20, "the mirror keeps to the top: {m:?}");
