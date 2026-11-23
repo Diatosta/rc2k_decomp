@@ -147,9 +147,12 @@ the view change, the screenshot key (`race_keys` in `src/race/frame.rs`). The pa
 and Escape ask the "leave?" question (`drive::race_loop`).
 
 The number row stands in for the race's F keys: 1 .. 9 and 0 for F1 .. F10, minus for F11 and
-equals for F12 (handy where a browser keeps the F keys for itself). Ctrl, Alt or Shift with one of
-them acts on the second view, as Ctrl does with the F keys (browsers keep Ctrl or Alt with a number
-for their tabs, depending on the system, so whichever is free works). A number key that a player's
+equals for F12 (handy where a browser keeps the F keys for itself). A modifier held with an F key or a
+number-row key picks the player it acts on: none the first, Ctrl the second (as in the original),
+Alt the third, Shift the fourth (with more than one, the later in that list; AltGr is Alt). A key
+for a player the race does not have does nothing; the volume keys turn the music with any of them
+(the original's Ctrl). Alt+F4 closes the window on most systems, so the third player's F4 is Alt+4.
+Browsers keep Ctrl or Alt with a number for their tabs, depending on the system. A number key that a player's
 keyboard controls use keeps only that use.
 
 Driving does not read keys this way. It reads the players' devices.

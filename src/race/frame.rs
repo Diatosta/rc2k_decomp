@@ -77,9 +77,9 @@ pub(super) fn load_view_car(
 }
 
 // The race keys, by PC scan code (set 1) in `keys_pressed`: F1 .. F5 (0x3B ..), F6 .. F12 for the
-// view block's option bits; `keys_now`'s 0x1D (`Devices.keys_now`, the Left Ctrl scan code) held
-// makes them act on the second view's block (`second` below).
-const VIEW_MODE_KEY: usize = 0x1D;
+// view block's option bits, or the number row standing in for them. A modifier held in `keys_now`
+// picks the player they act on (`player` below): Ctrl the second, Alt the third, Shift the fourth.
+const LEFT_CTRL_KEY: usize = 0x1D;
 const NEXT_VIEW_KEY: usize = 0x3B;
 const SPLIT_KEY: usize = 0x3C;
 const DOWN_KEY: usize = 0x3D;
@@ -92,16 +92,27 @@ fn pressed(devices: &crate::input::store::Devices, key: usize) -> bool {
     devices.keys_pressed.get(key) != 0
 }
 
-/// Ctrl, Alt (AltGr too) and Shift, either side, by key code: with a number-row key, any of them
-/// picks the second view (`rc2k_core::race::keys::on_second_view`).
-const SECOND_VIEW_MODIFIERS: [usize; 6] = [
-    VIEW_MODE_KEY, // left Ctrl
-    0x61,          // right Ctrl
-    0x38,          // left Alt
-    0x64,          // right Alt (AltGr)
-    0x2A,          // left Shift
-    0x36,          // right Shift
-];
+/// The modifiers that pick a race key's player (`rc2k_core::race::keys::key_player`), either
+/// side, by key code.
+const CTRL_KEYS: [usize; 2] = [LEFT_CTRL_KEY, 0x61];
+const ALT_KEYS: [usize; 2] = [0x38, 0x64]; // right Alt is AltGr
+const SHIFT_KEYS: [usize; 2] = [0x2A, 0x36];
+
+/// Player `player`'s car block, which the race keys change: the first two by their views (as the
+/// original's Ctrl chose the second view), the third and fourth by their own cars; none for a
+/// player the race does not have.
+fn player_car(race: &Race, player: usize) -> Result<Option<std::cell::RefMut<'_, Car>>, Refused> {
+    let shared = &race.shared;
+    if player < 2 {
+        return Ok(Some(shared.view_car_or_end_mut(player)));
+    }
+    if player >= shared.view.get().players.get() as usize {
+        return Ok(None);
+    }
+    Ok(Some(
+        shared.race_car_or_mut(player, "a further player's car block")?,
+    ))
+}
 
 /// The F key of a race key.
 fn f_key(key: rc2k_core::race::keys::Key) -> usize {
@@ -134,8 +145,8 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     let shared = &race.shared;
     crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
     use rc2k_core::race::keys::{
-        BIT_KEYS as BITS, COUNTED_VIEWS, Key, SHARED_BIT, first_key, flip_bit, number_row_for,
-        on_second_view, split_flip, volume_key, volume_step,
+        BIT_KEYS as BITS, COUNTED_VIEWS, Key, SHARED_BIT, first_key, flip_bit, key_player,
+        number_row_for, split_flip, volume_key, volume_step,
     };
     let held = |code: usize| devices.keys_now.get(code) != 0;
     // A race key is down by its F key or by the number-row key standing in for it, unless a
@@ -145,13 +156,8 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             .is_some_and(|row| pressed(devices, row) && !bound_to_controls(o.menus, row))
     };
     let key = first_key(|k| pressed(devices, f_key(k)) || by_row(k));
-    let by_number_row = key.is_some_and(|k| !pressed(devices, f_key(k)));
-    let second = on_second_view(
-        by_number_row,
-        held(VIEW_MODE_KEY),
-        SECOND_VIEW_MODIFIERS.into_iter().any(held),
-    );
-    let mut view = shared.view_car_or_end_mut(usize::from(second));
+    let any = |keys: [usize; 2]| keys.into_iter().any(held);
+    let player = key_player(any(CTRL_KEYS), any(ALT_KEYS), any(SHIFT_KEYS));
     // The view block's `option_bits` with `bit` flipped; gives the counter.
     let flip = |view: &mut Car, bit: (u32, u32, u32)| -> u32 {
         let (now, counter) = flip_bit(view.option_bits, bit);
@@ -160,6 +166,9 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     };
     match key {
         Some(Key::NextView) => {
+            let Some(mut view) = player_car(race, player)? else {
+                return Ok(());
+            };
             crate::drive::next_camera_view::next_camera_view(race, &mut view)?;
             let camera = view.camera_blend_view;
             if camera < COUNTED_VIEWS {
@@ -178,15 +187,16 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             }
             let (split, counter) = split_flip(shared.vars.get().split.get());
             shared.vars.get().split.set(split);
-            drop(view);
             set_both_counters(race, counter);
         }
         Some(k @ (Key::VolumeDown | Key::VolumeUp)) => {
             let up = k == Key::VolumeUp;
-            let (step, counter) = volume_key(up, second);
-            drop(view);
+            // Any player's modifier turns the music instead of the master volume (the original's
+            // Ctrl).
+            let music = player != 0;
+            let (step, counter) = volume_key(up, music);
             set_both_counters(race, counter);
-            if second {
+            if music {
                 let from = sound.menu.options.race_music_volume.get();
                 let volume = volume_step(from, step);
                 sound.menu.options.race_music_volume.set(volume);
@@ -199,11 +209,13 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             }
         }
         Some(Key::Bit(n)) => {
+            let Some(mut view) = player_car(race, player)? else {
+                return Ok(());
+            };
             let counter = flip(&mut view, BITS[n]);
             set_car_counter(&mut view, counter);
         }
         Some(Key::Shared) => {
-            drop(view);
             let counter = flip(&mut shared.view_car_or_end_mut(0), SHARED_BIT);
             set_both_counters(race, counter);
         }

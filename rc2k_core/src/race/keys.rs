@@ -78,12 +78,18 @@ pub fn number_row_for(f_key: usize) -> Option<usize> {
     }
 }
 
-/// Whether a race key acts on the second view. With an F key, Left Ctrl held says so (the
-/// original's rule, kept as it was). With the number row, any Ctrl, Alt or Shift does: browsers
-/// keep Ctrl or Alt with a number for their tabs (which one depends on the system), so each player
-/// has at least one that works.
-pub fn on_second_view(by_number_row: bool, left_ctrl: bool, ctrl_alt_or_shift: bool) -> bool {
-    left_ctrl || (by_number_row && ctrl_alt_or_shift)
+/// The player a race key acts on (0 .. 3), by the modifier held with it: none the first, Ctrl
+/// the second (the original's Left Ctrl with the F keys), Alt the third, Shift the fourth. With
+/// more than one held the later in that list wins, so AltGr (Ctrl and Alt together on Windows)
+/// is Alt.
+pub fn key_player(ctrl: bool, alt: bool, shift: bool) -> usize {
+    if shift {
+        3
+    } else if alt {
+        2
+    } else {
+        usize::from(ctrl)
+    }
 }
 
 #[cfg(test)]
@@ -100,14 +106,14 @@ mod tests {
     }
 
     #[test]
-    fn the_second_view() {
-        // An F key: Left Ctrl only, as the original.
-        assert!(on_second_view(false, true, true));
-        assert!(!on_second_view(false, false, true));
-        // The number row: any of Ctrl, Alt, Shift; Left Ctrl counts too.
-        assert!(on_second_view(true, false, true));
-        assert!(on_second_view(true, true, true));
-        assert!(!on_second_view(true, false, false));
+    fn each_modifier_has_its_player() {
+        assert_eq!(key_player(false, false, false), 0);
+        assert_eq!(key_player(true, false, false), 1);
+        assert_eq!(key_player(false, true, false), 2);
+        assert_eq!(key_player(false, false, true), 3);
+        // AltGr is Ctrl and Alt together on Windows: Alt's player.
+        assert_eq!(key_player(true, true, false), 2);
+        assert_eq!(key_player(true, true, true), 3);
     }
 
     #[test]
